@@ -998,7 +998,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendPhoto",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendPhoto",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -1266,7 +1266,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendPhoto",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendPhoto",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [

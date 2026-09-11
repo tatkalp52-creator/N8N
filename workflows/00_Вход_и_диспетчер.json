@@ -126,7 +126,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ chat_id: $json.chatId, text: \"Выбери канал:\", reply_markup: { inline_keyboard: $json.inline_keyboard } }) }}",
