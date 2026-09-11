@@ -134,6 +134,47 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Переведи этот текст на английский точно и живо, сохраняя интонацию и образы — не дословно-механически. Ответь только переводом, без пояснений.' }, { role: 'user', content: $json.draft } ] }) }}",
+        "options": {}
+      },
+      "id": "a8c3e1f5-7b2d-4e9a-9c1f-3d5b7e9f1a03",
+      "name": "OpenAI: перевод для форса",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1088,
+        1040
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "notes": "Раньше форс-путь оставлял ai_DescriptionEN пустой — Техчасть получала пустую английскую основу. Теперь форс переводит черновик перед тем, как ставить финальный статус, точно так же как обычный approve_description всегда требует оба текста."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst descriptionEN = textPart ? textPart.text.trim() : '';\n\nconst prev = $('Форс: есть ли черновик?').first().json;\nreturn [{ json: { ...prev, descriptionEN } }];"
+      },
+      "id": "b9d4f2a6-8c3e-4f0b-ad2e-4e6c8f0a2b14",
+      "name": "Разбираем перевод для форса",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        1040
+      ]
+    },
+    {
+      "parameters": {
         "authentication": "serviceAccount",
         "operation": "update",
         "documentId": {
@@ -154,7 +195,8 @@
           "value": {
             "sys_ProjectID": "={{ $json.sys_ProjectID }}",
             "sys_Status": "Описание согласовано",
-            "ai_Description": "={{ $json.draft }}"
+            "ai_Description": "={{ $json.draft }}",
+            "ai_DescriptionEN": "={{ $json.descriptionEN }}"
           }
         },
         "options": {}
@@ -164,8 +206,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
-        -1088,
-        944
+        -864,
+        1120
       ],
       "credentials": {
         "googleApi": {
@@ -596,6 +638,72 @@
         480
       ],
       "webhookId": "ce2f9ae7-bb68-43f9-97ca-06b086943a13",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Тот же предохранитель, что у Техчасти: не разрешаем поставить финальный\n// статус, пока обязательные поля пустые — независимо от того, что сказала модель.\nconst j = $input.first().json;\nconst required = {\n  finalText: j.finalText,\n  finalTextEN: j.finalTextEN,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\nreturn [{ json: { ...j, missingFields } }];"
+      },
+      "id": "c1d3e5f7-9a2b-4c6d-8e0f-1a3b5c7d9e21",
+      "name": "Проверка полноты пакета",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "package-complete-check",
+              "leftValue": "={{ $json.missingFields.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d2e4f6a8-0b3c-4d7e-9f1a-2b4c6d8e0f32",
+      "name": "Пакет полный?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        1040
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=Текст описания ещё не полный, не могу поставить \"Описание согласовано\": не хватает — {{ $json.missingFields.join(', ') }}. Дозаполни, пожалуйста, и я попробую снова.",
+        "additionalFields": {}
+      },
+      "id": "e3f5a7b9-1c4d-4e8f-a02b-3c5d7e9f1a43",
+      "name": "Предупреждение: пакет неполный",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1824,
+        1040
+      ],
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -1207,7 +1315,7 @@
       "main": [
         [
           {
-            "node": "Форс: ставим статус",
+            "node": "OpenAI: перевод для форса",
             "type": "main",
             "index": 0
           }
@@ -1215,6 +1323,28 @@
         [
           {
             "node": "Форс: нечего форсить",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: перевод для форса": {
+      "main": [
+        [
+          {
+            "node": "Разбираем перевод для форса",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Разбираем перевод для форса": {
+      "main": [
+        [
+          {
+            "node": "Форс: ставим статус",
             "type": "main",
             "index": 0
           }
@@ -1327,7 +1457,7 @@
         ],
         [
           {
-            "node": "Ставим статус Описание согласовано",
+            "node": "Проверка полноты пакета",
             "type": "main",
             "index": 0
           }
@@ -1335,6 +1465,35 @@
         [
           {
             "node": "Отправляем ответ (чат)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проверка полноты пакета": {
+      "main": [
+        [
+          {
+            "node": "Пакет полный?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Пакет полный?": {
+      "main": [
+        [
+          {
+            "node": "Ставим статус Описание согласовано",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Предупреждение: пакет неполный",
             "type": "main",
             "index": 0
           }

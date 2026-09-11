@@ -28,6 +28,39 @@
     {
       "parameters": {
         "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ String($json.message?.from?.id || $json.callback_query?.from?.id || '') }}",
+              "rightValue": "285577543",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c7e9f1a3-5b7d-4e0f-9a2c-6b8d0e2f4a57",
+      "name": "Это владелец бота?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2784,
+        784
+      ],
+      "notesInFlow": true,
+      "notes": "Пускает дальше только ваш собственный Telegram user ID. Все остальные сообщения (от кого угодно, кто найдёт бота) молча игнорируются — никакого ответа, никакой ошибки. ID 285577543 взят из существующего hardcoded chatId в 99_Обработка_ошибок — если это не ваш личный чат, поменяйте здесь."
+    },
+    {
+      "parameters": {
+        "conditions": {
           "boolean": [
             {
               "value1": "={{ $json.message !== undefined }}",
@@ -140,6 +173,25 @@
         -1552,
         592
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $json.callbackQueryId }) }}",
+        "options": {}
+      },
+      "id": "d8f0a2c4-6b8d-4e0f-a13c-7b9d1f3a5c68",
+      "name": "Telegram: answerCallbackQuery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2224,
+        1136
+      ],
+      "notes": "Без этого запроса кнопка в Telegram показывает 'крутилку' дольше, чем нужно — сам выбор канала это не блокирует, это просто чтобы интерфейс у автора не подвисал."
     },
     {
       "parameters": {
@@ -816,6 +868,17 @@
       "main": [
         [
           {
+            "node": "Это владелец бота?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Это владелец бота?": {
+      "main": [
+        [
+          {
             "node": "Новое сообщение или кнопка?",
             "type": "main",
             "index": 0
@@ -899,6 +962,11 @@
             "node": "Ищем канал в каталоге",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Telegram: answerCallbackQuery",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -961,16 +1029,6 @@
     "Читаем статус проекта": {
       "main": [
         [
-          {
-            "node": "Приклеиваем поля для sub-workflow",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Это первое сообщение по проекту?",
-            "type": "main",
-            "index": 0
-          },
           {
             "node": "Просит вернуться к картинке?",
             "type": "main",
@@ -1056,6 +1114,18 @@
         [
           {
             "node": "Сбрасываем статус на Картинку",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Приклеиваем поля для sub-workflow",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Это первое сообщение по проекту?",
             "type": "main",
             "index": 0
           }

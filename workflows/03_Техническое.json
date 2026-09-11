@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\nconst hasDraft = !!(row.ai_TechnicalDraft && row.ai_TechnicalDraft.trim());\n\nreturn [{\n  json: {\n    sys_ProjectID: row.sys_ProjectID,\n    hasDraft,\n    technicalDraft: row.ai_TechnicalDraft || '',\n  }\n}];"
+        "jsCode": "const row = $input.first().json;\nconst hasDraft = !!(row.ai_TechnicalDraft && row.ai_TechnicalDraft.trim());\n\n// Тот же предохранитель, что на обычном пути одобрения: черновик — это ещё\n// не гарантия, что отдельные поля (оверлей, заголовок, хэштеги, теги) реально\n// заполнены save_technical_draft-ом хотя бы раз.\nconst required = {\n  ai_OverlayText: row.ai_OverlayText,\n  ai_OverlayPosition: row.ai_OverlayPosition,\n  ai_Title: row.ai_Title,\n  ai_Hashtags: row.ai_Hashtags,\n  ai_Tags: row.ai_Tags,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\n\nreturn [{\n  json: {\n    sys_ProjectID: row.sys_ProjectID,\n    hasDraft,\n    technicalDraft: row.ai_TechnicalDraft || '',\n    missingFields,\n  }\n}];"
       },
       "id": "040de35f-cadd-4c60-9c7b-031e651cfa2e",
       "name": "Форс: есть ли черновик?",
@@ -131,6 +131,59 @@
         -6464,
         1872
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "force-package-complete-check",
+              "leftValue": "={{ $json.missingFields.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f4a6c8e0-2b4d-4e8f-b13a-4c6e8a0c2e35",
+      "name": "Пакет полный? (форс)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -6560,
+        1776
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
+        "text": "=Форсить пока рано: черновик есть, но не хватает отдельных полей — {{ $json.missingFields.join(', ') }}. Обсуди это со мной, чтобы я сохранила их save_technical_draft-ом, а потом попробуй ещё раз.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "a5b7d9f1-3c5e-4f9a-c24b-5d7f9b1d3f46",
+      "name": "Форс: пакет неполный",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -6560,
+        1968
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -1233,7 +1286,7 @@
       "main": [
         [
           {
-            "node": "Форс: ставим статус",
+            "node": "Пакет полный? (форс)",
             "type": "main",
             "index": 0
           }
@@ -1241,6 +1294,24 @@
         [
           {
             "node": "Форс: нечего форсить",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Пакет полный? (форс)": {
+      "main": [
+        [
+          {
+            "node": "Форс: ставим статус",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Форс: пакет неполный",
             "type": "main",
             "index": 0
           }
