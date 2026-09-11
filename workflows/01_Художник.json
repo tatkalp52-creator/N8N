@@ -1355,6 +1355,39 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Парсим ответ редактора').first().json.action }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3d8e5a1-4f2b-4a9c-8e6d-1b7f9a3c5d02",
+      "name": "Нужен ли классификатор?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -5200,
+        3520
+      ],
+      "notesInFlow": true,
+      "notes": "Классификатор нужен только когда approve_image ещё НЕ был явно вызван (action chat/ready_to_draw/revise_point) — вдруг автор согласился словами, а модель забыла вызвать tool. Если action уже 'approved', результат классификатора всё равно нигде не используется — не тратим на него отдельный запрос к OpenAI."
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/responses",
         "authentication": "predefinedCredentialType",
@@ -1814,7 +1847,25 @@
       "main": [
         [
           {
+            "node": "Нужен ли классификатор?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нужен ли классификатор?": {
+      "main": [
+        [
+          {
             "node": "Готовим вопрос классификатору",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Есть заметки об общении?",
             "type": "main",
             "index": 0
           }

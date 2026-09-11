@@ -844,6 +844,39 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Парсим ответ писателя').first().json.action }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d4e9f6b2-5a3c-4b0d-9f7e-2c8a0d4e6f13",
+      "name": "Нужен ли классификатор?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        256,
+        864
+      ],
+      "notesInFlow": true,
+      "notes": "Классификатор нужен только когда approve_description ещё НЕ был явно вызван — вдруг автор согласился словами, а модель забыла вызвать tool. Если action уже 'approved', результат классификатора всё равно нигде не используется — не тратим на него отдельный запрос к OpenAI."
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/responses",
         "authentication": "predefinedCredentialType",
@@ -1390,12 +1423,30 @@
       "main": [
         [
           {
-            "node": "Готовим вопрос классификатору",
+            "node": "Нужен ли классификатор?",
             "type": "main",
             "index": 0
           },
           {
             "node": "Есть заметки об общении?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нужен ли классификатор?": {
+      "main": [
+        [
+          {
+            "node": "Готовим вопрос классификатору",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Куда дальше?",
             "type": "main",
             "index": 0
           }
