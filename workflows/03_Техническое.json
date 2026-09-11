@@ -1,0 +1,1572 @@
+{
+  "name": "03_Техническое",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "f13bbf26-c325-4278-97c5-8726bd88d7bc",
+      "name": "Вход от диспетчера",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -7360,
+        1776
+      ],
+      "notesInFlow": true,
+      "notes": "Ожидает: projectId, chatId, sheetName, channelKey, messageText. Диспетчер вызывает этот workflow, когда sys_Status == 'Описание согласовано'."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.messageText.trim().toLowerCase() }}",
+              "rightValue": "форс техническое",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "109fcafb-c407-4dec-89c8-4d7769e21e9d",
+      "name": "Форс-согласование техчасти?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -7136,
+        1776
+      ],
+      "notesInFlow": true,
+      "notes": "Аварийный обход модели, тот же принцип, что у Художника/Писателя: берёт последний сохранённый черновик техпакета и переводит его в согласованный без обращения к OpenAI."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=sys_ProjectID",
+              "lookupValue": "={{ $json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "274cf321-25f3-4f16-967b-a5b5b2b635a8",
+      "name": "Форс: читаем строку проекта",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -6912,
+        1872
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst hasDraft = !!(row.ai_TechnicalDraft && row.ai_TechnicalDraft.trim());\n\nreturn [{\n  json: {\n    sys_ProjectID: row.sys_ProjectID,\n    hasDraft,\n    technicalDraft: row.ai_TechnicalDraft || '',\n  }\n}];"
+      },
+      "id": "040de35f-cadd-4c60-9c7b-031e651cfa2e",
+      "name": "Форс: есть ли черновик?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6688,
+        1872
+      ],
+      "notesInFlow": true,
+      "notes": "Если черновика ещё не было — форсить нечего, честно сказать об этом, а не записать пустой пакет."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasDraft }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "676dc5c5-dc12-4a2c-a161-84e3de61cd86",
+      "name": "Черновик есть?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -6464,
+        1872
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Вход от диспетчера').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
+            "sys_Status": "Утверждено",
+            "ai_Description": "={{ $json.technicalDraft }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "998bd4d2-37ff-42f0-95bd-dc6452afd47a",
+      "name": "Форс: ставим статус",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -6240,
+        1776
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "notes": "Форс здесь грубый: он не умеет сам разложить свободный текст черновика по колонкам (overlay/title/hashtags отдельно) — просто целиком кладёт последний черновик в ai_Description. Подходит как аварийный вариант 'хоть что-то', но не идеален. Обычный путь через approve_technical делает это правильно, по полям."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
+        "text": "=Техническое согласовано ✅ (принудительно, по слову-ключу)\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "b352d64b-22de-41dc-a557-d0832361331c",
+      "name": "Форс: отправляем подтверждение",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -6016,
+        1776
+      ],
+      "webhookId": "82d24889-0e3b-4925-9488-69d4bd526fe1",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
+        "text": "=Форсить пока нечего — у меня ещё нет ни одного черновика техпакета для этого проекта. Обсуди со мной оверлей, заголовок и остальное, а потом попробуй ещё раз.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "6a9c2ed5-36dd-4575-9371-88df8991d5aa",
+      "name": "Форс: нечего форсить",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -6240,
+        1968
+      ],
+      "webhookId": "0a96d5c6-674b-48a9-b6f5-ff3e4c05838b",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=sys_ProjectID",
+              "lookupValue": "={{ $json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "79f9744a-02f3-44a0-a5f1-056d20c7eb71",
+      "name": "Читаем строку проекта",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -6912,
+        1584
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=tmpl_Channel",
+              "lookupValue": "={{ $('Вход от диспетчера').first().json.channelKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0e8244cd-7a29-4fc3-9fba-1f6f2a43c68d",
+      "name": "Читаем шаблоны канала",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -6688,
+        1584
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function stripLabel(key) {\n  return key.replace(/^[^a-zA-Z]+/, '');\n}\n\nfunction extractSection(text, tag) {\n  if (!text) return '';\n  const re = new RegExp('###' + tag + '###([\\\\s\\\\S]*?)###/' + tag + '###');\n  const m = text.match(re);\n  return m ? m[1].trim() : '';\n}\n\nfunction collectByIcon(tmpl, icon) {\n  const parts = [];\n  for (const key of Object.keys(tmpl)) {\n    if (key.includes('tmpl_SystemPrompt')) continue;\n    if (key.includes(icon)) {\n      const value = tmpl[key];\n      if (value) parts.push(stripLabel(key) + ':\\n' + value);\n    }\n  }\n  return parts.join('\\n\\n');\n}\n\nconst tmpl = $input.first().json;\n\nconst systemPromptKey = Object.keys(tmpl).find(k => k.includes('tmpl_SystemPrompt'));\nconst roleNotes = extractSection(tmpl[systemPromptKey], 'ТЕХНИЧЕСКОЕ');\nconst sharedKnowledgeText = collectByIcon(tmpl, '🖋');\nconst knowledgeText = (roleNotes ? 'SystemPrompt (техническая часть):\\n' + roleNotes + '\\n\\n' : '') + sharedKnowledgeText;\n\nreturn [{ json: { knowledgeText } }];"
+      },
+      "id": "19bd557d-fde9-4ac8-b77a-037692adb6b1",
+      "name": "Находим шаблон канала",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6464,
+        1584
+      ],
+      "notesInFlow": true,
+      "notes": "Читает свой раздел ###ТЕХНИЧЕСКОЕ### из общей ячейки SystemPrompt — этот раздел ещё предстоит написать в таблице (сейчас там только КАРТИНКА/ОПИСАНИЕ)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Вход от диспетчера').first().json;\nconst project = $('Читаем строку проекта').first().json;\nconst context = $('Находим шаблон канала').first().json;\n\nconst role = `Ты — редактор канала \"Jazzt a Pengui\", соавтор и собеседник автора канала. Сейчас идёт этап ТЕХНИЧЕСКОЙ ЧАСТИ: картинка и описание уже согласованы (картинка приложена к этому сообщению — посмотри на неё, она нужна тебе для решения про оверлей), и вместе с автором вы собираете последний пакет перед сборкой видео: текст оверлея на экране, заголовок, хэштеги/теги и технический подвал с указанием музыки. Говори свободно и живо, как обычный человек в разговоре — это не анкета и не чек-лист.\\n\\nПо структуре пакета ориентируйся на правила ниже (OVERLAY TEXT, TITLE, TECHNICAL FOOTER, SUBSCRIBE INVITATION, HASHTAGS & TAGS) — они лежат в базе канала. Для позиции оверлея на экране — посмотри на картинку: если Пингви расположен ближе к одному краю, текст лучше разместить с другой стороны, чтобы не перекрывать его.\\n\\nФинальное английское описание для YouTube собирается из уже одобренного текста автора (он у тебя есть ниже, среди данных проекта) плюс технического подвала, приглашения подписаться и метки [Timecodes] на своём месте — просто соедини их в одно целое, не переписывая сам текст истории.\\n\\nУ тебя есть три инструмента (function tools):\\n- save_technical_draft — вызывай каждый раз, когда предлагаешь автору конкретный, готовый к прочтению вариант всего пакета — передавай его одним читаемым текстом целиком (не разбивай на отдельные поля для показа), даже если это ещё черновик.\\n- approve_technical — вызывай вместе с теми же словами, которыми сообщаешь автору, что весь пакет согласован и финален. Если ты произносишь эти слова, но не вызываешь инструмент в тот же момент, получается недоразумение: по твоим словам всё готово, а по факту в таблице ничего не изменилось. Дело не в том, чтобы меньше говорить или спешить — оставайся живой и свободной в разговоре, просто пусть финальное решение долетит и до таблицы, не только до собеседника.\\n- update_communication_notes — как и на прошлых этапах: короткие, редкие заметки про стиль общения или неоднозначности в правилах, если правда есть чему научиться.\\n\\nБаза канала (правила упаковки, паспорт персонажа, локации, заметки — используй по смыслу подписи каждого блока):\\n${context.knowledgeText}`;\n\nreturn [{\n  json: {\n    conversationId: project.sys_ConversationId,\n    systemPrompt: role,\n    userMessage: trigger.messageText,\n    approvedImageUrl: project.ai_ApprovedImageUrl,\n    approvedDescriptionEN: project.ai_DescriptionEN,\n    projectId: trigger.projectId,\n    chatId: trigger.chatId,\n    sheetName: trigger.sheetName,\n    channelKey: trigger.channelKey,\n  }\n}];"
+      },
+      "id": "35271bb2-6ee0-4272-9b35-d1224e8a8ce9",
+      "name": "Готовим запрос техчасти",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6240,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.conversationId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "994d2490-91f1-46fd-9c7d-852cb83cdd4e",
+      "name": "Есть ли conversation_id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -6016,
+        1584
+      ],
+      "notesInFlow": true,
+      "notes": "Обычно разговор уже существует с этапа картинки/описания — эта ветка страхует на случай, если он пуст."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/conversations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ metadata: { project: $('Вход от диспетчера').first().json.projectId } }) }}",
+        "options": {}
+      },
+      "id": "16c7e5c0-3463-4439-a0df-92554a5f03c1",
+      "name": "OpenAI: создаём разговор (техчасть)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5792,
+        1520
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const conversationId = $json.id;\nreturn [{ json: { conversationId } }];\n"
+      },
+      "id": "1cfdaef6-4f68-4f7c-82f2-dc274eab211f",
+      "name": "Сохраняем ID разговора (техчасть)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5568,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prep = $('Готовим запрос техчасти').first().json;\nlet conversationId = prep.conversationId;\nif (!conversationId) {\n  try { conversationId = $('Сохраняем ID разговора (техчасть)').first().json.conversationId; } catch (e) {}\n}\nconst project = $('Читаем строку проекта').first().json;\nreturn [{\n  json: {\n    ...prep,\n    conversationId,\n    pendingCallId: project.sys_ConversationId ? (project.sys_PendingToolCallId || '') : '',\n  }\n}];"
+      },
+      "id": "a0c0ebee-866c-45b0-a476-3987ca2042a6",
+      "name": "Собираем финальный запрос",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5344,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', conversation: $json.conversationId, input: [ ...($json.pendingCallId ? [{ type: 'function_call_output', call_id: $json.pendingCallId, output: 'ok' }] : []), { role: 'system', content: $json.systemPrompt }, { role: 'user', content: [ { type: 'input_text', text: `${$json.userMessage}\\n\\n(Одобренный автором текст истории на английском, для сборки финального описания: ${$json.approvedDescriptionEN})` }, { type: 'input_image', image_url: $json.approvedImageUrl } ] } ], tools: [ { type: 'web_search' }, { type: 'function', name: 'save_technical_draft', description: 'Вызови каждый раз, когда предлагаешь автору конкретный, готовый к прочтению вариант всего технического пакета — даже если это ещё черновик. Передавай его одним читаемым текстом целиком (оверлей, позиция, заголовок, хэштеги, теги, финальное описание с подвалом и меткой [Timecodes]) — не разбивай на поля, автор читает это как один цельный кусок.', parameters: { type: 'object', properties: { overlayText: { type: 'string' }, overlayPosition: { type: 'string', description: \"left, right, или center\" }, title: { type: 'string' }, hashtags: { type: 'string' }, tags: { type: 'string' }, finalDescriptionEN: { type: 'string', description: 'Полный финальный английский текст под видео: одобренная история + технический подвал + приглашение подписаться + метка [Timecodes] на своём месте' }, readableDraft: { type: 'string', description: 'Всё вышеперечисленное, собранное в один читаемый текст для показа автору' }, messageToUser: { type: 'string', description: 'Обычный ответ автору по-русски' } }, required: ['overlayText', 'overlayPosition', 'title', 'hashtags', 'tags', 'finalDescriptionEN', 'readableDraft', 'messageToUser'] } }, { type: 'function', name: 'approve_technical', description: 'Вызови вместе с теми же словами, которыми сообщаешь автору, что весь технический пакет согласован и финален.', parameters: { type: 'object', properties: { overlayText: { type: 'string' }, overlayPosition: { type: 'string' }, title: { type: 'string' }, hashtags: { type: 'string' }, tags: { type: 'string' }, finalDescriptionEN: { type: 'string' }, messageToUser: { type: 'string' } }, required: ['overlayText', 'overlayPosition', 'title', 'hashtags', 'tags', 'finalDescriptionEN', 'messageToUser'] } }, { type: 'function', name: 'update_communication_notes', description: 'Вызови нечасто, только когда действительно заметила что-то полезное и стоящее долгой памяти — про стиль общения или неоднозначности в правилах канала.', parameters: { type: 'object', properties: { notes: { type: 'string' }, messageToUser: { type: 'string' } }, required: ['notes', 'messageToUser'] } } ], tool_choice: 'auto' }) }}",
+        "options": {}
+      },
+      "id": "d6b5af90-cad6-4a46-b626-27db3f687c9c",
+      "name": "OpenAI: Техчасть",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5120,
+        1584
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\n\nconst messageItem = output.find(item => item.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst plainText = textPart ? textPart.text : '';\n\nconst callItem = output.find(item => item.type === 'function_call');\n\nlet action = 'chat';\nlet messageToUser = plainText;\nlet overlayText = '', overlayPosition = '', title = '', hashtags = '', tags = '', finalDescriptionEN = '', readableDraft = '';\nlet communicationNotes = '';\nlet callId = null;\nlet functionName = null;\n\nif (callItem) {\n  callId = callItem.call_id;\n  functionName = callItem.name;\n  let args = {};\n  try { args = JSON.parse(callItem.arguments || '{}'); } catch (e) {}\n  messageToUser = args.messageToUser || plainText || '';\n\n  if (functionName === 'save_technical_draft' || functionName === 'approve_technical') {\n    action = functionName === 'approve_technical' ? 'approved' : 'draft';\n    overlayText = args.overlayText || '';\n    overlayPosition = args.overlayPosition || 'center';\n    title = args.title || '';\n    hashtags = args.hashtags || '';\n    tags = args.tags || '';\n    finalDescriptionEN = args.finalDescriptionEN || '';\n    readableDraft = args.readableDraft || '';\n  } else if (functionName === 'update_communication_notes') {\n    communicationNotes = args.notes || '';\n  }\n}\n\nconst prep = $('Собираем финальный запрос').first().json;\n\nreturn [{\n  json: {\n    action,\n    messageToUser,\n    overlayText,\n    overlayPosition,\n    title,\n    hashtags,\n    tags,\n    finalDescriptionEN,\n    readableDraft,\n    communicationNotes,\n    callId,\n    functionName,\n    conversationId: prep.conversationId,\n    projectId: prep.projectId,\n    chatId: prep.chatId,\n    sheetName: prep.sheetName,\n    channelKey: prep.channelKey,\n  }\n}];"
+      },
+      "id": "9480520c-d022-40c8-85a6-48bef37ed029",
+      "name": "Парсим ответ техчасти",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4896,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.communicationNotes }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1f889a5d-2a95-47fe-b0a4-817e7c38ab91",
+      "name": "Есть заметки об общении?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4448,
+        1488
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "tmpl_Channel"
+          ],
+          "value": {
+            "tmpl_Channel": "={{ $json.channelKey }}",
+            "🖋_tmpl_EditorNotes": "={{ $json.communicationNotes }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "66211a3a-a08f-4301-be5d-7d79343b645d",
+      "name": "Сохраняем заметки об общении",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -4224,
+        1488
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Парсим ответ техчасти').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Парсим ответ техчасти').first().json.projectId }}",
+            "sys_ConversationId": "={{ $('Парсим ответ техчасти').first().json.conversationId }}",
+            "sys_PendingToolCallId": "={{ $('Парсим ответ техчасти').first().json.callId || '' }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "26740cb4-b5e8-4141-8161-5eecf006bcc1",
+      "name": "Сохраняем conversation_id и tool call",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -4672,
+        1584
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "chat",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "draft",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "approved",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "37a93223-cca6-48af-a77d-f7254eded65f",
+      "name": "Куда дальше?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -3552,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Парсим ответ техчасти').first().json.chatId }}",
+        "text": "={{ $('Парсим ответ техчасти').first().json.messageToUser }}\n\nID: {{ $('Парсим ответ техчасти').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "9d25dac0-f946-4a02-aeb4-43a13abc1a47",
+      "name": "Отправляем ответ (чат)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -3328,
+        1200
+      ],
+      "webhookId": "43319768-081e-4263-83a4-07cbb8bd2549",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Парсим ответ техчасти').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Парсим ответ техчасти').first().json.projectId }}",
+            "ai_TechnicalDraft": "={{ $('Парсим ответ техчасти').first().json.readableDraft }}",
+            "ai_OverlayText": "={{ $('Парсим ответ техчасти').first().json.overlayText }}",
+            "ai_OverlayPosition": "={{ $('Парсим ответ техчасти').first().json.overlayPosition }}",
+            "ai_Title": "={{ $('Парсим ответ техчасти').first().json.title }}",
+            "ai_Hashtags": "={{ $('Парсим ответ техчасти').first().json.hashtags }}",
+            "ai_Tags": "={{ $('Парсим ответ техчасти').first().json.tags }}",
+            "ai_Description": "={{ $('Парсим ответ техчасти').first().json.finalDescriptionEN }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "68e20a07-eaa4-4680-85d6-e85fd130b828",
+      "name": "Сохраняем черновик техпакета",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -3328,
+        1392
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "notes": "Теперь пишет НЕ только читаемый черновик, но и сразу все финальные колонки — так сборщик видео получает верные данные, даже если approve_technical модель забудет вызвать. Статус при этом не трогается (остаётся 'Описание согласовано' до реального approve/force), но содержимое уже в безопасности."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Парсим ответ техчасти').first().json.chatId }}",
+        "text": "={{ $('Парсим ответ техчасти').first().json.messageToUser }}\n\n— — —\n{{ $('Парсим ответ техчасти').first().json.readableDraft }}\n\nID: {{ $('Парсим ответ техчасти').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "627b28cf-ccaf-472c-9c22-0591c0f9d671",
+      "name": "Отправляем ответ (черновик)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -3104,
+        1392
+      ],
+      "notesInFlow": true,
+      "webhookId": "9c6d9703-0154-4bc2-a5df-84fbc784c2b1",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      },
+      "notes": "Показывает весь пакет целиком, не только реплику — чтобы автор реально видел, что согласовывает, одним куском."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Парсим ответ техчасти').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Парсим ответ техчасти').first().json.projectId }}",
+            "sys_Status": "Утверждено",
+            "ai_OverlayText": "={{ $('Парсим ответ техчасти').first().json.overlayText }}",
+            "ai_OverlayPosition": "={{ $('Парсим ответ техчасти').first().json.overlayPosition }}",
+            "ai_Title": "={{ $('Парсим ответ техчасти').first().json.title }}",
+            "ai_Hashtags": "={{ $('Парсим ответ техчасти').first().json.hashtags }}",
+            "ai_Tags": "={{ $('Парсим ответ техчасти').first().json.tags }}",
+            "ai_Description": "={{ $('Парсим ответ техчасти').first().json.finalDescriptionEN }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "69f4f8aa-775f-44d3-8c5c-409b66c1c304",
+      "name": "Ставим статус Утверждено",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -2880,
+        1488
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "notes": "ai_Description перезаписывается финальным английским текстом — именно его заберёт Video.json при сборке."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Парсим ответ техчасти').first().json.chatId }}",
+        "text": "=Утверждено ✅\n\nOverlay: {{ $('Парсим ответ техчасти').first().json.overlayText }} ({{ $('Парсим ответ техчасти').first().json.overlayPosition }})\nTitle: {{ $('Парсим ответ техчасти').first().json.title }}\n\nВетка засыпает — жду ссылку на треки, когда будут готовы.\n\nID: {{ $('Парсим ответ техчасти').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "1c3b0477-60a0-49cd-8bc8-5b2ccb35c3a9",
+      "name": "Отправляем подтверждение согласования",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -2656,
+        1488
+      ],
+      "webhookId": "482411b3-3f9d-4072-8c62-f600fe2629be",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $('Готовим запрос техчасти').first().json;\nconst parsed = $('Парсим ответ техчасти').first().json;\n\nreturn [{\n  json: {\n    classifierInput: `Автор написал: \"${req.userMessage}\"\\n\\nРедактор ответил: \"${parsed.messageToUser}\"`,\n  }\n}];"
+      },
+      "id": "770d0a4e-b567-4b3e-95f5-487491201a3a",
+      "name": "Готовим вопрос классификатору",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4448,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Ты — строгий бинарный классификатор, без творчества и без памяти о прошлых сообщениях. По приведённому обмену репликами определи: автор только что дал окончательное, явное согласие зафиксировать текущий пакет как финальный? Ответь ровно одним словом: true или false. Ничего больше.' }, { role: 'user', content: $json.classifierInput } ] }) }}",
+        "options": {}
+      },
+      "id": "7de7835d-18d0-4a2f-bb86-638214b7c6f7",
+      "name": "OpenAI: классификатор согласия",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4224,
+        1680
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "notes": "Отдельный, беспамятный запрос — без 'conversation', без tools. Не завязан на общий разговор, поэтому не подвержен багам с незакрытыми tool call."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\nconst isApproved = raw.startsWith('true');\n\nconst parsed = $('Парсим ответ техчасти').first().json;\nreturn [{ json: { ...parsed, isApproved } }];"
+      },
+      "id": "e4c87aac-196b-49fb-9e89-1d36d523cf86",
+      "name": "Разбираем классификатор",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4000,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.isApproved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "24bb3e98-e8a4-4716-bd4b-3122663cca90",
+      "name": "Нужно завершить принудительно?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3776,
+        1680
+      ],
+      "notesInFlow": true,
+      "notes": "Срабатывает только когда классификатор уверен, что согласие было, а модель сама не вызвала approve_technical в этот раз."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=sys_ProjectID",
+              "lookupValue": "={{ $json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "639a0f7d-f74a-4206-ad8d-4e8c396ebd91",
+      "name": "Читаем актуальные финальные поля",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -3552,
+        1968
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "notes": "Финальные колонки уже надёжно заполнены на каждом save_technical_draft (вчерашняя правка) — здесь просто читаем их актуальное состояние, ничего не досочиняем."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Разбираем классификатор').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Разбираем классификатор').first().json.projectId }}",
+            "sys_Status": "Утверждено"
+          }
+        },
+        "options": {}
+      },
+      "id": "1d8ae1bd-225b-4111-9018-e6c0dd664c32",
+      "name": "Завершаем по классификатору",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -2880,
+        1872
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Разбираем классификатор').first().json.chatId }}",
+        "text": "=Утверждено ✅ (подтверждено тихой проверкой согласия)\n\nOverlay: {{ $json.ai_OverlayText }} ({{ $json.ai_OverlayPosition }})\nTitle: {{ $json.ai_Title }}\n\nВетка засыпает — жду ссылку на треки, когда будут готовы.\n\nID: {{ $('Разбираем классификатор').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "b0f98605-d35c-4532-92d6-98a82d88ed46",
+      "name": "Шлём подтверждение (классификатор)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -2656,
+        1872
+      ],
+      "webhookId": "8b597e71-3cc7-4f30-8ece-15aa24321ef3",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Технический предохранитель: не полагаемся только на словесную просьбу\n// к модели 'сама проверь перед Утверждено' — здесь это проверяется программно,\n// прежде чем статус вообще может смениться на 'Утверждено'.\nconst j = $input.first().json;\nconst required = {\n  overlayText: j.overlayText,\n  overlayPosition: j.overlayPosition,\n  title: j.title,\n  hashtags: j.hashtags,\n  tags: j.tags,\n  finalDescriptionEN: j.finalDescriptionEN,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\nreturn [{ json: { ...j, missingFields } }];"
+      },
+      "id": "969b27b8-7320-4b9e-9fc9-6b2d596b148b",
+      "name": "Проверка полноты пакета",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3328,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "package-complete-check",
+              "leftValue": "={{ $json.missingFields.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f7d2982a-36c9-4c2c-a711-a54e7dc12669",
+      "name": "Пакет полный?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3104,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=Технический пакет ещё не полный, не могу поставить \"Утверждено\": не хватает — {{ $json.missingFields.join(', ') }}. Дозаполни, пожалуйста, эти поля, и я попробую снова.",
+        "additionalFields": {}
+      },
+      "id": "4072d46d-102f-4fb9-8af6-b60e0fbc6872",
+      "name": "Предупреждение: пакет неполный",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -2880,
+        1680
+      ],
+      "webhookId": "d5c38a4a-91cf-4df4-b2d4-10248570a2dc",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Тот же предохранитель, что и на основном пути 'Ставим статус Утверждено',\n// но здесь данные берём не из ответа модели, а прямо из таблицы —\n// этот путь срабатывает, когда пользователь просто согласился словами\n// в чате, а не через явный вызов инструмента с новыми данными.\nconst j = $input.first().json;\nconst required = {\n  ai_OverlayText: j.ai_OverlayText,\n  ai_OverlayPosition: j.ai_OverlayPosition,\n  ai_Title: j.ai_Title,\n  ai_Hashtags: j.ai_Hashtags,\n  ai_Tags: j.ai_Tags,\n  ai_Description: j.ai_Description,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\nreturn [{ json: { ...j, missingFields } }];"
+      },
+      "id": "d238ef6c-4d20-4bf1-9d6f-486201d00147",
+      "name": "Проверка полноты пакета (классификатор)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3328,
+        1968
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "package-complete-check-2",
+              "leftValue": "={{ $json.missingFields.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "83727e80-63ca-4728-81d2-ed851df53666",
+      "name": "Пакет полный? (классификатор)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3104,
+        1968
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Разбираем классификатор').first().json.chatId }}",
+        "text": "=Технический пакет ещё не полный, не могу поставить \"Утверждено\": не хватает — {{ $json.missingFields.join(', ') }}. Дозаполни, пожалуйста, эти поля, и я попробую снова.",
+        "additionalFields": {}
+      },
+      "id": "580fdcdf-f58b-4d80-9d03-38e7b0dab304",
+      "name": "Предупреждение: пакет неполный (классификатор)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -2880,
+        2064
+      ],
+      "webhookId": "23db0080-1bd0-401d-808e-1b8bff826097",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Вход от диспетчера": {
+      "main": [
+        [
+          {
+            "node": "Форс-согласование техчасти?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Форс-согласование техчасти?": {
+      "main": [
+        [
+          {
+            "node": "Форс: читаем строку проекта",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Читаем строку проекта",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Форс: читаем строку проекта": {
+      "main": [
+        [
+          {
+            "node": "Форс: есть ли черновик?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Форс: есть ли черновик?": {
+      "main": [
+        [
+          {
+            "node": "Черновик есть?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Черновик есть?": {
+      "main": [
+        [
+          {
+            "node": "Форс: ставим статус",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Форс: нечего форсить",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Форс: ставим статус": {
+      "main": [
+        [
+          {
+            "node": "Форс: отправляем подтверждение",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем строку проекта": {
+      "main": [
+        [
+          {
+            "node": "Читаем шаблоны канала",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем шаблоны канала": {
+      "main": [
+        [
+          {
+            "node": "Находим шаблон канала",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Находим шаблон канала": {
+      "main": [
+        [
+          {
+            "node": "Готовим запрос техчасти",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим запрос техчасти": {
+      "main": [
+        [
+          {
+            "node": "Есть ли conversation_id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть ли conversation_id?": {
+      "main": [
+        [
+          {
+            "node": "Собираем финальный запрос",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI: создаём разговор (техчасть)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: создаём разговор (техчасть)": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем ID разговора (техчасть)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем ID разговора (техчасть)": {
+      "main": [
+        [
+          {
+            "node": "Собираем финальный запрос",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем финальный запрос": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Техчасть",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Техчасть": {
+      "main": [
+        [
+          {
+            "node": "Парсим ответ техчасти",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Парсим ответ техчасти": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем conversation_id и tool call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть заметки об общении?": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем заметки об общении",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Куда дальше?": {
+      "main": [
+        [
+          {
+            "node": "Отправляем ответ (чат)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Сохраняем черновик техпакета",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Проверка полноты пакета",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Отправляем ответ (чат)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем черновик техпакета": {
+      "main": [
+        [
+          {
+            "node": "Отправляем ответ (черновик)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ставим статус Утверждено": {
+      "main": [
+        [
+          {
+            "node": "Отправляем подтверждение согласования",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем conversation_id и tool call": {
+      "main": [
+        [
+          {
+            "node": "Готовим вопрос классификатору",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Есть заметки об общении?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим вопрос классификатору": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: классификатор согласия",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: классификатор согласия": {
+      "main": [
+        [
+          {
+            "node": "Разбираем классификатор",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Разбираем классификатор": {
+      "main": [
+        [
+          {
+            "node": "Нужно завершить принудительно?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нужно завершить принудительно?": {
+      "main": [
+        [
+          {
+            "node": "Читаем актуальные финальные поля",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Куда дальше?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем актуальные финальные поля": {
+      "main": [
+        [
+          {
+            "node": "Проверка полноты пакета (классификатор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Завершаем по классификатору": {
+      "main": [
+        [
+          {
+            "node": "Шлём подтверждение (классификатор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проверка полноты пакета": {
+      "main": [
+        [
+          {
+            "node": "Пакет полный?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Пакет полный?": {
+      "main": [
+        [
+          {
+            "node": "Ставим статус Утверждено",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Предупреждение: пакет неполный",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проверка полноты пакета (классификатор)": {
+      "main": [
+        [
+          {
+            "node": "Пакет полный? (классификатор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Пакет полный? (классификатор)": {
+      "main": [
+        [
+          {
+            "node": "Завершаем по классификатору",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Предупреждение: пакет неполный (классификатор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "FIjHQQSAlggtP8ij",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1a9bbfc2-c5f5-4b09-af21-19d149cdaf3f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b8eb18f87fb93f604cdd65842933c2c352edc0065374dca2531be5d7563bc438"
+  },
+  "id": "9bqEAC6fDPoPDar2",
+  "tags": []
+}

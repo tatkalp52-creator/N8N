@@ -1,0 +1,2233 @@
+{
+  "name": "01_Художник",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "016157b7-7264-42a5-9f7f-e771c6de2031",
+      "name": "Вход от диспетчера",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -7776,
+        3664
+      ],
+      "notesInFlow": true,
+      "notes": "Ожидает: projectId, chatId, sheetName, channelKey, messageText. Диспетчер сам решает, что этот проект сейчас на этапе картинки, и вызывает этот workflow. Поля объявлены явно (26.08), чтобы диспетчер показывал нормальный маппинг вместо режима 'пропускать всё как есть'."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.messageText.trim().toLowerCase() }}",
+              "rightValue": "форс согласовано",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "78c9b9b3-4074-4408-ba08-12dbdc105962",
+      "name": "Форс-согласование?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -7552,
+        3664
+      ],
+      "notesInFlow": true,
+      "notes": "Аварийный обход модели: если автор пишет ровно эту фразу, статус ставится напрямую кодом, без обращения к OpenAI. Нужен на случай, если модель не вызвала approve_image сама (известная ненадёжность tool-calling, не баг кода)."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=sys_ProjectID",
+              "lookupValue": "={{ $json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "72fc9bc2-e969-4da3-93ec-958603774284",
+      "name": "Форс: читаем строку проекта",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -7328,
+        3856
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Вход от диспетчера').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
+            "sys_Status": "Картинка согласована",
+            "ai_ApprovedImageUrl": "={{ $json.ai_ImageUrl }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "1a0291e4-95ef-4249-b10f-2fc964f600d7",
+      "name": "Форс: ставим статус",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -7104,
+        3856
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "notes": "Копирует ТЕКУЩЕЕ содержимое ai_ImageUrl (последний черновик на момент форса) в отдельную колонку ai_ApprovedImageUrl — так же, как это делает обычный approve_image."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
+        "text": "=Картинка согласована ✅ (принудительно, по слову-ключу)\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "069d66fc-f4c1-4d34-ac79-594e87c4c47a",
+      "name": "Форс: отправляем подтверждение",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -6880,
+        3856
+      ],
+      "webhookId": "3fdfb903-95ed-465f-9de0-72091dbce124",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=sys_ProjectID",
+              "lookupValue": "={{ $json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1f32690b-49f1-42c4-ba13-3c6f1214368d",
+      "name": "Читаем строку проекта",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -7328,
+        3424
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "d9f85a61-bd97-44aa-81dd-bbc9a32cd7e1",
+      "name": "Читаем шаблоны канала",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -6880,
+        3664
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const channelKey = $('Вход от диспетчера').first().json.channelKey;\nconst match = items.find(i => String(i.json.tmpl_Channel || '').trim() === channelKey);\n\nif (!match) {\n  throw new Error('Шаблон для канала ' + channelKey + ' не найден в Templates');\n}\n\nreturn [{ json: match.json }];\n"
+      },
+      "id": "2dee8b96-3cc8-4a7b-85d3-efa7ff34d468",
+      "name": "Находим шаблон канала",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6656,
+        3664
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function stripLabel(key) {\n  return key.replace(/^[^a-zA-Z]+/, '');\n}\n\n// Вытаскивает из общей ячейки SystemPrompt только раздел нужного этапа,\n// помеченный маркерами ###ТЕГ### ... ###/ТЕГ###. Так один и тот же столбец\n// служит и Художнику, и Писателю, и Технической части без перекрёстного\n// загрязнения ролей.\nfunction extractSection(text, tag) {\n  if (!text) return '';\n  const re = new RegExp('###' + tag + '###([\\\\s\\\\S]*?)###/' + tag + '###');\n  const m = text.match(re);\n  return m ? m[1].trim() : '';\n}\n\n// Собирает текст ВСЕХ колонок, отмеченных любым из значков — сколько бы\n// их ни было и как бы они ни назывались. Новую колонку с тем же значком\n// добавили в таблицу — она сама сюда попадёт, без правки этого кода.\n// SystemPrompt сюда не попадает — у него отдельная, посекционная обработка ниже.\nfunction collectByIcons(tmpl, icons) {\n  const parts = [];\n  for (const key of Object.keys(tmpl)) {\n    if (key.includes('tmpl_SystemPrompt')) continue;\n    if (icons.some(icon => key.includes(icon))) {\n      const value = tmpl[key];\n      if (value) parts.push(stripLabel(key) + ':\\n' + value);\n    }\n  }\n  return parts.join('\\n\\n');\n}\n\n// Google Drive отдаёт HTML-страницу просмотра на обычной ссылке вида\n// .../view?usp=... — gpt-image-2 такое не примет (нужен реальный файл\n// картинки). Приводим любую ссылку на Drive-файл к рабочему формату,\n// который отдаёт байты картинки напрямую.\nfunction toDirectImageUrl(url) {\n  const match = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  if (match) {\n    return 'https://lh3.googleusercontent.com/d/' + match[1];\n  }\n  return url;\n}\n\n// Для 🎨-колонок отдельно: построчно решает, ссылка это или текст —\n// ссылки уходят в отдельный список (реальные картинки для художника),\n// остальное остаётся текстовой инструкцией.\nfunction collectVisualRefs(tmpl) {\n  const textParts = [];\n  const urls = [];\n  const urlLineRegex = /^https?:\\/\\/\\S+$/;\n  for (const key of Object.keys(tmpl)) {\n    if (!key.includes('🎨')) continue;\n    const value = tmpl[key] || '';\n    const lines = value.split('\\n').map(l => l.trim()).filter(l => l.length > 0);\n    const textLines = [];\n    for (const line of lines) {\n      if (urlLineRegex.test(line)) { urls.push(toDirectImageUrl(line)); } else { textLines.push(line); }\n    }\n    if (textLines.length > 0) textParts.push(stripLabel(key) + ':\\n' + textLines.join('\\n'));\n  }\n  return { text: textParts.join('\\n\\n'), urls };\n}\n\nconst tmpl = $('Находим шаблон канала').first().json;\n\n// Свой раздел SystemPrompt для этапа картинки — только он, не вся ячейка целиком.\nconst systemPromptKey = Object.keys(tmpl).find(k => k.includes('tmpl_SystemPrompt'));\nconst pictureRoleNotes = extractSection(tmpl[systemPromptKey], 'КАРТИНКА');\n\n// Остальные 🖋/🎨-колонки (PackagingRules, HashtagPool, TagPool, DalleExamples,\n// CharacterPassport, LocationPassports) — как раньше, целиком, они не стадийные.\nconst sharedKnowledgeText = collectByIcons(tmpl, ['🖋', '🎨']);\nconst editorKnowledgeText = (pictureRoleNotes ? 'SystemPrompt (этап картинки):\\n' + pictureRoleNotes + '\\n\\n' : '') + sharedKnowledgeText;\nconst visual = collectVisualRefs(tmpl);\n\n// Первая ссылка в пуле референсов — всегда style guide (по правилу\n// таблицы), остальные — обычные референсы локаций/сцен.\nconst styleGuideUrl = visual.urls[0] || null;\nconst referenceUrls = visual.urls.slice(1);\n\nreturn [{\n  json: {\n    editorKnowledgeText,\n    styleGuideUrl,\n    referenceUrls,\n  }\n}];"
+      },
+      "id": "06c5d23d-eeb5-44ca-9f68-c14fd1119184",
+      "name": "Собираем контекст редактора",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6432,
+        3664
+      ],
+      "notesInFlow": true,
+      "notes": "Работает только через значки 🖋/🎨 — не называет колонки по имени. Первая ссылка в пуле референсов = style guide."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Читаем шаблон канала (для разговора)').first().json.tmpl_ChannelConversationId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ced6bbfe-707f-4fa2-8aa2-4358936df195",
+      "name": "Есть ли conversation_id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -6880,
+        3424
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/conversations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ metadata: { project: $('Вход от диспетчера').first().json.projectId } }) }}",
+        "options": {}
+      },
+      "id": "9cdb65cd-1ebd-4952-8f8c-6e1a2196e385",
+      "name": "OpenAI: создаём разговор",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -6656,
+        3360
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "notes": "НЕ ПРОВЕРЕНО НА ПРАКТИКЕ. Первое, что нужно протестировать при первом реальном запуске: точный формат ответа Conversations API и как называется поле с id."
+    },
+    {
+      "parameters": {
+        "jsCode": "const conversationId = $json.id;\nreturn [{ json: { conversationId } }];\n"
+      },
+      "id": "1839a64a-12c0-4a13-8837-fd597bdacefb",
+      "name": "Сохраняем ID разговора",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6432,
+        3360
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "3ae27574-cc88-4fc4-97c4-b888e0053a87",
+      "name": "Ждём обе ветки",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -6208,
+        3424
+      ],
+      "notesInFlow": true,
+      "notes": "Барьер синхронизации: без него 'Готовим запрос редактору' мог запуститься раньше, чем 'Собираем контекст редактора' успевал отработать (падало с ошибкой 'hasn't been executed'). ПРОВЕРИТЬ ПРИ ОТКРЫТИИ: режим объединения должен быть 'по позиции' — просто дождаться обе ветки, содержимое самого объединённого item не используется, дальше всё читается по именам узлов через $('...')."
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Вход от диспетчера').first().json;\nconst project = $('Читаем строку проекта').first().json;\nconst context = $('Собираем контекст редактора').first().json;\n\n// conversation_id: либо уже был в таблице, либо только что создан\nconst channelTemplate = $('Читаем шаблон канала (для разговора)').first().json;\nlet conversationId = channelTemplate.tmpl_ChannelConversationId;\ntry {\n  if (!conversationId) {\n    conversationId = $('Сохраняем ID разговора').first().json.conversationId;\n  }\n} catch (e) {}\n\nconst editorRole = `Ты — редактор канала \"Jazzt a Pengui\", соавтор и собеседник автора канала. Сейчас идёт этап КАРТИНКИ: вместе с автором вы проясняете сценку — что происходит, в какой локации, какое настроение, есть ли музыкальная тема. Говори свободно и живо, как обычный человек в разговоре — это не анкета и не чек-лист. Можно шутить, уточнять, предлагать 2-3 конкретных варианта, если у автора нет вдохновения, отвлекаться и возвращаться к теме. Отвечай обычным текстом на русском — никакого JSON, никаких служебных меток внутри текста.\n\nКонтекст всего процесса, чтобы ты видела общую картину: выпуск видео проходит через три последовательных этапа — Картинка (это сейчас твой этап), Описание, Техническая часть (заголовок, оверлей, хэштеги, теги, технический подвал с указанием композитора). У каждого этапа свой отдельный собеседник с полным, детальным набором правил именно для своей задачи — когда дойдёт очередь, Писатель получит все инструкции по объёму и стилю описания, а Техническая часть — свои правила по формуле заголовка, оверлею и подвалу. Пока эти этапы ждут своей очереди, тебе не нужно ничего за них додумывать — вся твоя сосредоточенность сейчас на одном: сценка и сама иллюстрация. Так каждый этап получается глубоко проработанным своим специалистом, а не размазанным заранее.\n\nУ тебя есть четыре инструмента (function tools), которые ты вызываешь сама, когда решаешь, что момент настал:\n- start_drawing — когда сценка полностью прояснена и автор явно, недвусмысленно подтвердил, что готов увидеть картинку. Если сомневаешься, готова ли сценка — лучше спроси ещё раз, чем вызови инструмент раньше времени.\n- request_revision — когда автор просит поправить уже нарисованную картинку (и точечная деталь, и кардинальная переделка — один и тот же инструмент, просто по-разному описывай нужное изменение внутри revisionInstruction).\n- approve_image — вызывай это в тот самый момент, когда понимаешь, что автор согласовала картинку (сказала «да», «супер», «согласовано» и что угодно в этом духе) — само это понимание и есть повод вызвать инструмент прямо сейчас, а не просто упомянуть в ответе, что согласование зафиксировано.\n- update_communication_notes — когда ты сама замечаешь что-то полезное и стоящее того, чтобы запомнить надолго: и про то, как вам удобнее общаться (например: автору нравится, когда ты сама предлагаешь конкретные варианты, а не задаёшь открытые вопросы), и про сами правила канала — если что-то в паспортах, стиле или правилах упаковки показалось неоднозначным и ты для себя решила, как это трактовать, зафиксируй это решение, чтобы не решать каждый раз заново. Вызывай это нечасто, только когда действительно есть чему научиться. В notes всегда передавай ПОЛНЫЙ обновлённый текст заметок — существующие (см. ниже в базе канала) плюс новое наблюдение, — а не только новую строку. Держи заметки короткими и по делу, это живые наблюдения, а не растущий список строгих правил.\nЕсли вместо этого ты замечаешь настоящее противоречие в самих правилах канала (например, две инструкции спорят друг с другом) — не молчи и не решай это тихо сама: скажи об этом прямо в разговоре, как обычной репликой, чтобы автор поправила таблицу.\nЕсли ничего из этого не произошло — просто отвечай текстом, не вызывай инструменты.\n\nПеред тем как отправить ответ — быстрая самопроверка: если по смыслу твоих же слов картинка уже согласована, готова к рисованию или собеседник попросил правку — а ты ещё не вызвала соответствующий инструмент в этом же ответе — вызови его сейчас, прежде чем отправлять текст. Слова о том, что что-то сделано, без самого вызова — это незавершённое действие, а не выполненное.\n\nВместе с этим сообщением тебе физически показаны настоящие картинки, не просто ссылки на них — можешь и должна смотреть на них прямо сейчас, а не просить их прислать или искать файлы: сначала (если она уже существует) — текущая картинка этого проекта; затем style guide канала; затем, если есть, дополнительные референсы. Это и есть тот самый визуальный материал для консистентности — он уже у тебя перед глазами, отдельно запрашивать его не нужно.\n\nБаза канала (персонаж, локации, стиль, референсы — используй по смыслу подписи каждого блока):\n${context.editorKnowledgeText}`;\n\nconst userMessage = trigger.messageText;\n\nreturn [{\n  json: {\n    conversationId,\n    pendingCallId: channelTemplate.tmpl_ChannelConversationId ? (channelTemplate.tmpl_ChannelPendingToolCallId || '') : '',\n    systemPrompt: editorRole,\n    userMessage,\n    projectId: trigger.projectId,\n    chatId: trigger.chatId,\n    sheetName: trigger.sheetName,\n    channelKey: trigger.channelKey,\n    currentDallePrompt: project.ai_DallePromptDraft || '',\n    currentImageUrl: project.ai_ImageUrl || '',\n    styleGuideUrl: context.styleGuideUrl,\n    referenceUrls: context.referenceUrls,\n  }\n}];"
+      },
+      "id": "35145708-64b0-4d21-84b0-4c2d96a221ad",
+      "name": "Готовим запрос редактору",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5984,
+        3424
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', conversation: $json.conversationId, input: [ ...($json.pendingCallId ? [{ type: 'function_call_output', call_id: $json.pendingCallId, output: 'ok' }] : []), { role: 'system', content: $json.systemPrompt }, { role: 'user', content: (() => { const parts = [{ type: 'input_text', text: $json.userMessage }]; if ($json.currentImageUrl) parts.push({ type: 'input_image', image_url: $json.currentImageUrl }); if ($json.styleGuideUrl) parts.push({ type: 'input_image', image_url: $json.styleGuideUrl }); for (const url of ($json.referenceUrls || [])) parts.push({ type: 'input_image', image_url: url }); return parts.length > 1 ? parts : $json.userMessage; })() } ], tools: [ { type: 'web_search' }, { type: 'function', name: 'start_drawing', description: 'Вызови только когда сценка полностью прояснена в разговоре и автор явно подтвердил, что готов увидеть картинку.', parameters: { type: 'object', properties: { dallePrompt: { type: 'string', description: 'Полный промпт для художника на английском, с учётом паспорта персонажа, локации и стиля' }, messageToUser: { type: 'string', description: 'Короткая живая реплика автору по-русски (например \"Рисую!\")' } }, required: ['dallePrompt', 'messageToUser'] } }, { type: 'function', name: 'request_revision', description: 'Вызови, когда автор просит поправить уже нарисованную картинку — и для мелкой детали, и для кардинальной переделки.', parameters: { type: 'object', properties: { revisionInstruction: { type: 'string', description: 'Конкретная инструкция художнику на английском: что именно изменить' }, messageToUser: { type: 'string', description: 'Короткая живая реплика автору по-русски' } }, required: ['revisionInstruction', 'messageToUser'] } }, { type: 'function', name: 'approve_image', description: 'Вызови это в момент, когда понимаешь, что автор согласовала картинку — не после, не вместо этого понимания, а как прямое его следствие, даже если хочется сразу продолжить разговором о следующих шагах.', parameters: { type: 'object', properties: { messageToUser: { type: 'string', description: 'Короткая живая реплика автору по-русски' } }, required: ['messageToUser'] } }, { type: 'function', name: 'update_communication_notes', description: 'Вызови нечасто, только когда действительно заметила что-то полезное и стоящее долгой памяти — про то, как вам удобнее общаться, или про то, как ты для себя решила трактовать неоднозначное правило канала.', parameters: { type: 'object', properties: { notes: { type: 'string', description: 'Полный обновлённый текст заметок (существующие + новое наблюдение), коротко и по делу' }, messageToUser: { type: 'string', description: 'Обычный ответ автору по-русски, продолжающий разговор как ни в чём не бывало' } }, required: ['notes', 'messageToUser'] } } ], tool_choice: 'auto' }) }}",
+        "options": {}
+      },
+      "id": "35a7d384-7bce-4eda-917d-0f9cc2da8d89",
+      "name": "OpenAI: Редактор",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -5760,
+        3424
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "notes": "Модель gpt-5 — проверить, что имя модели актуально на момент запуска. Параметр 'conversation' — тоже часть непроверенного механизма памяти, смотреть вместе с узлом создания разговора.\n\nРедактор теперь вызывает настоящие function tools (start_drawing / request_revision / approve_image) вместо JSON-обёртки вокруг текста — разговор с автором полностью свободный, без формата. НЕ ПРОВЕРЕНО НА ПРАКТИКЕ: возможно, после того как модель вызвала tool, OpenAI ждёт от нас 'function_call_output' (результат вызова), прежде чем примет следующее сообщение пользователя в этом же conversation_id. Если при первом реальном запуске придёт ошибка про незавершённый tool call — нужно будет сразу после парсинга ответа отправлять короткий POST с {type:'function_call_output', call_id, output:'ok'} в тот же conversation, прежде чем ждать следующую реплику автора."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\n\n// Модель может просто ответить текстом (свободный разговор)...\nconst messageItem = output.find(item => item.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst plainText = textPart ? textPart.text : '';\n\n// ...или вызвать один из настоящих tools — это отдельный тип элемента в output,\n// не текст, который нужно парсить регуляркой.\nconst callItem = output.find(item => item.type === 'function_call');\n\nlet action = 'chat';\nlet messageToUser = plainText;\nlet dallePrompt = '';\nlet revisionInstruction = '';\nlet communicationNotes = '';\nlet callId = null;\nlet functionName = null;\n\nif (callItem) {\n  callId = callItem.call_id;\n  functionName = callItem.name;\n  let args = {};\n  try { args = JSON.parse(callItem.arguments || '{}'); } catch (e) {}\n  messageToUser = args.messageToUser || plainText || '';\n\n  if (functionName === 'start_drawing') {\n    action = 'ready_to_draw';\n    dallePrompt = args.dallePrompt || '';\n  } else if (functionName === 'request_revision') {\n    action = 'revise_point';\n    revisionInstruction = args.revisionInstruction || '';\n  } else if (functionName === 'approve_image') {\n    action = 'approved';\n  } else if (functionName === 'update_communication_notes') {\n    // Побочный эффект, не самостоятельное действие — сама реплика остаётся\n    // обычным продолжением разговора (action = 'chat'), заметки сохраняются\n    // отдельным шагом перед узлом \"Куда дальше?\".\n    communicationNotes = args.notes || '';\n  }\n}\n\nconst prep = $('Готовим запрос редактору').first().json;\n\nreturn [{\n  json: {\n    action,\n    messageToUser,\n    dallePrompt,\n    revisionInstruction,\n    communicationNotes,\n    callId,\n    functionName,\n    conversationId: prep.conversationId,\n    projectId: prep.projectId,\n    chatId: prep.chatId,\n    sheetName: prep.sheetName,\n    channelKey: prep.channelKey,\n    currentDallePrompt: prep.currentDallePrompt,\n    currentImageUrl: prep.currentImageUrl,\n    styleGuideUrl: prep.styleGuideUrl,\n    referenceUrls: prep.referenceUrls,\n  }\n}];"
+      },
+      "id": "9dfc7011-8e56-4492-b8cf-3f5ce4bd8105",
+      "name": "Парсим ответ редактора",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5536,
+        3424
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "tmpl_Channel"
+          ],
+          "value": {
+            "tmpl_Channel": "={{ $json.channelKey }}",
+            "tmpl_ChannelConversationId": "={{ $json.conversationId }}",
+            "tmpl_ChannelPendingToolCallId": "={{ $json.callId || '' }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "88916914-8576-4a1f-a7b6-24021f61c835",
+      "name": "Сохраняем conversation_id",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -5312,
+        3424
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.communicationNotes }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f2f2d113-8f08-44a5-aac5-e953174ab2ac",
+      "name": "Есть заметки об общении?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4192,
+        3216
+      ],
+      "notesInFlow": true,
+      "notes": "Побочный эффект от update_communication_notes — не влияет на основной маршрут (action остаётся 'chat'), просто сохраняет заметки в Templates перед тем, как разговор продолжится как обычно."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "tmpl_Channel"
+          ],
+          "value": {
+            "tmpl_Channel": "={{ $json.channelKey }}",
+            "🖋_tmpl_EditorNotes": "={{ $json.communicationNotes }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "ab63cbb4-600c-4e57-a32e-86b56784768c",
+      "name": "Сохраняем заметки об общении",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -3968,
+        3136
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "notes": "Пишет в Templates (канальный уровень), не в Projects — заметки об общении общие для всех проектов канала и переживают смену conversation_id. Требует, чтобы в Templates была колонка 🖋_tmpl_EditorNotes."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Парсим ответ редактора').first().json.action }}",
+                    "rightValue": "chat",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Парсим ответ редактора').first().json.action }}",
+                    "rightValue": "ready_to_draw",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Парсим ответ редактора').first().json.action }}",
+                    "rightValue": "revise_point",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Парсим ответ редактора').first().json.action }}",
+                    "rightValue": "approved",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "e5981fe9-b7c8-43bb-a002-fb0068147528",
+      "name": "Куда дальше?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -3744,
+        3152
+      ],
+      "notesInFlow": true,
+      "notes": "ready_to_draw теперь покрывает и первую картинку, и кардинальную переделку — это один и тот же tool (start_drawing), редактор сама решает по смыслу разговора, какой дать dallePrompt. Мёртвая ветка 'revise_major' удалена вместе с соответствующим выходом в connections."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Парсим ответ редактора').first().json.chatId }}",
+        "text": "={{ $('Парсим ответ редактора').first().json.messageToUser }}\n\nID: {{ $('Парсим ответ редактора').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "34cf1219-2c64-4cdd-a2e7-2a8689c92dad",
+      "name": "Отправляем ответ (чат)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -3520,
+        2944
+      ],
+      "webhookId": "a57e5d86-3874-4aa8-9843-cc700ca3c339",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Парсим ответ редактора').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Парсим ответ редактора').first().json.projectId }}",
+            "sys_Status": "Картинка согласована",
+            "ai_ApprovedImageUrl": "={{ $('Парсим ответ редактора').first().json.currentImageUrl }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "bfd6793a-0255-4233-bfc5-eb102f2ac943",
+      "name": "Ставим статус Картинка согласована",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -3520,
+        3616
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Парсим ответ редактора').first().json.chatId }}",
+        "text": "=Картинка согласована ✅\n\nID: {{ $('Парсим ответ редактора').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "7637dcac-bc19-4d94-a660-ad97fa758d8b",
+      "name": "Отправляем подтверждение согласования",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -3296,
+        3712
+      ],
+      "webhookId": "ca80999f-b449-44ea-aa27-526c986465a9",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const j = $('Парсим ответ редактора').first().json;\n// Style guide всегда первым, затем обычные референсы. Максимум 5 файлов\n// на вызов (ограничение API) — если меньше, дублируем последний, чтобы\n// число элементов совпадало с числом полей image[] в узле рисования.\nlet urls = [j.styleGuideUrl, ...(j.referenceUrls || [])].filter(Boolean).slice(0, 16);\nwhile (urls.length > 0 && urls.length < 16) {\n  urls.push(urls[urls.length - 1]);\n}\n\nreturn urls.map((url, i) => ({\n  json: { ...j, refUrl: url, refIndex: i }\n}));"
+      },
+      "id": "ed888487-9f89-480f-bd86-d31e078c66c1",
+      "name": "Готовим список: style guide + референсы",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3520,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.refUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "3838ee53-39f8-4a36-9557-1d52a8af4dea",
+      "name": "Скачиваем референс (B)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3296,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    dallePrompt: first.dallePrompt,\n    action: first.action,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n  },\n  binary\n}];"
+      },
+      "id": "d3780e00-ca94-45c7-91ec-a7da8667e37d",
+      "name": "Собираем референсы в один item (B)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3072,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.dallePrompt }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_10"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_11"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_12"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_13"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_14"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_15"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "84f207ec-3b6f-4ea1-af51-ae12ccf2f381",
+      "name": "gpt-image-2: рисуем (B)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3136
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'pengui_scene.png', 'image/png');\n\nreturn [{\n  json: {\n    dallePrompt: $('Собираем референсы в один item (B)').first().json.dallePrompt,\n    projectId: $('Собираем референсы в один item (B)').first().json.projectId,\n    sheetName: $('Собираем референсы в один item (B)').first().json.sheetName,\n    chatId: $('Собираем референсы в один item (B)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
+      },
+      "id": "71481e16-ae6c-4fa6-a9d6-39fdec33b785",
+      "name": "Извлекаем картинку (B)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.projectId }}.png",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/folders/1NtL69i_R-RVB7vF1Sx8MfONiCHycWUGR",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "id": "5a376eb8-b801-49c9-aa52-9d677a5aef70",
+      "name": "Загружаем на Диск (B)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -2400,
+        3136
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "ZLNHOxch4VGkW4m0",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone"
+          }
+        },
+        "options": {}
+      },
+      "id": "63b4ba05-9335-472e-876b-f8afe447112c",
+      "name": "Открываем доступ (B)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -2176,
+        3136
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "ZLNHOxch4VGkW4m0",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fileId = $('Загружаем на Диск (B)').first().json.id;\nreturn [{\n  json: {\n    sys_ProjectID: $('Извлекаем картинку (B)').first().json.projectId,\n    ai_ImageUrl: 'https://lh3.googleusercontent.com/d/' + fileId,\n    ai_DallePromptDraft: $('Извлекаем картинку (B)').first().json.dallePrompt,\n    sheetName: $('Извлекаем картинку (B)').first().json.sheetName,\n    chatId: $('Извлекаем картинку (B)').first().json.chatId,\n  }\n}];\n"
+      },
+      "id": "2545eede-d9f5-4bb4-8aef-cffa9f960cf3",
+      "name": "Собираем ссылку (B)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1952,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
+            "ai_ImageUrl": "={{ $json.ai_ImageUrl }}",
+            "ai_DallePromptDraft": "={{ $json.ai_DallePromptDraft }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "73688ac1-3891-464d-bf91-b9e238d0f3b0",
+      "name": "Сохраняем картинку и промпт (B)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1728,
+        3136
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendPhoto",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Собираем ссылку (B)').first().json.chatId }}"
+            },
+            {
+              "name": "photo",
+              "value": "={{ $('Собираем ссылку (B)').first().json.ai_ImageUrl }}"
+            },
+            {
+              "name": "caption",
+              "value": "=ID: {{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "000520c6-f0c3-4715-b6b3-7d27cefea085",
+      "name": "Отправляем картинку (B)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1504,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Парсим ответ редактора').first().json.currentImageUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "image_0"
+            }
+          }
+        }
+      },
+      "id": "9e84f0fc-00c7-4c40-aac9-a268783e94fc",
+      "name": "Скачиваем текущую картинку (C)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3520,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Парсим ответ редактора').first().json.styleGuideUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "image_1"
+            }
+          }
+        }
+      },
+      "id": "d4d6c2bf-ea9f-4436-bb04-456d38ae7056",
+      "name": "Скачиваем style guide (C)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3296,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Оба скачивания идут последовательно в одну ветку (не параллельно),\n// поэтому просто переносим оба бинарных поля в один item.\nconst prevItem = $('Скачиваем текущую картинку (C)').first();\nconst curItem = $input.first();\n\nreturn [{\n  json: {\n    revisionInstruction: $('Парсим ответ редактора').first().json.revisionInstruction,\n    projectId: $('Парсим ответ редактора').first().json.projectId,\n    chatId: $('Парсим ответ редактора').first().json.chatId,\n    sheetName: $('Парсим ответ редактора').first().json.sheetName,\n  },\n  binary: {\n    image_0: prevItem.binary.image_0,\n    image_1: curItem.binary.image_1,\n  }\n}];"
+      },
+      "id": "3796534e-7ce6-4239-8393-5db84a828661",
+      "name": "Собираем 2 референса (C)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3072,
+        3328
+      ],
+      "notesInFlow": true,
+      "notes": "Только текущая картинка + style guide, без оригинального dallePrompt текстом — по решению: точечная правка опирается на то, что редактор видит картинку и говорит словами, что поправить."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d8788bc7-464e-43ca-ab26-21f023ba97a9",
+      "name": "gpt-image-2: точечная правка (C)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3328
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'pengui_scene.png', 'image/png');\n\nreturn [{\n  json: {\n    projectId: $('Собираем 2 референса (C)').first().json.projectId,\n    sheetName: $('Собираем 2 референса (C)').first().json.sheetName,\n    chatId: $('Собираем 2 референса (C)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
+      },
+      "id": "9883e166-e9b2-420c-979c-475ec60b072e",
+      "name": "Извлекаем картинку (C)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.projectId }}.png",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/folders/1NtL69i_R-RVB7vF1Sx8MfONiCHycWUGR",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "id": "73bf3d0d-9fa3-4b7f-8b5b-9cb434f9d926",
+      "name": "Загружаем на Диск (C)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -2400,
+        3328
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "ZLNHOxch4VGkW4m0",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone"
+          }
+        },
+        "options": {}
+      },
+      "id": "7f8ece01-fc22-4c7a-be32-f0b73a352eab",
+      "name": "Открываем доступ (C)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -2176,
+        3328
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "ZLNHOxch4VGkW4m0",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fileId = $('Загружаем на Диск (C)').first().json.id;\nreturn [{\n  json: {\n    sys_ProjectID: $('Извлекаем картинку (C)').first().json.projectId,\n    ai_ImageUrl: 'https://lh3.googleusercontent.com/d/' + fileId,\n    sheetName: $('Извлекаем картинку (C)').first().json.sheetName,\n    chatId: $('Извлекаем картинку (C)').first().json.chatId,\n  }\n}];\n"
+      },
+      "id": "3dac9f1a-7cdf-4d7a-8595-1bfa12c8e3ca",
+      "name": "Собираем ссылку (C)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1952,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
+            "ai_ImageUrl": "={{ $json.ai_ImageUrl }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "9ad4c1c8-bf8b-400b-9756-a361a7e9dd0b",
+      "name": "Сохраняем картинку (C)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1728,
+        3328
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendPhoto",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Собираем ссылку (C)').first().json.chatId }}"
+            },
+            {
+              "name": "photo",
+              "value": "={{ $('Собираем ссылку (C)').first().json.ai_ImageUrl }}"
+            },
+            {
+              "name": "caption",
+              "value": "=ID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1001c30-c448-46c6-b5a9-9e2fd3317de5",
+      "name": "Отправляем картинку (C)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1504,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "6arFlvk1uzPQ5mTd",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/6arFlvk1uzPQ5mTd",
+          "cachedResultName": "02_Писатель"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "e4c05248-aa20-4227-a430-ee33192d5342",
+      "name": "Зовём Писателя",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -3072,
+        3520
+      ],
+      "notesInFlow": true,
+      "notes": "После импорта открой этот узел и в поле workflowId выбери из списка '02_Писатель'. Сообщение messageText — синтетический стартовый посыл, не от автора; Писатель воспримет его как обычную реплику и сам начнёт разговор про сцену."
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Парсим ответ редактора').first().json;\nreturn [{\n  json: {\n    projectId: p.projectId,\n    chatId: p.chatId,\n    sheetName: p.sheetName,\n    channelKey: p.channelKey,\n    messageText: 'Картинка только что согласована — начинай, пожалуйста, обсуждение сцены для описания.',\n  }\n}];"
+      },
+      "id": "5ad199fd-d465-4bb9-8d3e-6f3bc76f8e81",
+      "name": "Готовим данные для Писателя",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3296,
+        3520
+      ],
+      "notesInFlow": true,
+      "notes": "Execute Workflow node в этой версии n8n игнорирует ручной маппинг полей — приклеиваем нужные поля к текущему item заранее, так же, как в диспетчере."
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $('Готовим запрос редактору').first().json;\nconst parsed = $('Парсим ответ редактора').first().json;\n\nreturn [{\n  json: {\n    classifierInput: `Автор написал: \"${req.userMessage}\"\\n\\nРедактор ответил: \"${parsed.messageToUser}\"`,\n  }\n}];"
+      },
+      "id": "77ae36d7-7616-4b5e-9e88-7e87ca2e27f6",
+      "name": "Готовим вопрос классификатору",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5088,
+        3424
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Ты — строгий бинарный классификатор, без творчества и без памяти о прошлых сообщениях. По приведённому обмену репликами определи: автор только что дал окончательное, явное согласие с текущей картинкой как финальной? Ответь ровно одним словом: true или false. Ничего больше.' }, { role: 'user', content: $json.classifierInput } ] }) }}",
+        "options": {}
+      },
+      "id": "d048560d-8a3f-4e6b-99ee-da24d4e40040",
+      "name": "OpenAI: классификатор согласия",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4864,
+        3424
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "notes": "Отдельный, беспамятный запрос — без 'conversation', без tools."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\nconst isApproved = raw.startsWith('true');\n\nconst parsed = $('Парсим ответ редактора').first().json;\nreturn [{ json: { ...parsed, isApproved } }];"
+      },
+      "id": "ea245349-0e09-4281-81bd-3c18091aa403",
+      "name": "Разбираем классификатор",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4640,
+        3424
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.isApproved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "46484891-0bc5-4ea2-b7ec-57b10cafccb2",
+      "name": "Нужно завершить принудительно?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4416,
+        3424
+      ],
+      "notesInFlow": true,
+      "notes": "Срабатывает только когда классификатор уверен, что согласие было, а модель сама не вызвала approve_image."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=sys_ProjectID",
+              "lookupValue": "={{ $json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a57de29a-9f11-435a-9db2-0c698213d64e",
+      "name": "Читаем актуальную картинку",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -4192,
+        3712
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "notes": "ai_ImageUrl уже надёжно заполняется на каждом start_drawing/request_revision — читаем последнюю версию."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
+            "sys_Status": "Картинка согласована",
+            "ai_ApprovedImageUrl": "={{ $json.ai_ImageUrl }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "91fe1d06-d499-4f66-ac10-d836c609857f",
+      "name": "Завершаем по классификатору",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -3968,
+        3712
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Разбираем классификатор').first().json.chatId }}",
+        "text": "=Картинка согласована ✅ (подтверждено тихой проверкой согласия)\n\nID: {{ $('Разбираем классификатор').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "5f2c3d46-7026-447c-814f-8d6d491c51af",
+      "name": "Шлём подтверждение (классификатор)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -3744,
+        3552
+      ],
+      "webhookId": "324787f2-b118-485e-b4c3-6638c718eff8",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $('Разбираем классификатор').first().json;\nreturn [{\n  json: {\n    projectId: p.projectId,\n    chatId: p.chatId,\n    sheetName: p.sheetName,\n    channelKey: p.channelKey,\n    messageText: 'Картинка только что согласована — начинай, пожалуйста, обсуждение сцены для описания.',\n  }\n}];"
+      },
+      "id": "117673cf-f472-4988-be2c-af354635deac",
+      "name": "Готовим данные для Писателя (классификатор)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3744,
+        3808
+      ],
+      "notesInFlow": true,
+      "notes": "Тот же авто-переход к Писателю, что и при обычном согласовании."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "6arFlvk1uzPQ5mTd",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/6arFlvk1uzPQ5mTd",
+          "cachedResultName": "02_Писатель"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "4f086c4b-88f3-4cad-ba77-7a54388e2974",
+      "name": "Зовём Писателя (классификатор)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -3520,
+        3808
+      ],
+      "notesInFlow": true,
+      "notes": "После импорта выбери '02_Писатель' в workflowId."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "tmpl_Channel",
+              "lookupValue": "={{ $('Вход от диспетчера').first().json.channelKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "33784a83-ac26-4ce2-b4d8-fce8f3a5e1e8",
+      "name": "Читаем шаблон канала (для разговора)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -7104,
+        3424
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Вход от диспетчера": {
+      "main": [
+        [
+          {
+            "node": "Форс-согласование?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Форс-согласование?": {
+      "main": [
+        [
+          {
+            "node": "Форс: читаем строку проекта",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Читаем строку проекта",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Читаем шаблоны канала",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Форс: читаем строку проекта": {
+      "main": [
+        [
+          {
+            "node": "Форс: ставим статус",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Форс: ставим статус": {
+      "main": [
+        [
+          {
+            "node": "Форс: отправляем подтверждение",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем шаблоны канала": {
+      "main": [
+        [
+          {
+            "node": "Находим шаблон канала",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Находим шаблон канала": {
+      "main": [
+        [
+          {
+            "node": "Собираем контекст редактора",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем строку проекта": {
+      "main": [
+        [
+          {
+            "node": "Читаем шаблон канала (для разговора)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ждём обе ветки": {
+      "main": [
+        [
+          {
+            "node": "Готовим запрос редактору",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть ли conversation_id?": {
+      "main": [
+        [
+          {
+            "node": "Ждём обе ветки",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI: создаём разговор",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: создаём разговор": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем ID разговора",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем ID разговора": {
+      "main": [
+        [
+          {
+            "node": "Ждём обе ветки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем контекст редактора": {
+      "main": [
+        [
+          {
+            "node": "Ждём обе ветки",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Готовим запрос редактору": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Редактор",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Редактор": {
+      "main": [
+        [
+          {
+            "node": "Парсим ответ редактора",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Парсим ответ редактора": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем conversation_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем conversation_id": {
+      "main": [
+        [
+          {
+            "node": "Готовим вопрос классификатору",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть заметки об общении?": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем заметки об общении",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Куда дальше?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем заметки об общении": {
+      "main": [
+        [
+          {
+            "node": "Куда дальше?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Куда дальше?": {
+      "main": [
+        [
+          {
+            "node": "Отправляем ответ (чат)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Готовим список: style guide + референсы",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Скачиваем текущую картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ставим статус Картинка согласована",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Отправляем ответ (чат)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим список: style guide + референсы": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем референс (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем референс (B)": {
+      "main": [
+        [
+          {
+            "node": "Собираем референсы в один item (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем референсы в один item (B)": {
+      "main": [
+        [
+          {
+            "node": "gpt-image-2: рисуем (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: рисуем (B)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Извлекаем картинку (B)": {
+      "main": [
+        [
+          {
+            "node": "Загружаем на Диск (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Загружаем на Диск (B)": {
+      "main": [
+        [
+          {
+            "node": "Открываем доступ (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Открываем доступ (B)": {
+      "main": [
+        [
+          {
+            "node": "Собираем ссылку (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем ссылку (B)": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем картинку и промпт (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем картинку и промпт (B)": {
+      "main": [
+        [
+          {
+            "node": "Отправляем картинку (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем текущую картинку (C)": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем style guide (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем style guide (C)": {
+      "main": [
+        [
+          {
+            "node": "Собираем 2 референса (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем 2 референса (C)": {
+      "main": [
+        [
+          {
+            "node": "gpt-image-2: точечная правка (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: точечная правка (C)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Извлекаем картинку (C)": {
+      "main": [
+        [
+          {
+            "node": "Загружаем на Диск (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Загружаем на Диск (C)": {
+      "main": [
+        [
+          {
+            "node": "Открываем доступ (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Открываем доступ (C)": {
+      "main": [
+        [
+          {
+            "node": "Собираем ссылку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем ссылку (C)": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем картинку (C)": {
+      "main": [
+        [
+          {
+            "node": "Отправляем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ставим статус Картинка согласована": {
+      "main": [
+        [
+          {
+            "node": "Отправляем подтверждение согласования",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Готовим данные для Писателя",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим данные для Писателя": {
+      "main": [
+        [
+          {
+            "node": "Зовём Писателя",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим вопрос классификатору": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: классификатор согласия",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: классификатор согласия": {
+      "main": [
+        [
+          {
+            "node": "Разбираем классификатор",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Разбираем классификатор": {
+      "main": [
+        [
+          {
+            "node": "Нужно завершить принудительно?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нужно завершить принудительно?": {
+      "main": [
+        [
+          {
+            "node": "Читаем актуальную картинку",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Есть заметки об общении?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем актуальную картинку": {
+      "main": [
+        [
+          {
+            "node": "Завершаем по классификатору",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Завершаем по классификатору": {
+      "main": [
+        [
+          {
+            "node": "Шлём подтверждение (классификатор)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Готовим данные для Писателя (классификатор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим данные для Писателя (классификатор)": {
+      "main": [
+        [
+          {
+            "node": "Зовём Писателя (классификатор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем шаблон канала (для разговора)": {
+      "main": [
+        [
+          {
+            "node": "Есть ли conversation_id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "FIjHQQSAlggtP8ij",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "4d0d04d3-cc21-447c-a6fa-316982dae525",
+  "meta": {
+    "instanceId": "b8eb18f87fb93f604cdd65842933c2c352edc0065374dca2531be5d7563bc438"
+  },
+  "id": "zTTJEKOGBzlHIVAb",
+  "tags": []
+}

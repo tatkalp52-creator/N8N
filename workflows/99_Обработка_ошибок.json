@@ -1,0 +1,92 @@
+{
+  "name": "99_Обработка ошибок",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "fe2cd9f7-f299-4138-a167-d08c1646cb19",
+      "name": "При любой ошибке в любом из workflow",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        80
+      ],
+      "notesInFlow": true,
+      "notes": "Этот workflow не запускается вручную и не вызывается другими workflow напрямую. Чтобы он сработал — в НАСТРОЙКАХ каждого из workflow (00_Вход_и_диспетчер, 01_Художник, будущих 02/03) нужно один раз указать в поле 'Error Workflow' именно этот файл. После этого n8n сам подключит его ко всем ним — здесь ничего добавлять руками при появлении новых workflow не нужно."
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.first().json;\nconst workflowName = e.workflow?.name || 'неизвестный workflow';\nconst nodeName = e.execution?.lastNodeExecuted || 'неизвестный узел';\nconst message = e.execution?.error?.message || JSON.stringify(e).slice(0, 500);\n\nreturn [{\n  json: {\n    text: `⚠️ Сбой в автоматизации Pengui\\n\\nWorkflow: ${workflowName}\\nУзел: ${nodeName}\\nОшибка: ${message}\\n\\nЭто не связано с самим Telegram-ботом — просто где-то на сервере что-то не сработало. Загляни в n8n, когда будет момент.`\n  }\n}];"
+      },
+      "id": "b26a721f-a98d-47bd-8803-490f30143bc3",
+      "name": "Готовим короткое сообщение",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "285577543",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "b049e42e-316e-4015-91ca-781fe6495307",
+      "name": "Пишем Тане лично",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        80
+      ],
+      "notesInFlow": true,
+      "webhookId": "f0a117a8-4857-4680-8b8c-dbaea0e41e80",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      },
+      "notes": "chatId проверить — сейчас взят из тестовых данных проекта pengui. Если это не личный чат Тани с ботом (а, например, чат конкретного канала) — заменить на правильный ID."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "При любой ошибке в любом из workflow": {
+      "main": [
+        [
+          {
+            "node": "Готовим короткое сообщение",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим короткое сообщение": {
+      "main": [
+        [
+          {
+            "node": "Пишем Тане лично",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d8292c9f-eb34-4377-a810-ac24b272831b",
+  "meta": {
+    "instanceId": "b8eb18f87fb93f604cdd65842933c2c352edc0065374dca2531be5d7563bc438"
+  },
+  "id": "FIjHQQSAlggtP8ij",
+  "tags": []
+}

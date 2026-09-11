@@ -1,0 +1,956 @@
+{
+  "name": "04_Video",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const text = ($json.message && $json.message.text) || '';\nconst chatId = $json.message && $json.message.chat && $json.message.chat.id;\n\nconst match = text.match(/^\\/render\\s+(\\S+)/);\nif (!match) {\n  return []; // не команда /render — молча выходим, ничего не делаем\n}\n\nconst projectId = match[1].trim();\nconst parts = projectId.split('_');\nconst channelKey = parts.slice(2).join('_');\n\nreturn [{ json: { projectId, channelKey, chatId } }];"
+      },
+      "id": "795c66cc-2504-44fd-b47c-05396d135507",
+      "name": "Парсим команду /render",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        2752
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=sys_ProjectID",
+              "lookupValue": "={{ $json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "af51b684-c3cb-4d68-8455-ba5e7543ff73",
+      "name": "Читаем проект",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4672,
+        2800
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Читаем проект').first().json.sys_Status }}",
+              "value2": "Утверждено"
+            }
+          ]
+        }
+      },
+      "id": "d4aed600-7321-4d5b-8d26-b57cab07770f",
+      "name": "Статус Утверждено?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        5120,
+        2800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Нормализуем вход').first().json.chatId, text: 'Проект ' + $('Читаем проект').first().json.sys_ProjectID + ' ещё не одобрен (текущий статус: \"' + $('Читаем проект').first().json.sys_Status + '\"). Сначала подтверди согласование.' }) }}",
+        "options": {}
+      },
+      "id": "881d59c5-f197-491b-b040-3c1d1492a90d",
+      "name": "Сообщаем: не одобрен",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5344,
+        2896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace('[Timecodes]', $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst targetLUFS = findByLabel(styleRow, 'tmpl_TargetLUFS');\nconst targetBrightness = findByLabel(styleRow, 'tmpl_TargetBrightness');\nconst fadeInSeconds = findByLabel(styleRow, 'tmpl_FadeInSeconds');\nconst fadeOutSeconds = findByLabel(styleRow, 'tmpl_FadeOutSeconds');\nconst gapSeconds = findByLabel(styleRow, 'tmpl_GapSeconds');\nconst mixSeconds = findByLabel(styleRow, 'tmpl_MixSeconds');\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: proj.ai_OverlayText || '',\n  overlayPosition: proj.ai_OverlayPosition || 'center',\n  ...overlayStyle,\n  ...(targetLUFS ? { targetLUFS } : {}),\n  ...(targetBrightness ? { targetBrightness } : {}),\n  ...(fadeInSeconds ? { fadeInSeconds } : {}),\n  ...(fadeOutSeconds ? { fadeOutSeconds } : {}),\n  ...(gapSeconds ? { gapSeconds } : {}),\n  ...(mixSeconds ? { mixSeconds } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  payload\n} }];"
+      },
+      "id": "258c9cc8-65f8-4d4b-9832-c1f786470ee4",
+      "name": "Готовим данные для сборки",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6688,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chatId, text: 'Собираю видео для ' + $json.projectId + '. Это может занять несколько минут...' }) }}",
+        "options": {}
+      },
+      "id": "1bd4ff93-35da-46a1-9a81-0a77911a2f00",
+      "name": "Сообщаем: начали сборку",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        6912,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/assemble",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Готовим данные для сборки').first().json.payload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 3600000
+        }
+      },
+      "id": "330e9130-6a73-44f3-9759-b9ee37546afd",
+      "name": "Собираем видео (POST)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7136,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $json.message;\nif (!msg || !msg.reply_to_message) return [];\n\nconst text = msg.text || '';\nconst urlMatch = text.match(/https?:\\/\\/\\S+/);\nif (!urlMatch) return []; // не ссылка на треки — не наш случай\n\nconst repliedText = (msg.reply_to_message.text || msg.reply_to_message.caption || '');\nconst idMatch = repliedText.match(/(\\d{8})_?(\\d{6})_?([A-Za-z0-9]+)/);\nif (!idMatch) return [];\n\nconst projectId = idMatch[1] + '_' + idMatch[2] + '_' + idMatch[3];\nconst channelKey = idMatch[3];\nconst chatId = msg.chat.id;\nlet audioZipUrl = urlMatch[0];\n// Превращаем обычную ссылку Google Drive в прямую ссылку на скачивание,\n// какой бы формат ни вставила Татьяна — руками ничего преобразовывать не нужно\nconst driveMatch = audioZipUrl.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || audioZipUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);\nif (driveMatch) {\n  audioZipUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;\n}\n\nreturn [{ json: { projectId, channelKey, chatId, audioZipUrl } }];"
+      },
+      "id": "270a7882-3dfe-4153-8f56-6638016e74b2",
+      "name": "Парсим ссылку на треки",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3776,
+        2992
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.SheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Парсим ссылку на треки').first().json.projectId }}",
+            "sys_AudioZipUrl": "={{ $('Парсим ссылку на треки').first().json.audioZipUrl }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "4b15c3ca-679c-4be3-b563-9c29e8326758",
+      "name": "Сохраняем ссылку на треки",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4224,
+        2992
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Парсим ссылку на треки').first().json.chatId, text: 'Ссылка на треки получена для ' + $('Парсим ссылку на треки').first().json.projectId + '. Начинаю сборку...' }) }}",
+        "options": {}
+      },
+      "id": "7e455e71-5046-461e-b6d3-7cbbc44bf1e3",
+      "name": "Подтверждаем сохранение ссылки",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4448,
+        3040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function getEntry() {\n  try { return $('Парсим ссылку на треки').first().json; } catch (e) {}\n  try { return $('Парсим команду /render').first().json; } catch (e) {}\n  throw new Error('Не найден источник входа ни по одной ветке');\n}\nfunction getSheetName() {\n  try { return $('Находим лист канала (треки)').first().json.SheetName; } catch (e) {}\n  try { return $('Находим лист канала (render)').first().json.SheetName; } catch (e) {}\n  throw new Error('Не найдено имя листа ни по одной ветке');\n}\nconst entry = getEntry();\nconst sheetName = getSheetName();\nreturn [{ json: { projectId: entry.projectId, channelKey: entry.channelKey, chatId: entry.chatId, sheetName } }];"
+      },
+      "id": "cc5c4238-1688-4302-b465-af0611e819fd",
+      "name": "Нормализуем вход",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4448,
+        2800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/trackinfo",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ audioZipUrl: $('Читаем проект').first().json.sys_AudioZipUrl, mixSeconds: (() => { const row = $('Читаем стиль оверлея').first().json; const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_MixSeconds'); return key ? row[key] : undefined; })(), gapSeconds: (() => { const row = $('Читаем стиль оверлея').first().json; const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_GapSeconds'); return key ? row[key] : undefined; })() }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "03498a28-db4c-4364-8bd5-a237e2fb4925",
+      "name": "Считаем длительности треков",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5344,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $json;\n\n// Трек считается 'уже названным', если после отбрасывания ведущих цифр/разделителей\n// остаётся содержательный текст (больше 2 символов)\nfunction isMeaningfulName(filename) {\n  let stripped = filename.replace(/^[\\d_\\-\\s]+/, '');\n  // убираем технический суффикс вида \" (1)\", \"(2)\" и т.п. — след\n  // от дублирующихся имён при скачивании, а не настоящее название\n  stripped = stripped.replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n  return stripped.length > 2;\n}\n\nconst needsNaming = info.tracks.filter(t => !isMeaningfulName(t.filename));\n\nif (needsNaming.length === 0) {\n  // Называть некого — сразу возвращаем структуру без вызова GPT\n  return [{ json: { skipGpt: true, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n}\n\nconst systemPrompt = 'Ты придумываешь короткие, атмосферные названия для безымянных инструментальных треков ' +\n  'в расслабляющем YouTube-видео. Название должно быть 2-4 слова, на английском, в духе брифа видео — ' +\n  'не описание музыки, а маленький образ/деталь сцены (например \"Fish on the Line\", \"Golden Hour\"). ' +\n  'Верни JSON строго такого вида: {\"names\": {\"<index>\": \"Name\", ...}} — по одному имени на каждый индекс из списка.';\n\nconst userPrompt = 'Бриф видео: ' + (proj.ai_UserBrief || proj.ai_Description || '') + '\\n\\n' +\n  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');\n\nreturn [{ json: { skipGpt: false, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];"
+      },
+      "id": "e8a238cf-457f-43f0-ab36-5d5bffde8162",
+      "name": "Готовим запрос на названия треков",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5568,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.skipGpt }}"
+            }
+          ]
+        }
+      },
+      "id": "4dc4c8a4-593c-4024-905b-034189fbdfbd",
+      "name": "Нужны названия?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        5792,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }) }}",
+        "options": {}
+      },
+      "id": "471febd4-9271-469d-aba8-52652c9b0515",
+      "name": "OpenAI: названия треков",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        6016,
+        2624
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function getBase() {\n  try { return $('Готовим запрос на названия треков').first().json; } catch (e) {}\n  throw new Error('base not found');\n}\nconst base = getBase();\nlet names = {};\n\nif (!base.skipGpt) {\n  try {\n    const raw = $('OpenAI: названия треков').first().json.choices[0].message.content;\n    const parsed = JSON.parse(raw);\n    names = parsed.names || {};\n  } catch (e) {\n    names = {};\n  }\n}\n\nfunction formatTime(seconds) {\n  const m = Math.floor(seconds / 60);\n  const s = Math.floor(seconds % 60);\n  return m + ':' + String(s).padStart(2, '0');\n}\n\nfunction isMeaningfulName(filename) {\n  let stripped = filename.replace(/^[\\d_\\-\\s]+/, '');\n  // убираем технический суффикс вида \" (1)\", \"(2)\" и т.п. — след\n  // от дублирующихся имён при скачивании, а не настоящее название\n  stripped = stripped.replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n  return stripped.length > 2;\n}\n\nconst lines = base.tracks.map(t => {\n  let title;\n  if (isMeaningfulName(t.filename)) {\n    title = t.filename.replace(/^[\\d_\\-\\s]+/, '').trim();\n  } else {\n    title = names[String(t.index)] || t.filename;\n  }\n  return formatTime(t.startSeconds) + ' ' + title;\n});\n\nconst loopCount = parseInt($('Читаем проект').first().json.sys_LoopCount) || 1;\nif (loopCount > 1) {\n  lines.push(formatTime(base.totalDurationSeconds) + ' Repeat');\n}\n\nreturn [{ json: { timecodesText: lines.join('\\n') } }];"
+      },
+      "id": "2b661289-5e9a-4902-899e-5dfccbb4c03f",
+      "name": "Собираем текст таймкодов",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6240,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Нормализуем вход').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Нормализуем вход').first().json.projectId }}",
+            "ai_Description": "={{ $('Читаем проект').first().json.ai_Description.replace('[Timecodes]', $json.timecodesText) }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "4b46e4d6-c8e0-42ef-b08c-1375f4a59943",
+      "name": "Вписываем таймкоды в описание",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        6464,
+        2704
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Готовим данные для сборки').first().json.title }}",
+        "regionCode": "US",
+        "categoryId": "10",
+        "options": {
+          "description": "={{ $('Готовим данные для сборки').first().json.description }}",
+          "privacyStatus": "unlisted"
+        }
+      },
+      "id": "ad48997f-c5df-4d4d-9c9d-321903623827",
+      "name": "Загружаем на YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        7584,
+        2704
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Catalog",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Channel",
+              "lookupValue": "={{ $json.channelKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ccfee066-a5c8-4341-9c7d-3ca59292b2ca",
+      "name": "Находим лист канала (render)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4224,
+        2752
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Catalog",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Channel",
+              "lookupValue": "={{ $json.channelKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "686a7029-1ec1-4e6c-9f69-908e6c0b80f7",
+      "name": "Находим лист канала (треки)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4000,
+        2992
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Нормализуем вход').first().json.channelKey }}",
+                    "rightValue": "pengui",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "0b70ea8f-a736-4079-8590-70edc0ff75b3",
+      "name": "Какой канал?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        7360,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео собрано и отправлено выше, но для канала \\'' + $('Нормализуем вход').first().json.channelKey + '\\' YouTube ещё не подключен — загрузка на YouTube для этого канала пока недоступна.' }) }}",
+        "options": {}
+      },
+      "id": "21f88720-e8ab-46f8-9027-4465fdd66381",
+      "name": "YouTube не подключен для канала",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3552,
+        2400
+      ]
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "d1950db8-62e0-4a67-8c08-d2744e31321f",
+      "name": "Приём от workflow 1",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        3552,
+        2896
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8948698490:AAFoj3ugd4Ol7YOMrcRU4qSLFziNyWljNgw/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео готово и выложено на канал: https://youtu.be/' + $json.uploadId }) }}",
+        "options": {}
+      },
+      "id": "3ed73c3b-f623-455b-a59e-2f2b73505fe4",
+      "name": "Сообщаем: видео на YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8256,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "tmpl_Channel",
+              "lookupValue": "={{ $('Нормализуем вход').first().json.channelKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b8e9db6e-6767-41d8-bee3-994feb598d9d",
+      "name": "Читаем стиль оверлея",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4896,
+        2800
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/thumbnail/{{ $('Нормализуем вход').first().json.projectId }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "8806ce21-34a7-4c36-b726-e1bf2515dd67",
+      "name": "Скачиваем обложку с сервера",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7808,
+        2704
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId={{ $('Загружаем на YouTube').first().json.uploadId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "image/jpeg"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "c63e3653-2b40-4d02-b27d-d821788c5376",
+      "name": "Ставим обложку на YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8032,
+        2704
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Парсим команду /render": {
+      "main": [
+        [
+          {
+            "node": "Находим лист канала (render)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем проект": {
+      "main": [
+        [
+          {
+            "node": "Читаем стиль оверлея",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Статус Утверждено?": {
+      "main": [
+        [
+          {
+            "node": "Считаем длительности треков",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Сообщаем: не одобрен",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим данные для сборки": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: начали сборку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сообщаем: начали сборку": {
+      "main": [
+        [
+          {
+            "node": "Собираем видео (POST)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем видео (POST)": {
+      "main": [
+        [
+          {
+            "node": "Какой канал?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Парсим ссылку на треки": {
+      "main": [
+        [
+          {
+            "node": "Находим лист канала (треки)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохраняем ссылку на треки": {
+      "main": [
+        [
+          {
+            "node": "Подтверждаем сохранение ссылки",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Нормализуем вход",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нормализуем вход": {
+      "main": [
+        [
+          {
+            "node": "Читаем проект",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Считаем длительности треков": {
+      "main": [
+        [
+          {
+            "node": "Готовим запрос на названия треков",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим запрос на названия треков": {
+      "main": [
+        [
+          {
+            "node": "Нужны названия?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нужны названия?": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: названия треков",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Собираем текст таймкодов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: названия треков": {
+      "main": [
+        [
+          {
+            "node": "Собираем текст таймкодов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем текст таймкодов": {
+      "main": [
+        [
+          {
+            "node": "Вписываем таймкоды в описание",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Вписываем таймкоды в описание": {
+      "main": [
+        [
+          {
+            "node": "Готовим данные для сборки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Находим лист канала (render)": {
+      "main": [
+        [
+          {
+            "node": "Нормализуем вход",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Находим лист канала (треки)": {
+      "main": [
+        [
+          {
+            "node": "Сохраняем ссылку на треки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Какой канал?": {
+      "main": [
+        [
+          {
+            "node": "Загружаем на YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "YouTube не подключен для канала",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Приём от workflow 1": {
+      "main": [
+        [
+          {
+            "node": "Парсим команду /render",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Парсим ссылку на треки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Загружаем на YouTube": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем обложку с сервера",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем стиль оверлея": {
+      "main": [
+        [
+          {
+            "node": "Статус Утверждено?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем обложку с сервера": {
+      "main": [
+        [
+          {
+            "node": "Ставим обложку на YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ставим обложку на YouTube": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: видео на YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "FIjHQQSAlggtP8ij",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "2ae1016a-9da3-42b4-a19e-85815bba614a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b8eb18f87fb93f604cdd65842933c2c352edc0065374dca2531be5d7563bc438"
+  },
+  "id": "Ajn6GuRmndcwqm16",
+  "tags": []
+}
