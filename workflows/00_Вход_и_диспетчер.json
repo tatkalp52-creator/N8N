@@ -47,7 +47,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const trigger = $('Telegram Trigger').first().json;\nconst msg = trigger.message || {};\n\nlet textToSearch = msg.text || '';\nif (msg.reply_to_message) {\n  const replyMsg = msg.reply_to_message;\n  textToSearch += ' ' + (replyMsg.text || replyMsg.caption || '');\n}\n\nconst match = textToSearch.match(/(\\d{8})_?(\\d{6})_?([A-Za-z0-9]+)/);\n\nif (match) {\n  const projectId = match[1] + '_' + match[2] + '_' + match[3];\n  let userText = msg.text || '';\n  if (msg.text && msg.text.includes(match[0])) {\n    userText = userText.replace(match[0], '').replace(/ID\\s*:?/gi, '').trim();\n  }\n  return [{\n    json: {\n      isBrief: true,\n      projectId,\n      channelKey: match[3],\n      briefText: userText,\n      chatId: msg.chat.id,\n    }\n  }];\n} else {\n  return [{ json: { isBrief: false, chatId: msg.chat ? msg.chat.id : null } }];\n}"
+        "jsCode": "const trigger = $('Telegram Trigger').first().json;\nconst msg = trigger.message || {};\n\nlet textToSearch = msg.text || msg.caption || '';\nif (msg.reply_to_message) {\n  const replyMsg = msg.reply_to_message;\n  textToSearch += ' ' + (replyMsg.text || replyMsg.caption || '');\n}\n\nconst match = textToSearch.match(/(\\d{8})_?(\\d{6})_?([A-Za-z0-9]+)/);\n\nif (match) {\n  const projectId = match[1] + '_' + match[2] + '_' + match[3];\n  let userText = msg.text || msg.caption || '';\n  if (userText.includes(match[0])) {\n    userText = userText.replace(match[0], '').replace(/ID\\s*:?/gi, '').trim();\n  }\n  return [{\n    json: {\n      isBrief: true,\n      projectId,\n      channelKey: match[3],\n      briefText: userText,\n      chatId: msg.chat.id,\n      photo: msg.photo || null,\n    }\n  }];\n} else {\n  return [{ json: { isBrief: false, chatId: msg.chat ? msg.chat.id : null } }];\n}"
       },
       "id": "e986236d-4923-4f53-9bac-8dda1063ed32",
       "name": "Это reply на проект или новый заход?",
@@ -307,7 +307,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reply = $('Это reply на проект или новый заход?').first().json;\nconst sheetInfo = items[0].json;\n\nreturn [{\n  json: {\n    projectId: reply.projectId,\n    channelKey: reply.channelKey,\n    briefText: reply.briefText,\n    chatId: reply.chatId,\n    sheetName: String(sheetInfo.SheetName || '').trim(),\n  }\n}];"
+        "jsCode": "const reply = $('Это reply на проект или новый заход?').first().json;\nconst sheetInfo = items[0].json;\n\nreturn [{\n  json: {\n    projectId: reply.projectId,\n    channelKey: reply.channelKey,\n    briefText: reply.briefText,\n    chatId: reply.chatId,\n    sheetName: String(sheetInfo.SheetName || '').trim(),\n    photo: reply.photo || null,\n  }\n}];"
       },
       "id": "0e500332-6ecf-42ee-b514-0759d3df6359",
       "name": "Готовим данные для проверки статуса",
@@ -358,7 +358,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\nconst prep = $('Готовим данные для проверки статуса').first().json;\n\nreturn [{\n  json: {\n    ...row,\n    projectId: prep.projectId,\n    chatId: prep.chatId,\n    sheetName: prep.sheetName,\n    channelKey: prep.channelKey,\n    messageText: prep.briefText,\n  }\n}];"
+        "jsCode": "const row = $input.first().json;\nconst prep = $('Готовим данные для проверки статуса').first().json;\n\nreturn [{\n  json: {\n    ...row,\n    projectId: prep.projectId,\n    chatId: prep.chatId,\n    sheetName: prep.sheetName,\n    channelKey: prep.channelKey,\n    messageText: prep.briefText,\n    messagePhoto: prep.photo || null,\n  }\n}];"
       },
       "id": "fc6427b9-7b30-4fff-9905-f53ff83e4e1e",
       "name": "Приклеиваем поля для sub-workflow",
@@ -488,7 +488,8 @@
             "chatId": "={{ $('Готовим данные для проверки статуса').item.json.chatId }}",
             "sheetName": "={{ $('Готовим данные для проверки статуса').item.json.sheetName }}",
             "channelKey": "={{ $('Готовим данные для проверки статуса').item.json.channelKey }}",
-            "messageText": "={{ $('Готовим данные для проверки статуса').item.json.briefText }}"
+            "messageText": "={{ $('Готовим данные для проверки статуса').item.json.briefText }}",
+            "messagePhoto": "={{ $('Готовим данные для проверки статуса').item.json.photo }}"
           },
           "matchingColumns": [],
           "schema": [],
