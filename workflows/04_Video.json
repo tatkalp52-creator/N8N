@@ -92,7 +92,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace('[Timecodes]', $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst targetLUFS = findByLabel(styleRow, 'tmpl_TargetLUFS');\nconst targetBrightness = findByLabel(styleRow, 'tmpl_TargetBrightness');\nconst fadeInSeconds = findByLabel(styleRow, 'tmpl_FadeInSeconds');\nconst fadeOutSeconds = findByLabel(styleRow, 'tmpl_FadeOutSeconds');\nconst gapSeconds = findByLabel(styleRow, 'tmpl_GapSeconds');\nconst mixSeconds = findByLabel(styleRow, 'tmpl_MixSeconds');\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: proj.ai_OverlayText || '',\n  overlayPosition: proj.ai_OverlayPosition || 'center',\n  ...overlayStyle,\n  ...(targetLUFS ? { targetLUFS } : {}),\n  ...(targetBrightness ? { targetBrightness } : {}),\n  ...(fadeInSeconds ? { fadeInSeconds } : {}),\n  ...(fadeOutSeconds ? { fadeOutSeconds } : {}),\n  ...(gapSeconds ? { gapSeconds } : {}),\n  ...(mixSeconds ? { mixSeconds } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  payload\n} }];"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace('[Timecodes]', $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst targetLUFS = findByLabel(styleRow, 'tmpl_TargetLUFS');\nconst targetBrightness = findByLabel(styleRow, 'tmpl_TargetBrightness');\nconst fadeInSeconds = findByLabel(styleRow, 'tmpl_FadeInSeconds');\nconst fadeOutSeconds = findByLabel(styleRow, 'tmpl_FadeOutSeconds');\nconst gapSeconds = findByLabel(styleRow, 'tmpl_GapSeconds');\nconst mixSeconds = findByLabel(styleRow, 'tmpl_MixSeconds');\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: proj.ai_OverlayText || '',\n  overlayPosition: proj.ai_OverlayPosition || 'center',\n  ...overlayStyle,\n  ...(targetLUFS ? { targetLUFS } : {}),\n  ...(targetBrightness ? { targetBrightness } : {}),\n  ...(fadeInSeconds ? { fadeInSeconds } : {}),\n  ...(fadeOutSeconds ? { fadeOutSeconds } : {}),\n  ...(gapSeconds ? { gapSeconds } : {}),\n  ...(mixSeconds ? { mixSeconds } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
       },
       "id": "258c9cc8-65f8-4d4b-9832-c1f786470ee4",
       "name": "Готовим данные для сборки",
@@ -392,6 +392,68 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Готовим данные для сборки').first().json.pinnedComment }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f3c9c5-2a3b-4e6a-9b7d-6a4f2c8e1d70",
+      "name": "Есть закреплённый комментарий?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        7584,
+        2896
+      ],
+      "notesInFlow": true,
+      "notes": "Закреплённый комментарий — необязательное поле ai_PinnedComment из таблицы. Пусто — просто ничего не публикуем, никаких ошибок. YouTube API не умеет закреплять комментарии программно, только публиковать — закрепление автор делает вручную в Studio, когда захочет."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ snippet: { videoId: $('Загружаем на YouTube').first().json.uploadId, topLevelComment: { snippet: { textOriginal: $('Готовим данные для сборки').first().json.pinnedComment } } } }) }}",
+        "options": {}
+      },
+      "id": "b2e4d0d6-3b4c-4f7b-ac8e-7b5f3d9f2e81",
+      "name": "Публикуем комментарий на YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7808,
+        2896
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "notesInFlow": true,
+      "notes": "continueOnFail: если публикация комментария не удалась, это не должно ронять всю сборку видео — видео уже выложено, это лишь дополнение к нему."
+    },
+    {
+      "parameters": {
         "authentication": "serviceAccount",
         "documentId": {
           "__rl": true,
@@ -542,7 +604,7 @@
         "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео готово и выложено на канал: https://youtu.be/' + $json.uploadId }) }}",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео готово и выложено на канал: https://youtu.be/' + $('Загружаем на YouTube').first().json.uploadId }) }}",
         "options": {}
       },
       "id": "3ed73c3b-f623-455b-a59e-2f2b73505fe4",
@@ -897,6 +959,22 @@
         [
           {
             "node": "Скачиваем обложку с сервера",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Есть закреплённый комментарий?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть закреплённый комментарий?": {
+      "main": [
+        [
+          {
+            "node": "Публикуем комментарий на YouTube",
             "type": "main",
             "index": 0
           }
