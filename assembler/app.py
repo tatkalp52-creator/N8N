@@ -179,7 +179,7 @@ def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration
 # паузам. Возвращает список путей к нарезанным кускам, уже пронумерованных
 # по порядку (0, 1, 2...), чтобы дальше они шли в ту же самую сборку, что и
 # треки из ZIP.
-def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_duration=1.5):
+def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_duration=1.5, split_dir_name="split_tracks"):
     detect = subprocess.run(
         [FFMPEG_BIN, "-i", input_path, "-af",
          f"silencedetect=noise={noise_threshold}:d={min_silence_duration}",
@@ -202,7 +202,11 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
         boundaries.append((s + e) / 2)
     boundaries.append(full_duration)
 
-    split_dir = os.path.join(work_dir, "split_tracks")
+    # split_dir_name даёт каждому исходному файлу свою отдельную подпапку —
+    # без этого при разбивке НЕСКОЛЬКИХ файлов подряд (см. ниже) их куски
+    # с одинаковыми именами "0_track.wav", "1_track.wav" затирали бы друг
+    # друга в одной общей папке.
+    split_dir = os.path.join(work_dir, split_dir_name)
     os.makedirs(split_dir, exist_ok=True)
     paths = []
     for i in range(len(boundaries) - 1):
@@ -214,6 +218,22 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
     return paths
 
 
+# НОВОЕ: раньше разбивка по тишине срабатывала только если в папке был
+# РОВНО ОДИН файл — не подходило для сценария "несколько файлов-кластеров,
+# в каждом склеено по несколько треков" (например, автор объединяет треки
+# из Suno Studio по 5 штук за раз, чтобы обойти лимит на длину экспорта).
+# Теперь разбивка по тишине применяется к КАЖДОМУ файлу отдельно и результаты
+# склеиваются по порядку — обычный отдельный трек без внутренних пауз просто
+# вернётся как один кусок, ничего не меняя, а кластер из нескольких треков
+# правильно разрежется на составляющие. Порядок между самими файлами
+# по-прежнему определяет natural_sort_key (имя файла/номер в нём).
+def split_all_by_silence(tracks_raw, work_dir):
+    result = []
+    for i, raw_path in enumerate(tracks_raw):
+        result.extend(split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}"))
+    return result
+
+
 def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3, gap_seconds=0, loop_count=1, mix_seconds=None):
     extract_dir = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -223,8 +243,7 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
         key=natural_sort_key
     )
 
-    if len(tracks_raw) == 1:
-        tracks_raw = split_by_silence(tracks_raw[0], work_dir)
+    tracks_raw = split_all_by_silence(tracks_raw, work_dir)
 
     if not tracks_raw:
         raise RuntimeError("No .mp3/.wav files found in ZIP or folder")
@@ -571,8 +590,7 @@ def trackinfo():
             key=natural_sort_key
         )
 
-        if len(tracks_raw) == 1:
-            tracks_raw = split_by_silence(tracks_raw[0], work_dir)
+        tracks_raw = split_all_by_silence(tracks_raw, work_dir)
 
         if not tracks_raw:
             return jsonify({"error": "No .mp3/.wav files found in ZIP or folder"}), 400
