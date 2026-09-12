@@ -1108,31 +1108,10 @@
     },
     {
       "parameters": {
-        "url": "={{ $('Парсим ответ редактора').first().json.styleGuideUrl }}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file",
-              "outputPropertyName": "image_1"
-            }
-          }
-        }
-      },
-      "id": "d4d6c2bf-ea9f-4436-bb04-456d38ae7056",
-      "name": "Скачиваем style guide (C)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -3296,
-        3328
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Оба скачивания идут последовательно в одну ветку (не параллельно),\n// поэтому просто переносим оба бинарных поля в один item.\nconst prevItem = $('Скачиваем текущую картинку (C)').first();\nconst curItem = $input.first();\n\nreturn [{\n  json: {\n    revisionInstruction: $('Парсим ответ редактора').first().json.revisionInstruction,\n    projectId: $('Парсим ответ редактора').first().json.projectId,\n    chatId: $('Парсим ответ редактора').first().json.chatId,\n    sheetName: $('Парсим ответ редактора').first().json.sheetName,\n  },\n  binary: {\n    image_0: prevItem.binary.image_0,\n    image_1: curItem.binary.image_1,\n  }\n}];"
+        "jsCode": "// Текущая картинка (image_0) скачана отдельной веткой ещё раньше; здесь\n// подмешиваем к ней style guide + референсы (image_1, image_2, ...), собранные\n// в предыдущем узле — и считаем итоговое число картинок для правильного\n// маршрута на шаге ниже (\"Сколько картинок? (C)\").\nconst curItem = $('Скачиваем текущую картинку (C)').first();\nconst extra = $input.first();\n\nconst binary = { image_0: curItem.binary.image_0 };\nObject.assign(binary, extra.binary || {});\n\nconst imageCount = 1 + (extra.json.extraCount || 0);\n\nreturn [{\n  json: {\n    revisionInstruction: extra.json.revisionInstruction,\n    projectId: extra.json.projectId,\n    chatId: extra.json.chatId,\n    sheetName: extra.json.sheetName,\n    imageCount,\n  },\n  binary\n}];"
       },
       "id": "3796534e-7ce6-4239-8393-5db84a828661",
-      "name": "Собираем 2 референса (C)",
+      "name": "Собираем все референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -1195,7 +1174,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'pengui_scene.png', 'image/png');\n\nreturn [{\n  json: {\n    projectId: $('Собираем 2 референса (C)').first().json.projectId,\n    sheetName: $('Собираем 2 референса (C)').first().json.sheetName,\n    chatId: $('Собираем 2 референса (C)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
+        "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'pengui_scene.png', 'image/png');\n\nreturn [{\n  json: {\n    projectId: $('Собираем все референсы (C)').first().json.projectId,\n    sheetName: $('Собираем все референсы (C)').first().json.sheetName,\n    chatId: $('Собираем все референсы (C)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
       "id": "9883e166-e9b2-420c-979c-475ec60b072e",
       "name": "Извлекаем картинку (C)",
@@ -2061,6 +2040,503 @@
           "name": "Telegram account 2"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Парсим ответ редактора').first().json;\n// Style guide + до 5 референсов — столько, сколько реально есть, без\n// дублирования до фиксированного числа (тот же принцип, что и при первом\n// рисовании): мало ссылок — меньше картинок уйдёт художнику на правку.\nconst urls = [parsed.styleGuideUrl, ...(parsed.referenceUrls || [])].filter(Boolean).slice(0, 5);\n\nreturn urls.map((url, i) => ({\n  json: {\n    refUrl: url,\n    refIndex: i + 1,\n    revisionInstruction: parsed.revisionInstruction,\n    projectId: parsed.projectId,\n    chatId: parsed.chatId,\n    sheetName: parsed.sheetName,\n  }\n}));"
+      },
+      "id": "1d804172-8b0a-4732-8978-491e8c9398f5",
+      "name": "Готовим список: доп. референсы (C)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3296,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.refUrl }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "f66b9382-0850-42db-8b6e-91c464258d0a",
+      "name": "Скачиваем референс (C)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3120,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    revisionInstruction: first.revisionInstruction,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    extraCount: items.length,\n  },\n  binary\n}];"
+      },
+      "id": "31a6ec75-1686-4221-bd13-61efcf7dcf85",
+      "name": "Собираем доп. референсы в один item (C)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2944,
+        3328
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7983ab0b-2721-40aa-ad5a-c758b8eae2a4",
+      "name": "gpt-image-2: точечная правка (C, 3 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3680
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a38e0415-0bc4-425f-a120-57fc667029c4",
+      "name": "gpt-image-2: точечная правка (C, 4 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3856
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "da24f4c8-e441-40c9-aabf-7a296f8706bd",
+      "name": "gpt-image-2: точечная правка (C, 5 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        4032
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "606c3c16-bbb9-4caf-9d8d-00345191c2f9",
+      "name": "gpt-image-2: точечная правка (C, 6 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        4208
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "58d65b32-d852-40f3-a457-e40f29de41ad",
+      "name": "gpt-image-2: точечная правка (C, 7 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        4384
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 2,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 3,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 4,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 6,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "069ee735-83ef-47d4-a17a-97443de091f2",
+      "name": "Сколько картинок? (C)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -3024,
+        3328
+      ],
+      "notesInFlow": true,
+      "notes": "Текущая картинка + style guide + до 5 референсов = от 2 до 7 картинок для точечной правки — маршрутизирует на вариант gpt-image-2 с ровно нужным числом полей image[], без дублирования до фиксированного числа. imageCount==7 (или что-то нештатное) уходит через fallback в 7-местный вариант."
     }
   ],
   "pinData": {},
@@ -2522,29 +2998,7 @@
       "main": [
         [
           {
-            "node": "Скачиваем style guide (C)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Скачиваем style guide (C)": {
-      "main": [
-        [
-          {
-            "node": "Собираем 2 референса (C)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Собираем 2 референса (C)": {
-      "main": [
-        [
-          {
-            "node": "gpt-image-2: точечная правка (C)",
+            "node": "Готовим список: доп. референсы (C)",
             "type": "main",
             "index": 0
           }
@@ -2828,6 +3282,151 @@
         [
           {
             "node": "Форс: картинки ещё нет",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем все референсы (C)": {
+      "main": [
+        [
+          {
+            "node": "Сколько картинок? (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сколько картинок? (C)": {
+      "main": [
+        [
+          {
+            "node": "gpt-image-2: точечная правка (C)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: точечная правка (C, 3 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: точечная правка (C, 4 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: точечная правка (C, 5 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: точечная правка (C, 6 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: точечная правка (C, 7 img)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: точечная правка (C, 3 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: точечная правка (C, 4 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: точечная правка (C, 5 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: точечная правка (C, 6 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: точечная правка (C, 7 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим список: доп. референсы (C)": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем референс (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем референс (C)": {
+      "main": [
+        [
+          {
+            "node": "Собираем доп. референсы в один item (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем доп. референсы в один item (C)": {
+      "main": [
+        [
+          {
+            "node": "Собираем все референсы (C)",
             "type": "main",
             "index": 0
           }
