@@ -1128,7 +1128,7 @@
           "value": {
             "sys_ProjectID": "={{ $json.sys_ProjectID }}",
             "sys_Status": "Описание согласовано",
-            "ai_Description": "={{ $json.ai_DescriptionDraft }}",
+            "ai_Description": "={{ $json.ai_Description }}",
             "ai_DescriptionEN": "={{ $json.ai_DescriptionEN }}"
           }
         },
@@ -1246,7 +1246,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst translatedEN = textPart ? textPart.text.trim() : '';\n\nconst row = $('Читаем актуальные черновики').first().json;\nreturn [{ json: { ...row, ai_DescriptionEN: translatedEN } }];"
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst translatedEN = textPart ? textPart.text.trim() : '';\n\nconst row = $('Читаем актуальные черновики').first().json;\n// Строка, прочитанная из таблицы, несёт только свои колонки (sys_ProjectID,\n// ai_Description...) — sheetName это название листа, а не колонка, и здесь\n// теряется. Берём его из более раннего шага, где оно ещё было.\nconst sheetName = $('Разбираем классификатор').first().json.sheetName;\nreturn [{ json: { ...row, sheetName, ai_DescriptionEN: translatedEN } }];"
       },
       "id": "3d4ed234-3839-4263-b1ce-fbf024009378",
       "name": "Собираем переведённый текст",

@@ -1558,7 +1558,7 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "={{ $json.sheetName }}",
+          "value": "={{ $('Разбираем классификатор').first().json.sheetName }}",
           "mode": "name"
         },
         "columns": {
@@ -1567,7 +1567,7 @@
             "sys_ProjectID"
           ],
           "value": {
-            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
+            "sys_ProjectID": "={{ $('Разбираем классификатор').first().json.projectId }}",
             "sys_Status": "Картинка согласована",
             "ai_ApprovedImageUrl": "={{ $json.ai_ImageUrl }}"
           }
