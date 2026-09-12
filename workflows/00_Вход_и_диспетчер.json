@@ -860,6 +860,112 @@
           "name": "Telegram account 2"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "46fd8666-0365-4f84-8ad6-d9aa161cdf24",
+              "leftValue": "={{ $('Это reply на проект или новый заход?').first().json.briefText }}",
+              "rightValue": "назад",
+              "operator": {
+                "type": "string",
+                "operation": "contains",
+                "caseSensitive": false
+              }
+            },
+            {
+              "id": "70a5643a-c9ed-4017-85ae-70e1a2876077",
+              "leftValue": "={{ $('Это reply на проект или новый заход?').first().json.briefText }}",
+              "rightValue": "описан",
+              "operator": {
+                "type": "string",
+                "operation": "contains",
+                "caseSensitive": false
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "edd1cf69-00cb-4811-a491-95ea92ee90d9",
+      "name": "Просит вернуться к описанию?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1104,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Готовим данные для проверки статуса').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Готовим данные для проверки статуса').first().json.projectId }}",
+            "sys_Status": "Картинка согласована"
+          }
+        },
+        "options": {}
+      },
+      "id": "c57bafce-4a3b-49a9-9443-4b65937c24dc",
+      "name": "Сбрасываем статус на Описание",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -880,
+        288
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Готовим данные для проверки статуса').first().json.chatId }}",
+        "text": "=Поняла, возвращаемся к описанию.\nID: {{ $('Готовим данные для проверки статуса').first().json.projectId }}\n\nПишите, что поправить — Писатель уже слушает.",
+        "additionalFields": {}
+      },
+      "id": "e0af43a7-3759-4cfa-b3be-b8750741141e",
+      "name": "Подтверждаем сброс на описание",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -656,
+        288
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -1120,12 +1226,41 @@
         ],
         [
           {
+            "node": "Просит вернуться к описанию?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Просит вернуться к описанию?": {
+      "main": [
+        [
+          {
+            "node": "Сбрасываем статус на Описание",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Приклеиваем поля для sub-workflow",
             "type": "main",
             "index": 0
           },
           {
             "node": "Это первое сообщение по проекту?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сбрасываем статус на Описание": {
+      "main": [
+        [
+          {
+            "node": "Подтверждаем сброс на описание",
             "type": "main",
             "index": 0
           }
