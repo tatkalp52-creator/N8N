@@ -842,7 +842,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    dallePrompt: first.dallePrompt,\n    action: first.action,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n  },\n  binary\n}];"
+        "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    dallePrompt: first.dallePrompt,\n    action: first.action,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    imageCount: items.length,\n  },\n  binary\n}];"
       },
       "id": "d3780e00-ca94-45c7-91ec-a7da8667e37d",
       "name": "Собираем референсы в один item (B)",
@@ -1674,6 +1674,337 @@
       ],
       "notesInFlow": true,
       "notes": "После импорта выбери '02_Писатель' в workflowId."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.dallePrompt }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "429ec0ca-97f7-4183-a6b5-b5250beb7cc2",
+      "name": "gpt-image-2: рисуем (B, 1 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3312
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.dallePrompt }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "555a9469-27a3-450a-baed-0cd75323dbd7",
+      "name": "gpt-image-2: рисуем (B, 2 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3488
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.dallePrompt }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "81c39ddc-1df6-43fd-a479-2d10726688d9",
+      "name": "gpt-image-2: рисуем (B, 3 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3664
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-2"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.dallePrompt }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "475de4ca-196e-4d5e-9979-2c55fa5c84cc",
+      "name": "gpt-image-2: рисуем (B, 4 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2848,
+        3840
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 1,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 2,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 3,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 4,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "edfdf37b-7d5a-47ed-acd5-4ec68a40a089",
+      "name": "Сколько картинок? (B)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -3024,
+        3136
+      ],
+      "notesInFlow": true,
+      "notes": "Раньше был один узел рисования сразу на 5 полей image[] — если реальных референсов оказывалось меньше пяти, недостающие formBinaryData-поля вызывали ошибку 'no binary field'. Теперь количество реальных картинок (imageCount, посчитано в предыдущем узле) определяет, в какой из вариантов узла рисования (1-5 полей image[]) уйдёт запрос — лишних полей не объявляется."
     }
   ],
   "pinData": {},
@@ -2058,7 +2389,7 @@
       "main": [
         [
           {
-            "node": "gpt-image-2: рисуем (B)",
+            "node": "Сколько картинок? (B)",
             "type": "main",
             "index": 0
           }
@@ -2340,6 +2671,89 @@
         [
           {
             "node": "Зовём Писателя (классификатор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сколько картинок? (B)": {
+      "main": [
+        [
+          {
+            "node": "gpt-image-2: рисуем (B, 1 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: рисуем (B, 2 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: рисуем (B, 3 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: рисуем (B, 4 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: рисуем (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: рисуем (B, 1 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: рисуем (B, 2 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: рисуем (B, 3 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: рисуем (B, 4 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (B)",
             "type": "main",
             "index": 0
           }
