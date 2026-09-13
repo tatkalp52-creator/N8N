@@ -92,6 +92,87 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Читаем проект').first().json.sys_Status }}",
+              "value2": "Опубликовано"
+            }
+          ]
+        }
+      },
+      "id": "e1f2a3b4-5566-4c7d-8e9f-0a1b2c3d4e10",
+      "name": "Уже опубликовано?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        5120,
+        3000
+      ],
+      "notesInFlow": true,
+      "notes": "Защита от повторного /render: если проект уже был успешно опубликован (sys_Status = 'Опубликовано'), не запускаем сборку и загрузку заново, а просто сообщаем об этом."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Нормализуем вход').first().json.chatId, text: 'Проект ' + $('Читаем проект').first().json.sys_ProjectID + ' уже опубликован на YouTube — повторная сборка и загрузка не запущены. Если нужно пересобрать заново, скажи явно.' }) }}",
+        "options": {}
+      },
+      "id": "e1f2a3b4-5566-4c7d-8e9f-0a1b2c3d4e11",
+      "name": "Сообщаем: уже опубликовано",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5344,
+        3100
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Нормализуем вход').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Читаем проект').first().json.sys_ProjectID }}",
+            "sys_Status": "Опубликовано"
+          }
+        },
+        "options": {}
+      },
+      "id": "e1f2a3b4-5566-4c7d-8e9f-0a1b2c3d4e12",
+      "name": "Ставим статус Опубликовано",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        7584,
+        3500
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
         "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace('[Timecodes]', $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst targetLUFS = findByLabel(styleRow, 'tmpl_TargetLUFS');\nconst targetBrightness = findByLabel(styleRow, 'tmpl_TargetBrightness');\nconst fadeInSeconds = findByLabel(styleRow, 'tmpl_FadeInSeconds');\nconst fadeOutSeconds = findByLabel(styleRow, 'tmpl_FadeOutSeconds');\nconst gapSeconds = findByLabel(styleRow, 'tmpl_GapSeconds');\nconst mixSeconds = findByLabel(styleRow, 'tmpl_MixSeconds');\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ApprovedImageUrl || proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: proj.ai_OverlayText || '',\n  overlayPosition: proj.ai_OverlayPosition || 'center',\n  ...overlayStyle,\n  ...(targetLUFS ? { targetLUFS } : {}),\n  ...(targetBrightness ? { targetBrightness } : {}),\n  ...(fadeInSeconds ? { fadeInSeconds } : {}),\n  ...(fadeOutSeconds ? { fadeOutSeconds } : {}),\n  ...(gapSeconds ? { gapSeconds } : {}),\n  ...(mixSeconds ? { mixSeconds } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  tags: proj.ai_Tags || '',\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
       },
       "id": "258c9cc8-65f8-4d4b-9832-c1f786470ee4",
@@ -924,6 +1005,24 @@
         ],
         [
           {
+            "node": "Уже опубликовано?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Уже опубликовано?": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: уже опубликовано",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Сообщаем: не одобрен",
             "type": "main",
             "index": 0
@@ -1130,6 +1229,11 @@
           },
           {
             "node": "Есть закреплённый комментарий?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ставим статус Опубликовано",
             "type": "main",
             "index": 0
           }
