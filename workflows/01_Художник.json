@@ -723,8 +723,21 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Парсим ответ редактора').first().json.chatId }}",
-        "text": "={{ $('Парсим ответ редактора').first().json.messageToUser }}\n\nID: {{ $('Парсим ответ редактора').first().json.projectId }}",
+        "jsCode": "// Telegram отклоняет сообщение целиком с ошибкой \"message is too long\",\n// если текст длиннее 4096 символов, — редактор иногда пишет длинные реплики\n// (например, целиком описывая несколько вариантов сцены). Режем на несколько\n// сообщений подряд вместо того, чтобы ронять всю ветку с ошибкой.\nconst chatId = $('Парсим ответ редактора').first().json.chatId;\nconst projectId = $('Парсим ответ редактора').first().json.projectId;\nconst message = $('Парсим ответ редактора').first().json.messageToUser || '';\nconst suffix = `\\n\\nID: ${projectId}`;\nconst LIMIT = 3900; // с запасом от реального лимита Telegram в 4096\n\nif ((message + suffix).length <= LIMIT) {\n  return [{ json: { chatId, text: message + suffix } }];\n}\n\nconst chunks = [];\nlet remaining = message;\nwhile (remaining.length > LIMIT) {\n  let cut = remaining.lastIndexOf('\\n', LIMIT);\n  if (cut < LIMIT * 0.5) cut = LIMIT; // нет удобного переноса строки — режем жёстко\n  chunks.push(remaining.slice(0, cut));\n  remaining = remaining.slice(cut).trimStart();\n}\nchunks.push(remaining + suffix);\n\nreturn chunks.map(text => ({ json: { chatId, text } }));"
+      },
+      "id": "f4a5b6c7-8899-4a1b-9c2d-3e4f5a6b7c01",
+      "name": "Режем длинный ответ на сообщения",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3960,
+        3152
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
         "additionalFields": {}
       },
       "id": "34cf1219-2c64-4cdd-a2e7-2a8689c92dad",
@@ -2860,7 +2873,7 @@
       "main": [
         [
           {
-            "node": "Отправляем ответ (чат)",
+            "node": "Режем длинный ответ на сообщения",
             "type": "main",
             "index": 0
           }
@@ -2886,6 +2899,17 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Режем длинный ответ на сообщения",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Режем длинный ответ на сообщения": {
+      "main": [
         [
           {
             "node": "Отправляем ответ (чат)",
