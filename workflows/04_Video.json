@@ -415,6 +415,171 @@
     },
     {
       "parameters": {
+        "jsCode": "const incoming = $json.retryCount;\nconst retryCount = (incoming === undefined || incoming === null) ? 0 : incoming;\nreturn [{ json: { retryCount } }];"
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e01",
+      "name": "Готовим попытку",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7584,
+        3100
+      ],
+      "notesInFlow": true,
+      "notes": "Точка входа в цикл ожидания: первый заход даёт retryCount=0, повторные заходы приходят с уже увеличенным счётчиком с ноды 'Ждём 30 минут'."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/youtube/v3/videos?part=status&id={{ $('Загружаем на YouTube').first().json.uploadId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e02",
+      "name": "Проверяем статус видео",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7808,
+        3100
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "notesInFlow": true,
+      "notes": "Спрашиваем у YouTube реальный статус видео — комментарий можно публиковать, только когда видео уже public (не private/запланировано). continueOnFail: если проверка не удалась, просто повторим на следующем цикле."
+    },
+    {
+      "parameters": {
+        "jsCode": "const privacyStatus = ($json.items && $json.items[0] && $json.items[0].status && $json.items[0].status.privacyStatus) || 'unknown';\nconst retryCount = $('Готовим попытку').first().json.retryCount;\nreturn [{ json: { privacyStatus, retryCount } }];"
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e03",
+      "name": "Читаем privacyStatus",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8032,
+        3100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.privacyStatus }}",
+              "rightValue": "public",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e04",
+      "name": "Видео уже публичное?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        8256,
+        3100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.retryCount }}",
+              "rightValue": 96,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e05",
+      "name": "Превышено число попыток?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        8256,
+        3300
+      ],
+      "notesInFlow": true,
+      "notes": "Проверяем раз в 30 минут до 48 часов (96 попыток). Если за это время видео так и не стало публичным — сдаёмся и просим автора закрепить комментарий вручную."
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { retryCount: $json.retryCount + 1 } }];"
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e06",
+      "name": "Увеличиваем счётчик",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8032,
+        3300
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 30,
+        "unit": "minutes"
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e07",
+      "name": "Ждём 30 минут",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        7808,
+        3300
+      ],
+      "webhookId": "d4b2e5f7-1122-4b6a-9c3d-1a2b3c4d5e99"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео за 48 часов так и не стало публичным на YouTube, поэтому закреплённый комментарий не опубликован автоматически.\\n\\nТекст, который был готов:\\n\\n' + $('Готовим данные для сборки').first().json.pinnedComment }) }}",
+        "options": {}
+      },
+      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e08",
+      "name": "Сообщаем: не удалось закрепить",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8480,
+        3300
+      ]
+    },
+    {
+      "parameters": {
         "authentication": "serviceAccount",
         "documentId": {
           "__rl": true,
@@ -975,7 +1140,98 @@
       "main": [
         [
           {
+            "node": "Готовим попытку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим попытку": {
+      "main": [
+        [
+          {
+            "node": "Проверяем статус видео",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проверяем статус видео": {
+      "main": [
+        [
+          {
+            "node": "Читаем privacyStatus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем privacyStatus": {
+      "main": [
+        [
+          {
+            "node": "Видео уже публичное?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Видео уже публичное?": {
+      "main": [
+        [
+          {
             "node": "Публикуем комментарий на YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Превышено число попыток?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Превышено число попыток?": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: не удалось закрепить",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Увеличиваем счётчик",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Увеличиваем счётчик": {
+      "main": [
+        [
+          {
+            "node": "Ждём 30 минут",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ждём 30 минут": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку",
             "type": "main",
             "index": 0
           }
