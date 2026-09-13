@@ -277,7 +277,14 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
     faded_tracks = []
     for i, (trimmed_path, duration) in enumerate(zip(tracks, durations)):
         fade_out_start = max(0, duration - fade_out_seconds)
+        # НОВОЕ: нормализуем громкость КАЖДОГО трека отдельно, до склейки —
+        # раньше loudnorm применялся один раз на весь уже склеенный файл, и
+        # если один трек от Suno был от природы громче другого, единая
+        # цифра на выходе не убирала эту разницу внутри самого файла, только
+        # средний уровень по всей дорожке. Нормализация до фейдов и склейки
+        # выравнивает треки друг относительно друга, а не только "в среднем".
         af_parts = [
+            f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
             f"afade=t=in:st=0:d={fade_in_seconds}:curve=log",
             f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=log",
         ]
