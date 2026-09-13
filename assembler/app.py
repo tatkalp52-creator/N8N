@@ -242,7 +242,7 @@ def split_all_by_silence(tracks_raw, work_dir):
     return result
 
 
-def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3, gap_seconds=0, loop_count=1, mix_seconds=None):
+def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3, gap_seconds=0, loop_count=None, mix_seconds=None):
     extract_dir = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
     tracks_raw = sorted(
@@ -363,16 +363,24 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
         normalized_out
     ])
 
+    probe_single = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries",
+         "format=duration", "-of", "csv=p=0", normalized_out],
+        capture_output=True, text=True
+    )
+    single_pass_duration = float(probe_single.stdout.strip())
+
+    # НОВОЕ (13.09): если число циклов не задано вручную из таблицы — решаем
+    # сами по реальной длине одного прохода: короче часа, значит, зациклится
+    # дважды, час и длиннее — оставляем как есть. Явно заданное автором число
+    # (в том числе 1) всегда в приоритете и это решение не трогает.
+    if loop_count is None:
+        loop_count = 2 if single_pass_duration < 3600 else 1
+
     # НОВОЕ (09.09): зацикливание готового прохода — просто повторяем готовый
     # файл сам с собой нужное число раз, тем же способом склейки.
     final_out = normalized_out
     if loop_count > 1:
-        probe_single = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries",
-             "format=duration", "-of", "csv=p=0", normalized_out],
-            capture_output=True, text=True
-        )
-        single_pass_duration = float(probe_single.stdout.strip())
         final_out = join_tracks([normalized_out] * loop_count, [single_pass_duration] * loop_count, "audio_loop")
 
     probe = subprocess.run(
@@ -479,7 +487,8 @@ def assemble():
         fade_in_seconds = float(data.get("fadeInSeconds", 1.5))
         fade_out_seconds = float(data.get("fadeOutSeconds", 3))
         gap_seconds = float(data.get("gapSeconds", 0))
-        loop_count = int(data.get("loopCount", 1))
+        loop_count_raw = data.get("loopCount")
+        loop_count = int(loop_count_raw) if loop_count_raw not in (None, "") else None
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir,
             target_lufs=target_lufs,
