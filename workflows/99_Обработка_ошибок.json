@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const e = $input.first().json;\nconst workflowName = e.workflow?.name || 'неизвестный workflow';\nconst nodeName = e.execution?.lastNodeExecuted || 'неизвестный узел';\nconst message = e.execution?.error?.message || JSON.stringify(e).slice(0, 500);\n\nreturn [{\n  json: {\n    text: `⚠️ Сбой в автоматизации Pengui\\n\\nWorkflow: ${workflowName}\\nУзел: ${nodeName}\\nОшибка: ${message}\\n\\nЭто не связано с самим Telegram-ботом — просто где-то на сервере что-то не сработало. Загляни в n8n, когда будет момент.`\n  }\n}];"
+        "jsCode": "const e = $input.first().json;\nconst workflowName = e.workflow?.name || 'неизвестный workflow';\nconst nodeName = e.execution?.lastNodeExecuted || 'неизвестный узел';\nconst message = e.execution?.error?.message || JSON.stringify(e).slice(0, 500);\n\n// Заголовок общий, без названия конкретного канала — этот workflow общий\n// на все каналы, а само название workflow (с указанием канала) уже есть\n// строкой ниже.\nreturn [{\n  json: {\n    text: `⚠️ Сбой в автоматизации\\n\\nWorkflow: ${workflowName}\\nУзел: ${nodeName}\\nОшибка: ${message}\\n\\nЭто не связано с самим Telegram-ботом — просто где-то на сервере что-то не сработало. Загляни в n8n, когда будет момент.`\n  }\n}];"
       },
       "id": "b26a721f-a98d-47bd-8803-490f30143bc3",
       "name": "Готовим короткое сообщение",
@@ -49,7 +49,7 @@
           "name": "Telegram account 2"
         }
       },
-      "notes": "chatId проверить — сейчас взят из тестовых данных проекта pengui. Если это не личный чат Тани с ботом (а, например, чат конкретного канала) — заменить на правильный ID."
+      "notes": "chatId — личный чат Тани с ботом, один на все каналы (ошибки любого канала должны приходить лично ей, а не в чат конкретного канала). Подтверждён рабочим вживую 13.09."
     }
   ],
   "pinData": {},
