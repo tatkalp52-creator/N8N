@@ -59,13 +59,15 @@ def build_overlay_positions(margin=60):
     }
 
 
-def natural_sort_key(path):
+def natural_sort_key(path, zip_order=None):
     """Сортирует по числу, стоящему в НАЧАЛЕ имени файла, как по настоящему числу,
     а не как по тексту. Studio-номер студии (0, 1, 2 ... 19) всегда встаёт первым
-    в имени файла — именно по нему и сортируем. Если числа в начале нет —
-    такой файл уходит в конец списка, отсортированный по алфавиту.
+    в имени файла — именно по нему и сортируем. Если числа в начале нет,
+    но известен порядок файлов внутри исходного zip-архива (см. zip_order) —
+    используем его. Если неизвестен и он — такой файл уходит в конец списка,
+    отсортированный по алфавиту.
 
-    НОВОЕ: Suno Studio при скачивании треков по одному (поставил трек на
+    Suno Studio при скачивании треков по одному (поставил трек на
     дорожку — скачал — убрал — поставил следующий) называет все файлы
     одинаково "01", но добавляет диапазон времени в скобках, например
     "01 [9m33s-12m50s].wav" — начало этого диапазона растёт с каждым
@@ -73,7 +75,14 @@ def natural_sort_key(path):
     поэтому надёжно отражает порядок скачивания, даже когда сам "01"
     у всех одинаковый. Если такой диапазон есть в имени — сортируем по
     его началу (в секундах), это приоритетнее обычного числа в начале
-    имени."""
+    имени.
+
+    zip_order (Suno стемы, скачанные одним архивом сразу): словарь
+    {имя_файла: позиция в архиве} — архив хранит записи в том порядке,
+    в котором дорожки были в нём сложены, независимо от того, как эти
+    дорожки названы (не 1/2/3 и не А/Б/В). Используется, только если ни
+    временной диапазон, ни числовой префикс в имени не нашлись — так
+    работающие правила выше не трогаем."""
     filename = os.path.basename(path)
     range_match = re.search(r"\[(\d+)m(\d+)s-", filename)
     if range_match:
@@ -82,7 +91,9 @@ def natural_sort_key(path):
     match = re.match(r"^(\d+)", filename)
     if match:
         return (1, int(match.group(1)), filename)
-    return (2, 0, filename)
+    if zip_order and filename in zip_order:
+        return (2, zip_order[filename], filename)
+    return (3, 0, filename)
 
 
 def run_ffmpeg(args):
@@ -126,12 +137,19 @@ def resolve_audio_tracks_dir(source_url, work_dir):
     folder_match = re.search(r"drive\.google\.com/drive/folders/([a-zA-Z0-9_-]+)", source_url)
     if folder_match:
         gdown.download_folder(id=folder_match.group(1), output=extract_dir, quiet=True, use_cookies=False)
-        return extract_dir
+        # Порядок файлов в папке Google Drive ничего не гарантирует —
+        # ключей для zip_order тут нет.
+        return extract_dir, None
 
     zip_path = download_file(source_url, os.path.join(work_dir, "audio.zip"))
     with zipfile.ZipFile(zip_path, "r") as z:
+        # namelist() отдаёт записи в том порядке, в котором они реально лежат
+        # в архиве (порядок добавления), а не по алфавиту — это тот самый
+        # "как в папке разложено, так и собрать" порядок для стемов без
+        # цифр/букв в имени.
+        zip_order = {os.path.basename(name): i for i, name in enumerate(z.namelist())}
         z.extractall(extract_dir)
-    return extract_dir
+    return extract_dir, zip_order
 
 
 def get_real_duration(input_path, noise_threshold="-40dB", min_silence_duration=1.0):
@@ -243,12 +261,12 @@ def split_all_by_silence(tracks_raw, work_dir):
 
 
 def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3, gap_seconds=0, loop_count=None, mix_seconds=None):
-    extract_dir = resolve_audio_tracks_dir(audio_source_url, work_dir)
+    extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
     tracks_raw = sorted(
         glob.glob(os.path.join(extract_dir, "*.mp3"))
         + glob.glob(os.path.join(extract_dir, "*.wav")),
-        key=natural_sort_key
+        key=lambda p: natural_sort_key(p, zip_order)
     )
 
     tracks_raw = split_all_by_silence(tracks_raw, work_dir)
@@ -607,11 +625,11 @@ def trackinfo():
 
     work_dir = tempfile.mkdtemp(prefix="trackinfo_")
     try:
-        extract_dir = resolve_audio_tracks_dir(audio_zip_url, work_dir)
+        extract_dir, zip_order = resolve_audio_tracks_dir(audio_zip_url, work_dir)
         tracks_raw = sorted(
             glob.glob(os.path.join(extract_dir, "*.mp3"))
             + glob.glob(os.path.join(extract_dir, "*.wav")),
-            key=natural_sort_key
+            key=lambda p: natural_sort_key(p, zip_order)
         )
 
         tracks_raw = split_all_by_silence(tracks_raw, work_dir)
