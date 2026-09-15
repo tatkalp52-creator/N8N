@@ -197,7 +197,7 @@ def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration
 # паузам. Возвращает список путей к нарезанным кускам, уже пронумерованных
 # по порядку (0, 1, 2...), чтобы дальше они шли в ту же самую сборку, что и
 # треки из ZIP.
-def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_duration=1.5, split_dir_name="split_tracks"):
+def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_duration=1.5, split_dir_name="split_tracks", min_segment_seconds=119):
     detect = subprocess.run(
         [FFMPEG_BIN, "-i", input_path, "-af",
          f"silencedetect=noise={noise_threshold}:d={min_silence_duration}",
@@ -238,6 +238,14 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
     for i in range(len(boundaries) - 1):
         start = boundaries[i]
         end = boundaries[i + 1]
+        # НОВОЕ: короткий громкий обрывок (щелчок, обрезанный край записи,
+        # шум) между двумя настоящими паузами тишины раньше засчитывался
+        # как отдельный "трек" наравне с настоящими — попадал в сборку
+        # своим собственным куском и своим таймкодом. Реальные треки автор
+        # никогда не берёт короче ~2 минут, так что всё, что короче этого
+        # порога, отбрасываем как шумовой артефакт, а не как трек.
+        if end - start < min_segment_seconds:
+            continue
         out_path = os.path.join(split_dir, f"{i}_track.wav")
         run_ffmpeg(["-i", input_path, "-ss", str(start), "-to", str(end), "-c", "copy", out_path])
         paths.append(out_path)
