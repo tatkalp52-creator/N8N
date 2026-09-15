@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import subprocess
 import tempfile
 import zipfile
@@ -281,6 +282,43 @@ def split_all_by_silence(tracks_raw, work_dir):
     return result
 
 
+# НОВОЕ: первый проход двухпроходного loudnorm — только измеряет реальные
+# параметры входного файла, ничего не пишет. Однопроходный режим (как было
+# раньше) сам оценивает эти значения "на лету" и может заметно промахиваться
+# мимо цели — от этого разные треки, формально нормализованные к одной и той
+# же цифре в LUFS, всё равно звучали неровно относительно друг друга.
+# Двухпроходный режим с measured_* и linear=true — стандартная рекомендация
+# самого ffmpeg для точной, профессиональной нормализации.
+def measure_loudnorm(input_path, target_lufs):
+    result = subprocess.run(
+        [FFMPEG_BIN, "-i", input_path, "-af",
+         f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11:print_format=json",
+         "-f", "null", "-"],
+        capture_output=True, text=True
+    )
+    match = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", result.stderr)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(0))
+    except (ValueError, KeyError):
+        return None
+
+
+def loudnorm_filter(input_path, target_lufs):
+    measured = measure_loudnorm(input_path, target_lufs)
+    if not measured:
+        # Не удалось измерить — откатываемся на однопроходный режим, лучше
+        # неидеальная нормализация, чем упавшая сборка.
+        return f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
+    return (
+        f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11:"
+        f"measured_I={measured['input_i']}:measured_TP={measured['input_tp']}:"
+        f"measured_LRA={measured['input_lra']}:measured_thresh={measured['input_thresh']}:"
+        "linear=true"
+    )
+
+
 def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3, gap_seconds=0, loop_count=None, mix_seconds=None):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -327,8 +365,9 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
         # цифра на выходе не убирала эту разницу внутри самого файла, только
         # средний уровень по всей дорожке. Нормализация до фейдов и склейки
         # выравнивает треки друг относительно друга, а не только "в среднем".
+        # Двухпроходный режим (см. loudnorm_filter выше) — точнее однопроходного.
         af_parts = [
-            f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
+            loudnorm_filter(trimmed_path, target_lufs),
             f"afade=t=in:st=0:d={fade_in_seconds}:curve=log",
             f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=log",
         ]
@@ -447,10 +486,12 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
 # заметно разъехалась с целевой. Это страховка "на всякий случай", не
 # блокирует сборку — если она не сработает идеально, видео всё равно соберётся.
 def check_brightness(image_path, target_yavg=64.0):
-    """Проверяет среднюю яркость картинки (YAVG, шкала 0-255) — не блокирует
-    сборку, только предупреждает в логе. Порог специально мягкий, чтобы не
-    поднимать ложную тревогу на осознанно тёмных ночных сценах — только на
-    том, что заметно темнее разумной нормы для веба."""
+    """НОВОЕ: раньше только предупреждала в серверном логе, который никто не
+    читает, — картинка так и оставалась темнее цели. Теперь при заметном
+    отставании реально приподнимает яркость (eq=brightness, мягкий сдвиг,
+    не пересвечивая), а не просто жалуется в логи. Порог на срабатывание
+    специально мягкий, чтобы не трогать осознанно тёмные ночные сцены —
+    только то, что заметно темнее разумной нормы для веба."""
     try:
         result = subprocess.run(
             ["ffprobe", "-f", "lavfi", "-i", f"movie={image_path},signalstats",
@@ -459,13 +500,25 @@ def check_brightness(image_path, target_yavg=64.0):
             capture_output=True, text=True
         )
         yavg = float(result.stdout.strip())
-        diff = target_yavg - yavg
-        if diff > 20:
-            print(f"[brightness-check] ВНИМАНИЕ: яркость кадра {yavg:.0f}, заметно темнее нормы (~{target_yavg:.0f})")
-        else:
-            print(f"[brightness-check] ок: {yavg:.0f} (норма ~{target_yavg:.0f})")
     except Exception as e:
         print(f"[brightness-check] не удалось проверить: {e}")
+        return
+    diff = target_yavg - yavg
+    if diff <= 20:
+        print(f"[brightness-check] ок: {yavg:.0f} (норма ~{target_yavg:.0f})")
+        return
+    # eq=brightness — плоский сдвиг в диапазоне -1..1 (0 = без изменений,
+    # 1 = белый), в долях от полной шкалы 0-255. Ограничиваем сверху, чтобы
+    # даже сильно тёмная сцена приподнималась мягко, а не резко пересвечивалась
+    # за один проход.
+    boost = min(diff / 255.0, 0.12)
+    corrected_path = image_path + ".brightened.jpg"
+    try:
+        run_ffmpeg(["-i", image_path, "-vf", f"eq=brightness={boost:.4f}", corrected_path])
+        os.replace(corrected_path, image_path)
+        print(f"[brightness-check] было {yavg:.0f} (норма ~{target_yavg:.0f}) — приподняли на {boost:.3f}")
+    except Exception as e:
+        print(f"[brightness-check] ВНИМАНИЕ: яркость {yavg:.0f} заметно ниже нормы (~{target_yavg:.0f}), но коррекция не удалась: {e}")
 
 
 def check_loudness(audio_path, target_lufs):
