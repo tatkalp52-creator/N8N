@@ -7,7 +7,7 @@ import shutil
 import glob
 import requests
 import gdown
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, after_this_request
 
 app = Flask(__name__)
 
@@ -496,6 +496,19 @@ def assemble():
     overlay_position = data.get("overlayPosition", "center")
 
     work_dir = tempfile.mkdtemp(prefix=f"assemble_{project_id}_")
+
+    # НОВОЕ: раньше work_dir никогда не удалялся — ни при успехе, ни при
+    # ошибке, ни если клиент (n8n) отваливался по таймауту, пока сборка ещё
+    # шла. За недели тестов это тихо съело почти весь диск (десятки ГБ
+    # брошенных временных файлов). after_this_request чистит папку уже
+    # после того, как ответ клиенту полностью сформирован/отправлен —
+    # безопасно даже если сама отправка не удалась, потому что клиент
+    # успел отключиться first.
+    @after_this_request
+    def cleanup(response):
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return response
+
     try:
         image_path = download_file(image_url, os.path.join(work_dir, "image.jpg"))
 
@@ -624,6 +637,12 @@ def trackinfo():
     audio_zip_url = data["audioZipUrl"]
 
     work_dir = tempfile.mkdtemp(prefix="trackinfo_")
+
+    @after_this_request
+    def cleanup(response):
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return response
+
     try:
         extract_dir, zip_order = resolve_audio_tracks_dir(audio_zip_url, work_dir)
         tracks_raw = sorted(
