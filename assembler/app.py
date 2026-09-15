@@ -439,14 +439,25 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
     # мимо обоих и слышался как жёсткий щелчок. alimiter — это честный
     # лимитер с lookahead и быстрой атакой (5мс), который ловит именно такие
     # короткие пики, не трогая общую динамику и характер бита.
-    normalized_out = os.path.join(work_dir, "audio_final.wav")
+    compressed_limited = os.path.join(work_dir, "audio_compressed_limited.wav")
     run_ffmpeg([
         "-i", concat_out,
-        "-af", (
-            "acompressor=threshold=-20dB:attack=10:release=100:ratio=3:makeup=1,"
-            "alimiter=limit=0.95:attack=5:release=50,"
-            f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
-        ),
+        "-af", "acompressor=threshold=-20dB:attack=10:release=100:ratio=3:makeup=1,alimiter=limit=0.95:attack=5:release=50",
+        compressed_limited
+    ])
+
+    # НОВОЕ: раньше здесь стоял ЕЩЁ один loudnorm — однопроходный, динамический —
+    # поверх уже сжатого компрессором и лимитером сигнала. Однопроходный loudnorm
+    # не просто применяет одну поправку громкости, а постоянно покадрово подруливает
+    # усиление в реальном времени — на уже плотном, лимитированном сигнале это
+    # звучало как лёгкая зернистость/шорох ("перелимичено"). Двухпроходный linear-
+    # режим (тот же helper, что и для отдельных треков) вместо этого один раз
+    # измеряет реальную громкость и применяет одну точную, неподвижную поправку —
+    # без покадровой тряски поверх уже готового сигнала.
+    normalized_out = os.path.join(work_dir, "audio_final.wav")
+    run_ffmpeg([
+        "-i", compressed_limited,
+        "-af", loudnorm_filter(compressed_limited, target_lufs),
         normalized_out
     ])
 
