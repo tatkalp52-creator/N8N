@@ -153,10 +153,18 @@ def resolve_audio_tracks_dir(source_url, work_dir):
 
 
 def get_real_duration(input_path, noise_threshold="-40dB", min_silence_duration=1.0):
-    """Оставлена как есть — только конец файла, для обратной совместимости
-    с местами, которые ждут именно одно число (например, /trackinfo)."""
+    """НОВОЕ: раньше возвращался просто content_end (позиция конца звука от
+    начала файла) — если у трека была обрезанная в начале тишина
+    (content_start > 0), это число оказывалось БОЛЬШЕ настоящей длины
+    трека. /trackinfo — единственный, кто зовёт эту функцию — складывает
+    такие числа в cumulative_start для тайм-кодов, а сама сборка
+    (build_audio_track) считает длину каждого трека как content_end -
+    content_start. Расхождение копилось от трека к треку и сдвигало
+    тайм-коды относительно того, что реально звучит в собранном файле.
+    Теперь возвращается настоящая длина — то же самое число, что использует
+    сама сборка."""
     content_start, content_end = get_content_bounds(input_path, noise_threshold, min_silence_duration)
-    return content_end
+    return content_end - content_start
 
 
 # НОВОЕ: находит настоящие начало И конец звука в файле, отрезая тишину
@@ -247,7 +255,12 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
         if end - start < min_segment_seconds:
             continue
         out_path = os.path.join(split_dir, f"{i}_track.wav")
-        run_ffmpeg(["-i", input_path, "-ss", str(start), "-to", str(end), "-c", "copy", out_path])
+        # НОВОЕ: было "-c copy" — стрим-копия режет только по границе кадра
+        # кодека, а не по точной секунде; для сжатых форматов (mp3 и т.п.)
+        # это даёт неточный, часто щёлкающий рез прямо на границе. Без
+        # "-c copy" ffmpeg честно перекодирует кусок в PCM — рез становится
+        # сэмпл-точным, без щелчка на стыке.
+        run_ffmpeg(["-i", input_path, "-ss", str(start), "-to", str(end), out_path])
         paths.append(out_path)
     return paths
 
@@ -289,7 +302,12 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
     for i, raw_path in enumerate(tracks_raw):
         content_start, content_end = get_content_bounds(raw_path)
         trimmed_path = os.path.join(trimmed_dir, f"track_{i}.wav")
-        run_ffmpeg(["-i", raw_path, "-ss", str(content_start), "-to", str(content_end), "-c", "copy", trimmed_path])
+        # НОВОЕ: то же самое, что и в split_by_silence — без "-c copy" рез
+        # становится сэмпл-точным, а не привязанным к границе кадра кодека.
+        # Именно это, судя по всему, было причиной щелчка/резкого обрыва на
+        # стыке треков: fade вправду применялся, но накладывался поверх уже
+        # испорченного стыка от неточного стрим-копи реза.
+        run_ffmpeg(["-i", raw_path, "-ss", str(content_start), "-to", str(content_end), trimmed_path])
         tracks.append(trimmed_path)
         durations.append(content_end - content_start)
 
