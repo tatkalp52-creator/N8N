@@ -431,7 +431,7 @@
               "conditions": {
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.sys_Status }}",
+                    "leftValue": "={{ ($json.sys_Status || '').trim() }}",
                     "rightValue": "Картинка в работе",
                     "operator": {
                       "type": "string",
@@ -451,7 +451,7 @@
               "conditions": {
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.sys_Status }}",
+                    "leftValue": "={{ ($json.sys_Status || '').trim() }}",
                     "rightValue": "Картинка согласована",
                     "operator": {
                       "type": "string",
@@ -471,7 +471,7 @@
               "conditions": {
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.sys_Status }}",
+                    "leftValue": "={{ ($json.sys_Status || '').trim() }}",
                     "rightValue": "Описание согласовано",
                     "operator": {
                       "type": "string",
@@ -491,7 +491,7 @@
               "conditions": {
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.sys_Status }}",
+                    "leftValue": "={{ ($json.sys_Status || '').trim() }}",
                     "rightValue": "Утверждено",
                     "operator": {
                       "type": "string",
