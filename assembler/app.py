@@ -375,17 +375,21 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
     result_path = join_tracks(faded_tracks, durations, "audio_step")
     shutil.copy(result_path, concat_out)
 
-    compressed_out = os.path.join(work_dir, "audio_compressed.wav")
-    run_ffmpeg([
-        "-i", concat_out,
-        "-af", "acompressor=threshold=-20dB:attack=10:release=100:ratio=3:makeup=1",
-        compressed_out
-    ])
-
+    # НОВОЕ: раньше здесь стоял только acompressor (attack=10ms) и финальный
+    # loudnorm — ни то ни другое не является настоящим лимитером с быстрой
+    # атакой, так что резкий транзиент (например, снейр на 2 и 4 долю —
+    # характерная черта лофая, которую убирать не нужно) частично проскакивал
+    # мимо обоих и слышался как жёсткий щелчок. alimiter — это честный
+    # лимитер с lookahead и быстрой атакой (5мс), который ловит именно такие
+    # короткие пики, не трогая общую динамику и характер бита.
     normalized_out = os.path.join(work_dir, "audio_final.wav")
     run_ffmpeg([
-        "-i", compressed_out,
-        "-af", f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
+        "-i", concat_out,
+        "-af", (
+            "acompressor=threshold=-20dB:attack=10:release=100:ratio=3:makeup=1,"
+            "alimiter=limit=0.95:attack=5:release=50,"
+            f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
+        ),
         normalized_out
     ])
 
