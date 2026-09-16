@@ -153,21 +153,6 @@ def resolve_audio_tracks_dir(source_url, work_dir):
     return extract_dir, zip_order
 
 
-def get_real_duration(input_path, noise_threshold="-40dB", min_silence_duration=1.0):
-    """НОВОЕ: раньше возвращался просто content_end (позиция конца звука от
-    начала файла) — если у трека была обрезанная в начале тишина
-    (content_start > 0), это число оказывалось БОЛЬШЕ настоящей длины
-    трека. /trackinfo — единственный, кто зовёт эту функцию — складывает
-    такие числа в cumulative_start для тайм-кодов, а сама сборка
-    (build_audio_track) считает длину каждого трека как content_end -
-    content_start. Расхождение копилось от трека к треку и сдвигало
-    тайм-коды относительно того, что реально звучит в собранном файле.
-    Теперь возвращается настоящая длина — то же самое число, что использует
-    сама сборка."""
-    content_start, content_end = get_content_bounds(input_path, noise_threshold, min_silence_duration)
-    return content_end - content_start
-
-
 # НОВОЕ: находит настоящие начало И конец звука в файле, отрезая тишину
 # с ОБЕИХ сторон — не только в конце (как было раньше), но и в начале,
 # если она там есть. Нужно для сценария "каждый трек на своей дорожке,
@@ -199,6 +184,28 @@ def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration
             content_end = start
 
     return content_start, content_end
+
+
+# НОВОЕ: раньше и /trackinfo (тайм-коды в описании), и сама сборка отдельно
+# считали длину трека по меткам тишины (content_end - content_start) — это
+# ТЕОРЕТИЧЕСКОЕ число, а не реальная длина файла после обрезки. При обрезке
+# с перекодированием (без "-c copy") реальная длина готового файла может на
+# доли секунды отличаться от теоретической — по отдельности незаметно, но
+# на кластере из ~20 треков расхождение накапливается трек за треком и к
+# последней границе (там, где ставится метка "Repeat") набегает уже на
+# секунды — отсюда был слышен хвост предыдущего трека при переходе на повтор.
+# Теперь оба места вызывают ОДНУ и ту же функцию и используют РЕАЛЬНО
+# измеренную (через ffprobe) длину уже обрезанного файла — расходиться
+# больше нечему, потому что источник числа один и тот же код.
+def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_duration=1.0):
+    content_start, content_end = get_content_bounds(input_path, noise_threshold, min_silence_duration)
+    run_ffmpeg(["-i", input_path, "-ss", str(content_start), "-to", str(content_end), out_path])
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", out_path],
+        capture_output=True, text=True
+    )
+    real_duration = float(probe.stdout.strip())
+    return real_duration
 
 
 # НОВОЕ: режет ОДИН длинный файл (например, экспортированный из Suno Studio
@@ -338,16 +345,16 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
     tracks = []
     durations = []
     for i, raw_path in enumerate(tracks_raw):
-        content_start, content_end = get_content_bounds(raw_path)
         trimmed_path = os.path.join(trimmed_dir, f"track_{i}.wav")
         # НОВОЕ: то же самое, что и в split_by_silence — без "-c copy" рез
         # становится сэмпл-точным, а не привязанным к границе кадра кодека.
         # Именно это, судя по всему, было причиной щелчка/резкого обрыва на
         # стыке треков: fade вправду применялся, но накладывался поверх уже
-        # испорченного стыка от неточного стрим-копи реза.
-        run_ffmpeg(["-i", raw_path, "-ss", str(content_start), "-to", str(content_end), trimmed_path])
+        # испорченного стыка от неточного стрим-копи реза. Реальная (не
+        # теоретическая) длина — см. комментарий у trim_to_content выше.
+        real_duration = trim_to_content(raw_path, trimmed_path)
         tracks.append(trimmed_path)
-        durations.append(content_end - content_start)
+        durations.append(real_duration)
 
     # НОВОЕ (09.09): фейд-ин и фейд-аут у КАЖДОГО трека без исключений — в том
     # числе у самого первого и самого последнего. Раньше первый/последний были
@@ -755,9 +762,14 @@ def trackinfo():
         GAP_SECONDS = float(data.get("gapSeconds", 0))
         result = []
         cumulative_start = 0.0
+        trackinfo_trim_dir = os.path.join(work_dir, "trackinfo_trim")
+        os.makedirs(trackinfo_trim_dir, exist_ok=True)
 
         for i, raw_path in enumerate(tracks_raw):
-            duration = get_real_duration(raw_path)
+            # НОВОЕ: та же функция, что и в реальной сборке (trim_to_content) —
+            # значит те же самые реальные числа, а не отдельная теоретическая
+            # оценка, которая могла разойтись с тем, что реально соберётся.
+            duration = trim_to_content(raw_path, os.path.join(trackinfo_trim_dir, f"{i}.wav"))
             filename = os.path.splitext(os.path.basename(raw_path))[0]
 
             result.append({
