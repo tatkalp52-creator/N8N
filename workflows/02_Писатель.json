@@ -493,7 +493,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.action }}",
+                    "leftValue": "={{ $('Парсим ответ писателя').first().json.action }}",
                     "rightValue": "chat",
                     "operator": {
                       "type": "string",
@@ -513,7 +513,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.action }}",
+                    "leftValue": "={{ $('Парсим ответ писателя').first().json.action }}",
                     "rightValue": "draft",
                     "operator": {
                       "type": "string",
@@ -533,7 +533,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.action }}",
+                    "leftValue": "={{ $('Парсим ответ писателя').first().json.action }}",
                     "rightValue": "approved",
                     "operator": {
                       "type": "string",
