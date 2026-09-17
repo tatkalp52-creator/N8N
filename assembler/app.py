@@ -26,8 +26,9 @@ os.makedirs(THUMBNAIL_DIR, exist_ok=True)
 FONT_MAP = {
     "Courier Prime": "/usr/share/fonts/truetype/courier-prime/CourierPrime-Regular.ttf",
     "DejaVu Sans": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "Pengui Hand": "/usr/share/fonts/truetype/pengui-hand/PenguiHand.ttf",
 }
-DEFAULT_FONT_PATH = FONT_MAP["Courier Prime"]
+DEFAULT_FONT_PATH = FONT_MAP["Pengui Hand"]
 
 
 # Раньше отступ от края (60px) был жёстко зашит в каждую строку ниже.
