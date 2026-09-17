@@ -9,6 +9,7 @@ import glob
 import requests
 import gdown
 from flask import Flask, request, jsonify, send_file, after_this_request
+from PIL import ImageFont
 
 app = Flask(__name__)
 
@@ -51,14 +52,101 @@ def build_overlay_positions(margin=60):
         # поэтому добавляем такие же простые псевдонимы на вертикальный центр —
         # раньше "left"/"right" в этом списке не было вообще, и код молча
         # подставлял "center" по умолчанию.
-        # НОВОЕ: якорь не от края кадра, а от линий третей (кадр мысленно
-        # поделён на 3 равные части). "left" — правый край текста упирается
-        # в первую линию трети, текст растёт влево. "right" — левый край
-        # текста (первая буква) упирается во вторую линию трети, текст
-        # растёт вправо. margin тут больше не участвует.
-        "left":          "x=w/3-text_w:y=(h-text_h)/2",
-        "right":         "x=2*w/3:y=(h-text_h)/2",
+        # НОВОЕ: якорь не от края кадра, а от вертикальных линий, за которые
+        # текст не заходит (кадр мысленно поделён по горизонтали). Раньше
+        # линии стояли на третях (2/3 центра под объект) — с длинными
+        # словами при крупном шрифте текст почти упирался в край кадра.
+        # Сдвинуто на пятые: центральная зона под объект уже (1/5 вместо
+        # 1/3), а по бокам, наоборот, больше места на рост текста (2/5
+        # вместо 1/3 с каждой стороны). "left" — правый край текста
+        # упирается в левую линию, текст растёт влево. "right" — левый
+        # край текста упирается в правую линию, текст растёт вправо.
+        # margin тут больше не участвует.
+        "left":          "x=2*w/5-text_w:y=(h-text_h)/2",
+        "right":         "x=3*w/5:y=(h-text_h)/2",
     }
+
+
+def measure_text_width(text, font_path, font_size):
+    """Настоящая ширина строки в пикселях для КОНКРЕТНОГО шрифта и размера —
+    нужна только для одного решения (влезает ли оверлей в одну строку или
+    его надо разбить на две), а не для самого позиционирования на кадре
+    (это по-прежнему делает сам ffmpeg через text_w в drawtext)."""
+    font = ImageFont.truetype(font_path, int(round(float(font_size))))
+    bbox = font.getbbox(text)
+    return bbox[2] - bbox[0]
+
+
+def build_overlay_drawtext(overlay_text, position, font_path, font_size,
+                            font_color, shadow_color, shadow_opacity,
+                            overlay_alpha, margin=60):
+    """Собирает список (shadow_filters, main_filters) для оверлея — либо
+    одну строку как раньше, либо, если текст не помещается в отведённую
+    по бокам зону (см. build_overlay_positions), автоматический стек из
+    двух строк: правило канала — оверлей всегда из двух слов, первое
+    короткое ("Just" и т.п.). Обе строки прижимаются К ОДНОЙ И ТОЙ ЖЕ
+    вертикальной линии тем же краем, каким прижималась бы одна строка —
+    короткое слово просто "висит" ближе к линии, а не гуляет само по
+    себе, поэтому раскладка предсказуема независимо от длины слова."""
+    text = overlay_text.strip()
+    if not text:
+        return [], []
+
+    positions = build_overlay_positions(margin)
+    pos = positions.get(position, positions["center"])
+
+    def esc(t):
+        return t.replace("'", "\\'").replace(":", "\\:")
+
+    words = text.split(" ", 1)
+    zone_width = (2 * VIDEO_WIDTH / 5 - 40) if position in ("left", "right") else None
+    needs_stack = False
+    if len(words) == 2 and zone_width is not None:
+        try:
+            needs_stack = measure_text_width(text, font_path, font_size) > zone_width
+        except Exception as e:
+            print(f"[overlay] не удалось измерить ширину текста, оставляю одну строку: {e}")
+
+    def layer(line_text, xy_part, color, opacity=None):
+        color_part = f"0x{color}@{opacity}" if opacity is not None else f"0x{color}"
+        return (
+            f"drawtext=text='{esc(line_text)}':fontfile={font_path}:"
+            f"fontcolor={color_part}:fontsize={font_size}:{xy_part}:"
+            f"alpha='{overlay_alpha}':enable='between(t,0,18)'"
+        )
+
+    if not needs_stack:
+        return [layer(text, pos, shadow_color, shadow_opacity)], [layer(text, pos, font_color)]
+
+    # НОВОЕ: стек из двух строк. Межстрочный интервал — 0.875 от размера
+    # шрифта (подобрано глазами на тесте, при 120px это ~105px), обе
+    # строки центрируются как единый блок по вертикали кадра.
+    line1, line2 = words[0], words[1]
+    size = float(font_size)
+    line_pitch = round(size * 0.875)
+    block_h = line_pitch + size
+    y1 = round((VIDEO_HEIGHT - block_h) / 2)
+    y2 = y1 + line_pitch
+
+    if position == "left":
+        x_expr = "2*w/5-text_w"
+    elif position == "right":
+        x_expr = "3*w/5"
+    else:
+        x_expr = "(w-text_w)/2"
+
+    xy1 = f"x={x_expr}:y={y1}"
+    xy2 = f"x={x_expr}:y={y2}"
+
+    shadow_filters = [
+        layer(line1, xy1, shadow_color, shadow_opacity),
+        layer(line2, xy2, shadow_color, shadow_opacity),
+    ]
+    main_filters = [
+        layer(line1, xy1, font_color),
+        layer(line2, xy2, font_color),
+    ]
+    return shadow_filters, main_filters
 
 
 def natural_sort_key(path, zip_order=None):
@@ -643,9 +731,6 @@ def assemble():
             video_filters.append(f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}")
 
         overlay_margin = int(data.get("overlayMargin", 60))
-        overlay_positions = build_overlay_positions(overlay_margin)
-        pos = overlay_positions.get(overlay_position, overlay_positions["center"])
-        safe_text = overlay_text.replace("'", "\\'").replace(":", "\\:")
 
         font_name = data.get("overlayFont")
         font_path = FONT_MAP.get(font_name, DEFAULT_FONT_PATH)
@@ -675,15 +760,10 @@ def assemble():
         shadow_opacity = data.get("overlayShadowOpacity", "0.55")
 
         base_chain = ",".join(video_filters)
-        shadow_drawtext = (
-            f"drawtext=text='{safe_text}':fontfile={font_path}:"
-            f"fontcolor=0x{shadow_color}@{shadow_opacity}:fontsize={font_size}:{pos}:"
-            f"alpha='{overlay_alpha}':enable='between(t,0,18)'"
-        )
-        main_drawtext = (
-            f"drawtext=text='{safe_text}':fontfile={font_path}:"
-            f"fontcolor=0x{font_color}:fontsize={font_size}:{pos}:alpha='{overlay_alpha}':"
-            f"enable='between(t,0,18)'"
+        shadow_layers, main_layers = build_overlay_drawtext(
+            overlay_text, overlay_position, font_path, font_size,
+            font_color, shadow_color, shadow_opacity, overlay_alpha,
+            margin=overlay_margin,
         )
 
         # НОВОЕ: плавное появление/затухание ВСЕГО готового видео целиком
@@ -691,17 +771,27 @@ def assemble():
         # и последние 0.5 секунды кадра — из чёрного и в чёрный.
         video_fade = f"fade=t=in:st=0:d=0.5,fade=t=out:st={duration-0.5}:d=0.5"
 
-        if safe_text.strip():
+        if shadow_layers:
             # Собираем отдельный граф: [0:v] -> база со scale/эффектами;
-            # прозрачный слой того же размера -> текст тенью -> размытие ->
-            # наложение под базу -> резкий текст поверх -> fade всего кадра.
+            # прозрачный слой того же размера -> текст тенью (одна или две
+            # строки, см. build_overlay_drawtext) -> размытие -> наложение
+            # под базу -> резкий текст поверх -> fade всего кадра.
+            shadow_chain = ";".join(
+                f"[{'shadowbg' if i == 0 else f'sh{i}'}]{f}[sh{i + 1}]"
+                for i, f in enumerate(shadow_layers)
+            )
+            main_chain = ";".join(
+                f"[{'with_shadow' if i == 0 else f'm{i}'}]{f}[{f'm{i + 1}' if i + 1 < len(main_layers) else 'texted'}]"
+                for i, f in enumerate(main_layers)
+            )
             video_chain_graph = (
                 f"[0:v]{base_chain}[base];"
                 f"color=c=black@0.0:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:d={duration}[shadowbg];"
-                f"[shadowbg]{shadow_drawtext}[shadow_drawn];"
-                f"[shadow_drawn]gblur=sigma={shadow_blur}[shadow_blurred];"
+                f"{shadow_chain};"
+                f"[sh{len(shadow_layers)}]gblur=sigma={shadow_blur}[shadow_blurred];"
                 f"[base][shadow_blurred]overlay=0:0[with_shadow];"
-                f"[with_shadow]{main_drawtext},{video_fade}[v]"
+                f"{main_chain};"
+                f"[texted]{video_fade}[v]"
             )
         else:
             video_chain_graph = f"[0:v]{base_chain},{video_fade}[v]"
