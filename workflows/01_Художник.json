@@ -1468,7 +1468,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\nconst isApproved = raw.startsWith('true');\n\nconst parsed = $('Парсим ответ редактора').first().json;\nreturn [{ json: { ...parsed, isApproved } }];"
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\n\n// Раньше любой нестандартный ответ классификатора (сбой запроса, обрезанный\n// или неожиданный текст — что угодно, кроме чистого 'true') тихо считался\n// тем же самым, что 'false' — то есть настоящий сбой проверки был неотличим\n// от честного \"автор не согласовывал\", и терялся без единого следа.\n// Различаем явно: 'approved' / 'not_approved' / 'uncertain'.\nlet classifierResult;\nif (raw.startsWith('true')) {\n  classifierResult = 'approved';\n} else if (raw.startsWith('false')) {\n  classifierResult = 'not_approved';\n} else {\n  classifierResult = 'uncertain';\n}\nconst isApproved = classifierResult === 'approved';\n\nconst parsed = $('Парсим ответ редактора').first().json;\nreturn [{ json: { ...parsed, isApproved, classifierResult, classifierRaw: raw } }];"
       },
       "id": "ea245349-0e09-4281-81bd-3c18091aa403",
       "name": "Разбираем классификатор",
@@ -2551,6 +2551,60 @@
       ],
       "notesInFlow": true,
       "notes": "Текущая картинка + style guide + до 5 референсов = от 2 до 7 картинок для точечной правки — маршрутизирует на вариант gpt-image-2 с ровно нужным числом полей image[], без дублирования до фиксированного числа. imageCount==7 (или что-то нештатное) уходит через fallback в 7-местный вариант."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.classifierResult }}",
+              "rightValue": "uncertain",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f9d34a0d-adc0-4594-b877-dd02603b817f",
+      "name": "Классификатор дал сбой?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4416,
+        3600
+      ],
+      "notesInFlow": true,
+      "notes": "Классификатор ответил не 'true' и не 'false' — вместо того чтобы молча считать это отказом, явно предупреждаем автора."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
+        "text": "=⚠️ Проверка согласия дала сбой — модель-классификатор ответила не по формату (не 'true' и не 'false'), поэтому не могу надёжно понять, согласовала ли ты. Обычный ответ придёт следом отдельно. Если ты действительно согласовывала — попробуй ещё раз явно, коротким словом.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "f0133fb2-a1b9-499e-86e0-9ef49920fc81",
+      "name": "Предупреждение: классификатор дал сбой",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4192,
+        3600
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -3152,6 +3206,11 @@
             "node": "Нужно завершить принудительно?",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Классификатор дал сбой?",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -3456,6 +3515,18 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Классификатор дал сбой?": {
+      "main": [
+        [
+          {
+            "node": "Предупреждение: классификатор дал сбой",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },

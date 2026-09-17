@@ -938,7 +938,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\nconst isApproved = raw.startsWith('true');\n\nconst parsed = $('Парсим ответ техчасти').first().json;\nreturn [{ json: { ...parsed, isApproved } }];"
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\n\n// Раньше любой нестандартный ответ классификатора (сбой запроса, обрезанный\n// или неожиданный текст — что угодно, кроме чистого 'true') тихо считался\n// тем же самым, что 'false' — то есть настоящий сбой проверки был неотличим\n// от честного \"автор не согласовывал\", и терялся без единого следа.\n// Различаем явно: 'approved' / 'not_approved' / 'uncertain'.\nlet classifierResult;\nif (raw.startsWith('true')) {\n  classifierResult = 'approved';\n} else if (raw.startsWith('false')) {\n  classifierResult = 'not_approved';\n} else {\n  classifierResult = 'uncertain';\n}\nconst isApproved = classifierResult === 'approved';\n\nconst parsed = $('Парсим ответ техчасти').first().json;\nreturn [{ json: { ...parsed, isApproved, classifierResult, classifierRaw: raw } }];"
       },
       "id": "e4c87aac-196b-49fb-9e89-1d36d523cf86",
       "name": "Разбираем классификатор",
@@ -1221,6 +1221,60 @@
         2064
       ],
       "webhookId": "23db0080-1bd0-401d-808e-1b8bff826097",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.classifierResult }}",
+              "rightValue": "uncertain",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "89492f1c-f229-47bd-aa08-c6023e3c1bad",
+      "name": "Классификатор дал сбой?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3776,
+        1856
+      ],
+      "notesInFlow": true,
+      "notes": "Классификатор ответил не 'true' и не 'false' — вместо того чтобы молча считать это отказом, явно предупреждаем автора."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
+        "text": "=⚠️ Проверка согласия дала сбой — модель-классификатор ответила не по формату (не 'true' и не 'false'), поэтому не могу надёжно понять, согласовала ли ты. Обычный ответ придёт следом отдельно. Если ты действительно согласовывала — попробуй ещё раз явно, коротким словом.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "additionalFields": {}
+      },
+      "id": "a6961f51-c1e1-4399-a582-4a7325a7d4c4",
+      "name": "Предупреждение: классификатор дал сбой",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -3552,
+        1856
+      ],
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -1574,6 +1628,11 @@
             "node": "Нужно завершить принудительно?",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Классификатор дал сбой?",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1674,6 +1733,18 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Классификатор дал сбой?": {
+      "main": [
+        [
+          {
+            "node": "Предупреждение: классификатор дал сбой",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
