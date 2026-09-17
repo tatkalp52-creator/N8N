@@ -9,7 +9,6 @@ import glob
 import requests
 import gdown
 from flask import Flask, request, jsonify, send_file, after_this_request
-from PIL import ImageFont
 
 app = Flask(__name__)
 
@@ -71,7 +70,13 @@ def measure_text_width(text, font_path, font_size):
     """Настоящая ширина строки в пикселях для КОНКРЕТНОГО шрифта и размера —
     нужна только для одного решения (влезает ли оверлей в одну строку или
     его надо разбить на две), а не для самого позиционирования на кадре
-    (это по-прежнему делает сам ffmpeg через text_w в drawtext)."""
+    (это по-прежнему делает сам ffmpeg через text_w в drawtext). Импорт
+    Pillow — намеренно здесь, а не в начале файла: раньше падение всего
+    сборщика целиком из-за отсутствия Pillow означало, что и сборка
+    видео, вообще не связанная с оверлеем, переставала работать тоже.
+    Теперь при отсутствии Pillow ломается только решение про перенос
+    строки (см. вызов ниже), а не весь сервис."""
+    from PIL import ImageFont
     font = ImageFont.truetype(font_path, int(round(float(font_size))))
     bbox = font.getbbox(text)
     return bbox[2] - bbox[0]
