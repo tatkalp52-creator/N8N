@@ -18,17 +18,18 @@
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
+            "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "loose"
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.messageText.trim().toLowerCase() }}",
-              "rightValue": "форс согласовано",
+              "leftValue": "={{ $json.isButtonApprove }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "equals"
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
               }
             }
           ],
@@ -37,7 +38,7 @@
         "options": {}
       },
       "id": "78c9b9b3-4074-4408-ba08-12dbdc105962",
-      "name": "Форс-согласование?",
+      "name": "Кнопка согласования?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
@@ -45,7 +46,7 @@
         3664
       ],
       "notesInFlow": true,
-      "notes": "Аварийный обход модели: если автор пишет ровно эту фразу, статус ставится напрямую кодом, без обращения к OpenAI. Нужен на случай, если модель не вызвала approve_image сама (известная ненадёжность tool-calling, не баг кода)."
+      "notes": "Единственный детерминированный путь финализации — нажатие кнопки '✅ Согласовано'. Ставится диспетчером (isButtonApprove), не текстом."
     },
     {
       "parameters": {
@@ -71,7 +72,7 @@
         "options": {}
       },
       "id": "72fc9bc2-e969-4da3-93ec-958603774284",
-      "name": "Форс: читаем строку проекта",
+      "name": "Читаем строку проекта (кнопка)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
@@ -113,7 +114,7 @@
         "options": {}
       },
       "id": "1a0291e4-95ef-4249-b10f-2fc964f600d7",
-      "name": "Форс: ставим статус",
+      "name": "Ставим статус (кнопка)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
@@ -132,11 +133,11 @@
     {
       "parameters": {
         "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
-        "text": "=Картинка согласована ✅ (принудительно, по слову-ключу)\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "text": "=Картинка согласована ✅\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "069d66fc-f4c1-4d34-ac79-594e87c4c47a",
-      "name": "Форс: отправляем подтверждение",
+      "name": "Отправляем подтверждение (кнопка)",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -1085,6 +1086,10 @@
             {
               "name": "caption",
               "value": "=Вариант {{ $('Собираем ссылку (B)').first().json.variantNumber }}\nID: {{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ JSON.stringify({ inline_keyboard: [[{ text: '✅ Согласовано', callback_data: 'approve|' + $('Собираем ссылку (B)').first().json.sys_ProjectID }]] }) }}"
             }
           ]
         },
@@ -1333,6 +1338,10 @@
             {
               "name": "caption",
               "value": "=Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено)\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ JSON.stringify({ inline_keyboard: [[{ text: '✅ Согласовано', callback_data: 'approve|' + $('Собираем ссылку (C)').first().json.sys_ProjectID }]] }) }}"
             }
           ]
         },
@@ -1391,284 +1400,6 @@
       ],
       "notesInFlow": true,
       "notes": "Execute Workflow node в этой версии n8n игнорирует ручной маппинг полей — приклеиваем нужные поля к текущему item заранее, так же, как в диспетчере."
-    },
-    {
-      "parameters": {
-        "jsCode": "const req = $('Готовим запрос редактору').first().json;\nconst parsed = $('Парсим ответ редактора').first().json;\n\nreturn [{\n  json: {\n    classifierInput: `Автор написал: \"${req.userMessage}\"\\n\\nРедактор ответил: \"${parsed.messageToUser}\"`,\n  }\n}];"
-      },
-      "id": "77ae36d7-7616-4b5e-9e88-7e87ca2e27f6",
-      "name": "Готовим вопрос классификатору",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -5088,
-        3424
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $('Парсим ответ редактора').first().json.action }}",
-              "rightValue": "approved",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "c3d8e5a1-4f2b-4a9c-8e6d-1b7f9a3c5d02",
-      "name": "Нужен ли классификатор?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -5200,
-        3520
-      ],
-      "notesInFlow": true,
-      "notes": "Классификатор нужен только когда approve_image ещё НЕ был явно вызван (action chat/ready_to_draw/revise_point) — вдруг автор согласился словами, а модель забыла вызвать tool. Если action уже 'approved', результат классификатора всё равно нигде не используется — не тратим на него отдельный запрос к OpenAI."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/responses",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Ты — строгий бинарный классификатор, без творчества и без памяти о прошлых сообщениях. По приведённому обмену репликами определи: автор только что дал окончательное, явное согласие с текущей картинкой как финальной? Ответь ровно одним словом: true или false. Ничего больше.' }, { role: 'user', content: $json.classifierInput } ] }) }}",
-        "options": {}
-      },
-      "id": "d048560d-8a3f-4e6b-99ee-da24d4e40040",
-      "name": "OpenAI: классификатор согласия",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -4864,
-        3424
-      ],
-      "notesInFlow": true,
-      "credentials": {
-        "openAiApi": {
-          "id": "HvMLVgMnS8OU4ebj",
-          "name": "OpenAi account"
-        }
-      },
-      "notes": "Отдельный, беспамятный запрос — без 'conversation', без tools."
-    },
-    {
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\n\n// Раньше любой нестандартный ответ классификатора (сбой запроса, обрезанный\n// или неожиданный текст — что угодно, кроме чистого 'true') тихо считался\n// тем же самым, что 'false' — то есть настоящий сбой проверки был неотличим\n// от честного \"автор не согласовывал\", и терялся без единого следа.\n// Различаем явно: 'approved' / 'not_approved' / 'uncertain'.\nlet classifierResult;\nif (raw.startsWith('true')) {\n  classifierResult = 'approved';\n} else if (raw.startsWith('false')) {\n  classifierResult = 'not_approved';\n} else {\n  classifierResult = 'uncertain';\n}\nconst isApproved = classifierResult === 'approved';\n\nconst parsed = $('Парсим ответ редактора').first().json;\nreturn [{ json: { ...parsed, isApproved, classifierResult, classifierRaw: raw } }];"
-      },
-      "id": "ea245349-0e09-4281-81bd-3c18091aa403",
-      "name": "Разбираем классификатор",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -4640,
-        3424
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.isApproved }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            },
-            {
-              "leftValue": "={{ $json.action }}",
-              "rightValue": "approved",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "46484891-0bc5-4ea2-b7ec-57b10cafccb2",
-      "name": "Нужно завершить принудительно?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -4416,
-        3424
-      ],
-      "notesInFlow": true,
-      "notes": "Срабатывает только когда классификатор уверен, что согласие было, а модель сама не вызвала approve_image."
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "documentId": {
-          "__rl": true,
-          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "={{ $json.sheetName }}",
-          "mode": "name"
-        },
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "=sys_ProjectID",
-              "lookupValue": "={{ $json.projectId }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "a57de29a-9f11-435a-9db2-0c698213d64e",
-      "name": "Читаем актуальную картинку",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4,
-      "position": [
-        -4192,
-        3712
-      ],
-      "notesInFlow": true,
-      "credentials": {
-        "googleApi": {
-          "id": "1uQkgKbOPhjKOB2l",
-          "name": "Google Sheets account 2"
-        }
-      },
-      "notes": "ai_ImageUrl уже надёжно заполняется на каждом start_drawing/request_revision — читаем последнюю версию."
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "update",
-        "documentId": {
-          "__rl": true,
-          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "={{ $('Разбираем классификатор').first().json.sheetName }}",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "matchingColumns": [
-            "sys_ProjectID"
-          ],
-          "value": {
-            "sys_ProjectID": "={{ $('Разбираем классификатор').first().json.projectId }}",
-            "sys_Status": "Картинка согласована",
-            "ai_ApprovedImageUrl": "={{ $json.ai_ImageUrl }}"
-          }
-        },
-        "options": {}
-      },
-      "id": "91fe1d06-d499-4f66-ac10-d836c609857f",
-      "name": "Завершаем по классификатору",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4,
-      "position": [
-        -3968,
-        3712
-      ],
-      "credentials": {
-        "googleApi": {
-          "id": "1uQkgKbOPhjKOB2l",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $('Разбираем классификатор').first().json.chatId }}",
-        "text": "=Картинка согласована ✅ (подтверждено тихой проверкой согласия)\n\nID: {{ $('Разбираем классификатор').first().json.projectId }}",
-        "additionalFields": {}
-      },
-      "id": "5f2c3d46-7026-447c-814f-8d6d491c51af",
-      "name": "Шлём подтверждение (классификатор)",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        -3744,
-        3552
-      ],
-      "webhookId": "324787f2-b118-485e-b4c3-6638c718eff8",
-      "credentials": {
-        "telegramApi": {
-          "id": "UW2MJh6bPIyVZeig",
-          "name": "Telegram account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const p = $('Разбираем классификатор').first().json;\nreturn [{\n  json: {\n    projectId: p.projectId,\n    chatId: p.chatId,\n    sheetName: p.sheetName,\n    channelKey: p.channelKey,\n    messageText: 'Картинка только что согласована — начинай, пожалуйста, обсуждение сцены для описания.',\n  }\n}];"
-      },
-      "id": "117673cf-f472-4988-be2c-af354635deac",
-      "name": "Готовим данные для Писателя (классификатор)",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -3744,
-        3808
-      ],
-      "notesInFlow": true,
-      "notes": "Тот же авто-переход к Писателю, что и при обычном согласовании."
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "6arFlvk1uzPQ5mTd",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/6arFlvk1uzPQ5mTd",
-          "cachedResultName": "02_Писатель"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
-      },
-      "id": "4f086c4b-88f3-4cad-ba77-7a54388e2974",
-      "name": "Зовём Писателя (классификатор)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        -3520,
-        3808
-      ],
-      "notesInFlow": true,
-      "notes": "После импорта выбери '02_Писатель' в workflowId."
     },
     {
       "parameters": {
@@ -2024,7 +1755,7 @@
         "options": {}
       },
       "id": "63dd7ff9-573f-499a-a4ae-beefc6fa3aee",
-      "name": "Есть ли картинка для форса?",
+      "name": "Есть ли картинка (кнопка)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
@@ -2032,16 +1763,16 @@
         3856
       ],
       "notesInFlow": true,
-      "notes": "Предохранитель: 'форс согласовано' раньше продвигал статус до 'Картинка согласована' даже если ai_ImageUrl ещё пуст (картинка ни разу не рисовалась) — тогда ai_ApprovedImageUrl тоже сохранялся пустым, и следующий этап (Писатель) падал на пустой image_url. Теперь форс без готовой картинки просто отказывает с понятным сообщением."
+      "notes": "Предохранитель: кнопка согласования раньше могла продвинуть статус до 'Картинка согласована' даже если ai_ImageUrl ещё пуст (картинка ни разу не рисовалась) — тогда ai_ApprovedImageUrl тоже сохранялся бы пустым, и следующий этап (Писатель) падал на пустой image_url. Теперь нажатие кнопки без готовой картинки просто отказывает с понятным сообщением."
     },
     {
       "parameters": {
         "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
-        "text": "=Пока нет ни одной нарисованной картинки для этого проекта — форсировать согласование нечем.\n\nСначала попросите редактора нарисовать картинку (обсудите сценку и дождитесь, чтобы она реально прислала изображение), и только потом можно будет писать «форс согласовано».\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "text": "=Пока нет ни одной нарисованной картинки для этого проекта — фиксировать нечего.\n\nСначала обсудите сценку с редактором и дождитесь, чтобы она прислала изображение — кнопка появится под ним.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "1e3a6008-4e03-4758-82ba-74e5ded1dbaa",
-      "name": "Форс: картинки ещё нет",
+      "name": "Кнопка нажата, картинки ещё нет",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -2551,60 +2282,6 @@
       ],
       "notesInFlow": true,
       "notes": "Текущая картинка + style guide + до 5 референсов = от 2 до 7 картинок для точечной правки — маршрутизирует на вариант gpt-image-2 с ровно нужным числом полей image[], без дублирования до фиксированного числа. imageCount==7 (или что-то нештатное) уходит через fallback в 7-местный вариант."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.classifierResult }}",
-              "rightValue": "uncertain",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "f9d34a0d-adc0-4594-b877-dd02603b817f",
-      "name": "Классификатор дал сбой?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        -4416,
-        3600
-      ],
-      "notesInFlow": true,
-      "notes": "Классификатор ответил не 'true' и не 'false' — вместо того чтобы молча считать это отказом, явно предупреждаем автора."
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
-        "text": "=⚠️ Проверка согласия дала сбой — модель-классификатор ответила не по формату (не 'true' и не 'false'), поэтому не могу надёжно понять, согласовала ли ты. Обычный ответ придёт следом отдельно. Если ты действительно согласовывала — попробуй ещё раз явно, коротким словом.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
-        "additionalFields": {}
-      },
-      "id": "f0133fb2-a1b9-499e-86e0-9ef49920fc81",
-      "name": "Предупреждение: классификатор дал сбой",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        -4192,
-        3600
-      ],
-      "credentials": {
-        "telegramApi": {
-          "id": "UW2MJh6bPIyVZeig",
-          "name": "Telegram account 2"
-        }
-      }
     }
   ],
   "pinData": {},
@@ -2613,18 +2290,18 @@
       "main": [
         [
           {
-            "node": "Форс-согласование?",
+            "node": "Кнопка согласования?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Форс-согласование?": {
+    "Кнопка согласования?": {
       "main": [
         [
           {
-            "node": "Форс: читаем строку проекта",
+            "node": "Читаем строку проекта (кнопка)",
             "type": "main",
             "index": 0
           }
@@ -2643,22 +2320,22 @@
         ]
       ]
     },
-    "Форс: читаем строку проекта": {
+    "Читаем строку проекта (кнопка)": {
       "main": [
         [
           {
-            "node": "Есть ли картинка для форса?",
+            "node": "Есть ли картинка (кнопка)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Форс: ставим статус": {
+    "Ставим статус (кнопка)": {
       "main": [
         [
           {
-            "node": "Форс: отправляем подтверждение",
+            "node": "Отправляем подтверждение (кнопка)",
             "type": "main",
             "index": 0
           }
@@ -2868,24 +2545,6 @@
     },
     "Сохраняем conversation_id": {
       "main": [
-        [
-          {
-            "node": "Нужен ли классификатор?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Нужен ли классификатор?": {
-      "main": [
-        [
-          {
-            "node": "Готовим вопрос классификатору",
-            "type": "main",
-            "index": 0
-          }
-        ],
         [
           {
             "node": "Есть заметки об общении?",
@@ -3177,100 +2836,6 @@
         ]
       ]
     },
-    "Готовим вопрос классификатору": {
-      "main": [
-        [
-          {
-            "node": "OpenAI: классификатор согласия",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "OpenAI: классификатор согласия": {
-      "main": [
-        [
-          {
-            "node": "Разбираем классификатор",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Разбираем классификатор": {
-      "main": [
-        [
-          {
-            "node": "Нужно завершить принудительно?",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Классификатор дал сбой?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Нужно завершить принудительно?": {
-      "main": [
-        [
-          {
-            "node": "Читаем актуальную картинку",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Есть заметки об общении?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Читаем актуальную картинку": {
-      "main": [
-        [
-          {
-            "node": "Завершаем по классификатору",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Завершаем по классификатору": {
-      "main": [
-        [
-          {
-            "node": "Шлём подтверждение (классификатор)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Готовим данные для Писателя (классификатор)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Готовим данные для Писателя (классификатор)": {
-      "main": [
-        [
-          {
-            "node": "Зовём Писателя (классификатор)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Сколько картинок? (B)": {
       "main": [
         [
@@ -3354,18 +2919,18 @@
         ]
       ]
     },
-    "Есть ли картинка для форса?": {
+    "Есть ли картинка (кнопка)": {
       "main": [
         [
           {
-            "node": "Форс: ставим статус",
+            "node": "Ставим статус (кнопка)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Форс: картинки ещё нет",
+            "node": "Кнопка нажата, картинки ещё нет",
             "type": "main",
             "index": 0
           }
@@ -3515,18 +3080,6 @@
             "index": 0
           }
         ]
-      ]
-    },
-    "Классификатор дал сбой?": {
-      "main": [
-        [
-          {
-            "node": "Предупреждение: классификатор дал сбой",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
       ]
     }
   },
