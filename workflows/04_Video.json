@@ -968,6 +968,84 @@
         8480,
         2960
       ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.SheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "sys_ProjectID",
+              "lookupValue": "={{ $('Парсим ссылку на треки').first().json.projectId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4ef1dd78-80a0-4db1-9f89-f6278fc0fff6",
+      "name": "Читаем статус проекта (треки)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4128,
+        2896
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.sys_Status }}",
+              "value2": "Опубликовано"
+            }
+          ]
+        }
+      },
+      "id": "77834400-6dba-4e90-889f-954780279738",
+      "name": "Проект уже опубликован? (треки)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        4224,
+        2896
+      ],
+      "notesInFlow": true,
+      "notes": "Приём ссылки на треки определяется по reply на старое сообщение с ID проекта — если случайно ответить на сообщение уже опубликованного проекта, раньше это молча запускало пересборку. Теперь проверяем статус, как и на пути /render."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Парсим ссылку на треки').first().json.chatId, text: 'Проект ' + $('Парсим ссылку на треки').first().json.projectId + ' уже опубликован на YouTube — похоже, это ответ на старое сообщение по ошибке. Ссылка на треки не сохранена и сборка не запущена. Если это осознанно (нужно пересобрать заново) — скажи явно.' }) }}",
+        "options": {}
+      },
+      "id": "4c8779e0-0063-4bc9-b846-e04e95607778",
+      "name": "Сообщаем: проект уже опубликован (треки)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4448,
+        2800
+      ]
     }
   ],
   "pinData": {},
@@ -1178,7 +1256,7 @@
       "main": [
         [
           {
-            "node": "Сохраняем ссылку на треки",
+            "node": "Читаем статус проекта (треки)",
             "type": "main",
             "index": 0
           }
@@ -1387,6 +1465,35 @@
         [
           {
             "node": "Сообщаем: видео на YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем статус проекта (треки)": {
+      "main": [
+        [
+          {
+            "node": "Проект уже опубликован? (треки)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проект уже опубликован? (треки)": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: проект уже опубликован (треки)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Сохраняем ссылку на треки",
             "type": "main",
             "index": 0
           }
