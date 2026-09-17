@@ -644,7 +644,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Тот же предохранитель, что у Техчасти: не разрешаем поставить финальный\n// статус, пока обязательные поля пустые — независимо от того, что сказала модель.\nconst j = $input.first().json;\nconst required = {\n  finalText: j.finalText,\n  finalTextEN: j.finalTextEN,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\nreturn [{ json: { ...j, missingFields } }];"
+        "jsCode": "// Тот же предохранитель, что у Техчасти: не разрешаем поставить финальный\n// статус, пока обязательные поля пустые — независимо от того, что сказала модель.\nconst j = $('Парсим ответ писателя').first().json;\nconst required = {\n  finalText: j.finalText,\n  finalTextEN: j.finalTextEN,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\nreturn [{ json: { ...j, missingFields } }];"
       },
       "id": "c1d3e5f7-9a2b-4c6d-8e0f-1a3b5c7d9e21",
       "name": "Проверка полноты пакета",
