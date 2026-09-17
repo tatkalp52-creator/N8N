@@ -18,17 +18,18 @@
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
+            "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "loose"
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.messageText.trim().toLowerCase() }}",
-              "rightValue": "форс описание",
+              "leftValue": "={{ $json.isButtonApprove }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "equals"
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
               }
             }
           ],
@@ -37,7 +38,7 @@
         "options": {}
       },
       "id": "0a7d81ed-543c-4037-b1f9-35239c0e5393",
-      "name": "Форс-согласование текста?",
+      "name": "Кнопка согласования?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
@@ -45,7 +46,7 @@
         864
       ],
       "notesInFlow": true,
-      "notes": "Аварийный обход модели, тот же принцип, что у Художника: сразу берёт последний сохранённый черновик описания и переводит его в согласованный, без обращения к OpenAI."
+      "notes": "Единственный детерминированный путь финализации — нажатие кнопки '✅ Согласовано'. Ставится диспетчером (isButtonApprove), не текстом."
     },
     {
       "parameters": {
@@ -71,7 +72,7 @@
         "options": {}
       },
       "id": "6491b152-c0ff-4602-bcde-42f86761aeba",
-      "name": "Форс: читаем строку проекта",
+      "name": "Читаем строку проекта (кнопка)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
@@ -90,7 +91,7 @@
         "jsCode": "const row = $input.first().json;\nconst draft = row.ai_DescriptionDraft || '';\n\nreturn [{\n  json: {\n    sys_ProjectID: row.sys_ProjectID,\n    hasDraft: draft.trim().length > 0,\n    draft,\n  }\n}];"
       },
       "id": "3a69fbc6-6674-464d-8aba-8990d951f238",
-      "name": "Форс: есть ли черновик?",
+      "name": "Есть ли черновик (кнопка)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -162,7 +163,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst descriptionEN = textPart ? textPart.text.trim() : '';\n\nconst prev = $('Форс: есть ли черновик?').first().json;\nreturn [{ json: { ...prev, descriptionEN } }];"
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst descriptionEN = textPart ? textPart.text.trim() : '';\n\nconst prev = $('Есть ли черновик (кнопка)').first().json;\nreturn [{ json: { ...prev, descriptionEN } }];"
       },
       "id": "b9d4f2a6-8c3e-4f0b-ad2e-4e6c8f0a2b14",
       "name": "Разбираем перевод для форса",
@@ -202,7 +203,7 @@
         "options": {}
       },
       "id": "00baa799-1b91-4d94-a274-79c8f1b16eb7",
-      "name": "Форс: ставим статус",
+      "name": "Ставим статус (кнопка)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
@@ -219,11 +220,11 @@
     {
       "parameters": {
         "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
-        "text": "=Описание согласовано ✅ (принудительно, по слову-ключу)\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "text": "=Описание согласовано ✅\n\nRU: {{ $('Есть ли черновик (кнопка)').first().json.draft }}\n\nEN: {{ $('Разбираем перевод для форса').first().json.descriptionEN }}\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "a88d730a-41ae-4005-ad86-c1e8cb6182de",
-      "name": "Форс: отправляем подтверждение",
+      "name": "Отправляем подтверждение (кнопка)",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -241,11 +242,11 @@
     {
       "parameters": {
         "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
-        "text": "=Форсить пока нечего — у меня ещё нет ни одного черновика описания для этого проекта. Обсуди со мной сценку немного, а потом попробуй ещё раз.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "text": "=Пока нечего фиксировать — у меня ещё нет ни одного черновика описания для этого проекта. Обсуди со мной сценку, а когда появится черновик — жми кнопку под ним.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "ee6e224c-1009-453b-a4d7-e0f207a166c2",
-      "name": "Форс: нечего форсить",
+      "name": "Кнопка нажата, черновика нет",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
@@ -561,7 +562,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Парсим ответ писателя').first().json.chatId }}",
-        "text": "={{ $('Парсим ответ писателя').first().json.messageToUser }}{{ /соглас/i.test($('Вход от диспетчера').first().json.messageText || '') ? '\\n\\n⚠️ Похоже, ты согласовываешь текст, но в этом ответе не было реального сохранения (approve_description не вызван) — статус мог не обновиться. Если через минуту не придёт отдельное подтверждение \"Описание согласовано ✅\" с RU и EN текстом — напиши \"форс описание\".' : '' }}\n\nID: {{ $('Парсим ответ писателя').first().json.projectId }}",
+        "text": "={{ $('Парсим ответ писателя').first().json.messageToUser }}\n\nID: {{ $('Парсим ответ писателя').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "92aa9189-aef8-4607-bbf8-1fef9caa7db8",
@@ -625,25 +626,21 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $('Парсим ответ писателя').first().json.chatId }}",
-        "text": "={{ $('Парсим ответ писателя').first().json.messageToUser }}\n\n{{ $('Парсим ответ писателя').first().json.draftText }}\n\nID: {{ $('Парсим ответ писателя').first().json.projectId }}",
-        "additionalFields": {}
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Парсим ответ писателя').first().json.chatId, text: $('Парсим ответ писателя').first().json.messageToUser + '\\n\\n' + $('Парсим ответ писателя').first().json.draftText + '\\n\\nID: ' + $('Парсим ответ писателя').first().json.projectId, reply_markup: { inline_keyboard: [[{ text: '✅ Согласовано', callback_data: 'approve|' + $('Парсим ответ писателя').first().json.projectId }]] } }) }}",
+        "options": {}
       },
       "id": "dc4c0d57-45cf-4647-9959-c24c88cbb8d4",
       "name": "Отправляем ответ (черновик)",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         1824,
         480
-      ],
-      "webhookId": "ce2f9ae7-bb68-43f9-97ca-06b086943a13",
-      "credentials": {
-        "telegramApi": {
-          "id": "UW2MJh6bPIyVZeig",
-          "name": "Telegram account 2"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -939,244 +936,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const req = $('Готовим запрос писателю').first().json;\nconst parsed = $('Парсим ответ писателя').first().json;\n\nreturn [{\n  json: {\n    classifierInput: `Автор написал: \"${req.userMessage}\"\\n\\nРедактор ответил: \"${parsed.messageToUser}\"`,\n  }\n}];"
-      },
-      "id": "b830d5f6-922b-488c-8428-c539329a2bcc",
-      "name": "Готовим вопрос классификатору",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        480,
-        768
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $('Парсим ответ писателя').first().json.action }}",
-              "rightValue": "approved",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "d4e9f6b2-5a3c-4b0d-9f7e-2c8a0d4e6f13",
-      "name": "Нужен ли классификатор?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        256,
-        864
-      ],
-      "notesInFlow": true,
-      "notes": "Классификатор нужен только когда approve_description ещё НЕ был явно вызван — вдруг автор согласился словами, а модель забыла вызвать tool. Если action уже 'approved', результат классификатора всё равно нигде не используется — не тратим на него отдельный запрос к OpenAI."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/responses",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Ты — строгий бинарный классификатор, без творчества и без памяти о прошлых сообщениях. По приведённому обмену репликами определи: автор только что дал окончательное, явное согласие зафиксировать текущий текст описания как финальный? Ответь ровно одним словом: true или false. Ничего больше.' }, { role: 'user', content: $json.classifierInput } ] }) }}",
-        "options": {}
-      },
-      "id": "fc7e7793-e840-4fb3-93ca-5e289d943dad",
-      "name": "OpenAI: классификатор согласия",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        704,
-        768
-      ],
-      "notesInFlow": true,
-      "credentials": {
-        "openAiApi": {
-          "id": "HvMLVgMnS8OU4ebj",
-          "name": "OpenAi account"
-        }
-      },
-      "notes": "Отдельный, беспамятный запрос — без 'conversation', без tools."
-    },
-    {
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst raw = (textPart ? textPart.text : '').trim().toLowerCase();\n\n// Раньше любой нестандартный ответ классификатора (сбой запроса, обрезанный\n// или неожиданный текст — что угодно, кроме чистого 'true') тихо считался\n// тем же самым, что 'false' — то есть настоящий сбой проверки был неотличим\n// от честного \"автор не согласовывал\", и терялся без единого следа.\n// Различаем явно: 'approved' / 'not_approved' / 'uncertain'.\nlet classifierResult;\nif (raw.startsWith('true')) {\n  classifierResult = 'approved';\n} else if (raw.startsWith('false')) {\n  classifierResult = 'not_approved';\n} else {\n  classifierResult = 'uncertain';\n}\nconst isApproved = classifierResult === 'approved';\n\nconst parsed = $('Парсим ответ писателя').first().json;\nreturn [{ json: { ...parsed, isApproved, classifierResult, classifierRaw: raw } }];"
-      },
-      "id": "0a98e6c9-406d-4faf-88c2-b00739034cb9",
-      "name": "Разбираем классификатор",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        928,
-        768
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.isApproved }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            },
-            {
-              "leftValue": "={{ $json.action }}",
-              "rightValue": "approved",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "1bf56f8d-1110-4fbb-bb7b-7516eb62509b",
-      "name": "Нужно завершить принудительно?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1152,
-        768
-      ],
-      "notesInFlow": true,
-      "notes": "Срабатывает только когда классификатор уверен, что согласие было, а модель сама не вызвала approve_description."
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "documentId": {
-          "__rl": true,
-          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "={{ $json.sheetName }}",
-          "mode": "name"
-        },
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "=sys_ProjectID",
-              "lookupValue": "={{ $json.projectId }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "682e4f0b-196c-46ee-a5e1-9df0767182c1",
-      "name": "Читаем актуальные черновики",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4,
-      "position": [
-        1376,
-        1056
-      ],
-      "notesInFlow": true,
-      "credentials": {
-        "googleApi": {
-          "id": "1uQkgKbOPhjKOB2l",
-          "name": "Google Sheets account 2"
-        }
-      },
-      "notes": "ai_DescriptionDraft и ai_DescriptionEN уже надёжно заполнены на каждом save_description_draft — читаем их актуальное состояние."
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "update",
-        "documentId": {
-          "__rl": true,
-          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "={{ $json.sheetName }}",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "matchingColumns": [
-            "sys_ProjectID"
-          ],
-          "value": {
-            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
-            "sys_Status": "Описание согласовано",
-            "ai_Description": "={{ $json.ai_DescriptionDraft }}",
-            "ai_DescriptionEN": "={{ $json.ai_DescriptionEN }}"
-          }
-        },
-        "options": {}
-      },
-      "id": "f93efde1-03a1-45e3-a938-72e9022ba92c",
-      "name": "Завершаем по классификатору",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4,
-      "position": [
-        2048,
-        1056
-      ],
-      "credentials": {
-        "googleApi": {
-          "id": "1uQkgKbOPhjKOB2l",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $('Разбираем классификатор').first().json.chatId }}",
-        "text": "=Описание согласовано ✅ (подтверждено тихой проверкой согласия)\n\nRU: {{ $('Собираем переведённый текст').first().json.ai_DescriptionDraft }}\n\nEN: {{ $('Собираем переведённый текст').first().json.ai_DescriptionEN }}\n\nID: {{ $('Разбираем классификатор').first().json.projectId }}",
-        "additionalFields": {}
-      },
-      "id": "d8ec06ac-bcd9-4054-9ef1-e94edeaa59e2",
-      "name": "Шлём подтверждение (классификатор)",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        2272,
-        960
-      ],
-      "webhookId": "e2e001c8-c168-4141-80b1-ef17a4b2dd54",
-      "credentials": {
-        "telegramApi": {
-          "id": "UW2MJh6bPIyVZeig",
-          "name": "Telegram account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const p = $('Разбираем классификатор').first().json;\nreturn [{\n  json: {\n    projectId: p.projectId,\n    chatId: p.chatId,\n    sheetName: p.sheetName,\n    channelKey: p.channelKey,\n    messageText: 'Описание только что согласовано — начинай, пожалуйста, собирать технический пакет: оверлей, заголовок, хэштеги и подвал.',\n  }\n}];"
+        "jsCode": "const p = $('Вход от диспетчера').first().json;\nreturn [{\n  json: {\n    projectId: p.projectId,\n    chatId: p.chatId,\n    sheetName: p.sheetName,\n    channelKey: p.channelKey,\n    messageText: 'Описание только что согласовано — начинай, пожалуйста, собирать технический пакет: оверлей, заголовок, хэштеги и подвал.',\n  }\n}];"
       },
       "id": "a09a8668-fc6f-4525-a31d-e71dbb257149",
-      "name": "Готовим данные для Техчасти (классификатор)",
+      "name": "Готовим данные для Техчасти (кнопка)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -1206,7 +969,7 @@
         "options": {}
       },
       "id": "b6390884-e201-40af-befa-8b0475b8a3dd",
-      "name": "Зовём Техчасть (классификатор)",
+      "name": "Зовём Техчасть (кнопка)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
@@ -1215,101 +978,6 @@
       ],
       "notesInFlow": true,
       "notes": "После импорта выбери '03_Техническое' в workflowId."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/responses",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Переведи этот текст на английский точно и живо, сохраняя интонацию и образы — не дословно-механически. Английское написание имени персонажа всегда ровно \"Pengui\" — не транслитерируй заново (не \"Pingvi\" и не другие варианты). Ответь только переводом, без пояснений.' }, { role: 'user', content: $json.ai_DescriptionDraft } ] }) }}",
-        "options": {}
-      },
-      "id": "4d4a7d67-3bb4-4df0-8a87-404543c0b8d7",
-      "name": "OpenAI: экстренный перевод",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1600,
-        1056
-      ],
-      "notesInFlow": true,
-      "credentials": {
-        "openAiApi": {
-          "id": "HvMLVgMnS8OU4ebj",
-          "name": "OpenAi account"
-        }
-      },
-      "notes": "Разовый, только когда сработала подстраховка и перевода ещё не было. Дешевле, чем переводить каждый черновик заранее."
-    },
-    {
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst translatedEN = textPart ? textPart.text.trim() : '';\n\nconst row = $('Читаем актуальные черновики').first().json;\n// Строка, прочитанная из таблицы, несёт только свои колонки (sys_ProjectID,\n// ai_Description...) — sheetName это название листа, а не колонка, и здесь\n// теряется. Берём его из более раннего шага, где оно ещё было.\nconst sheetName = $('Разбираем классификатор').first().json.sheetName;\nreturn [{ json: { ...row, sheetName, ai_DescriptionEN: translatedEN } }];"
-      },
-      "id": "3d4ed234-3839-4263-b1ce-fbf024009378",
-      "name": "Собираем переведённый текст",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1824,
-        1056
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.classifierResult }}",
-              "rightValue": "uncertain",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "5fc9c630-7010-4425-a637-c0968364b8dc",
-      "name": "Классификатор дал сбой?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1152,
-        950
-      ],
-      "notesInFlow": true,
-      "notes": "Классификатор ответил не 'true' и не 'false' — вместо того чтобы молча считать это отказом, явно предупреждаем автора."
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
-        "text": "=⚠️ Проверка согласия дала сбой — модель-классификатор ответила не по формату (не 'true' и не 'false'), поэтому не могу надёжно понять, согласовала ли ты текст. Обычный ответ редактора придёт следом отдельно. Если ты действительно согласовывала — напиши \"форс описание\", чтобы точно зафиксировать.\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
-        "additionalFields": {}
-      },
-      "id": "06d5eda7-91a9-43c1-b642-90338ab8444c",
-      "name": "Предупреждение: классификатор дал сбой",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        1376,
-        950
-      ],
-      "credentials": {
-        "telegramApi": {
-          "id": "UW2MJh6bPIyVZeig",
-          "name": "Telegram account 2"
-        }
-      }
     }
   ],
   "pinData": {},
@@ -1318,43 +986,25 @@
       "main": [
         [
           {
-            "node": "Форс-согласование текста?",
+            "node": "Кнопка согласования?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Форс-согласование текста?": {
+    "Читаем строку проекта (кнопка)": {
       "main": [
         [
           {
-            "node": "Форс: читаем строку проекта",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Читаем строку проекта",
+            "node": "Есть ли черновик (кнопка)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Форс: читаем строку проекта": {
-      "main": [
-        [
-          {
-            "node": "Форс: есть ли черновик?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Форс: есть ли черновик?": {
+    "Есть ли черновик (кнопка)": {
       "main": [
         [
           {
@@ -1376,7 +1026,7 @@
         ],
         [
           {
-            "node": "Форс: нечего форсить",
+            "node": "Кнопка нажата, черновика нет",
             "type": "main",
             "index": 0
           }
@@ -1398,18 +1048,23 @@
       "main": [
         [
           {
-            "node": "Форс: ставим статус",
+            "node": "Ставим статус (кнопка)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Форс: ставим статус": {
+    "Ставим статус (кнопка)": {
       "main": [
         [
           {
-            "node": "Форс: отправляем подтверждение",
+            "node": "Отправляем подтверждение (кнопка)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Готовим данные для Техчасти (кнопка)",
             "type": "main",
             "index": 0
           }
@@ -1636,28 +1291,10 @@
       "main": [
         [
           {
-            "node": "Нужен ли классификатор?",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Есть заметки об общении?",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Нужен ли классификатор?": {
-      "main": [
-        [
-          {
-            "node": "Готовим вопрос классификатору",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
+          },
           {
             "node": "Куда дальше?",
             "type": "main",
@@ -1666,132 +1303,33 @@
         ]
       ]
     },
-    "Готовим вопрос классификатору": {
+    "Готовим данные для Техчасти (кнопка)": {
       "main": [
         [
           {
-            "node": "OpenAI: классификатор согласия",
+            "node": "Зовём Техчасть (кнопка)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenAI: классификатор согласия": {
+    "Кнопка согласования?": {
       "main": [
         [
           {
-            "node": "Разбираем классификатор",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Разбираем классификатор": {
-      "main": [
-        [
-          {
-            "node": "Нужно завершить принудительно?",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Классификатор дал сбой?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Нужно завершить принудительно?": {
-      "main": [
-        [
-          {
-            "node": "Читаем актуальные черновики",
+            "node": "Читаем строку проекта (кнопка)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Куда дальше?",
+            "node": "Читаем строку проекта",
             "type": "main",
             "index": 0
           }
         ]
-      ]
-    },
-    "Читаем актуальные черновики": {
-      "main": [
-        [
-          {
-            "node": "OpenAI: экстренный перевод",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Завершаем по классификатору": {
-      "main": [
-        [
-          {
-            "node": "Шлём подтверждение (классификатор)",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Готовим данные для Техчасти (классификатор)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Готовим данные для Техчасти (классификатор)": {
-      "main": [
-        [
-          {
-            "node": "Зовём Техчасть (классификатор)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "OpenAI: экстренный перевод": {
-      "main": [
-        [
-          {
-            "node": "Собираем переведённый текст",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Собираем переведённый текст": {
-      "main": [
-        [
-          {
-            "node": "Завершаем по классификатору",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Классификатор дал сбой?": {
-      "main": [
-        [
-          {
-            "node": "Предупреждение: классификатор дал сбой",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
       ]
     }
   },
