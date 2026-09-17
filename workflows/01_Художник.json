@@ -421,7 +421,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst item = $input.first();\nconst mimeType = (item.binary && item.binary.data && item.binary.data.mimeType) || 'image/jpeg';\nconst b64 = buffer.toString('base64');\nreturn [{ json: { userImageUrl: `data:${mimeType};base64,${b64}` } }];"
+        "jsCode": "const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst item = $input.first();\nlet mimeType = (item.binary && item.binary.data && item.binary.data.mimeType) || '';\n\nif (!mimeType || mimeType === 'application/octet-stream') {\n  let filePath = '';\n  try { filePath = $('Telegram: getFile').first().json.result.file_path || ''; } catch (e) {}\n  const ext = (filePath.split('.').pop() || '').toLowerCase();\n  const extToMime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };\n  mimeType = extToMime[ext] || 'image/jpeg';\n}\n\nconst b64 = buffer.toString('base64');\nreturn [{ json: { userImageUrl: `data:${mimeType};base64,${b64}` } }];\n"
       },
       "id": "f1a2b3c4-5555-4a5b-8c6d-2e3f4a5b6c75",
       "name": "Кодируем фото в base64",
