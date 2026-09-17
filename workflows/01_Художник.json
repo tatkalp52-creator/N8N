@@ -1388,7 +1388,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const p = $('Парсим ответ редактора').first().json;\nreturn [{\n  json: {\n    projectId: p.projectId,\n    chatId: p.chatId,\n    sheetName: p.sheetName,\n    channelKey: p.channelKey,\n    messageText: 'Картинка только что согласована — начинай, пожалуйста, обсуждение сцены для описания.',\n  }\n}];"
+        "jsCode": "let p;\ntry { p = $('Парсим ответ редактора').first().json; } catch (e) {}\nif (!p) { p = $('Вход от диспетчера').first().json; }\nreturn [{\n  json: {\n    projectId: p.projectId,\n    chatId: p.chatId,\n    sheetName: p.sheetName,\n    channelKey: p.channelKey,\n    messageText: 'Картинка только что согласована — начинай, пожалуйста, обсуждение сцены для описания.',\n  }\n}];\n"
       },
       "id": "5ad199fd-d465-4bb9-8d3e-6f3bc76f8e81",
       "name": "Готовим данные для Писателя",
@@ -2336,6 +2336,11 @@
         [
           {
             "node": "Отправляем подтверждение (кнопка)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Готовим данные для Писателя",
             "type": "main",
             "index": 0
           }
