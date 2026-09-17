@@ -661,11 +661,29 @@ def assemble():
             "if(lt(t,15),1,"
             "if(lt(t,18),(18-t)/3,0)))"
         )
+
+        # НОВОЕ: тень раньше была жёсткой копией текста со сдвигом на 2px
+        # (shadowx/shadowy у drawtext не умеет размытие в принципе). Раз
+        # шрифт Pengui Hand тонкий и рукописный, жёсткая тень выглядела
+        # тяжелее самих букв. Теперь тень — отдельный текстовый слой на
+        # прозрачном фоне размером с кадр, размытый по-настоящему через
+        # gblur, и только потом наложенный под основной (чёткий) текст.
+        # overlayShadowBlur — радиус размытия (sigma), overlayShadowOpacity —
+        # непрозрачность тени на пике (до применения общего fade-in/out).
         shadow_color = data.get("overlayShadow", "E7DFCF").lstrip("#")
-        drawtext = (
+        shadow_blur = data.get("overlayShadowBlur", "4")
+        shadow_opacity = data.get("overlayShadowOpacity", "0.55")
+
+        base_chain = ",".join(video_filters)
+        shadow_drawtext = (
+            f"drawtext=text='{safe_text}':fontfile={font_path}:"
+            f"fontcolor=0x{shadow_color}@{shadow_opacity}:fontsize={font_size}:{pos}:"
+            f"alpha='{overlay_alpha}':enable='between(t,0,18)'"
+        )
+        main_drawtext = (
             f"drawtext=text='{safe_text}':fontfile={font_path}:"
             f"fontcolor=0x{font_color}:fontsize={font_size}:{pos}:alpha='{overlay_alpha}':"
-            f"shadowcolor=0x{shadow_color}@0.6:shadowx=2:shadowy=2:enable='between(t,0,18)'"
+            f"enable='between(t,0,18)'"
         )
 
         # НОВОЕ: плавное появление/затухание ВСЕГО готового видео целиком
@@ -673,7 +691,20 @@ def assemble():
         # и последние 0.5 секунды кадра — из чёрного и в чёрный.
         video_fade = f"fade=t=in:st=0:d=0.5,fade=t=out:st={duration-0.5}:d=0.5"
 
-        video_chain = ",".join(video_filters + [drawtext, video_fade])
+        if safe_text.strip():
+            # Собираем отдельный граф: [0:v] -> база со scale/эффектами;
+            # прозрачный слой того же размера -> текст тенью -> размытие ->
+            # наложение под базу -> резкий текст поверх -> fade всего кадра.
+            video_chain_graph = (
+                f"[0:v]{base_chain}[base];"
+                f"color=c=black@0.0:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:d={duration}[shadowbg];"
+                f"[shadowbg]{shadow_drawtext}[shadow_drawn];"
+                f"[shadow_drawn]gblur=sigma={shadow_blur}[shadow_blurred];"
+                f"[base][shadow_blurred]overlay=0:0[with_shadow];"
+                f"[with_shadow]{main_drawtext},{video_fade}[v]"
+            )
+        else:
+            video_chain_graph = f"[0:v]{base_chain},{video_fade}[v]"
 
         audio_filters = collect_fx_filters(data, EFFECT_AUDIO_REGISTRY)
         # НОВОЕ: та же логика fade, но для звука — тихий, плавный вход/выход
@@ -686,7 +717,7 @@ def assemble():
             "-loop", "1", "-i", image_path,
             "-i", audio_path,
             "-filter_complex",
-            f"[0:v]{video_chain}[v];[1:a]{audio_chain}[a]",
+            f"{video_chain_graph};[1:a]{audio_chain}[a]",
             "-map", "[v]", "-map", "[a]",
             "-t", str(duration),
             "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage", "-pix_fmt", "yuv420p",
