@@ -647,7 +647,7 @@ def assemble():
         pos = overlay_positions.get(overlay_position, overlay_positions["center"])
         safe_text = overlay_text.replace("'", "\\'").replace(":", "\\:")
 
-        font_name = data.get("overlayFont", "Courier Prime")
+        font_name = data.get("overlayFont")
         font_path = FONT_MAP.get(font_name, DEFAULT_FONT_PATH)
         font_size = data.get("overlaySize", "44")
         font_color = data.get("overlayColor", "#FFFFFF").lstrip("#")
