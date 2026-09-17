@@ -359,7 +359,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reply = $('Это reply на проект или новый заход?').first().json;\nconst sheetInfo = items[0].json;\n\nreturn [{\n  json: {\n    projectId: reply.projectId,\n    channelKey: reply.channelKey,\n    briefText: reply.briefText,\n    chatId: reply.chatId,\n    sheetName: String(sheetInfo.SheetName || '').trim(),\n    photo: reply.photo || null,\n  }\n}];"
+        "jsCode": "// Сюда сходятся два разных источника: обычный reply на проект (текстом)\n// и нажатие кнопки согласования — у каждого своя нода разбора выше по цепи.\n// Берём ту, что реально выполнилась в этом запуске.\nlet reply;\ntry { reply = $('Это reply на проект или новый заход?').first().json; } catch (e) {}\nif (!reply) { reply = $('Разбираем кнопку согласования').first().json; }\n\nconst sheetInfo = items[0].json;\n\nreturn [{\n  json: {\n    projectId: reply.projectId,\n    channelKey: reply.channelKey,\n    briefText: reply.briefText,\n    chatId: reply.chatId,\n    sheetName: String(sheetInfo.SheetName || '').trim(),\n    photo: reply.photo || null,\n    isButtonApprove: !!reply.isButtonApprove,\n  }\n}];"
       },
       "id": "0e500332-6ecf-42ee-b514-0759d3df6359",
       "name": "Готовим данные для проверки статуса",
@@ -410,7 +410,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\nconst prep = $('Готовим данные для проверки статуса').first().json;\n\nreturn [{\n  json: {\n    ...row,\n    projectId: prep.projectId,\n    chatId: prep.chatId,\n    sheetName: prep.sheetName,\n    channelKey: prep.channelKey,\n    messageText: prep.briefText,\n    messagePhoto: prep.photo || null,\n  }\n}];"
+        "jsCode": "const row = $input.first().json;\nconst prep = $('Готовим данные для проверки статуса').first().json;\n\nreturn [{\n  json: {\n    ...row,\n    projectId: prep.projectId,\n    chatId: prep.chatId,\n    sheetName: prep.sheetName,\n    channelKey: prep.channelKey,\n    messageText: prep.briefText,\n    messagePhoto: prep.photo || null,\n    isButtonApprove: !!prep.isButtonApprove,\n  }\n}];"
       },
       "id": "fc6427b9-7b30-4fff-9905-f53ff83e4e1e",
       "name": "Приклеиваем поля для sub-workflow",
@@ -766,7 +766,7 @@
           "conditions": [
             {
               "id": "d39142e9-881a-4a08-9a08-611daaf8d434",
-              "leftValue": "={{ $('Это reply на проект или новый заход?').first().json.briefText }}",
+              "leftValue": "={{ $('Готовим данные для проверки статуса').first().json.briefText }}",
               "rightValue": "назад",
               "operator": {
                 "type": "string",
@@ -776,7 +776,7 @@
             },
             {
               "id": "74b80201-8944-47ad-a9b2-95b514a6d3de",
-              "leftValue": "={{ $('Это reply на проект или новый заход?').first().json.briefText }}",
+              "leftValue": "={{ $('Готовим данные для проверки статуса').first().json.briefText }}",
               "rightValue": "картин",
               "operator": {
                 "type": "string",
@@ -873,7 +873,7 @@
           "conditions": [
             {
               "id": "46fd8666-0365-4f84-8ad6-d9aa161cdf24",
-              "leftValue": "={{ $('Это reply на проект или новый заход?').first().json.briefText }}",
+              "leftValue": "={{ $('Готовим данные для проверки статуса').first().json.briefText }}",
               "rightValue": "назад",
               "operator": {
                 "type": "string",
@@ -883,7 +883,7 @@
             },
             {
               "id": "70a5643a-c9ed-4017-85ae-70e1a2876077",
-              "leftValue": "={{ $('Это reply на проект или новый заход?').first().json.briefText }}",
+              "leftValue": "={{ $('Готовим данные для проверки статуса').first().json.briefText }}",
               "rightValue": "описан",
               "operator": {
                 "type": "string",
@@ -966,6 +966,55 @@
           "name": "Telegram account 2"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ($('Telegram Trigger').item.json.callback_query.data || '').startsWith('approve|') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d4164947-0538-4e90-b564-f5ef38e6446d",
+      "name": "Это кнопка согласования?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -2560,
+        976
+      ],
+      "notesInFlow": true,
+      "notes": "Отличаем кнопку 'Согласовано' (callback_data вида approve|projectId) от кнопки выбора канала при создании проекта (callback_data — просто имя канала)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cb = $('Telegram Trigger').item.json.callback_query;\nconst data = (cb.data || '').trim();\n// Формат кнопки: approve|<projectId>. projectId сам по себе содержит\n// channelKey последним сегментом (YYYYMMDD_HHMMSS_channelKey) — тем же\n// способом, каким его уже разбирают из текста обычной реплики.\nconst projectId = data.slice('approve|'.length);\nconst idMatch = projectId.match(/^(\\d{8})_?(\\d{6})_?([A-Za-z0-9]+)$/);\n\nreturn [{\n  json: {\n    isBrief: true,\n    isButtonApprove: true,\n    projectId,\n    channelKey: idMatch ? idMatch[3] : '',\n    briefText: '',\n    chatId: cb.message.chat.id,\n    photo: null,\n    callbackQueryId: cb.id,\n  }\n}];"
+      },
+      "id": "c637b219-095d-47d9-a83d-e97781da7568",
+      "name": "Разбираем кнопку согласования",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2448,
+        1050
+      ],
+      "notesInFlow": true,
+      "notes": "Один и тот же формат кнопки для любого этапа/канала — просто 'approve|<projectId>', никакой специфики канала здесь нет."
     }
   ],
   "pinData": {},
@@ -1003,7 +1052,7 @@
         ],
         [
           {
-            "node": "Разбираем callback",
+            "node": "Это кнопка согласования?",
             "type": "main",
             "index": 0
           }
@@ -1261,6 +1310,40 @@
         [
           {
             "node": "Подтверждаем сброс на описание",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Это кнопка согласования?": {
+      "main": [
+        [
+          {
+            "node": "Разбираем кнопку согласования",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Разбираем callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Разбираем кнопку согласования": {
+      "main": [
+        [
+          {
+            "node": "Находим лист канала по ID",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram: answerCallbackQuery",
             "type": "main",
             "index": 0
           }
