@@ -251,7 +251,7 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "={{ $json.SheetName }}",
+          "value": "={{ $('Находим лист канала (треки)').first().json.SheetName }}",
           "mode": "name"
         },
         "columns": {
@@ -979,7 +979,7 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "={{ $json.SheetName }}",
+          "value": "={{ $('Находим лист канала (треки)').first().json.SheetName }}",
           "mode": "name"
         },
         "filtersUI": {
