@@ -140,7 +140,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Переведи этот текст на английский точно и живо, сохраняя интонацию и образы — не дословно-механически. Ответь только переводом, без пояснений.' }, { role: 'user', content: $json.draft } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Переведи этот текст на английский точно и живо, сохраняя интонацию и образы — не дословно-механически. Английское написание имени персонажа всегда ровно \"Pengui\" — не транслитерируй заново (не \"Pingvi\" и не другие варианты). Ответь только переводом, без пояснений.' }, { role: 'user', content: $json.draft } ] }) }}",
         "options": {}
       },
       "id": "a8c3e1f5-7b2d-4e9a-9c1f-3d5b7e9f1a03",
@@ -1128,7 +1128,7 @@
           "value": {
             "sys_ProjectID": "={{ $json.sys_ProjectID }}",
             "sys_Status": "Описание согласовано",
-            "ai_Description": "={{ $json.ai_Description }}",
+            "ai_Description": "={{ $json.ai_DescriptionDraft }}",
             "ai_DescriptionEN": "={{ $json.ai_DescriptionEN }}"
           }
         },
@@ -1152,7 +1152,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Разбираем классификатор').first().json.chatId }}",
-        "text": "=Описание согласовано ✅ (подтверждено тихой проверкой согласия)\n\nRU: {{ $json.ai_DescriptionDraft }}\n\nEN: {{ $json.ai_DescriptionEN }}\n\nID: {{ $('Разбираем классификатор').first().json.projectId }}",
+        "text": "=Описание согласовано ✅ (подтверждено тихой проверкой согласия)\n\nRU: {{ $('Собираем переведённый текст').first().json.ai_DescriptionDraft }}\n\nEN: {{ $('Собираем переведённый текст').first().json.ai_DescriptionEN }}\n\nID: {{ $('Разбираем классификатор').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "d8ec06ac-bcd9-4054-9ef1-e94edeaa59e2",
@@ -1224,7 +1224,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Переведи этот текст на английский точно и живо, сохраняя интонацию и образы — не дословно-механически. Ответь только переводом, без пояснений.' }, { role: 'user', content: $json.ai_DescriptionDraft } ] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Переведи этот текст на английский точно и живо, сохраняя интонацию и образы — не дословно-механически. Английское написание имени персонажа всегда ровно \"Pengui\" — не транслитерируй заново (не \"Pingvi\" и не другие варианты). Ответь только переводом, без пояснений.' }, { role: 'user', content: $json.ai_DescriptionDraft } ] }) }}",
         "options": {}
       },
       "id": "4d4a7d67-3bb4-4df0-8a87-404543c0b8d7",
