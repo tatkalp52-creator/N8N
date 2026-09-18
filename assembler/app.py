@@ -12,6 +12,16 @@ from flask import Flask, request, jsonify, send_file, after_this_request
 
 app = Flask(__name__)
 
+# НОВОЕ: строка-маркер, которую нужно вручную поднимать при каждом
+# значимом изменении этого файла. Смысл не в самой строке, а в /health —
+# сверив то, что реально отвечает работающий сервер, с тем, что стоит
+# здесь в git на нужной ветке, можно за один curl проверить, действительно
+# ли на сервере сейчас код из репозитория, а не что-то, что туда попало
+# в обход обычной сборки (см. историю с ручным wget поверх persistent
+# storage при восстановлении после падения 17.09) — без блуждания по SSH
+# и логам, когда есть подозрение на рассинхронизацию.
+ASSEMBLER_VERSION = "2026-09-18-audio-investigation"
+
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1072
@@ -410,7 +420,13 @@ def loudnorm_filter(input_path, target_lufs):
     measured = measure_loudnorm(input_path, target_lufs)
     if not measured:
         # Не удалось измерить — откатываемся на однопроходный режим, лучше
-        # неидеальная нормализация, чем упавшая сборка.
+        # неидеальная нормализация, чем упавшая сборка. НО именно этот режим
+        # (динамический, покадровый) раньше уже давал слышимую зернистость/
+        # шорох (см. комментарий у финального loudnorm ниже) — если он вдруг
+        # снова начинает подставляться молча, эту деградацию раньше никак
+        # нельзя было заметить, кроме как на слух в готовом видео. Печатаем
+        # явно в лог сервера, чтобы это было видно сразу, а не только по факту.
+        print(f"[loudnorm] измерение не удалось для {input_path} — откат на однопроходный динамический режим")
         return f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
     return (
         f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11:"
@@ -854,9 +870,9 @@ def get_thumbnail(project_id):
 def health():
     try:
         run_ffmpeg(["-version"])
-        return jsonify({"status": "ok", "ffmpeg": "reachable"})
+        return jsonify({"status": "ok", "ffmpeg": "reachable", "version": ASSEMBLER_VERSION})
     except Exception as e:
-        return jsonify({"status": "error", "detail": str(e)}), 500
+        return jsonify({"status": "error", "detail": str(e), "version": ASSEMBLER_VERSION}), 500
 
 
 @app.route("/trackinfo", methods=["POST"])
