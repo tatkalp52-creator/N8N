@@ -301,9 +301,22 @@ def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration
 # Теперь оба места вызывают ОДНУ и ту же функцию и используют РЕАЛЬНО
 # измеренную (через ffprobe) длину уже обрезанного файла — расходиться
 # больше нечему, потому что источник числа один и тот же код.
+# НОВОЕ (18.09): помимо самой обрезки, здесь же — первым делом, до любой
+# работы с громкостью — срезаются неслышимые крайние частоты (ниже 30Гц,
+# выше 16кГц). Это гул/цифровой мусор, которого сам по себе не слышно, но
+# который у нейросетевой генерации (Suno) иногда остаётся на краях спектра
+# и который компрессор/лимитер дальше по цепочке всё равно "видят" и
+# реагируют на них наравне со слышимым звуком — попытка почистить трек, а
+# не полосу частот, дальше по цепочке легко перепутать с реальным сигналом.
+# Срезается на этом шаге, а не позже, чтобы ни громкость, ни фейды, ни
+# компрессор с лимитером его вообще не видели.
 def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_duration=1.0):
     content_start, content_end = get_content_bounds(input_path, noise_threshold, min_silence_duration)
-    run_ffmpeg(["-i", input_path, "-ss", str(content_start), "-to", str(content_end), out_path])
+    run_ffmpeg([
+        "-i", input_path, "-ss", str(content_start), "-to", str(content_end),
+        "-af", "highpass=f=30,lowpass=f=16000",
+        out_path
+    ])
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", out_path],
         capture_output=True, text=True
