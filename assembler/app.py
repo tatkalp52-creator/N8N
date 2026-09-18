@@ -434,24 +434,37 @@ def measure_loudnorm(input_path, target_lufs):
         return None
 
 
-def loudnorm_filter(input_path, target_lufs):
+# НОВОЕ (18.09): раньше здесь стоял сам фильтр ffmpeg loudnorm в
+# двухпроходном linear-режиме — но ffmpeg сам, внутри фильтра, решает
+# откатиться на покадровый ("динамический") режим, если посчитанное
+# линейное усиление рискует пробить целевой true peak, и делает это
+# молча, без предупреждения (видно только в его собственной диагностике
+# как normalization_type=dynamic). Именно этот покадровый режим — самое
+# вероятное объяснение шороха/потрескивания ("будто электрический сигнал"),
+# который то пропадал, то возвращался без единой смены кода: срабатывание
+# зависит от измеренных цифр конкретного трека, а не от версии сборщика.
+# Здесь та же самая защита от превышения пика считается вручную, а сам
+# сигнал корректируется простым статичным volume=...dB — фильтром, у
+# которого физически нет покадрового режима, ему неоткуда провалиться.
+def linear_gain_filter(input_path, target_lufs, target_tp=-1.5):
     measured = measure_loudnorm(input_path, target_lufs)
     if not measured:
-        # Не удалось измерить — откатываемся на однопроходный режим, лучше
-        # неидеальная нормализация, чем упавшая сборка. НО именно этот режим
-        # (динамический, покадровый) раньше уже давал слышимую зернистость/
-        # шорох (см. комментарий у финального loudnorm ниже) — если он вдруг
-        # снова начинает подставляться молча, эту деградацию раньше никак
-        # нельзя было заметить, кроме как на слух в готовом видео. Печатаем
-        # явно в лог сервера, чтобы это было видно сразу, а не только по факту.
-        print(f"[loudnorm] измерение не удалось для {input_path} — откат на однопроходный динамический режим")
-        return f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11"
-    return (
-        f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11:"
-        f"measured_I={measured['input_i']}:measured_TP={measured['input_tp']}:"
-        f"measured_LRA={measured['input_lra']}:measured_thresh={measured['input_thresh']}:"
-        "linear=true"
-    )
+        print(f"[loudnorm] измерение не удалось для {input_path} — поправка громкости не применяется (0 дБ)")
+        return "volume=0dB"
+    measured_i = float(measured["input_i"])
+    measured_tp = float(measured["input_tp"])
+    gain_db = target_lufs - measured_i
+    # Если поднятие до целевой громкости вывело бы пик выше безопасного
+    # потолка — урезаем усиление до потолка вместо целевой громкости.
+    # Это безопаснее, чем рисковать настоящим клиппингом (жёстким,
+    # необратимым искажением, которое никаким лимитером после уже не
+    # вылечить) — и, в отличие от отката на другой алгоритм, это видно
+    # в логе.
+    if measured_tp + gain_db > target_tp:
+        capped_gain_db = target_tp - measured_tp
+        print(f"[loudnorm] {input_path}: усиление {gain_db:.2f}dB подняло бы пик выше {target_tp}dB, урезано до {capped_gain_db:.2f}dB")
+        gain_db = capped_gain_db
+    return f"volume={gain_db:.4f}dB"
 
 
 def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3, gap_seconds=0, loop_count=None, mix_seconds=None):
@@ -500,7 +513,8 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
         # цифра на выходе не убирала эту разницу внутри самого файла, только
         # средний уровень по всей дорожке. Нормализация до фейдов и склейки
         # выравнивает треки друг относительно друга, а не только "в среднем".
-        # Двухпроходный режим (см. loudnorm_filter выше) — точнее однопроходного.
+        # Двухпроходный режим (см. linear_gain_filter выше) — точнее
+        # однопроходного, и без права молча провалиться в покадровый режим.
         # НОВОЕ (18.09): было curve=log на обоих фейдах. Проверено по формуле
         # самого ffmpeg (libavfilter/af_afade.c): у log почти весь подъём
         #/спад сосредоточен в первые/последние доли секунды (для 5-секундного
@@ -513,7 +527,7 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
         # цепочке) слышен как щелчок. curve=tri — обычная линейная кривая,
         # растянутая ровно на всю заданную длительность в обе стороны.
         af_parts = [
-            loudnorm_filter(trimmed_path, target_lufs),
+            linear_gain_filter(trimmed_path, target_lufs),
             f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri",
             f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri",
         ]
@@ -581,7 +595,7 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
     # НОВОЕ (18.09): раньше здесь после склейки стоял ЕЩЁ ОДИН полнофайловый
     # шаг коррекции громкости (сначала loudnorm, потом статичный volume=...dB
     # взамен него) — избыточный: каждый трек уже приведён к target_lufs
-    # ПООТДЕЛЬНОСТИ выше по коду (см. loudnorm_filter в цикле фейдов), и
+    # ПООТДЕЛЬНОСТИ выше по коду (см. linear_gain_filter в цикле фейдов), и
     # склейка уже приведённых к одной цели отрезков не должна заметно уводить
     # общую громкость от той же цели. Лишняя стадия, трогающая громкость ещё
     # раз поверх уже нормализованных треков, — ровно тот риск наслоения,
