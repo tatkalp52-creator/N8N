@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-19-mcompand"
+ASSEMBLER_VERSION = "2026-09-19-full-detach"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -487,7 +487,15 @@ def linear_gain_filter(input_path, target_lufs, target_tp=-1.5):
     return f"volume={gain_db:.4f}dB"
 
 
-def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3, gap_seconds=0, loop_count=None, mix_seconds=None):
+def build_audio_track(
+    audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
+    gap_seconds=0, loop_count=None, mix_seconds=None, bass_gain_db=0,
+    bass_attack_sec=0.03, bass_release_sec=0.4, bass_threshold_db=-24, bass_reduction_db=16,
+    mid_attack_sec=0.01, mid_release_sec=0.15, mid_threshold_db=-10, mid_reduction_db=6.67,
+    high_attack_sec=0.005, high_release_sec=0.2, high_threshold_db=-22, high_reduction_db=14.67,
+    bass_mid_crossover_hz=200, mid_high_crossover_hz=4000,
+    limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
+):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
     tracks_raw = sorted(
@@ -658,15 +666,36 @@ def build_audio_track(audio_source_url, work_dir, target_lufs=-16, fade_in_secon
     # в принципе нет, а YouTube может при пережатии слегка поднять именно
     # эти невидимые пики. Больший запас — стандартная страховка от этого,
     # раз честного true-peak лимитера здесь нет технически.
+    # НОВОЕ (19.09, вечер): регулируемый срез/подъём баса (низкополочный
+    # фильтр `bass`, центр 100Гц) — ставится ПЕРЕД mcompand, чтобы компрессор
+    # уже реагировал на скорректированный по тембру сигнал, а не на исходный
+    # "гулкий". По умолчанию 0 (выключено) — ничего не меняется для уже
+    # существующих эпизодов, пока автор явно не задаст значение в таблице
+    # (`tmpl_BassGainDb`). Синтаксис проверен через `ffmpeg -h filter=bass`
+    # и на синтетическом тестовом сигнале (80Гц тон): при -6dB измеренная
+    # громкость мешанины из баса и середины ощутимо падает, фильтр
+    # действительно режет НИЗ, а не всё подряд.
+    bass_filter = f"bass=g={bass_gain_db}:f=100:width_type=o:w=1," if bass_gain_db else ""
+
+    # НОВОЕ (19.09, ночь): ни одно из чисел здесь больше не зашито намертво —
+    # всё приходит параметрами функции (с дефолтами, равными тому, что было
+    # захардкожено раньше, чтобы старые эпизоды без правок в таблице звучали
+    # так же). Формула точки в каждой полосе: "0/{-reduction}" — то есть на
+    # входе 0dB (максимум) выход прижимается на reduction_db вниз; порог
+    # threshold_db/threshold_db — точка, ДО которой сигнал не трогается.
     normalized_out = os.path.join(work_dir, "audio_final.wav")
     mcompand_args = (
-        r"0.03\,0.4 6 -70/-70\,-24/-24\,0/-16 200"
-        r" | 0.01\,0.15 6 -70/-70\,-10/-10\,0/-6.67 4000"
-        r" | 0.005\,0.2 6 -70/-70\,-22/-22\,0/-14.67 22000"
+        f"{bass_attack_sec}\\,{bass_release_sec} 6"
+        f" -70/-70\\,{bass_threshold_db}/{bass_threshold_db}\\,0/{-bass_reduction_db} {bass_mid_crossover_hz}"
+        f" | {mid_attack_sec}\\,{mid_release_sec} 6"
+        f" -70/-70\\,{mid_threshold_db}/{mid_threshold_db}\\,0/{-mid_reduction_db} {mid_high_crossover_hz}"
+        f" | {high_attack_sec}\\,{high_release_sec} 6"
+        f" -70/-70\\,{high_threshold_db}/{high_threshold_db}\\,0/{-high_reduction_db} 22000"
     )
+    limiter = f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms}:release={limiter_release_ms}"
     run_ffmpeg([
         "-i", concat_out,
-        "-af", f"mcompand={mcompand_args},alimiter=limit=0.89:attack=5:release=50",
+        "-af", f"{bass_filter}mcompand={mcompand_args},{limiter}",
         normalized_out
     ])
 
@@ -823,6 +852,24 @@ def assemble():
         gap_seconds = float(data.get("gapSeconds", 0))
         loop_count_raw = data.get("loopCount")
         loop_count = int(loop_count_raw) if loop_count_raw not in (None, "") else None
+        bass_gain_db = float(data.get("bassGainDb", 0))
+        bass_attack_sec = float(data.get("bassAttackSec", 0.03))
+        bass_release_sec = float(data.get("bassReleaseSec", 0.4))
+        bass_threshold_db = float(data.get("bassThresholdDb", -24))
+        bass_reduction_db = float(data.get("bassReductionDb", 16))
+        mid_attack_sec = float(data.get("midAttackSec", 0.01))
+        mid_release_sec = float(data.get("midReleaseSec", 0.15))
+        mid_threshold_db = float(data.get("midThresholdDb", -10))
+        mid_reduction_db = float(data.get("midReductionDb", 6.67))
+        high_attack_sec = float(data.get("highAttackSec", 0.005))
+        high_release_sec = float(data.get("highReleaseSec", 0.2))
+        high_threshold_db = float(data.get("highThresholdDb", -22))
+        high_reduction_db = float(data.get("highReductionDb", 14.67))
+        bass_mid_crossover_hz = float(data.get("bassMidCrossoverHz", 200))
+        mid_high_crossover_hz = float(data.get("midHighCrossoverHz", 4000))
+        limiter_ceiling = float(data.get("limiterCeiling", 0.89))
+        limiter_attack_ms = float(data.get("limiterAttackMs", 5))
+        limiter_release_ms = float(data.get("limiterReleaseMs", 50))
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir,
             target_lufs=target_lufs,
@@ -830,6 +877,24 @@ def assemble():
             fade_out_seconds=fade_out_seconds,
             gap_seconds=gap_seconds,
             loop_count=loop_count,
+            bass_gain_db=bass_gain_db,
+            bass_attack_sec=bass_attack_sec,
+            bass_release_sec=bass_release_sec,
+            bass_threshold_db=bass_threshold_db,
+            bass_reduction_db=bass_reduction_db,
+            mid_attack_sec=mid_attack_sec,
+            mid_release_sec=mid_release_sec,
+            mid_threshold_db=mid_threshold_db,
+            mid_reduction_db=mid_reduction_db,
+            high_attack_sec=high_attack_sec,
+            high_release_sec=high_release_sec,
+            high_threshold_db=high_threshold_db,
+            high_reduction_db=high_reduction_db,
+            bass_mid_crossover_hz=bass_mid_crossover_hz,
+            mid_high_crossover_hz=mid_high_crossover_hz,
+            limiter_ceiling=limiter_ceiling,
+            limiter_attack_ms=limiter_attack_ms,
+            limiter_release_ms=limiter_release_ms,
         )
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
@@ -879,10 +944,16 @@ def assemble():
             margin=overlay_margin,
         )
 
-        # НОВОЕ: плавное появление/затухание ВСЕГО готового видео целиком
-        # (не между треками внутри — то уже есть через acrossfade). Первые
-        # и последние 0.5 секунды кадра — из чёрного и в чёрный.
-        video_fade = f"fade=t=in:st=0:d=0.5,fade=t=out:st={duration-0.5}:d=0.5"
+        # ИСПРАВЛЕНО (19.09, ночь): раньше фейд ВСЕГО видео целиком (вход из
+        # чёрного и выход в чёрный) был захардкожен на 0.5 сек — отдельно от
+        # tmpl_FadeInSeconds/tmpl_FadeOutSeconds, которыми управляется фейд
+        # МЕЖДУ треками внутри дорожки. Из-за этого таблица врала: автор
+        # видел одни цифры, а по факту играли другие. Теперь оба фейда —
+        # общий (весь ролик) и внутренний (между треками) — используют ОДНИ
+        # и те же значения из таблицы, чтобы формат был единым (важно и для
+        # лупа: место склейки повтора не должно звучать иначе, чем обычный
+        # межтрековый стык).
+        video_fade = f"fade=t=in:st=0:d={fade_in_seconds},fade=t=out:st={duration-fade_out_seconds}:d={fade_out_seconds}"
 
         if shadow_layers:
             # Собираем отдельный граф: [0:v] -> база со scale/эффектами;
@@ -910,9 +981,13 @@ def assemble():
             video_chain_graph = f"[0:v]{base_chain},{video_fade}[v]"
 
         audio_filters = collect_fx_filters(data, EFFECT_AUDIO_REGISTRY)
-        # НОВОЕ: та же логика fade, но для звука — тихий, плавный вход/выход
-        # у всей аудиодорожки целиком.
-        audio_fade = f"afade=t=in:st=0:d=0.5,afade=t=out:st={duration-0.5}:d=0.5"
+        # Та же логика fade, но для звука — тихий, плавный вход/выход у всей
+        # аудиодорожки целиком, той же длиной и той же формой кривой
+        # (qua/tri), что и межтрековые фейды — см. комментарий у video_fade.
+        audio_fade = (
+            f"afade=t=in:st=0:d={fade_in_seconds}:curve=qua,"
+            f"afade=t=out:st={duration-fade_out_seconds}:d={fade_out_seconds}:curve=tri"
+        )
         audio_chain = ",".join(audio_filters + [audio_fade]) if audio_filters else audio_fade
 
         output_path = os.path.join(work_dir, f"{project_id}.mp4")
