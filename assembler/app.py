@@ -556,14 +556,14 @@ def build_audio_track(
         # но остаточный лёгкий шорох в начале некоторых треков — как игла на
         # пластинку — остался: даже линейный подъём начинает расти сразу же
         # с t=0. НОВОЕ (19.09): фейд-ин переведён на curve=qua (квадратичная,
-        # "ease-in") — она держится ближе к нулю заметно дольше в начале
-        # своей длительности, чем tri, и только потом догоняет до полной
-        # громкости — именно то мягкое "подержать у нуля", о котором шла
-        # речь. Фейд-аут оставлен на tri — там жалоб не было, менять не
-        # тронутое не нужно.
+        # "ease-in"), в теории ради мягкого "подержать у нуля". ОТКАЧЕНО
+        # (20.09): на реальном прослушивании оказалось, что qua ощущается
+        # просто как слишком медленный, тягучий фейд-ин — вернули обратно
+        # на tri (линейная), ту же кривую, что и у фейд-аута, на который
+        # жалоб не было.
         af_parts = [
             linear_gain_filter(trimmed_path, target_lufs),
-            f"afade=t=in:st=0:d={fade_in_seconds}:curve=qua",
+            f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri",
             f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri",
         ]
         faded_path = os.path.join(faded_dir, f"faded_{i}.wav")
@@ -944,28 +944,25 @@ def assemble():
             margin=overlay_margin,
         )
 
-        # ИСПРАВЛЕНО (19.09, ночь): раньше фейд ВСЕГО видео целиком (вход из
-        # чёрного и выход в чёрный) был захардкожен на 0.5 сек — отдельно от
-        # tmpl_FadeInSeconds/tmpl_FadeOutSeconds, которыми управляется фейд
-        # МЕЖДУ треками внутри дорожки. Из-за этого таблица врала: автор
-        # видел одни цифры, а по факту играли другие. Теперь оба фейда —
-        # общий (весь ролик) и внутренний (между треками) — используют ОДНИ
-        # и те же значения из таблицы, чтобы формат был единым (важно и для
-        # лупа: место склейки повтора не должно звучать иначе, чем обычный
-        # межтрековый стык).
-        video_fade = f"fade=t=in:st=0:d={fade_in_seconds},fade=t=out:st={duration-fade_out_seconds}:d={fade_out_seconds}"
-
+        # ОТКАЧЕНО (20.09): 19.09 ночью сюда добавили фейд ВСЕГО видео целиком
+        # (вход из чёрного/выход в чёрный), синхронизировав его с
+        # tmpl_FadeInSeconds/tmpl_FadeOutSeconds — предыдущая версия этой
+        # правки решила, что раз эти значения используются для звука, то
+        # должны так же плавно затемнять и картинку. Автор это не заказывала:
+        # fade-in/out у неё всегда были только про звук, картинка должна
+        # быть видна с первого кадра без затемнения. Картинка больше не
+        # фейдится — только звук (см. audio_fade ниже).
         if shadow_layers:
             # Собираем отдельный граф: [0:v] -> база со scale/эффектами;
             # прозрачный слой того же размера -> текст тенью (одна или две
             # строки, см. build_overlay_drawtext) -> размытие -> наложение
-            # под базу -> резкий текст поверх -> fade всего кадра.
+            # под базу -> резкий текст поверх.
             shadow_chain = ";".join(
                 f"[{'shadowbg' if i == 0 else f'sh{i}'}]{f}[sh{i + 1}]"
                 for i, f in enumerate(shadow_layers)
             )
             main_chain = ";".join(
-                f"[{'with_shadow' if i == 0 else f'm{i}'}]{f}[{f'm{i + 1}' if i + 1 < len(main_layers) else 'texted'}]"
+                f"[{'with_shadow' if i == 0 else f'm{i}'}]{f}[{f'm{i + 1}' if i + 1 < len(main_layers) else 'v'}]"
                 for i, f in enumerate(main_layers)
             )
             video_chain_graph = (
@@ -974,18 +971,17 @@ def assemble():
                 f"{shadow_chain};"
                 f"[sh{len(shadow_layers)}]gblur=sigma={shadow_blur}[shadow_blurred];"
                 f"[base][shadow_blurred]overlay=0:0[with_shadow];"
-                f"{main_chain};"
-                f"[texted]{video_fade}[v]"
+                f"{main_chain}"
             )
         else:
-            video_chain_graph = f"[0:v]{base_chain},{video_fade}[v]"
+            video_chain_graph = f"[0:v]{base_chain}[v]"
 
         audio_filters = collect_fx_filters(data, EFFECT_AUDIO_REGISTRY)
         # Та же логика fade, но для звука — тихий, плавный вход/выход у всей
-        # аудиодорожки целиком, той же длиной и той же формой кривой
-        # (qua/tri), что и межтрековые фейды — см. комментарий у video_fade.
+        # аудиодорожки целиком, той же длиной и той же формой кривой (tri),
+        # что и межтрековые фейды — см. комментарий у per-track фейда выше.
         audio_fade = (
-            f"afade=t=in:st=0:d={fade_in_seconds}:curve=qua,"
+            f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri,"
             f"afade=t=out:st={duration-fade_out_seconds}:d={fade_out_seconds}:curve=tri"
         )
         audio_chain = ",".join(audio_filters + [audio_fade]) if audio_filters else audio_fade
