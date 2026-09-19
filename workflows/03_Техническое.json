@@ -233,7 +233,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Вход от диспетчера').first().json.chatId }}",
-        "text": "=Техническое согласовано ✅\n\n{{ $('Есть ли черновик (кнопка)').first().json.technicalDraft }}\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
+        "text": "=Утверждено ✅\n\n{{ $('Есть ли черновик (кнопка)').first().json.technicalDraft }}\n\nID: {{ $('Вход от диспетчера').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "b352d64b-22de-41dc-a557-d0832361331c",
