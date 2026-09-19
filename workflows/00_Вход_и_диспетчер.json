@@ -1018,7 +1018,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst original = item.messageText || '';\nconst m = original.match(/^\\s*(\\S+)(\\s*)([\\s\\S]*)$/);\n\nlet route = 'video';\nlet messageText = original;\n\nif (m) {\n  const firstWord = m[1].replace(/[.,:;!?–-]+$/, '').toLowerCase();\n  if (firstWord === 'писателю' || firstWord === 'художнику') {\n    route = firstWord === 'писателю' ? 'writer' : 'artist';\n    messageText = m[3];\n  }\n}\n\nreturn [{\n  json: {\n    ...item,\n    messageText,\n    route,\n  }\n}];"
+        "jsCode": "const item = $input.first().json;\nconst original = item.messageText || '';\nconst existingTarget = (item.sys_CorrectionTarget || '').trim().toLowerCase();\n\nlet route = 'video';\nlet messageText = original;\n\nif (existingTarget === 'writer' || existingTarget === 'artist') {\n  // Разговор с Писателем/Художником уже идёт (флаг стоит в таблице) —\n  // не требуем кодовое слово повторно на каждую реплику, не режем текст.\n  route = existingTarget;\n} else {\n  const m = original.match(/^\\s*(\\S+)(\\s*)([\\s\\S]*)$/);\n  if (m) {\n    const firstWord = m[1].replace(/[.,:;!?–-]+$/, '').toLowerCase();\n    if (firstWord === 'писателю' || firstWord === 'художнику') {\n      route = firstWord === 'писателю' ? 'writer' : 'artist';\n      messageText = m[3];\n    }\n  }\n}\n\nreturn [{\n  json: {\n    ...item,\n    messageText,\n    route,\n  }\n}];"
       },
       "id": "872704e8-d24f-47d7-b8fa-d550dde8c152",
       "name": "Это правка кодовым словом после Утверждено?",
@@ -1029,7 +1029,7 @@
         1264
       ],
       "notesInFlow": true,
-      "notes": "Только на выходе 'Утверждено' у 'Куда по статусу?'. Если сообщение начинается со слова 'Писателю' или 'Художнику' (регистр не важен) — это правка, а не команда рендерить: слово отрезается, остаток текста уходит как messageText в соответствующий workflow вместо 04_Video. Без кодового слова поведение не меняется — уходит в рендер как раньше."
+      "notes": "Только на выходе 'Утверждено' у 'Куда по статусу?'. Сначала смотрит на sys_CorrectionTarget в таблице проекта — если там уже 'writer'/'artist' (разговор с Писателем/Художником идёт), продолжает туда же без повтора кодового слова. Если флаг пуст — ищет кодовое слово 'Писателю'/'Художнику' первым словом сообщения (регистр и хвостовая пунктуация не важны, но слово должно совпасть целиком — 'Художникутром' не сработает). Без флага и без кодового слова — как раньше, уходит в 04_Video (рендер)."
     },
     {
       "parameters": {
@@ -1091,6 +1091,43 @@
       ],
       "notesInFlow": true,
       "notes": "route=writer → 02_Писатель, route=artist → 01_Художник, иначе (fallback 'extra') → 04_Video как обычный рендер."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.sheetName }}"
+        },
+        "operation": "update",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $json.sys_ProjectID }}",
+            "sys_CorrectionTarget": "={{ $json.route === 'video' ? '' : $json.route }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "709fa948-cb4b-436e-98b7-d9cf839e1d68",
+      "name": "Запоминаем/сбрасываем флаг правки",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -880,
+        1264
+      ],
+      "notesInFlow": true,
+      "notes": "route=writer/artist → sys_CorrectionTarget ставится в 'writer'/'artist' (разговор открыт). route=video → сбрасывается в '' (обычный рендер или разговор уже закрыт кодовым словом не переспрашивался)."
     }
   ],
   "pinData": {},
@@ -1431,7 +1468,7 @@
         [
           {
             "index": 0,
-            "node": "Куда правку: Писателю/Художнику/Видео?",
+            "node": "Запоминаем/сбрасываем флаг правки",
             "type": "main"
           }
         ]
@@ -1457,6 +1494,17 @@
           {
             "index": 0,
             "node": "04_Video",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Запоминаем/сбрасываем флаг правки": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Куда правку: Писателю/Художнику/Видео?",
             "type": "main"
           }
         ]

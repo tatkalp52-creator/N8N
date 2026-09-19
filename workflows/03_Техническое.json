@@ -207,7 +207,8 @@
           ],
           "value": {
             "sys_ProjectID": "={{ $json.sys_ProjectID }}",
-            "sys_Status": "Утверждено"
+            "sys_Status": "Утверждено",
+            "sys_CorrectionTarget": ""
           }
         },
         "options": {}
@@ -814,7 +815,8 @@
             "ai_Hashtags": "={{ $('Парсим ответ техчасти').first().json.hashtags }}",
             "ai_Tags": "={{ $('Парсим ответ техчасти').first().json.tags }}",
             "ai_Description": "={{ $('Парсим ответ техчасти').first().json.finalDescriptionEN }}",
-            "ai_PinnedComment": "={{ $('Парсим ответ техчасти').first().json.pinnedComment }}"
+            "ai_PinnedComment": "={{ $('Парсим ответ техчасти').first().json.pinnedComment }}",
+            "sys_CorrectionTarget": ""
           }
         },
         "options": {}
