@@ -1127,7 +1127,13 @@
         1264
       ],
       "notesInFlow": true,
-      "notes": "route=writer/artist → sys_CorrectionTarget ставится в 'writer'/'artist' (разговор открыт). route=video → сбрасывается в '' (обычный рендер или разговор уже закрыт кодовым словом не переспрашивался)."
+      "notes": "route=writer/artist → sys_CorrectionTarget ставится в 'writer'/'artist' (разговор открыт). route=video → сбрасывается в '' (обычный рендер или разговор уже закрыт кодовым словом не переспрашивался).",
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -1206,6 +1212,12 @@
           }
         },
         "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
       }
     },
     {
