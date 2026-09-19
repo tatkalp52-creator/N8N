@@ -540,7 +540,7 @@
             "chatId": "={{ $('Готовим данные для проверки статуса').item.json.chatId }}",
             "sheetName": "={{ $('Готовим данные для проверки статуса').item.json.sheetName }}",
             "channelKey": "={{ $('Готовим данные для проверки статуса').item.json.channelKey }}",
-            "messageText": "={{ $('Готовим данные для проверки статуса').item.json.briefText }}",
+            "messageText": "={{ $json.messageText }}",
             "messagePhoto": "={{ $('Готовим данные для проверки статуса').item.json.photo }}"
           },
           "matchingColumns": [],
@@ -1015,6 +1015,82 @@
       ],
       "notesInFlow": true,
       "notes": "Один и тот же формат кнопки для любого этапа/канала — просто 'approve|<projectId>', никакой специфики канала здесь нет."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst original = item.messageText || '';\nconst m = original.match(/^\\s*(\\S+)(\\s*)([\\s\\S]*)$/);\n\nlet route = 'video';\nlet messageText = original;\n\nif (m) {\n  const firstWord = m[1].replace(/[.,:;!?–-]+$/, '').toLowerCase();\n  if (firstWord === 'писателю' || firstWord === 'художнику') {\n    route = firstWord === 'писателю' ? 'writer' : 'artist';\n    messageText = m[3];\n  }\n}\n\nreturn [{\n  json: {\n    ...item,\n    messageText,\n    route,\n  }\n}];"
+      },
+      "id": "872704e8-d24f-47d7-b8fa-d550dde8c152",
+      "name": "Это правка кодовым словом после Утверждено?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        1264
+      ],
+      "notesInFlow": true,
+      "notes": "Только на выходе 'Утверждено' у 'Куда по статусу?'. Если сообщение начинается со слова 'Писателю' или 'Художнику' (регистр не важен) — это правка, а не команда рендерить: слово отрезается, остаток текста уходит как messageText в соответствующий workflow вместо 04_Video. Без кодового слова поведение не меняется — уходит в рендер как раньше."
+    },
+    {
+      "parameters": {
+        "options": {
+          "fallbackOutput": "extra"
+        },
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "writer"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "artist"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "id": "ce3b9cba-8264-49d9-b43b-3183eb4ba563",
+      "name": "Куда правку: Писателю/Художнику/Видео?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -960,
+        1264
+      ],
+      "notesInFlow": true,
+      "notes": "route=writer → 02_Писатель, route=artist → 01_Художник, иначе (fallback 'extra') → 04_Video как обычный рендер."
     }
   ],
   "pinData": {},
@@ -1228,9 +1304,9 @@
         ],
         [
           {
-            "node": "04_Video",
-            "type": "main",
-            "index": 0
+            "index": 0,
+            "node": "Это правка кодовым словом после Утверждено?",
+            "type": "main"
           }
         ],
         [
@@ -1346,6 +1422,42 @@
             "node": "Telegram: answerCallbackQuery",
             "type": "main",
             "index": 0
+          }
+        ]
+      ]
+    },
+    "Это правка кодовым словом после Утверждено?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Куда правку: Писателю/Художнику/Видео?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Куда правку: Писателю/Художнику/Видео?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "02_Писатель",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "01_Художник",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "04_Video",
+            "type": "main"
           }
         ]
       ]
