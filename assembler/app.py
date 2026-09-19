@@ -489,12 +489,10 @@ def linear_gain_filter(input_path, target_lufs, target_tp=-1.5):
 
 def build_audio_track(
     audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
-    gap_seconds=0, loop_count=None, mix_seconds=None, bass_gain_db=0,
-    bass_attack_sec=0.03, bass_release_sec=0.4, bass_threshold_db=-24, bass_reduction_db=16,
-    mid_attack_sec=0.01, mid_release_sec=0.15, mid_threshold_db=-10, mid_reduction_db=6.67,
-    high_attack_sec=0.005, high_release_sec=0.2, high_threshold_db=-22, high_reduction_db=14.67,
-    bass_mid_crossover_hz=200, mid_high_crossover_hz=4000,
+    gap_seconds=0, loop_count=None, mix_seconds=None,
+    compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
+    denoise_amount=0,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -561,13 +559,23 @@ def build_audio_track(
         # просто как слишком медленный, тягучий фейд-ин — вернули обратно
         # на tri (линейная), ту же кривую, что и у фейд-аута, на который
         # жалоб не было.
+        # НОВОЕ (20.09): опциональное шумоподавление (afftdn) — по умолчанию
+        # выключено (denoise_amount=0, тогда фильтр вообще не добавляется в
+        # цепочку). Автор явно попросила ручку под конкретные шумные треки
+        # от Suno (виниловое шипение/потрескивание), а не всегда включённую
+        # обработку. denoise_amount — это параметр 'nr' у afftdn (сила
+        # подавления в dB, официальный диапазон 0.01-97, дефолт самого
+        # ffmpeg — 12) — чем больше, тем агрессивнее чистка и тем выше риск
+        # "подводного" призвука на деталях (например, рояль). Начинать
+        # стоит с малых значений (5-10) и слушать, не с дефолтных 12+.
+        denoise_filter = f"afftdn=nr={denoise_amount}," if denoise_amount else ""
         af_parts = [
             linear_gain_filter(trimmed_path, target_lufs),
             f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri",
             f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri",
         ]
         faded_path = os.path.join(faded_dir, f"faded_{i}.wav")
-        run_ffmpeg(["-i", trimmed_path, "-af", ",".join(af_parts), faded_path])
+        run_ffmpeg(["-i", trimmed_path, "-af", denoise_filter + ",".join(af_parts), faded_path])
         faded_tracks.append(faded_path)
 
     # НОВОЕ (09.09): два взаимоисключающих режима склейки, оба на уже
@@ -639,63 +647,34 @@ def build_audio_track(
     # лимитер остаются единственной финальной стадией — они не выравнивают
     # громкость, а только страхуют от пиков/резких транзиентов.
     #
-    # НОВОЕ (19.09): одиночный acompressor заменён на mcompand — многополосный
-    # компрессор. Проблема одного компрессора на весь спектр: одна и та же
-    # атака/спад применялись и к басу, и к середине, и к верхам сразу — а на
-    # эмбиент-материале это создавало на басу эффект "дышащей подушки"
-    # (compressor pumping/breathing — задокументированный эффект, когда
-    # release слишком быстрый для длинной низкочастотной ноты: спад
-    # заканчивается быстрее, чем "отпускает" сам бас, и это слышно как
-    # шорох/самовозбуждение). Три полосы, каждая со своей скоростью:
-    #  - ниже 200Гц (бас): медленный спад (400мс) — бас "отпускается"
-    #    плавно, без рывка обратно.
-    #  - 200Гц-4кГц (середина): порог поднят выше — почти не трогается,
-    #    середина и так звучит хорошо, незачем её приминать.
-    #  - выше 4кГц (верха): более быстрая атака — ловит именно те резкие,
-    #    пронзительные пики (фортепиано/флейта/кларнет на кульминациях),
-    #    на которые жаловались, не трогая при этом низкие и средние частоты.
-    # Синтаксис проверен напрямую через `ffmpeg -h filter=mcompand` (не по
-    # обрывкам документации) и протестирован на синтетическом сигнале —
-    # устойчивый бас даёт ровную, плавную коррекцию без скачков.
+    # УПРОЩЕНО (20.09): 19.09 ночью здесь стоял трёхполосный mcompand
+    # (отдельно бас/середина/верха, 12 параметров) — задумывался, чтобы
+    # длинные басовые ноты не вызывали эффект "дышащей подушки" от одного
+    # компрессора на весь спектр. По факту три полосы утроили число мест,
+    # где что-то может звучать не так (в том числе саму гулкость/
+    # самовозбуждение на басу, ради которого их и завели) — и добавили
+    # 12 чисел в таблицу, большинство из которых никто не может объяснить
+    # на слух. Автор явно попросила вернуться к одному простому компрессору
+    # на весь спектр + отдельный лимитер для пиков — с прицелом: если бас
+    # всё-таки "задышит" на одной полосе, разбираться с этим осознанно и
+    # точечно, а не носить сложность по умолчанию. Синтаксис `acompressor`
+    # (`threshold` в дБ через суффикс, `ratio`, `attack`/`release` в мс) —
+    # официальный, стандартный параметр самого фильтра, не мой домысел.
     #
     # Лимитер (alimiter) остаётся последней, отдельной ступенью — не общая
-    # окраска тембра, а аварийная защита от пиков. Потолок чуть понижен
-    # (0.95 -> 0.89, то есть больше запаса) — так как alimiter у ffmpeg
-    # работает по обычным сэмплам, а не по "истинным пикам" (true peak,
-    # с учётом того, что происходит МЕЖДУ сэмплами) — у ffmpeg такого режима
-    # в принципе нет, а YouTube может при пережатии слегка поднять именно
-    # эти невидимые пики. Больший запас — стандартная страховка от этого,
-    # раз честного true-peak лимитера здесь нет технически.
-    # НОВОЕ (19.09, вечер): регулируемый срез/подъём баса (низкополочный
-    # фильтр `bass`, центр 100Гц) — ставится ПЕРЕД mcompand, чтобы компрессор
-    # уже реагировал на скорректированный по тембру сигнал, а не на исходный
-    # "гулкий". По умолчанию 0 (выключено) — ничего не меняется для уже
-    # существующих эпизодов, пока автор явно не задаст значение в таблице
-    # (`tmpl_BassGainDb`). Синтаксис проверен через `ffmpeg -h filter=bass`
-    # и на синтетическом тестовом сигнале (80Гц тон): при -6dB измеренная
-    # громкость мешанины из баса и середины ощутимо падает, фильтр
-    # действительно режет НИЗ, а не всё подряд.
-    bass_filter = f"bass=g={bass_gain_db}:f=100:width_type=o:w=1," if bass_gain_db else ""
-
-    # НОВОЕ (19.09, ночь): ни одно из чисел здесь больше не зашито намертво —
-    # всё приходит параметрами функции (с дефолтами, равными тому, что было
-    # захардкожено раньше, чтобы старые эпизоды без правок в таблице звучали
-    # так же). Формула точки в каждой полосе: "0/{-reduction}" — то есть на
-    # входе 0dB (максимум) выход прижимается на reduction_db вниз; порог
-    # threshold_db/threshold_db — точка, ДО которой сигнал не трогается.
+    # окраска тембра, а аварийная защита от пиков (то, что автор явно
+    # попросила оставить). Потолок 0.89 (не 1.0) — запас на случай, что
+    # YouTube при пережатии слегка поднимет пики между сэмплами (true peak),
+    # которые alimiter у ffmpeg не видит технически.
     normalized_out = os.path.join(work_dir, "audio_final.wav")
-    mcompand_args = (
-        f"{bass_attack_sec}\\,{bass_release_sec} 6"
-        f" -70/-70\\,{bass_threshold_db}/{bass_threshold_db}\\,0/{-bass_reduction_db} {bass_mid_crossover_hz}"
-        f" | {mid_attack_sec}\\,{mid_release_sec} 6"
-        f" -70/-70\\,{mid_threshold_db}/{mid_threshold_db}\\,0/{-mid_reduction_db} {mid_high_crossover_hz}"
-        f" | {high_attack_sec}\\,{high_release_sec} 6"
-        f" -70/-70\\,{high_threshold_db}/{high_threshold_db}\\,0/{-high_reduction_db} 22000"
+    compressor = (
+        f"acompressor=threshold={compressor_threshold_db}dB:ratio={compressor_ratio}:"
+        f"attack={compressor_attack_sec * 1000}:release={compressor_release_sec * 1000}"
     )
     limiter = f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms}:release={limiter_release_ms}"
     run_ffmpeg([
         "-i", concat_out,
-        "-af", f"{bass_filter}mcompand={mcompand_args},{limiter}",
+        "-af", f"{compressor},{limiter}",
         normalized_out
     ])
 
@@ -852,24 +831,14 @@ def assemble():
         gap_seconds = float(data.get("gapSeconds", 0))
         loop_count_raw = data.get("loopCount")
         loop_count = int(loop_count_raw) if loop_count_raw not in (None, "") else None
-        bass_gain_db = float(data.get("bassGainDb", 0))
-        bass_attack_sec = float(data.get("bassAttackSec", 0.03))
-        bass_release_sec = float(data.get("bassReleaseSec", 0.4))
-        bass_threshold_db = float(data.get("bassThresholdDb", -24))
-        bass_reduction_db = float(data.get("bassReductionDb", 16))
-        mid_attack_sec = float(data.get("midAttackSec", 0.01))
-        mid_release_sec = float(data.get("midReleaseSec", 0.15))
-        mid_threshold_db = float(data.get("midThresholdDb", -10))
-        mid_reduction_db = float(data.get("midReductionDb", 6.67))
-        high_attack_sec = float(data.get("highAttackSec", 0.005))
-        high_release_sec = float(data.get("highReleaseSec", 0.2))
-        high_threshold_db = float(data.get("highThresholdDb", -22))
-        high_reduction_db = float(data.get("highReductionDb", 14.67))
-        bass_mid_crossover_hz = float(data.get("bassMidCrossoverHz", 200))
-        mid_high_crossover_hz = float(data.get("midHighCrossoverHz", 4000))
+        compressor_threshold_db = float(data.get("compressorThresholdDb", -20))
+        compressor_ratio = float(data.get("compressorRatio", 2))
+        compressor_attack_sec = float(data.get("compressorAttackSec", 0.02))
+        compressor_release_sec = float(data.get("compressorReleaseSec", 0.25))
         limiter_ceiling = float(data.get("limiterCeiling", 0.89))
         limiter_attack_ms = float(data.get("limiterAttackMs", 5))
         limiter_release_ms = float(data.get("limiterReleaseMs", 50))
+        denoise_amount = float(data.get("denoiseAmount", 0))
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir,
             target_lufs=target_lufs,
@@ -877,24 +846,14 @@ def assemble():
             fade_out_seconds=fade_out_seconds,
             gap_seconds=gap_seconds,
             loop_count=loop_count,
-            bass_gain_db=bass_gain_db,
-            bass_attack_sec=bass_attack_sec,
-            bass_release_sec=bass_release_sec,
-            bass_threshold_db=bass_threshold_db,
-            bass_reduction_db=bass_reduction_db,
-            mid_attack_sec=mid_attack_sec,
-            mid_release_sec=mid_release_sec,
-            mid_threshold_db=mid_threshold_db,
-            mid_reduction_db=mid_reduction_db,
-            high_attack_sec=high_attack_sec,
-            high_release_sec=high_release_sec,
-            high_threshold_db=high_threshold_db,
-            high_reduction_db=high_reduction_db,
-            bass_mid_crossover_hz=bass_mid_crossover_hz,
-            mid_high_crossover_hz=mid_high_crossover_hz,
+            compressor_threshold_db=compressor_threshold_db,
+            compressor_ratio=compressor_ratio,
+            compressor_attack_sec=compressor_attack_sec,
+            compressor_release_sec=compressor_release_sec,
             limiter_ceiling=limiter_ceiling,
             limiter_attack_ms=limiter_attack_ms,
             limiter_release_ms=limiter_release_ms,
+            denoise_amount=denoise_amount,
         )
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
