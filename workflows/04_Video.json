@@ -590,7 +590,7 @@
           "conditions": [
             {
               "leftValue": "={{ $json.retryCount }}",
-              "rightValue": 96,
+              "rightValue": 14,
               "operator": {
                 "type": "number",
                 "operation": "gte"
@@ -610,7 +610,7 @@
         3300
       ],
       "notesInFlow": true,
-      "notes": "Проверяем раз в 30 минут до 48 часов (96 попыток). Если за это время видео так и не стало публичным — сдаёмся и просим автора закрепить комментарий вручную."
+      "notes": "Проверяем раз в сутки до 14 дней. Если за это время видео так и не стало публичным — сдаёмся и просим автора закрепить комментарий вручную."
     },
     {
       "parameters": {
@@ -628,11 +628,11 @@
     {
       "parameters": {
         "resume": "timeInterval",
-        "amount": 30,
-        "unit": "minutes"
+        "amount": 1,
+        "unit": "days"
       },
       "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e07",
-      "name": "Ждём 30 минут",
+      "name": "Ждём сутки",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -647,7 +647,7 @@
         "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео за 48 часов так и не стало публичным на YouTube, поэтому закреплённый комментарий не опубликован автоматически.\\n\\nТекст, который был готов:\\n\\n' + $('Готовим данные для сборки').first().json.pinnedComment }) }}",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео за 14 дней так и не стало публичным на YouTube, поэтому закреплённый комментарий не опубликован автоматически.\\n\\nТекст, который был готов:\\n\\n' + $('Готовим данные для сборки').first().json.pinnedComment }) }}",
         "options": {}
       },
       "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e08",
@@ -1402,18 +1402,7 @@
       "main": [
         [
           {
-            "node": "Ждём 30 минут",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ждём 30 минут": {
-      "main": [
-        [
-          {
-            "node": "Готовим попытку",
+            "node": "Ждём сутки",
             "type": "main",
             "index": 0
           }
@@ -1494,6 +1483,17 @@
         [
           {
             "node": "Сохраняем ссылку на треки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ждём сутки": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку",
             "type": "main",
             "index": 0
           }
