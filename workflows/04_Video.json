@@ -334,7 +334,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $json;\n\n// ВОЗВРАЩЕНО (20.09, ночь): автор явно подтвердила действующую\n// договорённость — если у части треков в папке уже ЕСТЬ имя, редактор\n// их не трогает, придумывает только для безымянных. Тут отменена моя\n// более ранняя правка того же вечера ('всегда переименовывать всё') —\n// она была неверной, ломала эту договорённость. Трек считается 'уже\n// названным', если после отбрасывания ведущих цифр/разделителей\n// остаётся содержательный текст (больше 2 символов).\nfunction isMeaningfulName(filename) {\n  let stripped = filename.replace(/^[\\d_\\-\\s]+/, '');\n  // убираем технический суффикс вида \" (1)\", \"(2)\" и т.п. — след\n  // от дублирующихся имён при скачивании, а не настоящее название\n  stripped = stripped.replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n  // Suno подписывает безымянный стем просто \"Трек\"/\"Track\" (иногда с номером) —\n  // формально длиннее 2 символов, но это не настоящее название, а плейсхолдер;\n  // такие тоже считаем безымянными и отдаём на откуп GPT.\n  if (/^(трек|track)\\s*\\d*$/i.test(stripped)) return false;\n  return stripped.length > 2;\n}\n\nfunction stripName(filename) {\n  return filename.replace(/^[\\d_\\-\\s]+/, '').replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n}\n\n// НОВОЕ (20.09, ночь): автор часто не переименовывает треки при генерации\n// в Suno — тогда Suno может дать ОДНО и то же родовое имя нескольким\n// разным трекам подряд. Простой 'есть ли вообще имя' сохранял бы такие\n// повторы как есть, и в тайм-кодах несколько разных треков показывались\n// бы под одинаковым названием. Теперь имя считается 'настоящим' только\n// если оно ЕЩЁ И уникально среди всех треков этой подборки — если оно\n// повторяется, это родовая метка Suno, а не осознанное название, и трек\n// уходит на переименование редактору наравне с безымянными.\nconst nameCounts = {};\nfor (const t of info.tracks) {\n  if (isMeaningfulName(t.filename)) {\n    const key = stripName(t.filename).toLowerCase();\n    nameCounts[key] = (nameCounts[key] || 0) + 1;\n  }\n}\nfunction hasRealUniqueName(filename) {\n  if (!isMeaningfulName(filename)) return false;\n  return nameCounts[stripName(filename).toLowerCase()] === 1;\n}\n\nconst needsNaming = info.tracks.filter(t => !hasRealUniqueName(t.filename));\n\nif (needsNaming.length === 0) {\n  // Называть некого — сразу возвращаем структуру без вызова GPT\n  return [{ json: { skipGpt: true, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n}\n\nconst systemPrompt = 'Ты придумываешь короткие, атмосферные названия для безымянных инструментальных треков ' +\n  'в расслабляющем YouTube-видео. Название должно быть 2-4 слова, на английском, в духе брифа видео — ' +\n  'не описание музыки, а маленький образ/деталь сцены (например \"Fish on the Line\", \"Golden Hour\"). ' +\n  'Верни JSON строго такого вида: {\"names\": {\"<index>\": \"Name\", ...}} — по одному имени на каждый индекс из списка.';\n\nconst userPrompt = 'Бриф видео: ' + (proj.ai_DescriptionEN || proj.ai_Description || proj.ai_UserBrief || '') + '\\n\\n' +\n  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');\n\nreturn [{ json: { skipGpt: false, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $('Считаем длительности треков').first().json;\nconst channelRow = $json;\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// ВОЗВРАЩЕНО (20.09, ночь): автор явно подтвердила действующую\n// договорённость — если у части треков в папке уже ЕСТЬ имя, редактор\n// их не трогает, придумывает только для безымянных. Тут отменена моя\n// более ранняя правка того же вечера ('всегда переименовывать всё') —\n// она была неверной, ломала эту договорённость. Трек считается 'уже\n// названным', если после отбрасывания ведущих цифр/разделителей\n// остаётся содержательный текст (больше 2 символов).\nfunction isMeaningfulName(filename) {\n  let stripped = filename.replace(/^[\\d_\\-\\s]+/, '');\n  // убираем технический суффикс вида \" (1)\", \"(2)\" и т.п. — след\n  // от дублирующихся имён при скачивании, а не настоящее название\n  stripped = stripped.replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n  // Suno подписывает безымянный стем просто \"Трек\"/\"Track\" (иногда с номером) —\n  // формально длиннее 2 символов, но это не настоящее название, а плейсхолдер;\n  // такие тоже считаем безымянными и отдаём на откуп GPT.\n  if (/^(трек|track)\\s*\\d*$/i.test(stripped)) return false;\n  return stripped.length > 2;\n}\n\nfunction stripName(filename) {\n  return filename.replace(/^[\\d_\\-\\s]+/, '').replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n}\n\n// НОВОЕ (20.09, ночь): автор часто не переименовывает треки при генерации\n// в Suno — тогда Suno может дать ОДНО и то же родовое имя нескольким\n// разным трекам подряд. Простой 'есть ли вообще имя' сохранял бы такие\n// повторы как есть, и в тайм-кодах несколько разных треков показывались\n// бы под одинаковым названием. Теперь имя считается 'настоящим' только\n// если оно ЕЩЁ И уникально среди всех треков этой подборки — если оно\n// повторяется, это родовая метка Suno, а не осознанное название, и трек\n// уходит на переименование редактору наравне с безымянными.\nconst nameCounts = {};\nfor (const t of info.tracks) {\n  if (isMeaningfulName(t.filename)) {\n    const key = stripName(t.filename).toLowerCase();\n    nameCounts[key] = (nameCounts[key] || 0) + 1;\n  }\n}\nfunction hasRealUniqueName(filename) {\n  if (!isMeaningfulName(filename)) return false;\n  return nameCounts[stripName(filename).toLowerCase()] === 1;\n}\n\nconst needsNaming = info.tracks.filter(t => !hasRealUniqueName(t.filename));\n\nif (needsNaming.length === 0) {\n  // Называть некого — сразу возвращаем структуру без вызова GPT\n  return [{ json: { skipGpt: true, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n}\n\n// Персонаж и его характер — это конкретика канала, она живёт в таблице\n// (🖋🎨_tmpl_CharacterPassport в Templates), не в этом коде. Если у канала\n// паспорт персонажа не заполнен (пока только у pengui) — просто не\n// упоминаем персонажа явно, ведущая тема брифа остаётся ниже.\nconst characterPassport = findByLabel(channelRow, 'tmpl_CharacterPassport');\nconst characterLine = characterPassport\n  ? 'Персонаж и его характер: ' + characterPassport + '\\n\\n'\n  : '';\n\nconst systemPrompt = 'Ты придумываешь короткие названия для безымянных инструментальных треков ' +\n  'в уютном YouTube-видео.\\n\\n' + characterLine +\n  'Название — 2-4 слова на английском, с ноткой юмора или милоты, маленькая тёплая деталь. ' +\n  'Обязательно опирайся на конкретную тему и обстановку ИМЕННО ЭТОГО выпуска (см. бриф ниже) — ' +\n  'бери детали оттуда, а не общие для персонажа вне контекста конкретной сцены. ' +\n  'Если бриф ссылается на чужой узнаваемый вымышленный мир (книга, фильм, франшиза) — ' +\n  'никогда не используй охраняемые названия/имена/термины из него, а бери только настроение ' +\n  'и общую обстановку своими словами. Не абстрактная атмосфера (\"Golden Hour\"), а тёплая и ' +\n  'слегка забавная деталь конкретно этой сцены (например \"Nap Attack\", \"Cocoa Emergency\", ' +\n  '\"Wobble Hour\", \"Blanket Fort Diplomacy\"). ' +\n  'Верни JSON строго такого вида: {\"names\": {\"<index>\": \"Name\", ...}} — по одному имени на каждый индекс из списка.';\n\nconst userPrompt = 'Бриф видео: ' + (proj.ai_DescriptionEN || proj.ai_Description || proj.ai_UserBrief || '') + '\\n\\n' +\n  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');\n\nreturn [{ json: { skipGpt: false, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];"
       },
       "id": "e8a238cf-457f-43f0-ab36-5d5bffde8162",
       "name": "Готовим запрос на названия треков",
@@ -1254,6 +1254,46 @@
         "amount": 1,
         "unit": "hours"
       }
+    },
+    {
+      "id": "3e1ad58a-b4ad-42cf-867d-4c3f978a0902",
+      "name": "Читаем персонажа канала",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        5456,
+        2704
+      ],
+      "notesInFlow": true,
+      "notes": "Конкретика про канал (персонаж, его быт, характер) живёт только в таблице (🖋🎨_tmpl_CharacterPassport в Templates), не в коде воркфлоу — так работают все остальные каналы и их персонажи, не только pengui.",
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Templates",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "tmpl_Channel",
+              "lookupValue": "={{ $('Нормализуем вход').first().json.channelKey }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -1386,7 +1426,7 @@
       "main": [
         [
           {
-            "node": "Готовим запрос на названия треков",
+            "node": "Читаем персонажа канала",
             "type": "main",
             "index": 0
           }
@@ -1832,6 +1872,17 @@
         [
           {
             "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем персонажа канала": {
+      "main": [
+        [
+          {
+            "node": "Готовим запрос на названия треков",
             "type": "main",
             "index": 0
           }
