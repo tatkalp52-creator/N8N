@@ -1079,6 +1079,175 @@
         "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Закрепил комментарий под видео: https://youtu.be/' + $('Загружаем на YouTube').first().json.uploadId }) }}",
         "options": {}
       }
+    },
+    {
+      "id": "0782c831-8c8c-4f32-a15a-f5c32a7f30e4",
+      "name": "Готовим попытку субтитров",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8480,
+        2600
+      ],
+      "notesInFlow": true,
+      "notes": "Точка входа в цикл ожидания автосубтитров: первый заход даёт retryCount=0, повторные заходы приходят с уже увеличенным счётчиком.",
+      "parameters": {
+        "jsCode": "const incoming = $json.retryCount;\nconst retryCount = (incoming === undefined || incoming === null) ? 0 : incoming;\nreturn [{ json: { retryCount } }];"
+      }
+    },
+    {
+      "id": "245744bf-3aae-4423-9e2a-98d2a8b35e3c",
+      "name": "Проверяем субтитры",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8704,
+        2600
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId={{ $('Загружаем на YouTube').first().json.uploadId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      }
+    },
+    {
+      "id": "0d68f4a3-e8f8-4e8e-9d84-4568372d4525",
+      "name": "Ищем автосубтитры",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8928,
+        2600
+      ],
+      "notesInFlow": true,
+      "notes": "YouTube создаёт автоматические субтитры не сразу после загрузки (от минут до часов). trackKind='ASR' — это и есть автосубтитры (в отличие от вручную загруженных).",
+      "parameters": {
+        "jsCode": "const retryCount = $('Готовим попытку субтитров').first().json.retryCount;\nconst items = $json.items || [];\nconst asrTrack = items.find(i => i.snippet && i.snippet.trackKind === 'ASR');\nreturn [{ json: { retryCount, captionId: asrTrack ? asrTrack.id : null } }];"
+      }
+    },
+    {
+      "id": "2ee497ab-3866-4b77-b1d0-b7cf139e20a8",
+      "name": "Автосубтитры найдены?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        9152,
+        2600
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.captionId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8ddb6321-1d4e-44a9-bac1-6f58d38bfdf6",
+      "name": "Удаляем автосубтитры",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9376,
+        2500
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://www.googleapis.com/youtube/v3/captions/{{ $json.captionId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      }
+    },
+    {
+      "id": "eba3cf1a-5262-41dc-9562-3d1cabf895ad",
+      "name": "Превышено число попыток (субтитры)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        9376,
+        2700
+      ],
+      "notesInFlow": true,
+      "notes": "Проверяем раз в час до суток (24 попытки). Если за это время автосубтитры так и не появились — сдаёмся молча, ничего не удаляем и не сообщаем.",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.retryCount }}",
+              "rightValue": 24,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "74674dda-9aca-4862-8de0-b9dc7db5ced7",
+      "name": "Увеличиваем счётчик субтитров",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9600,
+        2800
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { retryCount: $json.retryCount + 1 } }];"
+      }
+    },
+    {
+      "id": "98d56734-cabe-4c9d-a25a-0275c7f097b6",
+      "name": "Ждём час до субтитров",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        9824,
+        2800
+      ],
+      "webhookId": "4828a016-a270-439e-93b4-788140c02949",
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 1,
+        "unit": "hours"
+      }
     }
   ],
   "pinData": {},
@@ -1554,6 +1723,113 @@
           }
         ],
         []
+      ]
+    },
+    "Сообщаем: видео на YouTube": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сообщаем: видео без обложки": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим попытку субтитров": {
+      "main": [
+        [
+          {
+            "node": "Проверяем субтитры",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проверяем субтитры": {
+      "main": [
+        [
+          {
+            "node": "Ищем автосубтитры",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ищем автосубтитры": {
+      "main": [
+        [
+          {
+            "node": "Автосубтитры найдены?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосубтитры найдены?": {
+      "main": [
+        [
+          {
+            "node": "Удаляем автосубтитры",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Превышено число попыток (субтитры)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Превышено число попыток (субтитры)?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Увеличиваем счётчик субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Увеличиваем счётчик субтитров": {
+      "main": [
+        [
+          {
+            "node": "Ждём час до субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ждём час до субтитров": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
