@@ -336,7 +336,7 @@
           "values": [
             {
               "lookupColumn": "Channel",
-              "lookupValue": "={{ $json.channelKey }}"
+              "lookupValue": "={{ (function(){ try { return $('Разбираем кнопку согласования').first().json.channelKey; } catch (e) {} return $json.channelKey; })() }}"
             }
           ]
         },
@@ -1237,6 +1237,26 @@
         "jsonBody": "={{ JSON.stringify({ chat_id: $('Приклеиваем поля для sub-workflow').first().json.chatId, text: 'Статус «Утверждено» восстановлен для ' + $('Приклеиваем поля для sub-workflow').first().json.projectId + '. Жду треки.' }) }}",
         "options": {}
       }
+    },
+    {
+      "id": "b30c5d8a-733a-4386-9abe-a5e161c198d5",
+      "name": "Telegram: answerCallbackQuery (согласование)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2224,
+        1000
+      ],
+      "notesInFlow": true,
+      "notes": "Инцидент (20.09, утро): 'Telegram: answerCallbackQuery' и 'Находим лист канала по ID' были параллельными сиблингами от одного узла — тот же баг очерёдности, что чинили сегодня со ссылкой на треки. Пока n8n докручивал длинную ветку одобрения описания (стало ещё длиннее из-за отдельного перевода), callback_query_id успевал протухнуть в Telegram, и ответ падал с 'Bad request'. Сама сборка данных при этом не ломалась — только не гасился 'крутящийся' индикатор на кнопке. Здесь — строго последовательно, до похода в таблицу, отдельным узлом (не тем же общим, которым пользуется выбор канала — тот трогать не стал).",
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $json.callbackQueryId }) }}",
+        "options": {}
+      }
     }
   ],
   "pinData": {},
@@ -1560,12 +1580,7 @@
       "main": [
         [
           {
-            "node": "Находим лист канала по ID",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Telegram: answerCallbackQuery",
+            "node": "Telegram: answerCallbackQuery (согласование)",
             "type": "main",
             "index": 0
           }
@@ -1670,6 +1685,17 @@
         [
           {
             "node": "Это ссылка на треки? (минуя статус)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: answerCallbackQuery (согласование)": {
+      "main": [
+        [
+          {
+            "node": "Находим лист канала по ID",
             "type": "main",
             "index": 0
           }
