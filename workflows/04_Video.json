@@ -590,7 +590,7 @@
           "conditions": [
             {
               "leftValue": "={{ $json.retryCount }}",
-              "rightValue": 14,
+              "rightValue": 5,
               "operator": {
                 "type": "number",
                 "operation": "gte"
@@ -610,7 +610,7 @@
         3300
       ],
       "notesInFlow": true,
-      "notes": "Проверяем раз в сутки до 14 дней. Если за это время видео так и не стало публичным — сдаёмся и просим автора закрепить комментарий вручную."
+      "notes": "Проверяем раз в сутки до 5 дней. Если за это время видео так и не стало публичным — сдаёмся молча (без сообщения в Телеграм): текст готового комментария всё равно всегда лежит в ai_PinnedComment в таблице, ничего не теряется."
     },
     {
       "parameters": {
@@ -640,24 +640,6 @@
         3300
       ],
       "webhookId": "d4b2e5f7-1122-4b6a-9c3d-1a2b3c4d5e99"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео за 14 дней так и не стало публичным на YouTube, поэтому закреплённый комментарий не опубликован автоматически.\\n\\nТекст, который был готов:\\n\\n' + $('Готовим данные для сборки').first().json.pinnedComment }) }}",
-        "options": {}
-      },
-      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e08",
-      "name": "Сообщаем: не удалось закрепить",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        8480,
-        3300
-      ]
     },
     {
       "parameters": {
@@ -1046,6 +1028,57 @@
         4448,
         2800
       ]
+    },
+    {
+      "id": "7fe6f975-7ec1-45f7-ade4-183c79b3e6ac",
+      "name": "Комментарий опубликован успешно?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        8032,
+        2896
+      ],
+      "notesInFlow": true,
+      "notes": "YouTube API при успехе возвращает id созданного комментария. continueOnFail на предыдущем узле означает, что при ошибке сюда всё равно придёт item, но без id — тогда молчим, ничего не отправляем (текст всё равно есть в таблице).",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f687251e-1758-4d4d-bb9d-67f14f099e1a",
+      "name": "Сообщаем: комментарий закреплён",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8256,
+        2800
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Закрепил комментарий под видео: https://youtu.be/' + $('Загружаем на YouTube').first().json.uploadId }) }}",
+        "options": {}
+      }
     }
   ],
   "pinData": {},
@@ -1377,13 +1410,7 @@
     },
     "Превышено число попыток?": {
       "main": [
-        [
-          {
-            "node": "Сообщаем: не удалось закрепить",
-            "type": "main",
-            "index": 0
-          }
-        ],
+        [],
         [
           {
             "node": "Увеличиваем счётчик",
@@ -1504,6 +1531,29 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Публикуем комментарий на YouTube": {
+      "main": [
+        [
+          {
+            "node": "Комментарий опубликован успешно?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Комментарий опубликован успешно?": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: комментарий закреплён",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
