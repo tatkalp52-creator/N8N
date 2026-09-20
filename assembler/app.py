@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-20-single-compressor"
+ASSEMBLER_VERSION = "2026-09-20-loudness-brightness-match"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -678,6 +678,23 @@ def build_audio_track(
         normalized_out
     ])
 
+    # НОВОЕ (20.09, утро): acompressor давит всё, что громче threshold, но
+    # без makeup gain ничего не поднимает обратно — на практике итоговая
+    # громкость после этой ступени оказывалась заметно ниже target_lufs,
+    # хотя каждый трек до склейки был выставлен ровно в цель (автор
+    # заметила видео "на порядок тише", чем у других каналов). Тот же
+    # приём, что и для отдельных треков (linear_gain_filter) — меряем,
+    # что реально получилось после компрессора/лимитера, и точечно
+    # доводим до target_lufs одним статичным volume=...dB, вместо того
+    # чтобы полагаться на то, что компрессор сам оставит громкость на месте.
+    matched_out = os.path.join(work_dir, "audio_final_matched.wav")
+    run_ffmpeg([
+        "-i", normalized_out,
+        "-af", linear_gain_filter(normalized_out, target_lufs),
+        matched_out
+    ])
+    normalized_out = matched_out
+
     probe_single = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries",
          "format=duration", "-of", "csv=p=0", normalized_out],
@@ -738,8 +755,12 @@ def check_brightness(image_path, target_yavg=64.0):
     # eq=brightness — плоский сдвиг в диапазоне -1..1 (0 = без изменений,
     # 1 = белый), в долях от полной шкалы 0-255. Ограничиваем сверху, чтобы
     # даже сильно тёмная сцена приподнималась мягко, а не резко пересвечивалась
-    # за один проход.
-    boost = min(diff / 255.0, 0.12)
+    # за один проход. НОВОЕ (20.09, утро): потолок 0.12 не давал реально
+    # тёмным картинкам (diff 40-50+) дотянуться до цели даже близко — видео
+    # оставалось заметно темнее нормы. Поднято до 0.20 — для типичного
+    # случая (diff ~50) этого хватает почти полностью, а сильно засветить
+    # кадр плоским сдвигом такой величины по-прежнему нельзя.
+    boost = min(diff / 255.0, 0.20)
     corrected_path = image_path + ".brightened.jpg"
     try:
         run_ffmpeg(["-i", image_path, "-vf", f"eq=brightness={boost:.4f}", corrected_path])
