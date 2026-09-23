@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-20-loudness-brightness-match"
+ASSEMBLER_VERSION = "2026-09-23-loop-crossfade"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -709,11 +709,38 @@ def build_audio_track(
     if loop_count is None:
         loop_count = 2 if single_pass_duration < 3600 else 1
 
-    # НОВОЕ (09.09): зацикливание готового прохода — просто повторяем готовый
-    # файл сам с собой нужное число раз, тем же способом склейки.
+    # НОВОЕ (23.09): зацикливание готового прохода — раньше был тот же жёсткий
+    # concat, что и между обычными треками, и на слух был слышен щелчок именно
+    # на стыке повтора (хотя между РАЗНЫМИ треками жалоб не было). Причина,
+    # скорее всего, в том же явлении, что уже описано выше у afade: линейный
+    # (curve=tri) фейд-ин трогается с места сразу на полной скорости нарастания,
+    # без плавного "разгона" — и это остаточное ощущение "иглы на пластинку"
+    # заметнее именно на самоповторе (тот же материал начинается заново), чем
+    # между разными треками, где смену звука и так маскирует новый материал.
+    # Curve=qua для ВСЕХ переходов уже пробовали и откатили — на частых
+    # межтрековых стыках это звучало слишком тягуче. Но стык повтора бывает
+    # всего раз-два за ролик, так что здесь можно позволить чуть более мягкий,
+    # отдельный переход, не трогая остальные (уже одобренные на слух) стыки.
+    LOOP_CROSSFADE_SECONDS = 0.4
+
+    def loop_join(pieces):
+        if len(pieces) == 1:
+            return pieces[0]
+        current = pieces[0]
+        for i in range(1, len(pieces)):
+            step_out = os.path.join(work_dir, f"audio_loop_{i}.wav")
+            run_ffmpeg([
+                "-i", current, "-i", pieces[i],
+                "-filter_complex",
+                f"acrossfade=d={LOOP_CROSSFADE_SECONDS}:c1=tri:c2=tri",
+                step_out
+            ])
+            current = step_out
+        return current
+
     final_out = normalized_out
     if loop_count > 1:
-        final_out = join_tracks([normalized_out] * loop_count, [single_pass_duration] * loop_count, "audio_loop")
+        final_out = loop_join([normalized_out] * loop_count)
 
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries",
