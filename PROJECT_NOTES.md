@@ -1571,3 +1571,15 @@ release/threshold/reduction + 2 кроссовера) — это не наход
   Google One 5 ТБ оплачен ~на 6 мес (≈ до марта 2027), продление не
   гарантировано → архив проектировать экономно: треки — всегда (лёгкие),
   mp4 — пока есть место (пересобираемо из треков + картинки).
+
+## 25.09 — Календарь поводов (артефакт)
+- https://claude.ai/artifact/8ViQ5LdiVRDkPA8iEhHdYL (исходник:
+  table_drafts/calendar/povody.html). Хранилище — db артефакта,
+  коллекция `occasions`: {title, month, day, year|null (null = ежегодно),
+  channel (pengui/tapestry/…), type, status idea|picked|work|done|skip,
+  project, note, sources[]}. Засеяно 24 повода (s01–s24).
+- Импорт списка от любой нейросети: строка = повод, даты «20 января»,
+  «20.01», ISO, «January 20»; совпадения (тот же день + похожее название)
+  склеиваются, sources растёт → «×N» = предложили N источников.
+- Я могу читать/писать его через ArtifactData. xlsx-вариант
+  (table_drafts/calendar/*.xlsx) — автору не подошёл, не использовать.
