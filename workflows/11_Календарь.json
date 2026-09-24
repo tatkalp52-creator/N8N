@@ -9,7 +9,7 @@
         ],
         "additionalFields": {}
       },
-      "id": "0123261f-0482-4e34-99e1-e60b4d6bbc54",
+      "id": "23bddadf-995e-4604-8558-fc64cabe39c8",
       "name": "Telegram Trigger",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
@@ -19,11 +19,11 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
-      "webhookId": "12ffcd0c-6d5b-4af7-9b8a-7d335c574f17"
+      "webhookId": "35e05445-0723-4a8f-a5fe-f41e7ede90d0"
     },
     {
       "parameters": {
@@ -36,7 +36,7 @@
           ]
         }
       },
-      "id": "cbd93bdd-88aa-45b9-a9e1-909571257f9c",
+      "id": "c0475a95-7ee4-44c6-b3e7-337fdf73ccc4",
       "name": "Каждый понедельник",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -67,7 +67,7 @@
         },
         "options": {}
       },
-      "id": "22d5e7ab-f1c5-4513-8e01-717d25c4c9ca",
+      "id": "871c2429-8f29-43c2-a53b-8107853a5bc3",
       "name": "Это владелец?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -94,7 +94,7 @@
         },
         "options": {}
       },
-      "id": "230383da-4c47-4b2a-a32c-7db55b5b710f",
+      "id": "a6536272-007e-4493-ae6a-0f01877e4ac7",
       "name": "Читаем календарь",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -114,7 +114,7 @@
       "parameters": {
         "jsCode": "// Вся логика календаря в одном месте. На входе — строки листа «Календарь»\n// и событие (сообщение / кнопка из Телеграма или еженедельный будильник).\n// На выходе один пакет: какие строки записать в таблицу (upserts) и какие\n// сообщения отправить/поправить (messages). Нейросети тут нет: разбор дат,\n// склейка повторов и статусы — обычный код.\nconst OWNER = 285577543;\nconst MON_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];\nconst MON_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];\nconst MON_KEYS = [['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];\nconst STATUS = { i: 'Идея', p: 'Выбран', w: 'В работе', d: 'Вышел', s: 'Отклонён' };\nconst MARK = { 'Идея': '', 'Выбран': ' ⭐', 'В работе': ' 🛠', 'Вышел': ' ✓', 'Отклонён': ' ✖' };\nconst CH = { pengui: '🔴 Pengui', tapestry: '🟡 Гобелены' };\nconst COLS = ['id','year','month','day','title','channel','status','project','note','sources','createdAt','updatedAt'];\n\nconst store = $getWorkflowStaticData('global');\nstore.pending = store.pending || {};\nconst nowIso = new Date().toISOString();\nfor (const k of Object.keys(store.pending)) {\n  if (Date.now() - (store.pending[k].t || 0) > 3 * 86400000) delete store.pending[k];\n}\n\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst chName = c => CH[c] || ('⚪ ' + c);\nconst srcList = r => String(r.sources || '').split(';').map(s => s.trim()).filter(Boolean);\nconst newId = () => 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);\n\nconst rows = $('Читаем календарь').all().map(i => i.json)\n  .filter(r => r && String(r.id || '').trim())\n  .map(r => ({ ...r, id: String(r.id).trim(), month: Number(r.month), day: Number(r.day),\n    year: r.year ? Number(r.year) : null, status: r.status || 'Идея', channel: r.channel || 'pengui' }));\n\nconst upserts = [];\nconst messages = [];\nfunction toSheet(r) {\n  const o = {};\n  for (const c of COLS) o[c] = r[c] === null || r[c] === undefined ? '' : String(r[c]);\n  return o;\n}\nfunction put(r) { r.updatedAt = nowIso; upserts.push(toSheet(r)); }\n\n// ---------- даты ----------\nconst today = new Date(); today.setHours(0, 0, 0, 0);\nfunction nextDate(r, from) {\n  for (const y of [from.getFullYear(), from.getFullYear() + 1]) {\n    if (r.year && r.year !== y) continue;\n    const d = new Date(y, r.month - 1, r.day);\n    if (d >= from) return d;\n  }\n  return null;\n}\nconst short = d => d.getDate() + ' ' + MON_GEN[d.getMonth()].slice(0, 3);\n\n// ---------- разбор списка ----------\nfunction monthFromWord(w) { w = w.toLowerCase(); for (let i = 0; i < 12; i++) if (MON_KEYS[i].some(k => w.startsWith(k))) return i + 1; return 0; }\nfunction parseLine(raw) {\n  let line = raw.replace(/^[\\s\\-–—•*·>\\d]*[.)]\\s+/, '').replace(/^[\\s\\-–—•*·>]+/, '').replace(/\\*\\*/g, '').trim();\n  if (!line) return null;\n  let m, mo = 0, d = 0, y = null, matched = '';\n  if ((m = line.match(/(\\d{4})-(\\d{1,2})-(\\d{1,2})/))) { y = +m[1]; mo = +m[2]; d = +m[3]; matched = m[0]; }\n  else if ((m = line.match(/(\\d{1,2})(?:\\s*[–-]\\s*\\d{1,2})?\\s+([А-Яа-яЁёA-Za-z]{3,})\\.?(?:\\s+(\\d{4}))?/)) && monthFromWord(m[2])) { d = +m[1]; mo = monthFromWord(m[2]); y = m[3] ? +m[3] : null; matched = m[0]; }\n  else if ((m = line.match(/\\b([A-Za-z]{3,})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?/)) && monthFromWord(m[1])) { mo = monthFromWord(m[1]); d = +m[2]; y = m[3] ? +m[3] : null; matched = m[0]; }\n  else if ((m = line.match(/\\b(\\d{1,2})[./](\\d{1,2})(?:[./](\\d{2,4}))?\\b/))) { d = +m[1]; mo = +m[2]; y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : null; matched = m[0]; }\n  let title = matched ? line.replace(matched, ' ') : line;\n  title = title.replace(/^[\\s\\-–—:|,.()]+|[\\s\\-–—:|,(]+$/g, '').replace(/\\s{2,}/g, ' ').trim();\n  const ok = mo >= 1 && mo <= 12 && d >= 1 && d <= 31;\n  return { title: title || line, month: ok ? mo : 0, day: ok ? d : 0, year: y, ok, raw: line };\n}\nconst STOP = new Set(['день','дня','всемирный','всемирного','международный','международного','национальный','day','world','international','national','the','of','and','для','рождения','birthday','born']);\nfunction words(s) { return new Set(String(s).toLowerCase().replace(/[^a-zа-яё0-9 ]/gi, ' ').split(/\\s+/).filter(w => w.length > 2 && !STOP.has(w)).map(w => w.slice(0, 6))); }\nfunction similar(a, b) { const A = words(a), B = words(b); if (!A.size || !B.size) return a.trim().toLowerCase() === b.trim().toLowerCase(); let k = 0; for (const w of A) if (B.has(w)) k++; return k / Math.min(A.size, B.size) >= 0.5; }\nfunction classify(p) {\n  // для текущего канала: новый / уже есть (какая строка) / повтор внутри списка / нет даты\n  const ch = p.channel;\n  const out = { fresh: [], dup: [], bad: [] };\n  const batch = [];\n  for (const it of p.lines) {\n    if (!it.ok) { out.bad.push(it); continue; }\n    const hit = rows.find(r => r.channel === ch && r.month === it.month && r.day === it.day && similar(r.title, it.title));\n    if (hit) { out.dup.push({ it, hit }); continue; }\n    if (batch.some(b => b.month === it.month && b.day === it.day && similar(b.title, it.title))) continue;\n    batch.push(it); out.fresh.push(it);\n  }\n  return out;\n}\nconst dstr = it => it.day + ' ' + MON_GEN[it.month - 1].slice(0, 3) + (it.year ? ' ' + it.year : '');\nfunction previewText(p) {\n  const c = classify(p);\n  const L = [];\n  L.push(`<b>Список поводов</b>: строк ${p.lines.length}`);\n  L.push(`🆕 новых: ${c.fresh.length}   🔁 уже есть: ${c.dup.length}${c.bad.length ? `   ⚠️ без даты: ${c.bad.length}` : ''}`);\n  L.push(`Канал: <b>${esc(chName(p.channel))}</b> · Источник: <b>${esc(p.source || 'не выбран')}</b>`);\n  if (c.fresh.length) { L.push('', '<b>Новые</b>'); c.fresh.slice(0, 30).forEach(it => L.push(`• ${dstr(it)} — ${esc(it.title)}`)); if (c.fresh.length > 30) L.push(`…и ещё ${c.fresh.length - 30}`); }\n  if (c.dup.length) { L.push('', '<b>Уже в календаре</b> (станут ×' + '2+)'); c.dup.slice(0, 15).forEach(({ it, hit }) => L.push(`• ${dstr(it)} — ${esc(hit.title)} ×${srcList(hit).length + 1}`)); if (c.dup.length > 15) L.push(`…и ещё ${c.dup.length - 15}`); }\n  if (c.bad.length) { L.push('', '<b>Не поняла дату</b>'); c.bad.slice(0, 10).forEach(it => L.push(`• ${esc(it.raw.slice(0, 80))}`)); }\n  L.push('', 'Выбери канал и источник, потом «✅ Добавить».');\n  return L.join('\\n').slice(0, 4000);\n}\nfunction cardText(r) {\n  const d = nextDate(r, today) || new Date(r.year || today.getFullYear(), r.month - 1, r.day);\n  const n = srcList(r).length;\n  const L = [`<b>${short(d)}</b> · ${esc(chName(r.channel))}`, `<b>${esc(r.title)}</b>${n > 1 ? ' ×' + n : ''}`, `Статус: <b>${esc(r.status)}</b>${MARK[r.status] || ''}`];\n  if (r.project) L.push(`Проект: <code>${esc(r.project)}</code>`);\n  if (r.note) L.push('', `<i>${esc(String(r.note).slice(0, 1500))}</i>`);\n  if (n) L.push('', `Откуда: ${esc(srcList(r).join(', '))}`);\n  L.push(`<code>id:${esc(r.id)}</code>`);\n  return L.join('\\n');\n}\nfunction summary(from, days, title) {\n  const end = new Date(from); end.setDate(end.getDate() + days);\n  const list = [];\n  for (const r of rows) { if (r.status === 'Отклонён') continue; const d = nextDate(r, from); if (d && d <= end) list.push([d, r]); }\n  list.sort((a, b) => a[0] - b[0]);\n  if (!list.length) return `${title}\\n\\nПоводов нет.`;\n  const L = [title, ''];\n  let last = '';\n  for (const [d, r] of list) {\n    const k = short(d);\n    const n = srcList(r).length;\n    L.push(`${k === last ? '       ' : '<b>' + k + '</b>'} ${r.channel === 'tapestry' ? '🟡' : r.channel === 'pengui' ? '🔴' : '⚪'} ${esc(r.title)}${n > 1 ? ' ×' + n : ''}${MARK[r.status] || ''}`);\n    last = k;\n  }\n  return L.join('\\n').slice(0, 4000);\n}\nconst HELP = [\n  '<b>Studio Calendar</b>',\n  '',\n  '• Вставь список поводов от любой нейросети — одна строка, один повод. Даты: «20 января», «20.01», «January 20». Я покажу, что нового, а что уже есть.',\n  '• <b>ближайшие</b> — поводы на 30 дней вперёд.',\n  '• <b>октябрь</b> (или любой месяц) — карточки поводов месяца с кнопками статуса.',\n  '• <b>выбранные</b> — что ты выбрала на 3 месяца вперёд.',\n  '• Ответь на карточку любым текстом — он добавится в заметки повода.',\n  '',\n  '⭐ выбран · 🛠 в работе · ✓ вышел · ×3 — предложили три источника.',\n].join('\\n');\n\n// ---------- событие ----------\nlet tg = null;\nif ($('Telegram Trigger').isExecuted) tg = $('Telegram Trigger').first().json;\n\nif (!tg) {\n  // еженедельный будильник\n  const picked = rows.filter(r => ['Выбран', 'В работе'].includes(r.status));\n  let text = summary(today, 14, '<b>Поводы на две недели</b>');\n  if (!picked.length) text += '\\n\\nВыбранных пока нет — пришли «октябрь» или нужный месяц, чтобы выбрать.';\n  messages.push({ type: 'send', chatId: OWNER, text });\n} else if (tg.callback_query) {\n  const cb = tg.callback_query;\n  const chatId = cb.message.chat.id, messageId = cb.message.message_id, queryId = cb.id;\n  const parts = String(cb.data || '').split('|');\n  if (parts[0] === 'imp') {\n    const p = store.pending[parts[1]];\n    if (!p) {\n      messages.push({ type: 'edit', chatId, messageId, text: 'Этот список уже обработан или устарел. Пришли его ещё раз.' });\n      messages.push({ type: 'answer', queryId, text: 'Список устарел' });\n    } else if (parts[2] === 'ch') {\n      p.channel = parts[3];\n      messages.push({ type: 'editImport', chatId, messageId, importId: parts[1], text: previewText(p) });\n      messages.push({ type: 'answer', queryId, text: 'Канал: ' + chName(p.channel) });\n    } else if (parts[2] === 'src') {\n      p.source = parts[3];\n      messages.push({ type: 'editImport', chatId, messageId, importId: parts[1], text: previewText(p) });\n      messages.push({ type: 'answer', queryId, text: 'Источник: ' + p.source });\n    } else if (parts[2] === 'no') {\n      delete store.pending[parts[1]];\n      messages.push({ type: 'edit', chatId, messageId, text: 'Отменила, ничего не добавлено.' });\n      messages.push({ type: 'answer', queryId, text: 'Отменено' });\n    } else if (parts[2] === 'go') {\n      const c = classify(p);\n      const src = p.source || 'список';\n      for (const it of c.fresh) {\n        const r = { id: newId(), year: it.year || '', month: it.month, day: it.day, title: it.title, channel: p.channel, status: 'Идея', project: '', note: '', sources: src, createdAt: nowIso };\n        put(r);\n      }\n      let merged = 0;\n      const touched = new Set();\n      for (const { hit } of c.dup) {\n        if (touched.has(hit.id)) continue;\n        touched.add(hit.id);\n        const s = srcList(hit);\n        if (!s.includes(src)) { s.push(src); hit.sources = s.join('; '); put(hit); merged++; }\n      }\n      delete store.pending[parts[1]];\n      messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)} · ${esc(src)}\\nНовых поводов: ${c.fresh.length}\\nСовпадений: ${c.dup.length}${merged < c.dup.length ? ` (из них ${c.dup.length - merged} уже были от этого источника)` : ''}${c.bad.length ? `\\nБез даты, пропущено: ${c.bad.length}` : ''}` });\n      messages.push({ type: 'answer', queryId, text: 'Добавлено' });\n    }\n  } else if (parts[0] === 'st') {\n    const r = rows.find(x => x.id === parts[1]);\n    const st = STATUS[parts[2]];\n    if (!r || !st) {\n      messages.push({ type: 'answer', queryId, text: 'Не нашла этот повод в таблице' });\n    } else {\n      r.status = st; put(r);\n      messages.push({ type: 'editCard', chatId, messageId, rowId: r.id, text: cardText(r) });\n      messages.push({ type: 'answer', queryId, text: 'Статус: ' + st });\n    }\n  } else {\n    messages.push({ type: 'answer', queryId, text: '' });\n  }\n} else if (tg.message) {\n  const msg = tg.message;\n  const chatId = msg.chat.id;\n  const text = String(msg.text || msg.caption || '').trim();\n  const low = text.toLowerCase().replace(/^\\//, '');\n  const replyTo = msg.reply_to_message ? String(msg.reply_to_message.text || '') : '';\n  const idInReply = replyTo.match(/id:([A-Za-z0-9_-]+)/);\n  const monM = low.match(/^(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-я]*\\s*(\\d{4})?$/);\n\n  if (idInReply && text) {\n    const r = rows.find(x => x.id === idInReply[1]);\n    if (!r) messages.push({ type: 'send', chatId, text: 'Не нашла этот повод в таблице.' });\n    else {\n      r.note = (r.note ? String(r.note) + '\\n\\n' : '') + text;\n      put(r);\n      messages.push({ type: 'send', chatId, text: `📝 Добавила в заметки: <b>${esc(r.title)}</b>` });\n    }\n  } else if (!text || ['start', 'help', 'помощь', 'меню'].includes(low)) {\n    messages.push({ type: 'send', chatId, text: HELP });\n  } else if (['ближайшие', 'soon', 'скоро'].includes(low)) {\n    messages.push({ type: 'send', chatId, text: summary(today, 30, '<b>Ближайшие 30 дней</b>') });\n  } else if (['выбранные', 'план'].includes(low)) {\n    const end = new Date(today); end.setDate(end.getDate() + 92);\n    const list = rows.filter(r => ['Выбран', 'В работе'].includes(r.status)).map(r => [nextDate(r, today), r]).filter(([d]) => d && d <= end).sort((a, b) => a[0] - b[0]);\n    messages.push({ type: 'send', chatId, text: list.length ? '<b>Выбранные на 3 месяца</b>\\n\\n' + list.map(([d, r]) => `<b>${short(d)}</b> ${r.channel === 'tapestry' ? '🟡' : '🔴'} ${esc(r.title)}${MARK[r.status]}`).join('\\n') : 'Выбранных поводов на 3 месяца пока нет.' });\n  } else if (monM) {\n    const mi = MON_KEYS.findIndex(k => k.some(x => monM[1].startsWith(x.slice(0, 3)))) ;\n    const mIdx = mi >= 0 ? mi : 0;\n    let y = monM[2] ? +monM[2] : today.getFullYear();\n    if (!monM[2] && mIdx < today.getMonth()) y++;\n    const list = rows.filter(r => r.month === mIdx + 1 && (!r.year || r.year === y) && r.status !== 'Отклонён')\n      .sort((a, b) => a.day - b.day || srcList(b).length - srcList(a).length);\n    messages.push({ type: 'send', chatId, text: `<b>${MON_NOM[mIdx]} ${y}</b>: поводов ${list.length}${list.length > 25 ? ' (показываю первые 25)' : ''}${list.length ? '' : '. Пришли список — добавлю.'}` });\n    for (const r of list.slice(0, 25)) messages.push({ type: 'card', chatId, rowId: r.id, text: cardText({ ...r, year: r.year || y }) });\n  } else {\n    const lines = text.split(/\\n+/).map(parseLine).filter(Boolean);\n    if (!lines.some(l => l.ok)) {\n      messages.push({ type: 'send', chatId, text: 'Не нашла в сообщении ни одной даты.\\n\\n' + HELP });\n    } else {\n      const importId = Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 4);\n      store.pending[importId] = { t: Date.now(), channel: 'pengui', source: '', lines };\n      messages.push({ type: 'sendImport', chatId, importId, text: previewText(store.pending[importId]) });\n    }\n  }\n}\n\nreturn [{ json: { upserts, messages } }];\n"
       },
-      "id": "d9c5a217-3bbb-4e54-bad3-d4c122a46036",
+      "id": "84805f26-cf99-4728-9cfa-c5c0c098daf6",
       "name": "Логика",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -145,7 +145,7 @@
         },
         "options": {}
       },
-      "id": "646225d9-36e9-48ca-99aa-64b125a883a1",
+      "id": "ccf586ee-591f-4988-9c2d-11f49bdea878",
       "name": "Есть что записать?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -158,7 +158,7 @@
       "parameters": {
         "jsCode": "// каждая строка — отдельный элемент для записи в лист\nreturn $('Логика').first().json.upserts.map(r => ({ json: r }));"
       },
-      "id": "a319cbe8-fddf-4f74-8f18-9f38e2139f64",
+      "id": "378970d3-378f-4805-8d2f-5d07b06e5eaf",
       "name": "Строки для записи",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -203,7 +203,7 @@
         },
         "options": {}
       },
-      "id": "adb8b92e-4fbc-4e59-b8fd-a3716e2e8e06",
+      "id": "c011fd9f-028a-427c-aeab-031bcd8f0910",
       "name": "Записываем в календарь",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -222,7 +222,7 @@
       "parameters": {
         "jsCode": "// что отправить в Телеграм — по одному элементу на сообщение\nreturn $('Логика').first().json.messages.map(m => ({ json: m }));"
       },
-      "id": "913d0514-e6ad-494c-a9e9-006551cb28b8",
+      "id": "9852c45f-c2ef-4af6-ad08-a75cc18c133b",
       "name": "Сообщения",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -379,7 +379,7 @@
         },
         "options": {}
       },
-      "id": "c21dbbf6-a3e3-4909-a895-0bc2748a6a45",
+      "id": "7ec638d2-168f-4534-ad69-9286d10cedef",
       "name": "Что отправить?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -398,7 +398,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "7eea9561-d7e1-45de-b204-bf9832442389",
+      "id": "282712aa-710f-446a-a564-2cc4bd724037",
       "name": "Отправляем текст",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -408,7 +408,7 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
@@ -495,7 +495,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "907f9790-525f-43ec-b186-3992cc6f468a",
+      "id": "fe59fdfb-bc50-4124-bb07-b804593f7a31",
       "name": "Отправляем список на проверку",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -505,7 +505,7 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
@@ -594,7 +594,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "4cab5191-9fac-494b-bf4d-a70efae86eae",
+      "id": "0c329201-72de-416d-aa50-346878eff747",
       "name": "Обновляем проверку списка",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -604,7 +604,7 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
@@ -622,7 +622,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "18dae72b-8042-4e4f-8f8a-333b301c26ff",
+      "id": "a82a3006-c77a-4fce-a7f1-aacb83ef5890",
       "name": "Правим сообщение",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -632,7 +632,7 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
@@ -695,7 +695,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "1fa4f1ff-f3b7-4541-bcb1-12a25c068c3f",
+      "id": "69b051fc-10c3-43e7-ad39-0fd94ac3b3d2",
       "name": "Отправляем карточку",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -705,7 +705,7 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
@@ -770,7 +770,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "a0b36af4-888a-4cc2-8e2a-4bb568b0213d",
+      "id": "40a50b1b-e33b-42f0-aa8b-40f2c2abe1bc",
       "name": "Обновляем карточку",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -780,7 +780,7 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
@@ -795,7 +795,7 @@
           "text": "={{ $json.text }}"
         }
       },
-      "id": "a091243d-0128-4c94-ab96-ab36f6f3b9fe",
+      "id": "1b645944-9081-40bd-b138-e2a81812a068",
       "name": "Закрываем часики на кнопке",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -805,7 +805,7 @@
       ],
       "credentials": {
         "telegramApi": {
-          "id": "SET_ME",
+          "id": "IKKPiATJnTSe0CMh",
           "name": "Telegram Studio Calendar"
         }
       },
@@ -818,7 +818,7 @@
         "width": 520,
         "color": 4
       },
-      "id": "794a47cd-a5a5-4ac0-838a-cdcecd134845",
+      "id": "9d8c42bd-583d-473f-8818-59ea74565fff",
       "name": "Заметка",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
