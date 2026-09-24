@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Календарь поводов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Unbounded:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#EFF1F0; --surface:#FFFFFF; --sunk:#E4E8E7; --line:#D3D9D8;
+  --ink:#1D2633; --muted:#5E6975; --faint:#8A949E;
+  --accent:#B03A34; --accent-ink:#FFFFFF;
+  --ch-pengui:#B03A34; --ch-tapestry:#A0762A; --ch-other:#2F7A78;
+  --today:#1D2633; --focus:#2F6FB0; --ok:#2E7D4F; --warn:#9A6A12;
+  --display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#151A21; --surface:#1D242D; --sunk:#252D37; --line:#323C48;
+    --ink:#E7E9EC; --muted:#A3ADB8; --faint:#76818C;
+    --accent:#E0625A; --accent-ink:#1A0F0E;
+    --ch-pengui:#E0625A; --ch-tapestry:#D1A355; --ch-other:#5DB3AF;
+    --today:#E7DFCF; --focus:#7FB0E6; --ok:#6CC08F; --warn:#E0B259;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#151A21; --surface:#1D242D; --sunk:#252D37; --line:#323C48;
+  --ink:#E7E9EC; --muted:#A3ADB8; --faint:#76818C;
+  --accent:#E0625A; --accent-ink:#1A0F0E;
+  --ch-pengui:#E0625A; --ch-tapestry:#D1A355; --ch-other:#5DB3AF;
+  --today:#E7DFCF; --focus:#7FB0E6; --ok:#6CC08F; --warn:#E0B259;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;justify-content:space-between}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand h1{font-family:var(--display);font-weight:600;font-size:22px;margin:0;letter-spacing:.01em;text-wrap:balance}
+.brand .sub{color:var(--muted);font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.danger{color:var(--accent);border-color:var(--accent);background:transparent}
+.bar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.chipbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.chipbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600}
+label.tog{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:980px){.main{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.cal-head h2{font-family:var(--display);font-weight:500;font-size:18px;margin:0;text-transform:capitalize}
+.nav{display:flex;gap:4px}
+.nav .btn{padding:6px 10px}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.wd{padding:8px 8px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600;border-bottom:1px solid var(--line)}
+.day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:4px;position:relative;min-width:0}
+.day:nth-child(7n){border-right:none}
+.day.out{background:var(--sunk);opacity:.55}
+.day .num{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;align-items:center}
+.day.today .num b{background:var(--today);color:var(--bg);border-radius:999px;padding:0 7px}
+.day .add{opacity:0;border:none;background:none;color:var(--faint);font-size:16px;line-height:1;padding:0 4px}
+.day:hover .add,.day:focus-within .add{opacity:1}
+.ev{display:flex;align-items:center;gap:5px;width:100%;text-align:left;border-radius:6px;padding:3px 6px;font-size:12px;line-height:1.3;border:1px solid transparent;background:var(--sunk);min-width:0}
+.ev span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.ev .n{font-size:10px;font-weight:600;color:var(--muted);flex:none}
+.ev.st-idea{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.ev.st-picked,.ev.st-work{background:var(--c);color:#fff;border-color:var(--c)}
+:root[data-theme="dark"] .ev.st-picked,:root[data-theme="dark"] .ev.st-work{color:#10141A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ev.st-picked,:root:not([data-theme="light"]) .ev.st-work{color:#10141A}}
+.ev.st-picked .n,.ev.st-work .n{color:inherit;opacity:.8}
+.ev.st-done{background:var(--sunk);color:var(--muted)}
+.ev.st-skip{background:transparent;color:var(--faint);text-decoration:line-through}
+.ev .dot{background:var(--c)}
+.more{font-size:11px;color:var(--muted);border:none;background:none;text-align:left;padding:0 4px}
+.agenda{display:none}
+@media (max-width:700px){
+  .grid-wrap{display:none}
+  .agenda{display:flex;flex-direction:column}
+  .brand h1{font-size:19px}
+}
+.ag-day{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.ag-day:last-child{border-bottom:none}
+.ag-date{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.ag-date b{display:block;font-family:var(--display);font-weight:500;font-size:20px;color:var(--ink)}
+.ag-list{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ag-list .ev{font-size:13px;padding:6px 8px}
+.ag-list .ev span.t{white-space:normal}
+.empty{padding:22px 14px;color:var(--muted);font-size:14px}
+.side{display:flex;flex-direction:column;gap:16px}
+.side h3{font-family:var(--display);font-weight:500;font-size:15px;margin:0}
+.side .panel{padding:14px;display:flex;flex-direction:column;gap:10px}
+.up{display:flex;flex-direction:column;gap:6px}
+.up-row{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;font-size:13px;border:none;background:none;text-align:left;padding:4px 0}
+.up-row .d{color:var(--muted);font-variant-numeric:tabular-nums}
+.up-row .w{display:flex;gap:6px;align-items:baseline;min-width:0}
+.up-row .w span{min-width:0}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+.legend .ev{width:auto;display:inline-flex;font-size:11px;padding:2px 6px}
+.legend div{display:flex;gap:8px;align-items:center}
+.status{font-size:12px;color:var(--muted)}
+.status.err{color:var(--accent)}
+/* dialogs */
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.45);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px;overflow:auto;z-index:10}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:100%;max-width:640px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.dlg h3{font-family:var(--display);font-weight:500;font-size:17px;margin:0}
+.dlg .hint{color:var(--muted);font-size:13px;margin:0}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form .full{grid-column:1/-1}
+@media (max-width:520px){.form{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px}
+.field span{font-size:12px;color:var(--muted)}
+input[type=text],input[type=date],select,textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:150px;resize:vertical;font-size:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.row .spacer{flex:1}
+.prev{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.pv{display:grid;grid-template-columns:22px 78px 1fr auto;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px}
+.pv:last-child{border-bottom:none}
+.pv .d{font-variant-numeric:tabular-nums;color:var(--muted)}
+.tag{font-size:11px;border-radius:999px;padding:2px 8px;white-space:nowrap;border:1px solid var(--line)}
+.tag.new{color:var(--ok);border-color:var(--ok)}
+.tag.dup{color:var(--warn);border-color:var(--warn)}
+.tag.bad{color:var(--accent);border-color:var(--accent)}
+.srcs{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.ev,.btn,.chipbtn{transition:background .15s,border-color .15s}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Календарь поводов</h1>
+      <div class="sub">Списки поводов присылай боту — здесь смотреть и выбирать. ×2 значит «предложили дважды».</div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btnAdd" type="button">+ Повод</button>
+      
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="seg" id="chFilter" aria-label="Канал"></div>
+    <div class="seg" id="stFilter" aria-label="Что показывать"></div>
+    <label class="tog"><input type="checkbox" id="showSkip"> показывать отклонённые</label>
+  </div>
+
+  <div class="main">
+    <section class="panel" aria-label="Месяц">
+      <div class="cal-head">
+        <h2 id="monthTitle"></h2>
+        <div class="nav">
+          <button class="btn" id="prev" type="button" aria-label="Предыдущий месяц">‹</button>
+          <button class="btn" id="todayBtn" type="button">Сегодня</button>
+          <button class="btn" id="next" type="button" aria-label="Следующий месяц">›</button>
+        </div>
+      </div>
+      <div class="grid-wrap">
+        <div class="grid" id="wdays"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div class="agenda" id="agenda"></div>
+    </section>
+
+    <aside class="side">
+      <div class="panel">
+        <h3>Ближайшие 45 дней</h3>
+        <div class="up" id="upcoming"></div>
+      </div>
+      <div class="panel">
+        <h3>Как читать</h3>
+        <div class="legend">
+          <div><span class="ev st-idea" style="--c:var(--ch-pengui)"><span class="dot"></span>Идея</span> пунктир: просто в копилке</div>
+          <div><span class="ev st-picked" style="--c:var(--ch-pengui)">Выбран</span> делаем этот повод</div>
+          <div><span class="ev st-work" style="--c:var(--ch-pengui)">В работе ●</span> проект уже идёт</div>
+          <div><span class="ev st-done" style="--c:var(--ch-pengui)">✓ Вышел</span> опубликован</div>
+        </div>
+        <div class="status" id="dbStatus">Загружаю…</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="scrim" id="editScrim" hidden>
+  <form class="dlg" id="editForm" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <h3 id="editTitle">Повод</h3>
+    <div class="form">
+      <label class="field full"><span>Название</span><input type="text" id="fTitle" required></label>
+      <label class="field"><span>Дата</span><input type="date" id="fDate" required></label>
+      <label class="field"><span>Повторяется</span>
+        <select id="fYearly"><option value="1">каждый год</option><option value="0">только в этот год</option></select></label>
+      <label class="field"><span>Канал</span><input type="text" id="fChannel" list="chList" required></label>
+      <label class="field"><span>Тип</span>
+        <select id="fType"><option>праздник</option><option>сезон</option><option>композитор</option><option>история</option><option>свой</option></select></label>
+      <label class="field"><span>Статус</span>
+        <select id="fStatus"><option value="idea">Идея</option><option value="picked">Выбран</option><option value="work">В работе</option><option value="done">Вышел</option><option value="skip">Отклонён</option></select></label>
+      <label class="field"><span>ID проекта</span><input type="text" id="fProject" placeholder="если уже есть"></label>
+      <label class="field full"><span>Идея сцены, музыка, заметки</span><textarea id="fNote" style="min-height:90px"></textarea></label>
+      <div class="full srcs" id="fSources"></div>
+    </div>
+    <div class="row">
+      <button class="btn danger" type="button" id="fDelete">Отклонить</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" type="button" id="fCancel">Отмена</button>
+      <button class="btn primary" type="submit" id="fSave">Сохранить</button>
+    </div>
+  </form>
+</div>
+
+
+<datalist id="chList"></datalist>
+
+<script>
+(function(){
+  const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const MONTHS_NOM=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  const MON_KEYS=[['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];
+  const WD=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const STATUS={idea:'Идея',picked:'Выбран',work:'В работе',done:'Вышел',skip:'Отклонён'};
+  const CH_NAMES={pengui:'Pengui',tapestry:'Гобелены'};
+  const $=id=>document.getElementById(id);
+
+  let items=[];          // {id, ...data}
+  let db=null, col=null, live=false;
+  const today=new Date(); today.setHours(0,0,0,0);
+  let view={y:today.getFullYear(), m:today.getMonth()};
+  let expanded='';
+  const ui={channel:'all', status:'all', showSkip:false};
+  try{const s=JSON.parse(localStorage.getItem('povody-ui')||'{}'); Object.assign(ui,s);}catch(e){}
+  function saveUi(){try{localStorage.setItem('povody-ui',JSON.stringify(ui));}catch(e){}}
+
+  function chColor(ch){ if(ch==='pengui')return 'var(--ch-pengui)'; if(ch==='tapestry')return 'var(--ch-tapestry)'; return 'var(--ch-other)'; }
+  function chName(ch){ return CH_NAMES[ch]||ch; }
+  function pad(n){return String(n).padStart(2,'0');}
+  function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+  // occurrence of an item in a given year (or null)
+  function occursIn(it,y){ if(it.year && it.year!==y) return null; return new Date(y,it.month-1,it.day); }
+  function visible(it){
+    if(ui.channel!=='all' && it.channel!==ui.channel) return false;
+    if(it.status==='skip' && !ui.showSkip) return false;
+    if(ui.status==='chosen' && !['picked','work','done'].includes(it.status)) return false;
+    return true;
+  }
+  function onDay(y,m,d){ return items.filter(it=>visible(it) && it.month===m+1 && it.day===d && (!it.year||it.year===y))
+    .sort((a,b)=>rank(a)-rank(b)||(b.sources||[]).length-(a.sources||[]).length); }
+  function rank(it){return {work:0,picked:1,done:2,idea:3,skip:4}[it.status]??5;}
+
+  function evBtn(it){
+    const n=(it.sources||[]).length;
+    const mark=it.status==='done'?'✓ ':'';
+    const tail=it.status==='work'?' ●':'';
+    return `<button type="button" class="ev st-${esc(it.status)}" style="--c:${chColor(it.channel)}" data-id="${esc(it.id)}" title="${esc(it.title)} · ${esc(chName(it.channel))} · ${esc(STATUS[it.status]||'')}">${it.status==='idea'?'<span class="dot"></span>':''}<span class="t">${mark}${esc(it.title)}${tail}</span>${n>1?`<span class="n">×${n}</span>`:''}</button>`;
+  }
+
+  function renderFilters(){
+    const chans=[...new Set(['pengui','tapestry',...items.map(i=>i.channel).filter(Boolean)])];
+    $('chList').innerHTML=chans.map(c=>`<option value="${esc(c)}">`).join('');
+    const opts=[['all','Все каналы',null],...chans.map(c=>[c,chName(c),chColor(c)])];
+    $('chFilter').innerHTML=opts.map(([v,l,c])=>`<button type="button" class="chipbtn" data-ch="${esc(v)}" aria-pressed="${ui.channel===v}">${c?`<span class="dot" style="background:${c}"></span>`:''}${esc(l)}</button>`).join('');
+    $('stFilter').innerHTML=[['all','Все идеи'],['chosen','Только выбранные']].map(([v,l])=>`<button type="button" class="chipbtn" data-st="${v}" aria-pressed="${ui.status===v}">${l}</button>`).join('');
+    $('showSkip').checked=!!ui.showSkip;
+  }
+
+  function renderMonth(){
+    const {y,m}=view;
+    $('monthTitle').textContent=MONTHS_NOM[m]+' '+y;
+    $('wdays').innerHTML=WD.map(w=>`<div class="wd">${w}</div>`).join('');
+    const first=new Date(y,m,1); const shift=(first.getDay()+6)%7;
+    const start=new Date(y,m,1-shift);
+    let html='';
+    for(let i=0;i<42;i++){
+      const d=new Date(start); d.setDate(start.getDate()+i);
+      if(i>=35 && d.getMonth()!==m) break;
+      const out=d.getMonth()!==m; const isT=d.getTime()===today.getTime();
+      const evs=onDay(d.getFullYear(),d.getMonth(),d.getDate());
+      const key=`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; const shown=expanded===key?evs:evs.slice(0,3);
+      html+=`<div class="day${out?' out':''}${isT?' today':''}"><div class="num"><b>${d.getDate()}</b><button type="button" class="add" data-add="${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}" aria-label="Добавить повод на ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}">+</button></div>${shown.map(evBtn).join('')}${evs.length>3&&expanded!==key?`<button type="button" class="more" data-more="${d.getFullYear()}-${d.getMonth()}-${d.getDate()}">ещё ${evs.length-3}</button>`:''}</div>`;
+    }
+    $('grid').innerHTML=html;
+    // agenda (phone)
+    const days=new Date(y,m+1,0).getDate(); let ag='';
+    for(let d=1;d<=days;d++){
+      const evs=onDay(y,m,d); if(!evs.length) continue;
+      const wd=WD[(new Date(y,m,d).getDay()+6)%7];
+      ag+=`<div class="ag-day"><div class="ag-date"><b>${d}</b>${wd}</div><div class="ag-list">${evs.map(evBtn).join('')}</div></div>`;
+    }
+    $('agenda').innerHTML=ag||`<div class="empty">В этом месяце поводов пока нет. Вставь список или добавь повод кнопкой «+ Повод».</div>`;
+  }
+
+  function renderUpcoming(){
+    const end=new Date(today); end.setDate(end.getDate()+45);
+    const rows=[];
+    for(const it of items){ if(!visible(it)) continue;
+      for(const y of [today.getFullYear(),today.getFullYear()+1]){ const d=occursIn(it,y); if(d && d>=today && d<=end){rows.push([d,it]);break;} } }
+    rows.sort((a,b)=>a[0]-b[0]||rank(a[1])-rank(b[1]));
+    $('upcoming').innerHTML=rows.length?rows.map(([d,it])=>`<button type="button" class="up-row" data-id="${esc(it.id)}"><span class="d">${d.getDate()} ${MONTHS_GEN[d.getMonth()].slice(0,3)}</span><span class="w"><span class="dot" style="background:${chColor(it.channel)};${it.status==='idea'?'opacity:.45':''}"></span><span>${esc(it.title)}${(it.sources||[]).length>1?` <span class="srcs">×${it.sources.length}</span>`:''}${it.status!=='idea'?` <span class="srcs">· ${STATUS[it.status]}</span>`:''}</span></span></button>`).join(''):`<div class="srcs">Ближайших поводов нет.</div>`;
+  }
+
+  function render(){ renderFilters(); renderMonth(); renderUpcoming(); }
+
+  // ---------- edit dialog ----------
+  let editing=null, delArmed=false;
+  function openEdit(it, dateStr){
+    editing=it||null; delArmed=false;
+    $('editTitle').textContent=it?'Повод':'Новый повод';
+    $('fTitle').value=it?it.title:'';
+    const y=it?(it.year||view.y):null;
+    $('fDate').value=it?`${y}-${pad(it.month)}-${pad(it.day)}`:(dateStr||`${view.y}-${pad(view.m+1)}-01`);
+    $('fYearly').value=it?(it.year?'0':'1'):'1';
+    $('fChannel').value=it?it.channel:(ui.channel!=='all'?ui.channel:'pengui');
+    $('fType').value=it?(it.type||'праздник'):'праздник';
+    $('fStatus').value=it?it.status:'idea';
+    $('fProject').value=it?(it.project||''):'';
+    $('fNote').value=it?(it.note||''):'';
+    $('fSources').textContent=it&&it.sources&&it.sources.length?'Откуда: '+it.sources.join(', '):'';
+    $('fDelete').hidden=!it; $('fDelete').textContent='Отклонить';
+    $('editScrim').hidden=false; $('fTitle').focus();
+  }
+  function closeEdit(){ $('editScrim').hidden=true; editing=null; }
+  $('fCancel').onclick=closeEdit;
+  $('editScrim').addEventListener('click',e=>{if(e.target===$('editScrim'))closeEdit();});
+  $('editForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const [yy,mm,dd]=$('fDate').value.split('-').map(Number);
+    if(!yy||!mm||!dd) return;
+    const data={
+      title:$('fTitle').value.trim(), month:mm, day:dd, year:$('fYearly').value==='1'?null:yy,
+      channel:($('fChannel').value.trim()||'pengui').toLowerCase(), type:$('fType').value,
+      status:$('fStatus').value, project:$('fProject').value.trim(), note:$('fNote').value.trim(),
+      sources:editing?(editing.sources||[]):['вручную'], createdAt:editing?editing.createdAt:'', updatedAt:new Date().toISOString(),
+    };
+    if(!data.title) return;
+    if(editing){ await save(editing.id,{...data,createdAt:editing.createdAt||data.updatedAt}); }
+    else { await save(newId(),{...data,createdAt:data.updatedAt}); }
+    closeEdit();
+  });
+  $('fDelete').onclick=async()=>{
+    if(!editing) return;
+    
+    await remove(editing.id); closeEdit();
+  };
+
+  $('btnAdd').onclick=()=>openEdit(null);
+
+  // ---------- storage (n8n) ----------
+  const KEY=new URLSearchParams(location.search).get('k')||'';
+  const RU={idea:'Идея',picked:'Выбран',work:'В работе',done:'Вышел',skip:'Отклонён'};
+  const CODE=Object.fromEntries(Object.entries(RU).map(([a,b])=>[b,a]));
+  function newId(){ return 'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+  function fromRow(r){ return {id:String(r.id), title:r.title||'', month:+r.month, day:+r.day, year:r.year?+r.year:null,
+    channel:r.channel||'pengui', status:CODE[r.status]||'idea', project:r.project||'', note:r.note||'',
+    sources:String(r.sources||'').split(';').map(s=>s.trim()).filter(Boolean), createdAt:r.createdAt||'', updatedAt:r.updatedAt||''}; }
+  function toRow(id,d){ return {id, year:d.year||'', month:d.month, day:d.day, title:d.title, channel:d.channel, status:RU[d.status]||'Идея',
+    project:d.project||'', note:d.note||'', sources:(d.sources||[]).join('; '), createdAt:d.createdAt||'', updatedAt:d.updatedAt||''}; }
+  async function save(id,data){
+    const i=items.findIndex(x=>x.id===id);
+    if(i>=0) items[i]={id,...data}; else items.push({id,...data});
+    render();
+    try{
+      const r=await fetch('calendar-save?k='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({row:toRow(id,data)})});
+      if(!r.ok) throw new Error('сервер ответил '+r.status);
+      setStatus('Сохранено · поводов: '+items.length);
+    }catch(e){ setStatus('Не сохранилось: '+e.message+'. Попробуй ещё раз.',true); }
+  }
+  async function remove(id){ const it=items.find(x=>x.id===id); if(it){ const {id:_,...rest}=it; await save(id,{...rest,status:'skip'}); } }
+  function setStatus(t,err){ const s=$('dbStatus'); s.textContent=t; s.classList.toggle('err',!!err); }
+  async function load(){
+    setStatus('Загружаю…');
+    try{
+      const r=await fetch('calendar-data?k='+encodeURIComponent(KEY));
+      if(!r.ok) throw new Error(r.status===403?'нет доступа (ссылка без ключа)':'сервер ответил '+r.status);
+      const j=await r.json();
+      items=(j.rows||[]).filter(x=>x&&x.id).map(fromRow);
+      setStatus('Из таблицы «Календарь» · поводов: '+items.length);
+      render();
+    }catch(e){ setStatus('Не загрузилось: '+e.message,true); }
+  }
+
+  // ---------- events ----------
+  document.addEventListener('click',e=>{
+    const ev=e.target.closest('[data-id]'); if(ev){ const it=items.find(x=>x.id===ev.dataset.id); if(it) openEdit(it); return; }
+    const add=e.target.closest('[data-add]'); if(add){ openEdit(null,add.dataset.add); return; }
+    const more=e.target.closest('[data-more]'); if(more){ expanded=more.dataset.more; renderMonth(); return; }
+    const ch=e.target.closest('[data-ch]'); if(ch){ ui.channel=ch.dataset.ch; saveUi(); render(); return; }
+    const st=e.target.closest('[data-st]'); if(st){ ui.status=st.dataset.st; saveUi(); render(); return; }
+  });
+  $('showSkip').onchange=e=>{ui.showSkip=e.target.checked; saveUi(); render();};
+  $('prev').onclick=()=>{view.m--; if(view.m<0){view.m=11;view.y--;} render();};
+  $('next').onclick=()=>{view.m++; if(view.m>11){view.m=0;view.y++;} render();};
+  $('todayBtn').onclick=()=>{view={y:today.getFullYear(),m:today.getMonth()}; render();};
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(!$('editScrim').hidden) closeEdit(); } });
+
+  render();
+  load();
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) load(); });
+  try{ if(window.Telegram&&Telegram.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } }catch(e){}
+})();
+</script>
+
+</body>
+</html>

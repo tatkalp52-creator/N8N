@@ -23,7 +23,7 @@ const id=r.messages[0].importId;
 const cb=(data)=>({callback_query:{id:'q',data,message:{chat:{id:1},message_id:5}}});
 r=run(cb(`imp|${id}|src|GPT`),rows); console.log('--src', r.messages.map(m=>m.type));
 r=run(cb(`imp|${id}|go`),rows); console.log('--go', JSON.stringify(r.upserts,null,0)); console.log(r.messages[0].text);
-r=run(msg('октябрь'),rows); console.log('--month', r.messages.length, r.messages[1].text);
+r=run(msg('октябрь'),rows); console.log('--month', r.messages.length, r.messages[0].text);
 r=run(cb('st|s09|p'),rows); console.log('--st', r.upserts[0].status, r.messages[0].type);
 r=run(msg('заметка про Листа',{reply_to_message:{text:'...\nid:s09'}}),rows); console.log('--note', r.upserts[0].note);
 r=run(msg('ближайшие'),rows); console.log('--soon\n'+r.messages[0].text);

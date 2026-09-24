@@ -88,11 +88,11 @@ function previewText(p) {
   const L = [];
   L.push(`<b>Список поводов</b>: строк ${p.lines.length}`);
   L.push(`🆕 новых: ${c.fresh.length}   🔁 уже есть: ${c.dup.length}${c.bad.length ? `   ⚠️ без даты: ${c.bad.length}` : ''}`);
-  L.push(`Канал: <b>${esc(chName(p.channel))}</b> · Источник: <b>${esc(p.source || 'не выбран')}</b>`);
+  L.push(`Канал: <b>${esc(chName(p.channel))}</b>`);
   if (c.fresh.length) { L.push('', '<b>Новые</b>'); c.fresh.slice(0, 30).forEach(it => L.push(`• ${dstr(it)} — ${esc(it.title)}`)); if (c.fresh.length > 30) L.push(`…и ещё ${c.fresh.length - 30}`); }
   if (c.dup.length) { L.push('', '<b>Уже в календаре</b> (станут ×' + '2+)'); c.dup.slice(0, 15).forEach(({ it, hit }) => L.push(`• ${dstr(it)} — ${esc(hit.title)} ×${srcList(hit).length + 1}`)); if (c.dup.length > 15) L.push(`…и ещё ${c.dup.length - 15}`); }
   if (c.bad.length) { L.push('', '<b>Не поняла дату</b>'); c.bad.slice(0, 10).forEach(it => L.push(`• ${esc(it.raw.slice(0, 80))}`)); }
-  L.push('', 'Выбери канал и источник, потом «✅ Добавить».');
+  L.push('', 'Выбери канал и нажми «✅ Добавить».');
   return L.join('\n').slice(0, 4000);
 }
 function cardText(r) {
@@ -126,9 +126,10 @@ const HELP = [
   '',
   '• Вставь список поводов от любой нейросети — одна строка, один повод. Даты: «20 января», «20.01», «January 20». Я покажу, что нового, а что уже есть.',
   '• <b>ближайшие</b> — поводы на 30 дней вперёд.',
-  '• <b>октябрь</b> (или любой месяц) — карточки поводов месяца с кнопками статуса.',
+  '• <b>октябрь</b> (или любой месяц) — поводы месяца списком.',
+  '• Кнопка <b>«Календарь»</b> внизу слева — красивый календарь по месяцам: там выбираешь поводы и пишешь заметки.',
   '• <b>выбранные</b> — что ты выбрала на 3 месяца вперёд.',
-  '• Ответь на карточку любым текстом — он добавится в заметки повода.',
+  '• Ответь на карточку повода любым текстом — он добавится в заметки.',
   '',
   '⭐ выбран · 🛠 в работе · ✓ вышел · ×3 — предложили три источника.',
 ].join('\n');
@@ -166,7 +167,7 @@ if (!tg) {
       messages.push({ type: 'answer', queryId, text: 'Отменено' });
     } else if (parts[2] === 'go') {
       const c = classify(p);
-      const src = p.source || 'список';
+      const d0 = new Date(p.t); const src = 'список ' + String(d0.getDate()).padStart(2, '0') + '.' + String(d0.getMonth() + 1).padStart(2, '0') + ' ' + parts[1].slice(-4);
       for (const it of c.fresh) {
         const r = { id: newId(), year: it.year || '', month: it.month, day: it.day, title: it.title, channel: p.channel, status: 'Идея', project: '', note: '', sources: src, createdAt: nowIso };
         put(r);
@@ -180,7 +181,7 @@ if (!tg) {
         if (!s.includes(src)) { s.push(src); hit.sources = s.join('; '); put(hit); merged++; }
       }
       delete store.pending[parts[1]];
-      messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)} · ${esc(src)}\nНовых поводов: ${c.fresh.length}\nСовпадений: ${c.dup.length}${merged < c.dup.length ? ` (из них ${c.dup.length - merged} уже были от этого источника)` : ''}${c.bad.length ? `\nБез даты, пропущено: ${c.bad.length}` : ''}` });
+      messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)}\nНовых поводов: ${c.fresh.length}\nСовпадений (стали ×N+1): ${merged}${c.bad.length ? `\nБез даты, пропущено: ${c.bad.length}` : ''}\n\nКалендарь — кнопка «Календарь» внизу слева.` });
       messages.push({ type: 'answer', queryId, text: 'Добавлено' });
     }
   } else if (parts[0] === 'st') {
@@ -226,10 +227,9 @@ if (!tg) {
     const mIdx = mi >= 0 ? mi : 0;
     let y = monM[2] ? +monM[2] : today.getFullYear();
     if (!monM[2] && mIdx < today.getMonth()) y++;
-    const list = rows.filter(r => r.month === mIdx + 1 && (!r.year || r.year === y) && r.status !== 'Отклонён')
-      .sort((a, b) => a.day - b.day || srcList(b).length - srcList(a).length);
-    messages.push({ type: 'send', chatId, text: `<b>${MON_NOM[mIdx]} ${y}</b>: поводов ${list.length}${list.length > 25 ? ' (показываю первые 25)' : ''}${list.length ? '' : '. Пришли список — добавлю.'}` });
-    for (const r of list.slice(0, 25)) messages.push({ type: 'card', chatId, rowId: r.id, text: cardText({ ...r, year: r.year || y }) });
+    const from = new Date(y, mIdx, 1);
+    const days = new Date(y, mIdx + 1, 0).getDate() - 1;
+    messages.push({ type: 'send', chatId, text: summary(from, days, `<b>${MON_NOM[mIdx]} ${y}</b>`) + '\n\n⭐ выбран · 🛠 в работе · ✓ вышел. Выбирать — в «Календаре» (кнопка внизу слева).' });
   } else {
     const lines = text.split(/\n+/).map(parseLine).filter(Boolean);
     if (!lines.some(l => l.ok)) {

@@ -20,7 +20,6 @@ TXT_EDIT = {"parse_mode": "HTML", "disable_web_page_preview": True}
 def btn(text, data): return {"text": text, "additionalFields": {"callback_data": data}}
 IMP = {"rows": [
   {"row": {"buttons": [btn("🔴 Pengui", "=imp|{{ $json.importId }}|ch|pengui"), btn("🟡 Гобелены", "=imp|{{ $json.importId }}|ch|tapestry")]}},
-  {"row": {"buttons": [btn("NotebookLM", "=imp|{{ $json.importId }}|src|NotebookLM"), btn("GPT", "=imp|{{ $json.importId }}|src|GPT"), btn("Gemini", "=imp|{{ $json.importId }}|src|Gemini"), btn("Claude", "=imp|{{ $json.importId }}|src|Claude")]}},
   {"row": {"buttons": [btn("✅ Добавить", "=imp|{{ $json.importId }}|go"), btn("✖ Отмена", "=imp|{{ $json.importId }}|no")]}}]}
 CARD = {"rows": [
   {"row": {"buttons": [btn("⭐ Выбрать", "=st|{{ $json.rowId }}|p"), btn("🛠 В работе", "=st|{{ $json.rowId }}|w")]}},
@@ -49,6 +48,45 @@ tgnode("Отправляем карточку",{"chatId":"={{ $json.chatId }}","
 tgnode("Обновляем карточку",{"operation":"editMessageText","messageType":"message","chatId":"={{ $json.chatId }}","messageId":"={{ $json.messageId }}","text":"={{ $json.text }}","replyMarkup":"inlineKeyboard","inlineKeyboard":CARD,"additionalFields":TXT_EDIT},560)
 tgnode("Закрываем часики на кнопке",{"resource":"callback","operation":"answerQuery","queryId":"={{ $json.queryId }}","additionalFields":{"text":"={{ $json.text }}"}},720)
 node("Заметка","n8n-nodes-base.stickyNote",1,{"content":"## Studio Calendar\nОтдельный бот (@studio_calendar_1976_bot), с Редактором не пересекается.\n\nВсё решает узел «Логика»: разбор списков, склейка повторов, статусы. Нейросети нет.\nДанные — лист «Календарь» в основной таблице (колонки: "+", ".join(COLS)+").\nНезавершённые списки (до кнопки «Добавить») хранятся в памяти воркфлоу 3 дня.\n\nПо понедельникам в 9:00 бот сам присылает поводы на две недели.","height":320,"width":520,"color":4},[0,-420])
+
+# ---------- страница календаря (Telegram Mini App) ----------
+KEY = open(D+'key.txt').read().strip()
+PAGE = open(D+'tg_page.html').read()
+def hdr(ct): return {"responseHeaders": {"entries": [{"name": "Content-Type", "value": ct}, {"name": "Cache-Control", "value": "no-store"}]}}
+def resp(name, body, ct, pos, code=200):
+    return node(name, "n8n-nodes-base.respondToWebhook", 1.1, {"respondWith": "text", "responseBody": body, "options": {"responseCode": code, **hdr(ct)}}, pos)
+def keyif(name, hook, pos):
+    return node(name, "n8n-nodes-base.if", 2, {"conditions": {"options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose"}, "conditions": [{"leftValue": "={{ $('" + hook + "').first().json.query.k }}", "rightValue": KEY, "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "options": {}}, pos)
+Y0 = 1000
+node("Страница календаря", "n8n-nodes-base.webhook", 2, {"httpMethod": "GET", "path": "calendar", "responseMode": "responseNode", "options": {}}, [0, Y0], webhookId=str(uuid.uuid4()))
+resp("Отдаём страницу", PAGE, "text/html; charset=utf-8", [220, Y0])
+link("Страница календаря", "Отдаём страницу")
+
+node("Данные календаря", "n8n-nodes-base.webhook", 2, {"httpMethod": "GET", "path": "calendar-data", "responseMode": "responseNode", "options": {}}, [0, Y0+200], webhookId=str(uuid.uuid4()))
+keyif("Ключ верный? (данные)", "Данные календаря", [220, Y0+200])
+node("Читаем календарь (страница)", "n8n-nodes-base.googleSheets", 4, {"authentication": "serviceAccount", "documentId": DOC, "sheetName": SHEET, "filtersUI": {"values": []}, "options": {}}, [440, Y0+160], GS, alwaysOutputData=True)
+node("Собираем данные", "n8n-nodes-base.code", 2, {"jsCode": "// все строки листа одним JSON для страницы\nconst rows = $input.all().map(i => i.json).filter(r => r && String(r.id || '').trim());\nreturn [{ json: { body: JSON.stringify({ rows }) } }];"}, [660, Y0+160])
+resp("Отдаём данные", "={{ $json.body }}", "application/json; charset=utf-8", [880, Y0+160])
+resp("Нет доступа (данные)", '{"error":"forbidden"}', "application/json; charset=utf-8", [440, Y0+320], 403)
+link("Данные календаря", "Ключ верный? (данные)")
+link("Ключ верный? (данные)", "Читаем календарь (страница)", 0)
+link("Ключ верный? (данные)", "Нет доступа (данные)", 1)
+link("Читаем календарь (страница)", "Собираем данные")
+link("Собираем данные", "Отдаём данные")
+
+node("Сохранение со страницы", "n8n-nodes-base.webhook", 2, {"httpMethod": "POST", "path": "calendar-save", "responseMode": "responseNode", "options": {}}, [0, Y0+520], webhookId=str(uuid.uuid4()))
+keyif("Ключ верный? (сохранение)", "Сохранение со страницы", [220, Y0+520])
+node("Строка со страницы", "n8n-nodes-base.code", 2, {"jsCode": open(D+'save_row.js').read()}, [440, Y0+480])
+node("Записываем со страницы", "n8n-nodes-base.googleSheets", 4, {"authentication": "serviceAccount", "operation": "appendOrUpdate", "documentId": DOC, "sheetName": SHEET,
+  "columns": {"mappingMode": "defineBelow", "matchingColumns": ["id"], "value": {c: "={{ $json." + c + " }}" for c in COLS}}, "options": {}}, [660, Y0+480], GS)
+resp("Сохранено", '{"ok":true}', "application/json; charset=utf-8", [880, Y0+480])
+resp("Нет доступа (сохранение)", '{"error":"forbidden"}', "application/json; charset=utf-8", [440, Y0+640], 403)
+link("Сохранение со страницы", "Ключ верный? (сохранение)")
+link("Ключ верный? (сохранение)", "Строка со страницы", 0)
+link("Ключ верный? (сохранение)", "Нет доступа (сохранение)", 1)
+link("Строка со страницы", "Записываем со страницы")
+link("Записываем со страницы", "Сохранено")
+node("Заметка страница", "n8n-nodes-base.stickyNote", 1, {"content": "## Страница календаря\nОткрывается кнопкой «Календарь» в боте (Menu Button в BotFather) — прямо внутри Telegram.\nАдрес: https://tatka1976.store/webhook/calendar?k=… (ключ в ссылке — без него данные не отдаются).\nСтраница читает и пишет тот же лист «Календарь».", "height": 220, "width": 520, "color": 5}, [0, Y0-280])
 
 link("Telegram Trigger","Это владелец?")
 link("Это владелец?","Читаем календарь",0)
