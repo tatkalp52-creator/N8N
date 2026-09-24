@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-23-loop-crossfade-reverted"
+ASSEMBLER_VERSION = "2026-09-24-old-film-pixel-shift"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -94,7 +94,7 @@ def measure_text_width(text, font_path, font_size):
 
 def build_overlay_drawtext(overlay_text, position, font_path, font_size,
                             font_color, shadow_color, shadow_opacity,
-                            overlay_alpha, margin=60):
+                            overlay_alpha, margin=60, line_spacing=0.875):
     """Собирает список (shadow_filters, main_filters) для оверлея — либо
     одну строку как раньше, либо, если текст не помещается в отведённую
     по бокам зону (см. build_overlay_positions), автоматический стек из
@@ -138,7 +138,9 @@ def build_overlay_drawtext(overlay_text, position, font_path, font_size,
     # строки центрируются как единый блок по вертикали кадра.
     line1, line2 = words[0], words[1]
     size = float(font_size)
-    line_pitch = round(size * 0.875)
+    # НОВОЕ (24.09): интервал из таблицы (🎬tmpl_OverlayLineSpacing, доля
+    # от размера шрифта); 0.875 — прежнее значение по умолчанию.
+    line_pitch = round(size * line_spacing)
     block_h = line_pitch + size
     y1 = round((VIDEO_HEIGHT - block_h) / 2)
     y2 = y1 + line_pitch
@@ -806,6 +808,48 @@ def fx_vinylnoise(value):
     return "highpass=f=200,lowpass=f=4000,volume=0.05"
 
 
+def old_film_filters(strength):
+    """НОВОЕ (24.09): лёгкая "старая плёнка" — редкие царапины и пылинки,
+    вспыхивающие на доли секунды, каждая в своём месте и со своим ритмом.
+    strength из таблицы (🎬tmpl_OldFilm): 2 — подобрано автором на тестах
+    (4 царапины, 12 мелких тёмных и 7 мелких светлых пылинок), 1 — вдвое
+    реже. Случайность с фиксированным зерном: рисунок одинаковый в каждой
+    сборке. drawbox рисует только в свои моменты (enable), остальные кадры
+    не меняются — вес файла почти не растёт."""
+    import random
+    rnd = random.Random(20260924)
+    filters = []
+    for i in range(round(2 * strength)):
+        x = rnd.uniform(0.06, 0.94); w = rnd.choice([1, 2, 2, 3])
+        color = f"white@{rnd.uniform(0.16, 0.2):.2f}" if i % 3 == 2 else f"black@{rnd.uniform(0.32, 0.4):.2f}"
+        period = rnd.uniform(7, 19); phase = rnd.uniform(0, period); dur = rnd.uniform(0.4, 0.9)
+        filters.append(f"drawbox=x=iw*{x:.3f}:y=0:w={w}:h=ih:color={color}:t=fill:"
+                       f"enable='lt(mod(t+{phase:.2f},{period:.2f}),{dur:.2f})'")
+    for _ in range(round(6 * strength)):
+        x = rnd.uniform(0.03, 0.97); y = rnd.uniform(0.05, 0.95); w = rnd.randint(4, 7); h = rnd.randint(4, 6)
+        color = rnd.choice(["black@0.6", "black@0.55"])
+        period = rnd.uniform(3, 9); phase = rnd.uniform(0, period); dur = rnd.choice([0.2, 0.4])
+        filters.append(f"drawbox=x=iw*{x:.3f}:y=ih*{y:.3f}:w={w}:h={h}:color={color}:t=fill:"
+                       f"enable='lt(mod(t+{phase:.2f},{period:.2f}),{dur:.2f})'")
+    for _ in range(round(3.5 * strength)):
+        x = rnd.uniform(0.03, 0.97); y = rnd.uniform(0.05, 0.95); w = rnd.randint(3, 5); h = rnd.randint(3, 5)
+        color = rnd.choice(["white@0.55", "white@0.5"])
+        period = rnd.uniform(4, 12); phase = rnd.uniform(0, period)
+        filters.append(f"drawbox=x=iw*{x:.3f}:y=ih*{y:.3f}:w={w}:h={h}:color={color}:t=fill:"
+                       f"enable='lt(mod(t+{phase:.2f},{period:.2f}),0.20)'")
+    return filters
+
+
+def pixel_shift_filters(px):
+    """НОВОЕ (24.09): невидимый сдвиг пикселей для OLED-экранов — картинка
+    чуть больше кадра, окно кадра за 10-15 минут медленно гуляет на ±px
+    (целые пиксели: между сдвигами кадры одинаковые, вес почти не растёт)."""
+    return [
+        f"scale={VIDEO_WIDTH + 2 * px}:{VIDEO_HEIGHT + 2 * px}",
+        f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:x='{px}+round({px}*sin(2*PI*t/600))':y='{px}+round({px}*cos(2*PI*t/900))'",
+    ]
+
+
 EFFECT_VIDEO_REGISTRY = {
     "fx_ZoomEnabled": fx_zoom,
 }
@@ -897,6 +941,24 @@ def assemble():
         if not video_filters:
             video_filters.append(f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}")
 
+        # НОВОЕ (24.09): эффекты из таблицы — пусто или 0 = выключено.
+        def _num(key):
+            try:
+                return float(data.get(key) or 0)
+            except (TypeError, ValueError):
+                return 0.0
+        pixel_shift = int(_num("pixelShift"))
+        old_film = _num("oldFilm")
+        if pixel_shift > 0:
+            video_filters.extend(pixel_shift_filters(pixel_shift))
+            print(f"[effects] сдвиг пикселей ±{pixel_shift}")
+        if old_film > 0:
+            # картинка подаётся 25 раз в секунду, в видео пишется fps —
+            # прореживаем до эффектов, чтобы не рисовать лишние кадры
+            video_filters.append(f"fps={fps}")
+            video_filters.extend(old_film_filters(old_film))
+            print(f"[effects] старая плёнка, сила {old_film:g}")
+
         overlay_margin = int(data.get("overlayMargin", 60))
 
         font_name = data.get("overlayFont")
@@ -927,10 +989,14 @@ def assemble():
         shadow_opacity = data.get("overlayShadowOpacity", "0.55")
 
         base_chain = ",".join(video_filters)
+        try:
+            overlay_line_spacing = float(data.get("overlayLineSpacing") or 0.875)
+        except (TypeError, ValueError):
+            overlay_line_spacing = 0.875
         shadow_layers, main_layers = build_overlay_drawtext(
             overlay_text, overlay_position, font_path, font_size,
             font_color, shadow_color, shadow_opacity, overlay_alpha,
-            margin=overlay_margin,
+            margin=overlay_margin, line_spacing=overlay_line_spacing,
         )
 
         # ОТКАЧЕНО (20.09): 19.09 ночью сюда добавили фейд ВСЕГО видео целиком
