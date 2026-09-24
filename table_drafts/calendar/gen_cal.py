@@ -55,38 +55,31 @@ PAGE = open(D+'tg_page.html').read()
 def hdr(ct): return {"responseHeaders": {"entries": [{"name": "Content-Type", "value": ct}, {"name": "Cache-Control", "value": "no-store"}]}}
 def resp(name, body, ct, pos, code=200):
     return node(name, "n8n-nodes-base.respondToWebhook", 1.1, {"respondWith": "text", "responseBody": body, "options": {"responseCode": code, **hdr(ct)}}, pos)
-def keyif(name, hook, pos):
+def _unused_keyif(name, hook, pos):
     return node(name, "n8n-nodes-base.if", 2, {"conditions": {"options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose"}, "conditions": [{"leftValue": "={{ $('" + hook + "').first().json.query.k }}", "rightValue": KEY, "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "options": {}}, pos)
 Y0 = 1000
-node("Страница календаря", "n8n-nodes-base.webhook", 2, {"httpMethod": "GET", "path": "calendar", "responseMode": "responseNode", "options": {}}, [0, Y0], webhookId=str(uuid.uuid4()))
+P = "cal-" + KEY   # секретный адрес: без него страницу и данные не найти
+node("Страница календаря", "n8n-nodes-base.webhook", 2, {"httpMethod": "GET", "path": P, "responseMode": "responseNode", "options": {}}, [0, Y0], webhookId=str(uuid.uuid4()))
 resp("Отдаём страницу", PAGE, "text/html; charset=utf-8", [220, Y0])
 link("Страница календаря", "Отдаём страницу")
 
-node("Данные календаря", "n8n-nodes-base.webhook", 2, {"httpMethod": "GET", "path": "calendar-data", "responseMode": "responseNode", "options": {}}, [0, Y0+200], webhookId=str(uuid.uuid4()))
-keyif("Ключ верный? (данные)", "Данные календаря", [220, Y0+200])
-node("Читаем календарь (страница)", "n8n-nodes-base.googleSheets", 4, {"authentication": "serviceAccount", "documentId": DOC, "sheetName": SHEET, "filtersUI": {"values": []}, "options": {}}, [440, Y0+160], GS, alwaysOutputData=True)
-node("Собираем данные", "n8n-nodes-base.code", 2, {"jsCode": "// все строки листа одним JSON для страницы\nconst rows = $input.all().map(i => i.json).filter(r => r && String(r.id || '').trim());\nreturn [{ json: { body: JSON.stringify({ rows }) } }];"}, [660, Y0+160])
-resp("Отдаём данные", "={{ $json.body }}", "application/json; charset=utf-8", [880, Y0+160])
-resp("Нет доступа (данные)", '{"error":"forbidden"}', "application/json; charset=utf-8", [440, Y0+320], 403)
-link("Данные календаря", "Ключ верный? (данные)")
-link("Ключ верный? (данные)", "Читаем календарь (страница)", 0)
-link("Ключ верный? (данные)", "Нет доступа (данные)", 1)
+node("Данные календаря", "n8n-nodes-base.webhook", 2, {"httpMethod": "GET", "path": P + "/data", "responseMode": "responseNode", "options": {}}, [0, Y0+200], webhookId=str(uuid.uuid4()))
+node("Читаем календарь (страница)", "n8n-nodes-base.googleSheets", 4, {"authentication": "serviceAccount", "documentId": DOC, "sheetName": SHEET, "filtersUI": {"values": []}, "options": {}}, [220, Y0+200], GS, alwaysOutputData=True)
+node("Собираем данные", "n8n-nodes-base.code", 2, {"jsCode": "// все строки листа одним JSON для страницы\nconst rows = $input.all().map(i => i.json).filter(r => r && String(r.id || '').trim());\nreturn [{ json: { body: JSON.stringify({ rows }) } }];"}, [440, Y0+200])
+resp("Отдаём данные", "={{ $json.body }}", "application/json; charset=utf-8", [660, Y0+200])
+link("Данные календаря", "Читаем календарь (страница)")
 link("Читаем календарь (страница)", "Собираем данные")
 link("Собираем данные", "Отдаём данные")
 
-node("Сохранение со страницы", "n8n-nodes-base.webhook", 2, {"httpMethod": "POST", "path": "calendar-save", "responseMode": "responseNode", "options": {}}, [0, Y0+520], webhookId=str(uuid.uuid4()))
-keyif("Ключ верный? (сохранение)", "Сохранение со страницы", [220, Y0+520])
-node("Строка со страницы", "n8n-nodes-base.code", 2, {"jsCode": open(D+'save_row.js').read()}, [440, Y0+480])
+node("Сохранение со страницы", "n8n-nodes-base.webhook", 2, {"httpMethod": "POST", "path": P + "/save", "responseMode": "responseNode", "options": {}}, [0, Y0+400], webhookId=str(uuid.uuid4()))
+node("Строка со страницы", "n8n-nodes-base.code", 2, {"jsCode": open(D+'save_row.js').read()}, [220, Y0+400])
 node("Записываем со страницы", "n8n-nodes-base.googleSheets", 4, {"authentication": "serviceAccount", "operation": "appendOrUpdate", "documentId": DOC, "sheetName": SHEET,
-  "columns": {"mappingMode": "defineBelow", "matchingColumns": ["id"], "value": {c: "={{ $json." + c + " }}" for c in COLS}}, "options": {}}, [660, Y0+480], GS)
-resp("Сохранено", '{"ok":true}', "application/json; charset=utf-8", [880, Y0+480])
-resp("Нет доступа (сохранение)", '{"error":"forbidden"}', "application/json; charset=utf-8", [440, Y0+640], 403)
-link("Сохранение со страницы", "Ключ верный? (сохранение)")
-link("Ключ верный? (сохранение)", "Строка со страницы", 0)
-link("Ключ верный? (сохранение)", "Нет доступа (сохранение)", 1)
+  "columns": {"mappingMode": "defineBelow", "matchingColumns": ["id"], "value": {c: "={{ $json." + c + " }}" for c in COLS}}, "options": {}}, [440, Y0+400], GS)
+resp("Сохранено", '{"ok":true}', "application/json; charset=utf-8", [660, Y0+400])
+link("Сохранение со страницы", "Строка со страницы")
 link("Строка со страницы", "Записываем со страницы")
 link("Записываем со страницы", "Сохранено")
-node("Заметка страница", "n8n-nodes-base.stickyNote", 1, {"content": "## Страница календаря\nОткрывается кнопкой «Календарь» в боте (Menu Button в BotFather) — прямо внутри Telegram.\nАдрес: https://tatka1976.store/webhook/calendar?k=… (ключ в ссылке — без него данные не отдаются).\nСтраница читает и пишет тот же лист «Календарь».", "height": 220, "width": 520, "color": 5}, [0, Y0-280])
+node("Заметка страница", "n8n-nodes-base.stickyNote", 1, {"content": "## Страница календаря\nОткрывается кнопкой «Календарь» в боте (Menu Button в BotFather) — прямо внутри Telegram.\nАдрес: https://tatka1976.store/webhook/cal-<ключ> — сам адрес и есть пароль.\nСтраница читает и пишет тот же лист «Календарь».", "height": 220, "width": 520, "color": 5}, [0, Y0-280])
 
 link("Telegram Trigger","Это владелец?")
 link("Это владелец?","Читаем календарь",0)

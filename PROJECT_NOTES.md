@@ -1617,3 +1617,19 @@ release/threshold/reduction + 2 кроссовера) — это не наход
   фильтры считали 25 к/с. Патч: scratchpad/pending/fps5.diff (версия
   2026-09-25-fps5-input). Добавить к нему замечания автора по видео,
   затем commit → деплой (Restart только когда нет идущей сборки!).
+
+## 25.09 — Studio Calendar ЗАПУЩЕН (канвас 11_Календарь)
+- Бот @studio_calendar_1976_bot, credential «Telegram Studio Calendar»
+  (id IKKPiATJnTSe0CMh). Лист «Календарь» в основной таблице (импорт из
+  table_drafts/calendar/Календарь.csv, 24 повода).
+- Бот: вставка списков (канал кнопками, источник = сам список «список
+  dd.mm xxxx» → ×N), «ближайшие», «выбранные», «<месяц>» (сводка текстом),
+  ответ на карточку → заметка; понедельник 9:00 — сводка на 2 недели.
+- Страница-календарь = Telegram Mini App (Menu Button через BotFather
+  /setmenubutton): https://tatka1976.store/webhook/cal-<ключ> (ключ в
+  scratchpad key.txt / в JSON канваса; сам путь — пароль), /data и /save.
+  На телефоне — сетка месяца с точками + список дней под ней.
+- Урок: первая ссылка с ?k= не работала из-за МОЕЙ опечатки (к ключу
+  прилипли 2 символа из соседнего вывода) — всегда копировать ключ из файла.
+- Исходники: table_drafts/calendar/ (logika.js, gen_cal.py, tg_page.html,
+  save_row.js, harness.js). Редактор НЕ подключён (решение автора).

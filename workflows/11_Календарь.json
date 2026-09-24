@@ -9,7 +9,7 @@
         ],
         "additionalFields": {}
       },
-      "id": "afffc6a4-1a06-48d8-8cb5-ee03e08feb11",
+      "id": "8f24e587-2e11-48cd-9711-6d6c09ff91a2",
       "name": "Telegram Trigger",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
@@ -23,7 +23,7 @@
           "name": "Telegram Studio Calendar"
         }
       },
-      "webhookId": "aa3f3a86-b0ae-4a3a-a776-7e0b79e03626"
+      "webhookId": "7319611a-0bc2-45cc-8610-d141b8f9736e"
     },
     {
       "parameters": {
@@ -36,7 +36,7 @@
           ]
         }
       },
-      "id": "33c687cf-739c-4713-8ea7-8b7f8ce92d1e",
+      "id": "0d4ffdab-ed01-4751-9ddc-7fe8b462e0d8",
       "name": "Каждый понедельник",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -67,7 +67,7 @@
         },
         "options": {}
       },
-      "id": "5b359b46-1026-4b5b-a37d-15fbbd1a3148",
+      "id": "7c6038a8-2cd4-4d2e-8d12-63f22a18e4fd",
       "name": "Это владелец?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -94,7 +94,7 @@
         },
         "options": {}
       },
-      "id": "ba4d3b0e-4d0d-419c-89fa-76f26bc56a01",
+      "id": "28b7d9e2-3cf3-446d-9e1b-8d11ec4a4309",
       "name": "Читаем календарь",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -114,7 +114,7 @@
       "parameters": {
         "jsCode": "// Вся логика календаря в одном месте. На входе — строки листа «Календарь»\n// и событие (сообщение / кнопка из Телеграма или еженедельный будильник).\n// На выходе один пакет: какие строки записать в таблицу (upserts) и какие\n// сообщения отправить/поправить (messages). Нейросети тут нет: разбор дат,\n// склейка повторов и статусы — обычный код.\nconst OWNER = 285577543;\nconst MON_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];\nconst MON_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];\nconst MON_KEYS = [['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];\nconst STATUS = { i: 'Идея', p: 'Выбран', w: 'В работе', d: 'Вышел', s: 'Отклонён' };\nconst MARK = { 'Идея': '', 'Выбран': ' ⭐', 'В работе': ' 🛠', 'Вышел': ' ✓', 'Отклонён': ' ✖' };\nconst CH = { pengui: '🔴 Pengui', tapestry: '🟡 Гобелены' };\nconst COLS = ['id','year','month','day','title','channel','status','project','note','sources','createdAt','updatedAt'];\n\nconst store = $getWorkflowStaticData('global');\nstore.pending = store.pending || {};\nconst nowIso = new Date().toISOString();\nfor (const k of Object.keys(store.pending)) {\n  if (Date.now() - (store.pending[k].t || 0) > 3 * 86400000) delete store.pending[k];\n}\n\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst chName = c => CH[c] || ('⚪ ' + c);\nconst srcList = r => String(r.sources || '').split(';').map(s => s.trim()).filter(Boolean);\nconst newId = () => 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);\n\nconst rows = $('Читаем календарь').all().map(i => i.json)\n  .filter(r => r && String(r.id || '').trim())\n  .map(r => ({ ...r, id: String(r.id).trim(), month: Number(r.month), day: Number(r.day),\n    year: r.year ? Number(r.year) : null, status: r.status || 'Идея', channel: r.channel || 'pengui' }));\n\nconst upserts = [];\nconst messages = [];\nfunction toSheet(r) {\n  const o = {};\n  for (const c of COLS) o[c] = r[c] === null || r[c] === undefined ? '' : String(r[c]);\n  return o;\n}\nfunction put(r) { r.updatedAt = nowIso; upserts.push(toSheet(r)); }\n\n// ---------- даты ----------\nconst today = new Date(); today.setHours(0, 0, 0, 0);\nfunction nextDate(r, from) {\n  for (const y of [from.getFullYear(), from.getFullYear() + 1]) {\n    if (r.year && r.year !== y) continue;\n    const d = new Date(y, r.month - 1, r.day);\n    if (d >= from) return d;\n  }\n  return null;\n}\nconst short = d => d.getDate() + ' ' + MON_GEN[d.getMonth()].slice(0, 3);\n\n// ---------- разбор списка ----------\nfunction monthFromWord(w) { w = w.toLowerCase(); for (let i = 0; i < 12; i++) if (MON_KEYS[i].some(k => w.startsWith(k))) return i + 1; return 0; }\nfunction parseLine(raw) {\n  let line = raw.replace(/^[\\s\\-–—•*·>\\d]*[.)]\\s+/, '').replace(/^[\\s\\-–—•*·>]+/, '').replace(/\\*\\*/g, '').trim();\n  if (!line) return null;\n  let m, mo = 0, d = 0, y = null, matched = '';\n  if ((m = line.match(/(\\d{4})-(\\d{1,2})-(\\d{1,2})/))) { y = +m[1]; mo = +m[2]; d = +m[3]; matched = m[0]; }\n  else if ((m = line.match(/(\\d{1,2})(?:\\s*[–-]\\s*\\d{1,2})?\\s+([А-Яа-яЁёA-Za-z]{3,})\\.?(?:\\s+(\\d{4}))?/)) && monthFromWord(m[2])) { d = +m[1]; mo = monthFromWord(m[2]); y = m[3] ? +m[3] : null; matched = m[0]; }\n  else if ((m = line.match(/\\b([A-Za-z]{3,})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?/)) && monthFromWord(m[1])) { mo = monthFromWord(m[1]); d = +m[2]; y = m[3] ? +m[3] : null; matched = m[0]; }\n  else if ((m = line.match(/\\b(\\d{1,2})[./](\\d{1,2})(?:[./](\\d{2,4}))?\\b/))) { d = +m[1]; mo = +m[2]; y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : null; matched = m[0]; }\n  let title = matched ? line.replace(matched, ' ') : line;\n  title = title.replace(/^[\\s\\-–—:|,.()]+|[\\s\\-–—:|,(]+$/g, '').replace(/\\s{2,}/g, ' ').trim();\n  const ok = mo >= 1 && mo <= 12 && d >= 1 && d <= 31;\n  return { title: title || line, month: ok ? mo : 0, day: ok ? d : 0, year: y, ok, raw: line };\n}\nconst STOP = new Set(['день','дня','всемирный','всемирного','международный','международного','национальный','day','world','international','national','the','of','and','для','рождения','birthday','born']);\nfunction words(s) { return new Set(String(s).toLowerCase().replace(/[^a-zа-яё0-9 ]/gi, ' ').split(/\\s+/).filter(w => w.length > 2 && !STOP.has(w)).map(w => w.slice(0, 6))); }\nfunction similar(a, b) { const A = words(a), B = words(b); if (!A.size || !B.size) return a.trim().toLowerCase() === b.trim().toLowerCase(); let k = 0; for (const w of A) if (B.has(w)) k++; return k / Math.min(A.size, B.size) >= 0.5; }\nfunction classify(p) {\n  // для текущего канала: новый / уже есть (какая строка) / повтор внутри списка / нет даты\n  const ch = p.channel;\n  const out = { fresh: [], dup: [], bad: [] };\n  const batch = [];\n  for (const it of p.lines) {\n    if (!it.ok) { out.bad.push(it); continue; }\n    const hit = rows.find(r => r.channel === ch && r.month === it.month && r.day === it.day && similar(r.title, it.title));\n    if (hit) { out.dup.push({ it, hit }); continue; }\n    if (batch.some(b => b.month === it.month && b.day === it.day && similar(b.title, it.title))) continue;\n    batch.push(it); out.fresh.push(it);\n  }\n  return out;\n}\nconst dstr = it => it.day + ' ' + MON_GEN[it.month - 1].slice(0, 3) + (it.year ? ' ' + it.year : '');\nfunction previewText(p) {\n  const c = classify(p);\n  const L = [];\n  L.push(`<b>Список поводов</b>: строк ${p.lines.length}`);\n  L.push(`🆕 новых: ${c.fresh.length}   🔁 уже есть: ${c.dup.length}${c.bad.length ? `   ⚠️ без даты: ${c.bad.length}` : ''}`);\n  L.push(`Канал: <b>${esc(chName(p.channel))}</b>`);\n  if (c.fresh.length) { L.push('', '<b>Новые</b>'); c.fresh.slice(0, 30).forEach(it => L.push(`• ${dstr(it)} — ${esc(it.title)}`)); if (c.fresh.length > 30) L.push(`…и ещё ${c.fresh.length - 30}`); }\n  if (c.dup.length) { L.push('', '<b>Уже в календаре</b> (станут ×' + '2+)'); c.dup.slice(0, 15).forEach(({ it, hit }) => L.push(`• ${dstr(it)} — ${esc(hit.title)} ×${srcList(hit).length + 1}`)); if (c.dup.length > 15) L.push(`…и ещё ${c.dup.length - 15}`); }\n  if (c.bad.length) { L.push('', '<b>Не поняла дату</b>'); c.bad.slice(0, 10).forEach(it => L.push(`• ${esc(it.raw.slice(0, 80))}`)); }\n  L.push('', 'Выбери канал и нажми «✅ Добавить».');\n  return L.join('\\n').slice(0, 4000);\n}\nfunction cardText(r) {\n  const d = nextDate(r, today) || new Date(r.year || today.getFullYear(), r.month - 1, r.day);\n  const n = srcList(r).length;\n  const L = [`<b>${short(d)}</b> · ${esc(chName(r.channel))}`, `<b>${esc(r.title)}</b>${n > 1 ? ' ×' + n : ''}`, `Статус: <b>${esc(r.status)}</b>${MARK[r.status] || ''}`];\n  if (r.project) L.push(`Проект: <code>${esc(r.project)}</code>`);\n  if (r.note) L.push('', `<i>${esc(String(r.note).slice(0, 1500))}</i>`);\n  if (n) L.push('', `Откуда: ${esc(srcList(r).join(', '))}`);\n  L.push(`<code>id:${esc(r.id)}</code>`);\n  return L.join('\\n');\n}\nfunction summary(from, days, title) {\n  const end = new Date(from); end.setDate(end.getDate() + days);\n  const list = [];\n  for (const r of rows) { if (r.status === 'Отклонён') continue; const d = nextDate(r, from); if (d && d <= end) list.push([d, r]); }\n  list.sort((a, b) => a[0] - b[0]);\n  if (!list.length) return `${title}\\n\\nПоводов нет.`;\n  const L = [title, ''];\n  let last = '';\n  for (const [d, r] of list) {\n    const k = short(d);\n    const n = srcList(r).length;\n    L.push(`${k === last ? '       ' : '<b>' + k + '</b>'} ${r.channel === 'tapestry' ? '🟡' : r.channel === 'pengui' ? '🔴' : '⚪'} ${esc(r.title)}${n > 1 ? ' ×' + n : ''}${MARK[r.status] || ''}`);\n    last = k;\n  }\n  return L.join('\\n').slice(0, 4000);\n}\nconst HELP = [\n  '<b>Studio Calendar</b>',\n  '',\n  '• Вставь список поводов от любой нейросети — одна строка, один повод. Даты: «20 января», «20.01», «January 20». Я покажу, что нового, а что уже есть.',\n  '• <b>ближайшие</b> — поводы на 30 дней вперёд.',\n  '• <b>октябрь</b> (или любой месяц) — поводы месяца списком.',\n  '• Кнопка <b>«Календарь»</b> внизу слева — красивый календарь по месяцам: там выбираешь поводы и пишешь заметки.',\n  '• <b>выбранные</b> — что ты выбрала на 3 месяца вперёд.',\n  '• Ответь на карточку повода любым текстом — он добавится в заметки.',\n  '',\n  '⭐ выбран · 🛠 в работе · ✓ вышел · ×3 — предложили три источника.',\n].join('\\n');\n\n// ---------- событие ----------\nlet tg = null;\nif ($('Telegram Trigger').isExecuted) tg = $('Telegram Trigger').first().json;\n\nif (!tg) {\n  // еженедельный будильник\n  const picked = rows.filter(r => ['Выбран', 'В работе'].includes(r.status));\n  let text = summary(today, 14, '<b>Поводы на две недели</b>');\n  if (!picked.length) text += '\\n\\nВыбранных пока нет — пришли «октябрь» или нужный месяц, чтобы выбрать.';\n  messages.push({ type: 'send', chatId: OWNER, text });\n} else if (tg.callback_query) {\n  const cb = tg.callback_query;\n  const chatId = cb.message.chat.id, messageId = cb.message.message_id, queryId = cb.id;\n  const parts = String(cb.data || '').split('|');\n  if (parts[0] === 'imp') {\n    const p = store.pending[parts[1]];\n    if (!p) {\n      messages.push({ type: 'edit', chatId, messageId, text: 'Этот список уже обработан или устарел. Пришли его ещё раз.' });\n      messages.push({ type: 'answer', queryId, text: 'Список устарел' });\n    } else if (parts[2] === 'ch') {\n      p.channel = parts[3];\n      messages.push({ type: 'editImport', chatId, messageId, importId: parts[1], text: previewText(p) });\n      messages.push({ type: 'answer', queryId, text: 'Канал: ' + chName(p.channel) });\n    } else if (parts[2] === 'src') {\n      p.source = parts[3];\n      messages.push({ type: 'editImport', chatId, messageId, importId: parts[1], text: previewText(p) });\n      messages.push({ type: 'answer', queryId, text: 'Источник: ' + p.source });\n    } else if (parts[2] === 'no') {\n      delete store.pending[parts[1]];\n      messages.push({ type: 'edit', chatId, messageId, text: 'Отменила, ничего не добавлено.' });\n      messages.push({ type: 'answer', queryId, text: 'Отменено' });\n    } else if (parts[2] === 'go') {\n      const c = classify(p);\n      const d0 = new Date(p.t); const src = 'список ' + String(d0.getDate()).padStart(2, '0') + '.' + String(d0.getMonth() + 1).padStart(2, '0') + ' ' + parts[1].slice(-4);\n      for (const it of c.fresh) {\n        const r = { id: newId(), year: it.year || '', month: it.month, day: it.day, title: it.title, channel: p.channel, status: 'Идея', project: '', note: '', sources: src, createdAt: nowIso };\n        put(r);\n      }\n      let merged = 0;\n      const touched = new Set();\n      for (const { hit } of c.dup) {\n        if (touched.has(hit.id)) continue;\n        touched.add(hit.id);\n        const s = srcList(hit);\n        if (!s.includes(src)) { s.push(src); hit.sources = s.join('; '); put(hit); merged++; }\n      }\n      delete store.pending[parts[1]];\n      messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)}\\nНовых поводов: ${c.fresh.length}\\nСовпадений (стали ×N+1): ${merged}${c.bad.length ? `\\nБез даты, пропущено: ${c.bad.length}` : ''}\\n\\nКалендарь — кнопка «Календарь» внизу слева.` });\n      messages.push({ type: 'answer', queryId, text: 'Добавлено' });\n    }\n  } else if (parts[0] === 'st') {\n    const r = rows.find(x => x.id === parts[1]);\n    const st = STATUS[parts[2]];\n    if (!r || !st) {\n      messages.push({ type: 'answer', queryId, text: 'Не нашла этот повод в таблице' });\n    } else {\n      r.status = st; put(r);\n      messages.push({ type: 'editCard', chatId, messageId, rowId: r.id, text: cardText(r) });\n      messages.push({ type: 'answer', queryId, text: 'Статус: ' + st });\n    }\n  } else {\n    messages.push({ type: 'answer', queryId, text: '' });\n  }\n} else if (tg.message) {\n  const msg = tg.message;\n  const chatId = msg.chat.id;\n  const text = String(msg.text || msg.caption || '').trim();\n  const low = text.toLowerCase().replace(/^\\//, '');\n  const replyTo = msg.reply_to_message ? String(msg.reply_to_message.text || '') : '';\n  const idInReply = replyTo.match(/id:([A-Za-z0-9_-]+)/);\n  const monM = low.match(/^(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-я]*\\s*(\\d{4})?$/);\n\n  if (idInReply && text) {\n    const r = rows.find(x => x.id === idInReply[1]);\n    if (!r) messages.push({ type: 'send', chatId, text: 'Не нашла этот повод в таблице.' });\n    else {\n      r.note = (r.note ? String(r.note) + '\\n\\n' : '') + text;\n      put(r);\n      messages.push({ type: 'send', chatId, text: `📝 Добавила в заметки: <b>${esc(r.title)}</b>` });\n    }\n  } else if (!text || ['start', 'help', 'помощь', 'меню'].includes(low)) {\n    messages.push({ type: 'send', chatId, text: HELP });\n  } else if (['ближайшие', 'soon', 'скоро'].includes(low)) {\n    messages.push({ type: 'send', chatId, text: summary(today, 30, '<b>Ближайшие 30 дней</b>') });\n  } else if (['выбранные', 'план'].includes(low)) {\n    const end = new Date(today); end.setDate(end.getDate() + 92);\n    const list = rows.filter(r => ['Выбран', 'В работе'].includes(r.status)).map(r => [nextDate(r, today), r]).filter(([d]) => d && d <= end).sort((a, b) => a[0] - b[0]);\n    messages.push({ type: 'send', chatId, text: list.length ? '<b>Выбранные на 3 месяца</b>\\n\\n' + list.map(([d, r]) => `<b>${short(d)}</b> ${r.channel === 'tapestry' ? '🟡' : '🔴'} ${esc(r.title)}${MARK[r.status]}`).join('\\n') : 'Выбранных поводов на 3 месяца пока нет.' });\n  } else if (monM) {\n    const mi = MON_KEYS.findIndex(k => k.some(x => monM[1].startsWith(x.slice(0, 3)))) ;\n    const mIdx = mi >= 0 ? mi : 0;\n    let y = monM[2] ? +monM[2] : today.getFullYear();\n    if (!monM[2] && mIdx < today.getMonth()) y++;\n    const from = new Date(y, mIdx, 1);\n    const days = new Date(y, mIdx + 1, 0).getDate() - 1;\n    messages.push({ type: 'send', chatId, text: summary(from, days, `<b>${MON_NOM[mIdx]} ${y}</b>`) + '\\n\\n⭐ выбран · 🛠 в работе · ✓ вышел. Выбирать — в «Календаре» (кнопка внизу слева).' });\n  } else {\n    const lines = text.split(/\\n+/).map(parseLine).filter(Boolean);\n    if (!lines.some(l => l.ok)) {\n      messages.push({ type: 'send', chatId, text: 'Не нашла в сообщении ни одной даты.\\n\\n' + HELP });\n    } else {\n      const importId = Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 4);\n      store.pending[importId] = { t: Date.now(), channel: 'pengui', source: '', lines };\n      messages.push({ type: 'sendImport', chatId, importId, text: previewText(store.pending[importId]) });\n    }\n  }\n}\n\nreturn [{ json: { upserts, messages } }];\n"
       },
-      "id": "57771be6-6f76-4f04-a593-e42cef31990e",
+      "id": "4ca87485-5f06-4c3a-95bc-579921518eb5",
       "name": "Логика",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -145,7 +145,7 @@
         },
         "options": {}
       },
-      "id": "5c7ca1c5-dc2f-4ec3-b142-46614bf4d859",
+      "id": "1a358442-1f1a-458a-a632-89e3ddbb8e65",
       "name": "Есть что записать?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
@@ -158,7 +158,7 @@
       "parameters": {
         "jsCode": "// каждая строка — отдельный элемент для записи в лист\nreturn $('Логика').first().json.upserts.map(r => ({ json: r }));"
       },
-      "id": "232d00ef-6477-4374-b643-9031a583ac85",
+      "id": "aa558baf-453c-4084-817b-2b3354656d78",
       "name": "Строки для записи",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -203,7 +203,7 @@
         },
         "options": {}
       },
-      "id": "a53cbed6-1ea1-4c77-a09d-ee574b554e4c",
+      "id": "af852b7a-deeb-4ac1-994f-7da00b739b82",
       "name": "Записываем в календарь",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -222,7 +222,7 @@
       "parameters": {
         "jsCode": "// что отправить в Телеграм — по одному элементу на сообщение\nreturn $('Логика').first().json.messages.map(m => ({ json: m }));"
       },
-      "id": "3e39bc57-21c2-48c0-8381-cc53c2c965ba",
+      "id": "903c6f4b-79f2-40e3-a774-f177b04a1f11",
       "name": "Сообщения",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -379,7 +379,7 @@
         },
         "options": {}
       },
-      "id": "ac9c0d1c-19ac-4b93-9731-bb59d3879e25",
+      "id": "1304e604-b457-4848-b96f-fd67fb2efaa1",
       "name": "Что отправить?",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -398,7 +398,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "ae2e7301-63e4-4c27-8335-135d9f309028",
+      "id": "48b472e3-5f09-47db-880a-a64268649fd8",
       "name": "Отправляем текст",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -465,7 +465,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "ec996ad8-61a8-4a5c-9d92-80e366b791f7",
+      "id": "759633c5-8059-4c22-a8ad-edd5456c7c35",
       "name": "Отправляем список на проверку",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -534,7 +534,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "d50f180a-2141-470a-aa13-19a1ac7bbf96",
+      "id": "11684817-9894-4a71-9701-d97fc11ddd67",
       "name": "Обновляем проверку списка",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -562,7 +562,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "efea5b70-6881-4716-ae52-f172e69da20c",
+      "id": "713ad878-66d4-4142-85bd-55d7af7d142b",
       "name": "Правим сообщение",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -635,7 +635,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "efdbe4b5-f499-496e-a44f-b7cb6fda9029",
+      "id": "4a3bc915-6e3d-4633-9943-a7288c30a1d5",
       "name": "Отправляем карточку",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -710,7 +710,7 @@
           "disable_web_page_preview": true
         }
       },
-      "id": "87372850-51b7-4f80-9ec6-47d086f380b4",
+      "id": "75537730-cf3a-4120-b3ad-c047ab7474f4",
       "name": "Обновляем карточку",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -735,7 +735,7 @@
           "text": "={{ $json.text }}"
         }
       },
-      "id": "2624844b-5969-49e3-a4d3-25d0582084df",
+      "id": "855d7f2f-233c-4e9c-ad9c-21811f1e50c3",
       "name": "Закрываем часики на кнопке",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -758,7 +758,7 @@
         "width": 520,
         "color": 4
       },
-      "id": "a6733b0a-fd95-4ca6-a84d-d0a1ba1617ad",
+      "id": "8740191f-5ec8-4c09-a491-2cc8f3402086",
       "name": "Заметка",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -770,11 +770,11 @@
     {
       "parameters": {
         "httpMethod": "GET",
-        "path": "calendar",
+        "path": "cal-rk7shuoXXwcvXvJ8CH8cyQoI",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "e40c6833-a8bb-417d-96d8-1bff484a1d05",
+      "id": "ad64d8aa-f2b4-4558-97f0-528fad1d0ff1",
       "name": "Страница календаря",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -782,12 +782,12 @@
         0,
         1000
       ],
-      "webhookId": "5adecea4-4d98-4436-a995-b0cde1a51a4e"
+      "webhookId": "5044a28c-29be-42f1-97b4-e89a817b5ed3"
     },
     {
       "parameters": {
         "respondWith": "text",
-        "responseBody": "<!doctype html>\n<html lang=\"ru\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n<script src=\"https://telegram.org/js/telegram-web-app.js\"></script>\n<title>Календарь поводов</title>\n<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Unbounded:wght@500;600&display=swap\">\n<style>\n:root{\n  --bg:#EFF1F0; --surface:#FFFFFF; --sunk:#E4E8E7; --line:#D3D9D8;\n  --ink:#1D2633; --muted:#5E6975; --faint:#8A949E;\n  --accent:#B03A34; --accent-ink:#FFFFFF;\n  --ch-pengui:#B03A34; --ch-tapestry:#A0762A; --ch-other:#2F7A78;\n  --today:#1D2633; --focus:#2F6FB0; --ok:#2E7D4F; --warn:#9A6A12;\n  --display:\"Unbounded\",\"Golos Text\",system-ui,sans-serif;\n  --body:\"Golos Text\",system-ui,-apple-system,\"Segoe UI\",sans-serif;\n}\n@media (prefers-color-scheme:dark){\n  :root:not([data-theme=\"light\"]){\n    color-scheme:dark;\n    --bg:#151A21; --surface:#1D242D; --sunk:#252D37; --line:#323C48;\n    --ink:#E7E9EC; --muted:#A3ADB8; --faint:#76818C;\n    --accent:#E0625A; --accent-ink:#1A0F0E;\n    --ch-pengui:#E0625A; --ch-tapestry:#D1A355; --ch-other:#5DB3AF;\n    --today:#E7DFCF; --focus:#7FB0E6; --ok:#6CC08F; --warn:#E0B259;\n  }\n}\n:root[data-theme=\"dark\"]{\n  color-scheme:dark;\n  --bg:#151A21; --surface:#1D242D; --sunk:#252D37; --line:#323C48;\n  --ink:#E7E9EC; --muted:#A3ADB8; --faint:#76818C;\n  --accent:#E0625A; --accent-ink:#1A0F0E;\n  --ch-pengui:#E0625A; --ch-tapestry:#D1A355; --ch-other:#5DB3AF;\n  --today:#E7DFCF; --focus:#7FB0E6; --ok:#6CC08F; --warn:#E0B259;\n}\n*{box-sizing:border-box}\n[hidden]{display:none!important}\nbody{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;margin:0}\n.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}\nbutton,input,select,textarea{font:inherit;color:inherit}\nbutton{cursor:pointer}\n:focus-visible{outline:2px solid var(--focus);outline-offset:2px}\n.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;justify-content:space-between}\n.brand{display:flex;flex-direction:column;gap:2px}\n.brand h1{font-family:var(--display);font-weight:600;font-size:22px;margin:0;letter-spacing:.01em;text-wrap:balance}\n.brand .sub{color:var(--muted);font-size:13px}\n.actions{display:flex;flex-wrap:wrap;gap:8px}\n.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:500}\n.btn:hover{border-color:var(--muted)}\n.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}\n.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}\n.btn.danger{color:var(--accent);border-color:var(--accent);background:transparent}\n.bar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}\n.seg{display:flex;flex-wrap:wrap;gap:6px}\n.chipbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}\n.chipbtn[aria-pressed=\"true\"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}\n.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}\n.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600}\nlabel.tog{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}\n.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}\n@media (max-width:980px){.main{grid-template-columns:1fr}}\n.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px}\n.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}\n.cal-head h2{font-family:var(--display);font-weight:500;font-size:18px;margin:0;text-transform:capitalize}\n.nav{display:flex;gap:4px}\n.nav .btn{padding:6px 10px}\n.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}\n.wd{padding:8px 8px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600;border-bottom:1px solid var(--line)}\n.day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:4px;position:relative;min-width:0}\n.day:nth-child(7n){border-right:none}\n.day.out{background:var(--sunk);opacity:.55}\n.day .num{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;align-items:center}\n.day.today .num b{background:var(--today);color:var(--bg);border-radius:999px;padding:0 7px}\n.day .add{opacity:0;border:none;background:none;color:var(--faint);font-size:16px;line-height:1;padding:0 4px}\n.day:hover .add,.day:focus-within .add{opacity:1}\n.ev{display:flex;align-items:center;gap:5px;width:100%;text-align:left;border-radius:6px;padding:3px 6px;font-size:12px;line-height:1.3;border:1px solid transparent;background:var(--sunk);min-width:0}\n.ev span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}\n.ev .n{font-size:10px;font-weight:600;color:var(--muted);flex:none}\n.ev.st-idea{background:transparent;border:1px dashed var(--line);color:var(--muted)}\n.ev.st-picked,.ev.st-work{background:var(--c);color:#fff;border-color:var(--c)}\n:root[data-theme=\"dark\"] .ev.st-picked,:root[data-theme=\"dark\"] .ev.st-work{color:#10141A}\n@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]) .ev.st-picked,:root:not([data-theme=\"light\"]) .ev.st-work{color:#10141A}}\n.ev.st-picked .n,.ev.st-work .n{color:inherit;opacity:.8}\n.ev.st-done{background:var(--sunk);color:var(--muted)}\n.ev.st-skip{background:transparent;color:var(--faint);text-decoration:line-through}\n.ev .dot{background:var(--c)}\n.more{font-size:11px;color:var(--muted);border:none;background:none;text-align:left;padding:0 4px}\n.agenda{display:none}\n@media (max-width:700px){\n  .grid-wrap{display:none}\n  .agenda{display:flex;flex-direction:column}\n  .brand h1{font-size:19px}\n}\n.ag-day{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}\n.ag-day:last-child{border-bottom:none}\n.ag-date{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}\n.ag-date b{display:block;font-family:var(--display);font-weight:500;font-size:20px;color:var(--ink)}\n.ag-list{display:flex;flex-direction:column;gap:5px;min-width:0}\n.ag-list .ev{font-size:13px;padding:6px 8px}\n.ag-list .ev span.t{white-space:normal}\n.empty{padding:22px 14px;color:var(--muted);font-size:14px}\n.side{display:flex;flex-direction:column;gap:16px}\n.side h3{font-family:var(--display);font-weight:500;font-size:15px;margin:0}\n.side .panel{padding:14px;display:flex;flex-direction:column;gap:10px}\n.up{display:flex;flex-direction:column;gap:6px}\n.up-row{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;font-size:13px;border:none;background:none;text-align:left;padding:4px 0}\n.up-row .d{color:var(--muted);font-variant-numeric:tabular-nums}\n.up-row .w{display:flex;gap:6px;align-items:baseline;min-width:0}\n.up-row .w span{min-width:0}\n.legend{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}\n.legend .ev{width:auto;display:inline-flex;font-size:11px;padding:2px 6px}\n.legend div{display:flex;gap:8px;align-items:center}\n.status{font-size:12px;color:var(--muted)}\n.status.err{color:var(--accent)}\n/* dialogs */\n.scrim{position:fixed;inset:0;background:rgba(10,14,20,.45);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px;overflow:auto;z-index:10}\n.dlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:100%;max-width:640px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.25)}\n.dlg h3{font-family:var(--display);font-weight:500;font-size:17px;margin:0}\n.dlg .hint{color:var(--muted);font-size:13px;margin:0}\n.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n.form .full{grid-column:1/-1}\n@media (max-width:520px){.form{grid-template-columns:1fr}}\n.field{display:flex;flex-direction:column;gap:4px}\n.field span{font-size:12px;color:var(--muted)}\ninput[type=text],input[type=date],select,textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;width:100%;min-width:0}\ntextarea{min-height:150px;resize:vertical;font-size:14px}\n.row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}\n.row .spacer{flex:1}\n.prev{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px}\n.pv{display:grid;grid-template-columns:22px 78px 1fr auto;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px}\n.pv:last-child{border-bottom:none}\n.pv .d{font-variant-numeric:tabular-nums;color:var(--muted)}\n.tag{font-size:11px;border-radius:999px;padding:2px 8px;white-space:nowrap;border:1px solid var(--line)}\n.tag.new{color:var(--ok);border-color:var(--ok)}\n.tag.dup{color:var(--warn);border-color:var(--warn)}\n.tag.bad{color:var(--accent);border-color:var(--accent)}\n.srcs{font-size:12px;color:var(--muted)}\n@media (prefers-reduced-motion:no-preference){.ev,.btn,.chipbtn{transition:background .15s,border-color .15s}}\n</style>\n\n</head>\n<body>\n<div class=\"wrap\">\n  <header class=\"top\">\n    <div class=\"brand\">\n      <h1>Календарь поводов</h1>\n      <div class=\"sub\">Списки поводов присылай боту — здесь смотреть и выбирать. ×2 значит «предложили дважды».</div>\n    </div>\n    <div class=\"actions\">\n      <button class=\"btn\" id=\"btnAdd\" type=\"button\">+ Повод</button>\n      \n    </div>\n  </header>\n\n  <div class=\"bar\">\n    <div class=\"seg\" id=\"chFilter\" aria-label=\"Канал\"></div>\n    <div class=\"seg\" id=\"stFilter\" aria-label=\"Что показывать\"></div>\n    <label class=\"tog\"><input type=\"checkbox\" id=\"showSkip\"> показывать отклонённые</label>\n  </div>\n\n  <div class=\"main\">\n    <section class=\"panel\" aria-label=\"Месяц\">\n      <div class=\"cal-head\">\n        <h2 id=\"monthTitle\"></h2>\n        <div class=\"nav\">\n          <button class=\"btn\" id=\"prev\" type=\"button\" aria-label=\"Предыдущий месяц\">‹</button>\n          <button class=\"btn\" id=\"todayBtn\" type=\"button\">Сегодня</button>\n          <button class=\"btn\" id=\"next\" type=\"button\" aria-label=\"Следующий месяц\">›</button>\n        </div>\n      </div>\n      <div class=\"grid-wrap\">\n        <div class=\"grid\" id=\"wdays\"></div>\n        <div class=\"grid\" id=\"grid\"></div>\n      </div>\n      <div class=\"agenda\" id=\"agenda\"></div>\n    </section>\n\n    <aside class=\"side\">\n      <div class=\"panel\">\n        <h3>Ближайшие 45 дней</h3>\n        <div class=\"up\" id=\"upcoming\"></div>\n      </div>\n      <div class=\"panel\">\n        <h3>Как читать</h3>\n        <div class=\"legend\">\n          <div><span class=\"ev st-idea\" style=\"--c:var(--ch-pengui)\"><span class=\"dot\"></span>Идея</span> пунктир: просто в копилке</div>\n          <div><span class=\"ev st-picked\" style=\"--c:var(--ch-pengui)\">Выбран</span> делаем этот повод</div>\n          <div><span class=\"ev st-work\" style=\"--c:var(--ch-pengui)\">В работе ●</span> проект уже идёт</div>\n          <div><span class=\"ev st-done\" style=\"--c:var(--ch-pengui)\">✓ Вышел</span> опубликован</div>\n        </div>\n        <div class=\"status\" id=\"dbStatus\">Загружаю…</div>\n      </div>\n    </aside>\n  </div>\n</div>\n\n<div class=\"scrim\" id=\"editScrim\" hidden>\n  <form class=\"dlg\" id=\"editForm\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"editTitle\">\n    <h3 id=\"editTitle\">Повод</h3>\n    <div class=\"form\">\n      <label class=\"field full\"><span>Название</span><input type=\"text\" id=\"fTitle\" required></label>\n      <label class=\"field\"><span>Дата</span><input type=\"date\" id=\"fDate\" required></label>\n      <label class=\"field\"><span>Повторяется</span>\n        <select id=\"fYearly\"><option value=\"1\">каждый год</option><option value=\"0\">только в этот год</option></select></label>\n      <label class=\"field\"><span>Канал</span><input type=\"text\" id=\"fChannel\" list=\"chList\" required></label>\n      <label class=\"field\"><span>Тип</span>\n        <select id=\"fType\"><option>праздник</option><option>сезон</option><option>композитор</option><option>история</option><option>свой</option></select></label>\n      <label class=\"field\"><span>Статус</span>\n        <select id=\"fStatus\"><option value=\"idea\">Идея</option><option value=\"picked\">Выбран</option><option value=\"work\">В работе</option><option value=\"done\">Вышел</option><option value=\"skip\">Отклонён</option></select></label>\n      <label class=\"field\"><span>ID проекта</span><input type=\"text\" id=\"fProject\" placeholder=\"если уже есть\"></label>\n      <label class=\"field full\"><span>Идея сцены, музыка, заметки</span><textarea id=\"fNote\" style=\"min-height:90px\"></textarea></label>\n      <div class=\"full srcs\" id=\"fSources\"></div>\n    </div>\n    <div class=\"row\">\n      <button class=\"btn danger\" type=\"button\" id=\"fDelete\">Отклонить</button>\n      <span class=\"spacer\"></span>\n      <button class=\"btn ghost\" type=\"button\" id=\"fCancel\">Отмена</button>\n      <button class=\"btn primary\" type=\"submit\" id=\"fSave\">Сохранить</button>\n    </div>\n  </form>\n</div>\n\n\n<datalist id=\"chList\"></datalist>\n\n<script>\n(function(){\n  const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];\n  const MONTHS_NOM=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];\n  const MON_KEYS=[['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];\n  const WD=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];\n  const STATUS={idea:'Идея',picked:'Выбран',work:'В работе',done:'Вышел',skip:'Отклонён'};\n  const CH_NAMES={pengui:'Pengui',tapestry:'Гобелены'};\n  const $=id=>document.getElementById(id);\n\n  let items=[];          // {id, ...data}\n  let db=null, col=null, live=false;\n  const today=new Date(); today.setHours(0,0,0,0);\n  let view={y:today.getFullYear(), m:today.getMonth()};\n  let expanded='';\n  const ui={channel:'all', status:'all', showSkip:false};\n  try{const s=JSON.parse(localStorage.getItem('povody-ui')||'{}'); Object.assign(ui,s);}catch(e){}\n  function saveUi(){try{localStorage.setItem('povody-ui',JSON.stringify(ui));}catch(e){}}\n\n  function chColor(ch){ if(ch==='pengui')return 'var(--ch-pengui)'; if(ch==='tapestry')return 'var(--ch-tapestry)'; return 'var(--ch-other)'; }\n  function chName(ch){ return CH_NAMES[ch]||ch; }\n  function pad(n){return String(n).padStart(2,'0');}\n  function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}\n\n  // occurrence of an item in a given year (or null)\n  function occursIn(it,y){ if(it.year && it.year!==y) return null; return new Date(y,it.month-1,it.day); }\n  function visible(it){\n    if(ui.channel!=='all' && it.channel!==ui.channel) return false;\n    if(it.status==='skip' && !ui.showSkip) return false;\n    if(ui.status==='chosen' && !['picked','work','done'].includes(it.status)) return false;\n    return true;\n  }\n  function onDay(y,m,d){ return items.filter(it=>visible(it) && it.month===m+1 && it.day===d && (!it.year||it.year===y))\n    .sort((a,b)=>rank(a)-rank(b)||(b.sources||[]).length-(a.sources||[]).length); }\n  function rank(it){return {work:0,picked:1,done:2,idea:3,skip:4}[it.status]??5;}\n\n  function evBtn(it){\n    const n=(it.sources||[]).length;\n    const mark=it.status==='done'?'✓ ':'';\n    const tail=it.status==='work'?' ●':'';\n    return `<button type=\"button\" class=\"ev st-${esc(it.status)}\" style=\"--c:${chColor(it.channel)}\" data-id=\"${esc(it.id)}\" title=\"${esc(it.title)} · ${esc(chName(it.channel))} · ${esc(STATUS[it.status]||'')}\">${it.status==='idea'?'<span class=\"dot\"></span>':''}<span class=\"t\">${mark}${esc(it.title)}${tail}</span>${n>1?`<span class=\"n\">×${n}</span>`:''}</button>`;\n  }\n\n  function renderFilters(){\n    const chans=[...new Set(['pengui','tapestry',...items.map(i=>i.channel).filter(Boolean)])];\n    $('chList').innerHTML=chans.map(c=>`<option value=\"${esc(c)}\">`).join('');\n    const opts=[['all','Все каналы',null],...chans.map(c=>[c,chName(c),chColor(c)])];\n    $('chFilter').innerHTML=opts.map(([v,l,c])=>`<button type=\"button\" class=\"chipbtn\" data-ch=\"${esc(v)}\" aria-pressed=\"${ui.channel===v}\">${c?`<span class=\"dot\" style=\"background:${c}\"></span>`:''}${esc(l)}</button>`).join('');\n    $('stFilter').innerHTML=[['all','Все идеи'],['chosen','Только выбранные']].map(([v,l])=>`<button type=\"button\" class=\"chipbtn\" data-st=\"${v}\" aria-pressed=\"${ui.status===v}\">${l}</button>`).join('');\n    $('showSkip').checked=!!ui.showSkip;\n  }\n\n  function renderMonth(){\n    const {y,m}=view;\n    $('monthTitle').textContent=MONTHS_NOM[m]+' '+y;\n    $('wdays').innerHTML=WD.map(w=>`<div class=\"wd\">${w}</div>`).join('');\n    const first=new Date(y,m,1); const shift=(first.getDay()+6)%7;\n    const start=new Date(y,m,1-shift);\n    let html='';\n    for(let i=0;i<42;i++){\n      const d=new Date(start); d.setDate(start.getDate()+i);\n      if(i>=35 && d.getMonth()!==m) break;\n      const out=d.getMonth()!==m; const isT=d.getTime()===today.getTime();\n      const evs=onDay(d.getFullYear(),d.getMonth(),d.getDate());\n      const key=`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; const shown=expanded===key?evs:evs.slice(0,3);\n      html+=`<div class=\"day${out?' out':''}${isT?' today':''}\"><div class=\"num\"><b>${d.getDate()}</b><button type=\"button\" class=\"add\" data-add=\"${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}\" aria-label=\"Добавить повод на ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}\">+</button></div>${shown.map(evBtn).join('')}${evs.length>3&&expanded!==key?`<button type=\"button\" class=\"more\" data-more=\"${d.getFullYear()}-${d.getMonth()}-${d.getDate()}\">ещё ${evs.length-3}</button>`:''}</div>`;\n    }\n    $('grid').innerHTML=html;\n    // agenda (phone)\n    const days=new Date(y,m+1,0).getDate(); let ag='';\n    for(let d=1;d<=days;d++){\n      const evs=onDay(y,m,d); if(!evs.length) continue;\n      const wd=WD[(new Date(y,m,d).getDay()+6)%7];\n      ag+=`<div class=\"ag-day\"><div class=\"ag-date\"><b>${d}</b>${wd}</div><div class=\"ag-list\">${evs.map(evBtn).join('')}</div></div>`;\n    }\n    $('agenda').innerHTML=ag||`<div class=\"empty\">В этом месяце поводов пока нет. Вставь список или добавь повод кнопкой «+ Повод».</div>`;\n  }\n\n  function renderUpcoming(){\n    const end=new Date(today); end.setDate(end.getDate()+45);\n    const rows=[];\n    for(const it of items){ if(!visible(it)) continue;\n      for(const y of [today.getFullYear(),today.getFullYear()+1]){ const d=occursIn(it,y); if(d && d>=today && d<=end){rows.push([d,it]);break;} } }\n    rows.sort((a,b)=>a[0]-b[0]||rank(a[1])-rank(b[1]));\n    $('upcoming').innerHTML=rows.length?rows.map(([d,it])=>`<button type=\"button\" class=\"up-row\" data-id=\"${esc(it.id)}\"><span class=\"d\">${d.getDate()} ${MONTHS_GEN[d.getMonth()].slice(0,3)}</span><span class=\"w\"><span class=\"dot\" style=\"background:${chColor(it.channel)};${it.status==='idea'?'opacity:.45':''}\"></span><span>${esc(it.title)}${(it.sources||[]).length>1?` <span class=\"srcs\">×${it.sources.length}</span>`:''}${it.status!=='idea'?` <span class=\"srcs\">· ${STATUS[it.status]}</span>`:''}</span></span></button>`).join(''):`<div class=\"srcs\">Ближайших поводов нет.</div>`;\n  }\n\n  function render(){ renderFilters(); renderMonth(); renderUpcoming(); }\n\n  // ---------- edit dialog ----------\n  let editing=null, delArmed=false;\n  function openEdit(it, dateStr){\n    editing=it||null; delArmed=false;\n    $('editTitle').textContent=it?'Повод':'Новый повод';\n    $('fTitle').value=it?it.title:'';\n    const y=it?(it.year||view.y):null;\n    $('fDate').value=it?`${y}-${pad(it.month)}-${pad(it.day)}`:(dateStr||`${view.y}-${pad(view.m+1)}-01`);\n    $('fYearly').value=it?(it.year?'0':'1'):'1';\n    $('fChannel').value=it?it.channel:(ui.channel!=='all'?ui.channel:'pengui');\n    $('fType').value=it?(it.type||'праздник'):'праздник';\n    $('fStatus').value=it?it.status:'idea';\n    $('fProject').value=it?(it.project||''):'';\n    $('fNote').value=it?(it.note||''):'';\n    $('fSources').textContent=it&&it.sources&&it.sources.length?'Откуда: '+it.sources.join(', '):'';\n    $('fDelete').hidden=!it; $('fDelete').textContent='Отклонить';\n    $('editScrim').hidden=false; $('fTitle').focus();\n  }\n  function closeEdit(){ $('editScrim').hidden=true; editing=null; }\n  $('fCancel').onclick=closeEdit;\n  $('editScrim').addEventListener('click',e=>{if(e.target===$('editScrim'))closeEdit();});\n  $('editForm').addEventListener('submit',async e=>{\n    e.preventDefault();\n    const [yy,mm,dd]=$('fDate').value.split('-').map(Number);\n    if(!yy||!mm||!dd) return;\n    const data={\n      title:$('fTitle').value.trim(), month:mm, day:dd, year:$('fYearly').value==='1'?null:yy,\n      channel:($('fChannel').value.trim()||'pengui').toLowerCase(), type:$('fType').value,\n      status:$('fStatus').value, project:$('fProject').value.trim(), note:$('fNote').value.trim(),\n      sources:editing?(editing.sources||[]):['вручную'], createdAt:editing?editing.createdAt:'', updatedAt:new Date().toISOString(),\n    };\n    if(!data.title) return;\n    if(editing){ await save(editing.id,{...data,createdAt:editing.createdAt||data.updatedAt}); }\n    else { await save(newId(),{...data,createdAt:data.updatedAt}); }\n    closeEdit();\n  });\n  $('fDelete').onclick=async()=>{\n    if(!editing) return;\n    \n    await remove(editing.id); closeEdit();\n  };\n\n  $('btnAdd').onclick=()=>openEdit(null);\n\n  // ---------- storage (n8n) ----------\n  const KEY=new URLSearchParams(location.search).get('k')||'';\n  const RU={idea:'Идея',picked:'Выбран',work:'В работе',done:'Вышел',skip:'Отклонён'};\n  const CODE=Object.fromEntries(Object.entries(RU).map(([a,b])=>[b,a]));\n  function newId(){ return 'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }\n  function fromRow(r){ return {id:String(r.id), title:r.title||'', month:+r.month, day:+r.day, year:r.year?+r.year:null,\n    channel:r.channel||'pengui', status:CODE[r.status]||'idea', project:r.project||'', note:r.note||'',\n    sources:String(r.sources||'').split(';').map(s=>s.trim()).filter(Boolean), createdAt:r.createdAt||'', updatedAt:r.updatedAt||''}; }\n  function toRow(id,d){ return {id, year:d.year||'', month:d.month, day:d.day, title:d.title, channel:d.channel, status:RU[d.status]||'Идея',\n    project:d.project||'', note:d.note||'', sources:(d.sources||[]).join('; '), createdAt:d.createdAt||'', updatedAt:d.updatedAt||''}; }\n  async function save(id,data){\n    const i=items.findIndex(x=>x.id===id);\n    if(i>=0) items[i]={id,...data}; else items.push({id,...data});\n    render();\n    try{\n      const r=await fetch('calendar-save?k='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({row:toRow(id,data)})});\n      if(!r.ok) throw new Error('сервер ответил '+r.status);\n      setStatus('Сохранено · поводов: '+items.length);\n    }catch(e){ setStatus('Не сохранилось: '+e.message+'. Попробуй ещё раз.',true); }\n  }\n  async function remove(id){ const it=items.find(x=>x.id===id); if(it){ const {id:_,...rest}=it; await save(id,{...rest,status:'skip'}); } }\n  function setStatus(t,err){ const s=$('dbStatus'); s.textContent=t; s.classList.toggle('err',!!err); }\n  async function load(){\n    setStatus('Загружаю…');\n    try{\n      const r=await fetch('calendar-data?k='+encodeURIComponent(KEY));\n      if(!r.ok) throw new Error(r.status===403?'нет доступа (ссылка без ключа)':'сервер ответил '+r.status);\n      const j=await r.json();\n      items=(j.rows||[]).filter(x=>x&&x.id).map(fromRow);\n      setStatus('Из таблицы «Календарь» · поводов: '+items.length);\n      render();\n    }catch(e){ setStatus('Не загрузилось: '+e.message,true); }\n  }\n\n  // ---------- events ----------\n  document.addEventListener('click',e=>{\n    const ev=e.target.closest('[data-id]'); if(ev){ const it=items.find(x=>x.id===ev.dataset.id); if(it) openEdit(it); return; }\n    const add=e.target.closest('[data-add]'); if(add){ openEdit(null,add.dataset.add); return; }\n    const more=e.target.closest('[data-more]'); if(more){ expanded=more.dataset.more; renderMonth(); return; }\n    const ch=e.target.closest('[data-ch]'); if(ch){ ui.channel=ch.dataset.ch; saveUi(); render(); return; }\n    const st=e.target.closest('[data-st]'); if(st){ ui.status=st.dataset.st; saveUi(); render(); return; }\n  });\n  $('showSkip').onchange=e=>{ui.showSkip=e.target.checked; saveUi(); render();};\n  $('prev').onclick=()=>{view.m--; if(view.m<0){view.m=11;view.y--;} render();};\n  $('next').onclick=()=>{view.m++; if(view.m>11){view.m=0;view.y++;} render();};\n  $('todayBtn').onclick=()=>{view={y:today.getFullYear(),m:today.getMonth()}; render();};\n  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(!$('editScrim').hidden) closeEdit(); } });\n\n  render();\n  load();\n  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) load(); });\n  try{ if(window.Telegram&&Telegram.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } }catch(e){}\n})();\n</script>\n\n</body>\n</html>\n",
+        "responseBody": "<!doctype html>\n<html lang=\"ru\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n<script src=\"https://telegram.org/js/telegram-web-app.js\"></script>\n<title>Календарь поводов</title>\n<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=Unbounded:wght@500;600&display=swap\">\n<style>\n:root{\n  --bg:#EFF1F0; --surface:#FFFFFF; --sunk:#E4E8E7; --line:#D3D9D8;\n  --ink:#1D2633; --muted:#5E6975; --faint:#8A949E;\n  --accent:#B03A34; --accent-ink:#FFFFFF;\n  --ch-pengui:#B03A34; --ch-tapestry:#A0762A; --ch-other:#2F7A78;\n  --today:#1D2633; --focus:#2F6FB0; --ok:#2E7D4F; --warn:#9A6A12;\n  --display:\"Unbounded\",\"Golos Text\",system-ui,sans-serif;\n  --body:\"Golos Text\",system-ui,-apple-system,\"Segoe UI\",sans-serif;\n}\n@media (prefers-color-scheme:dark){\n  :root:not([data-theme=\"light\"]){\n    color-scheme:dark;\n    --bg:#151A21; --surface:#1D242D; --sunk:#252D37; --line:#323C48;\n    --ink:#E7E9EC; --muted:#A3ADB8; --faint:#76818C;\n    --accent:#E0625A; --accent-ink:#1A0F0E;\n    --ch-pengui:#E0625A; --ch-tapestry:#D1A355; --ch-other:#5DB3AF;\n    --today:#E7DFCF; --focus:#7FB0E6; --ok:#6CC08F; --warn:#E0B259;\n  }\n}\n:root[data-theme=\"dark\"]{\n  color-scheme:dark;\n  --bg:#151A21; --surface:#1D242D; --sunk:#252D37; --line:#323C48;\n  --ink:#E7E9EC; --muted:#A3ADB8; --faint:#76818C;\n  --accent:#E0625A; --accent-ink:#1A0F0E;\n  --ch-pengui:#E0625A; --ch-tapestry:#D1A355; --ch-other:#5DB3AF;\n  --today:#E7DFCF; --focus:#7FB0E6; --ok:#6CC08F; --warn:#E0B259;\n}\n*{box-sizing:border-box}\n[hidden]{display:none!important}\nbody{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;margin:0}\n.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}\nbutton,input,select,textarea{font:inherit;color:inherit}\nbutton{cursor:pointer}\n:focus-visible{outline:2px solid var(--focus);outline-offset:2px}\n.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;justify-content:space-between}\n.brand{display:flex;flex-direction:column;gap:2px}\n.brand h1{font-family:var(--display);font-weight:600;font-size:22px;margin:0;letter-spacing:.01em;text-wrap:balance}\n.brand .sub{color:var(--muted);font-size:13px}\n.actions{display:flex;flex-wrap:wrap;gap:8px}\n.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:500}\n.btn:hover{border-color:var(--muted)}\n.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}\n.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}\n.btn.danger{color:var(--accent);border-color:var(--accent);background:transparent}\n.bar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}\n.seg{display:flex;flex-wrap:wrap;gap:6px}\n.chipbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:13px;display:inline-flex;align-items:center;gap:6px}\n.chipbtn[aria-pressed=\"true\"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}\n.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}\n.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600}\nlabel.tog{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}\n.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}\n@media (max-width:980px){.main{grid-template-columns:1fr}}\n.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px}\n.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}\n.cal-head h2{font-family:var(--display);font-weight:500;font-size:18px;margin:0;text-transform:capitalize}\n.nav{display:flex;gap:4px}\n.nav .btn{padding:6px 10px}\n.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}\n.wd{padding:8px 8px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600;border-bottom:1px solid var(--line)}\n.day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:4px;position:relative;min-width:0}\n.day:nth-child(7n){border-right:none}\n.day.out{background:var(--sunk);opacity:.55}\n.day .num{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;align-items:center}\n.day.today .num b{background:var(--today);color:var(--bg);border-radius:999px;padding:0 7px}\n.day .add{opacity:0;border:none;background:none;color:var(--faint);font-size:16px;line-height:1;padding:0 4px}\n.day:hover .add,.day:focus-within .add{opacity:1}\n.ev{display:flex;align-items:center;gap:5px;width:100%;text-align:left;border-radius:6px;padding:3px 6px;font-size:12px;line-height:1.3;border:1px solid transparent;background:var(--sunk);min-width:0}\n.ev span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}\n.ev .n{font-size:10px;font-weight:600;color:var(--muted);flex:none}\n.ev.st-idea{background:transparent;border:1px dashed var(--line);color:var(--muted)}\n.ev.st-picked,.ev.st-work{background:var(--c);color:#fff;border-color:var(--c)}\n:root[data-theme=\"dark\"] .ev.st-picked,:root[data-theme=\"dark\"] .ev.st-work{color:#10141A}\n@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]) .ev.st-picked,:root:not([data-theme=\"light\"]) .ev.st-work{color:#10141A}}\n.ev.st-picked .n,.ev.st-work .n{color:inherit;opacity:.8}\n.ev.st-done{background:var(--sunk);color:var(--muted)}\n.ev.st-skip{background:transparent;color:var(--faint);text-decoration:line-through}\n.ev .dot{background:var(--c)}\n.more{font-size:11px;color:var(--muted);border:none;background:none;text-align:left;padding:0 4px}\n.agenda{display:none}\n.dots{display:none;flex-wrap:wrap;gap:3px;padding-top:2px}\n.dots i{width:7px;height:7px;border-radius:50%;background:var(--c);display:block}\n.dots i.idea{background:transparent;border:1.5px solid var(--c)}\n@media (max-width:700px){\n  .agenda{display:flex;flex-direction:column;border-top:1px solid var(--line)}\n  .brand h1{font-size:19px}\n  .day{min-height:54px;padding:4px;gap:2px;cursor:pointer}\n  .day .ev,.day .more,.day .add{display:none}\n  .dots{display:flex}\n  .wd{padding:6px 4px;font-size:10px}\n  .ag-day.flash{background:var(--sunk)}\n}\n.ag-day{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}\n.ag-day:last-child{border-bottom:none}\n.ag-date{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}\n.ag-date b{display:block;font-family:var(--display);font-weight:500;font-size:20px;color:var(--ink)}\n.ag-list{display:flex;flex-direction:column;gap:5px;min-width:0}\n.ag-list .ev{font-size:13px;padding:6px 8px}\n.ag-list .ev span.t{white-space:normal}\n.empty{padding:22px 14px;color:var(--muted);font-size:14px}\n.side{display:flex;flex-direction:column;gap:16px}\n.side h3{font-family:var(--display);font-weight:500;font-size:15px;margin:0}\n.side .panel{padding:14px;display:flex;flex-direction:column;gap:10px}\n.up{display:flex;flex-direction:column;gap:6px}\n.up-row{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;font-size:13px;border:none;background:none;text-align:left;padding:4px 0}\n.up-row .d{color:var(--muted);font-variant-numeric:tabular-nums}\n.up-row .w{display:flex;gap:6px;align-items:baseline;min-width:0}\n.up-row .w span{min-width:0}\n.legend{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}\n.legend .ev{width:auto;display:inline-flex;font-size:11px;padding:2px 6px}\n.legend div{display:flex;gap:8px;align-items:center}\n.status{font-size:12px;color:var(--muted)}\n.status.err{color:var(--accent)}\n/* dialogs */\n.scrim{position:fixed;inset:0;background:rgba(10,14,20,.45);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px;overflow:auto;z-index:10}\n.dlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;width:100%;max-width:640px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.25)}\n.dlg h3{font-family:var(--display);font-weight:500;font-size:17px;margin:0}\n.dlg .hint{color:var(--muted);font-size:13px;margin:0}\n.form{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n.form .full{grid-column:1/-1}\n@media (max-width:520px){.form{grid-template-columns:1fr}}\n.field{display:flex;flex-direction:column;gap:4px}\n.field span{font-size:12px;color:var(--muted)}\ninput[type=text],input[type=date],select,textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;width:100%;min-width:0}\ntextarea{min-height:150px;resize:vertical;font-size:14px}\n.row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}\n.row .spacer{flex:1}\n.prev{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px}\n.pv{display:grid;grid-template-columns:22px 78px 1fr auto;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px}\n.pv:last-child{border-bottom:none}\n.pv .d{font-variant-numeric:tabular-nums;color:var(--muted)}\n.tag{font-size:11px;border-radius:999px;padding:2px 8px;white-space:nowrap;border:1px solid var(--line)}\n.tag.new{color:var(--ok);border-color:var(--ok)}\n.tag.dup{color:var(--warn);border-color:var(--warn)}\n.tag.bad{color:var(--accent);border-color:var(--accent)}\n.srcs{font-size:12px;color:var(--muted)}\n@media (prefers-reduced-motion:no-preference){.ev,.btn,.chipbtn{transition:background .15s,border-color .15s}}\n</style>\n\n</head>\n<body>\n<div class=\"wrap\">\n  <header class=\"top\">\n    <div class=\"brand\">\n      <h1>Календарь поводов</h1>\n      <div class=\"sub\">Списки поводов присылай боту — здесь смотреть и выбирать. ×2 значит «предложили дважды».</div>\n    </div>\n    <div class=\"actions\">\n      <button class=\"btn\" id=\"btnAdd\" type=\"button\">+ Повод</button>\n      \n    </div>\n  </header>\n\n  <div class=\"bar\">\n    <div class=\"seg\" id=\"chFilter\" aria-label=\"Канал\"></div>\n    <div class=\"seg\" id=\"stFilter\" aria-label=\"Что показывать\"></div>\n    <label class=\"tog\"><input type=\"checkbox\" id=\"showSkip\"> показывать отклонённые</label>\n  </div>\n\n  <div class=\"main\">\n    <section class=\"panel\" aria-label=\"Месяц\">\n      <div class=\"cal-head\">\n        <h2 id=\"monthTitle\"></h2>\n        <div class=\"nav\">\n          <button class=\"btn\" id=\"prev\" type=\"button\" aria-label=\"Предыдущий месяц\">‹</button>\n          <button class=\"btn\" id=\"todayBtn\" type=\"button\">Сегодня</button>\n          <button class=\"btn\" id=\"next\" type=\"button\" aria-label=\"Следующий месяц\">›</button>\n        </div>\n      </div>\n      <div class=\"grid-wrap\">\n        <div class=\"grid\" id=\"wdays\"></div>\n        <div class=\"grid\" id=\"grid\"></div>\n      </div>\n      <div class=\"agenda\" id=\"agenda\"></div>\n    </section>\n\n    <aside class=\"side\">\n      <div class=\"panel\">\n        <h3>Ближайшие 45 дней</h3>\n        <div class=\"up\" id=\"upcoming\"></div>\n      </div>\n      <div class=\"panel\">\n        <h3>Как читать</h3>\n        <div class=\"legend\">\n          <div><span class=\"ev st-idea\" style=\"--c:var(--ch-pengui)\"><span class=\"dot\"></span>Идея</span> пунктир: просто в копилке</div>\n          <div><span class=\"ev st-picked\" style=\"--c:var(--ch-pengui)\">Выбран</span> делаем этот повод</div>\n          <div><span class=\"ev st-work\" style=\"--c:var(--ch-pengui)\">В работе ●</span> проект уже идёт</div>\n          <div><span class=\"ev st-done\" style=\"--c:var(--ch-pengui)\">✓ Вышел</span> опубликован</div>\n        </div>\n        <div class=\"status\" id=\"dbStatus\">Загружаю…</div>\n      </div>\n    </aside>\n  </div>\n</div>\n\n<div class=\"scrim\" id=\"editScrim\" hidden>\n  <form class=\"dlg\" id=\"editForm\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"editTitle\">\n    <h3 id=\"editTitle\">Повод</h3>\n    <div class=\"form\">\n      <label class=\"field full\"><span>Название</span><input type=\"text\" id=\"fTitle\" required></label>\n      <label class=\"field\"><span>Дата</span><input type=\"date\" id=\"fDate\" required></label>\n      <label class=\"field\"><span>Повторяется</span>\n        <select id=\"fYearly\"><option value=\"1\">каждый год</option><option value=\"0\">только в этот год</option></select></label>\n      <label class=\"field\"><span>Канал</span><input type=\"text\" id=\"fChannel\" list=\"chList\" required></label>\n      <label class=\"field\"><span>Тип</span>\n        <select id=\"fType\"><option>праздник</option><option>сезон</option><option>композитор</option><option>история</option><option>свой</option></select></label>\n      <label class=\"field\"><span>Статус</span>\n        <select id=\"fStatus\"><option value=\"idea\">Идея</option><option value=\"picked\">Выбран</option><option value=\"work\">В работе</option><option value=\"done\">Вышел</option><option value=\"skip\">Отклонён</option></select></label>\n      <label class=\"field\"><span>ID проекта</span><input type=\"text\" id=\"fProject\" placeholder=\"если уже есть\"></label>\n      <label class=\"field full\"><span>Идея сцены, музыка, заметки</span><textarea id=\"fNote\" style=\"min-height:90px\"></textarea></label>\n      <div class=\"full srcs\" id=\"fSources\"></div>\n    </div>\n    <div class=\"row\">\n      <button class=\"btn danger\" type=\"button\" id=\"fDelete\">Отклонить</button>\n      <span class=\"spacer\"></span>\n      <button class=\"btn ghost\" type=\"button\" id=\"fCancel\">Отмена</button>\n      <button class=\"btn primary\" type=\"submit\" id=\"fSave\">Сохранить</button>\n    </div>\n  </form>\n</div>\n\n\n<datalist id=\"chList\"></datalist>\n\n<script>\n(function(){\n  const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];\n  const MONTHS_NOM=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];\n  const MON_KEYS=[['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];\n  const WD=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];\n  const STATUS={idea:'Идея',picked:'Выбран',work:'В работе',done:'Вышел',skip:'Отклонён'};\n  const CH_NAMES={pengui:'Pengui',tapestry:'Гобелены'};\n  const $=id=>document.getElementById(id);\n\n  let items=[];          // {id, ...data}\n  let db=null, col=null, live=false;\n  const today=new Date(); today.setHours(0,0,0,0);\n  let view={y:today.getFullYear(), m:today.getMonth()};\n  let expanded='';\n  const ui={channel:'all', status:'all', showSkip:false};\n  try{const s=JSON.parse(localStorage.getItem('povody-ui')||'{}'); Object.assign(ui,s);}catch(e){}\n  function saveUi(){try{localStorage.setItem('povody-ui',JSON.stringify(ui));}catch(e){}}\n\n  function chColor(ch){ if(ch==='pengui')return 'var(--ch-pengui)'; if(ch==='tapestry')return 'var(--ch-tapestry)'; return 'var(--ch-other)'; }\n  function chName(ch){ return CH_NAMES[ch]||ch; }\n  function pad(n){return String(n).padStart(2,'0');}\n  function esc(s){return String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}\n\n  // occurrence of an item in a given year (or null)\n  function occursIn(it,y){ if(it.year && it.year!==y) return null; return new Date(y,it.month-1,it.day); }\n  function visible(it){\n    if(ui.channel!=='all' && it.channel!==ui.channel) return false;\n    if(it.status==='skip' && !ui.showSkip) return false;\n    if(ui.status==='chosen' && !['picked','work','done'].includes(it.status)) return false;\n    return true;\n  }\n  function onDay(y,m,d){ return items.filter(it=>visible(it) && it.month===m+1 && it.day===d && (!it.year||it.year===y))\n    .sort((a,b)=>rank(a)-rank(b)||(b.sources||[]).length-(a.sources||[]).length); }\n  function rank(it){return {work:0,picked:1,done:2,idea:3,skip:4}[it.status]??5;}\n\n  function evBtn(it){\n    const n=(it.sources||[]).length;\n    const mark=it.status==='done'?'✓ ':'';\n    const tail=it.status==='work'?' ●':'';\n    return `<button type=\"button\" class=\"ev st-${esc(it.status)}\" style=\"--c:${chColor(it.channel)}\" data-id=\"${esc(it.id)}\" title=\"${esc(it.title)} · ${esc(chName(it.channel))} · ${esc(STATUS[it.status]||'')}\">${it.status==='idea'?'<span class=\"dot\"></span>':''}<span class=\"t\">${mark}${esc(it.title)}${tail}</span>${n>1?`<span class=\"n\">×${n}</span>`:''}</button>`;\n  }\n\n  function renderFilters(){\n    const chans=[...new Set(['pengui','tapestry',...items.map(i=>i.channel).filter(Boolean)])];\n    $('chList').innerHTML=chans.map(c=>`<option value=\"${esc(c)}\">`).join('');\n    const opts=[['all','Все каналы',null],...chans.map(c=>[c,chName(c),chColor(c)])];\n    $('chFilter').innerHTML=opts.map(([v,l,c])=>`<button type=\"button\" class=\"chipbtn\" data-ch=\"${esc(v)}\" aria-pressed=\"${ui.channel===v}\">${c?`<span class=\"dot\" style=\"background:${c}\"></span>`:''}${esc(l)}</button>`).join('');\n    $('stFilter').innerHTML=[['all','Все идеи'],['chosen','Только выбранные']].map(([v,l])=>`<button type=\"button\" class=\"chipbtn\" data-st=\"${v}\" aria-pressed=\"${ui.status===v}\">${l}</button>`).join('');\n    $('showSkip').checked=!!ui.showSkip;\n  }\n\n  function renderMonth(){\n    const {y,m}=view;\n    $('monthTitle').textContent=MONTHS_NOM[m]+' '+y;\n    $('wdays').innerHTML=WD.map(w=>`<div class=\"wd\">${w}</div>`).join('');\n    const first=new Date(y,m,1); const shift=(first.getDay()+6)%7;\n    const start=new Date(y,m,1-shift);\n    let html='';\n    for(let i=0;i<42;i++){\n      const d=new Date(start); d.setDate(start.getDate()+i);\n      if(i>=35 && d.getMonth()!==m) break;\n      const out=d.getMonth()!==m; const isT=d.getTime()===today.getTime();\n      const evs=onDay(d.getFullYear(),d.getMonth(),d.getDate());\n      const key=`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; const shown=expanded===key?evs:evs.slice(0,3);\n      html+=`<div class=\"day${out?' out':''}${isT?' today':''}\" data-day=\"${out?'':d.getDate()}\"><div class=\"num\"><b>${d.getDate()}</b><button type=\"button\" class=\"add\" data-add=\"${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}\" aria-label=\"Добавить повод на ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}\">+</button></div><div class=\"dots\">${evs.slice(0,8).map(it=>`<i class=\"${it.status==='idea'?'idea':''}\" style=\"--c:${chColor(it.channel)}\"></i>`).join('')}</div>${shown.map(evBtn).join('')}${evs.length>3&&expanded!==key?`<button type=\"button\" class=\"more\" data-more=\"${d.getFullYear()}-${d.getMonth()}-${d.getDate()}\">ещё ${evs.length-3}</button>`:''}</div>`;\n    }\n    $('grid').innerHTML=html;\n    // agenda (phone)\n    const days=new Date(y,m+1,0).getDate(); let ag='';\n    for(let d=1;d<=days;d++){\n      const evs=onDay(y,m,d); if(!evs.length) continue;\n      const wd=WD[(new Date(y,m,d).getDay()+6)%7];\n      ag+=`<div class=\"ag-day\" id=\"ag-${d}\"><div class=\"ag-date\"><b>${d}</b>${wd}</div><div class=\"ag-list\">${evs.map(evBtn).join('')}</div></div>`;\n    }\n    $('agenda').innerHTML=ag||`<div class=\"empty\">В этом месяце поводов пока нет. Вставь список или добавь повод кнопкой «+ Повод».</div>`;\n  }\n\n  function renderUpcoming(){\n    const end=new Date(today); end.setDate(end.getDate()+45);\n    const rows=[];\n    for(const it of items){ if(!visible(it)) continue;\n      for(const y of [today.getFullYear(),today.getFullYear()+1]){ const d=occursIn(it,y); if(d && d>=today && d<=end){rows.push([d,it]);break;} } }\n    rows.sort((a,b)=>a[0]-b[0]||rank(a[1])-rank(b[1]));\n    $('upcoming').innerHTML=rows.length?rows.map(([d,it])=>`<button type=\"button\" class=\"up-row\" data-id=\"${esc(it.id)}\"><span class=\"d\">${d.getDate()} ${MONTHS_GEN[d.getMonth()].slice(0,3)}</span><span class=\"w\"><span class=\"dot\" style=\"background:${chColor(it.channel)};${it.status==='idea'?'opacity:.45':''}\"></span><span>${esc(it.title)}${(it.sources||[]).length>1?` <span class=\"srcs\">×${it.sources.length}</span>`:''}${it.status!=='idea'?` <span class=\"srcs\">· ${STATUS[it.status]}</span>`:''}</span></span></button>`).join(''):`<div class=\"srcs\">Ближайших поводов нет.</div>`;\n  }\n\n  function render(){ renderFilters(); renderMonth(); renderUpcoming(); }\n\n  // ---------- edit dialog ----------\n  let editing=null, delArmed=false;\n  function openEdit(it, dateStr){\n    editing=it||null; delArmed=false;\n    $('editTitle').textContent=it?'Повод':'Новый повод';\n    $('fTitle').value=it?it.title:'';\n    const y=it?(it.year||view.y):null;\n    $('fDate').value=it?`${y}-${pad(it.month)}-${pad(it.day)}`:(dateStr||`${view.y}-${pad(view.m+1)}-01`);\n    $('fYearly').value=it?(it.year?'0':'1'):'1';\n    $('fChannel').value=it?it.channel:(ui.channel!=='all'?ui.channel:'pengui');\n    $('fType').value=it?(it.type||'праздник'):'праздник';\n    $('fStatus').value=it?it.status:'idea';\n    $('fProject').value=it?(it.project||''):'';\n    $('fNote').value=it?(it.note||''):'';\n    $('fSources').textContent=it&&it.sources&&it.sources.length?'Откуда: '+it.sources.join(', '):'';\n    $('fDelete').hidden=!it; $('fDelete').textContent='Отклонить';\n    $('editScrim').hidden=false; $('fTitle').focus();\n  }\n  function closeEdit(){ $('editScrim').hidden=true; editing=null; }\n  $('fCancel').onclick=closeEdit;\n  $('editScrim').addEventListener('click',e=>{if(e.target===$('editScrim'))closeEdit();});\n  $('editForm').addEventListener('submit',async e=>{\n    e.preventDefault();\n    const [yy,mm,dd]=$('fDate').value.split('-').map(Number);\n    if(!yy||!mm||!dd) return;\n    const data={\n      title:$('fTitle').value.trim(), month:mm, day:dd, year:$('fYearly').value==='1'?null:yy,\n      channel:($('fChannel').value.trim()||'pengui').toLowerCase(), type:$('fType').value,\n      status:$('fStatus').value, project:$('fProject').value.trim(), note:$('fNote').value.trim(),\n      sources:editing?(editing.sources||[]):['вручную'], createdAt:editing?editing.createdAt:'', updatedAt:new Date().toISOString(),\n    };\n    if(!data.title) return;\n    if(editing){ await save(editing.id,{...data,createdAt:editing.createdAt||data.updatedAt}); }\n    else { await save(newId(),{...data,createdAt:data.updatedAt}); }\n    closeEdit();\n  });\n  $('fDelete').onclick=async()=>{\n    if(!editing) return;\n    \n    await remove(editing.id); closeEdit();\n  };\n\n  $('btnAdd').onclick=()=>openEdit(null);\n\n  // ---------- storage (n8n) ----------\n  const BASE=location.pathname.replace(/\\/+$/,'');\n  const RU={idea:'Идея',picked:'Выбран',work:'В работе',done:'Вышел',skip:'Отклонён'};\n  const CODE=Object.fromEntries(Object.entries(RU).map(([a,b])=>[b,a]));\n  function newId(){ return 'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }\n  function fromRow(r){ return {id:String(r.id), title:r.title||'', month:+r.month, day:+r.day, year:r.year?+r.year:null,\n    channel:r.channel||'pengui', status:CODE[r.status]||'idea', project:r.project||'', note:r.note||'',\n    sources:String(r.sources||'').split(';').map(s=>s.trim()).filter(Boolean), createdAt:r.createdAt||'', updatedAt:r.updatedAt||''}; }\n  function toRow(id,d){ return {id, year:d.year||'', month:d.month, day:d.day, title:d.title, channel:d.channel, status:RU[d.status]||'Идея',\n    project:d.project||'', note:d.note||'', sources:(d.sources||[]).join('; '), createdAt:d.createdAt||'', updatedAt:d.updatedAt||''}; }\n  async function save(id,data){\n    const i=items.findIndex(x=>x.id===id);\n    if(i>=0) items[i]={id,...data}; else items.push({id,...data});\n    render();\n    try{\n      const r=await fetch(BASE+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({row:toRow(id,data)})});\n      if(!r.ok) throw new Error('сервер ответил '+r.status);\n      setStatus('Сохранено · поводов: '+items.length);\n    }catch(e){ setStatus('Не сохранилось: '+e.message+'. Попробуй ещё раз.',true); }\n  }\n  async function remove(id){ const it=items.find(x=>x.id===id); if(it){ const {id:_,...rest}=it; await save(id,{...rest,status:'skip'}); } }\n  function setStatus(t,err){ const s=$('dbStatus'); s.textContent=t; s.classList.toggle('err',!!err); }\n  async function load(){\n    setStatus('Загружаю…');\n    try{\n      const r=await fetch(BASE+'/data',{cache:'no-store'});\n      if(!r.ok) throw new Error('сервер ответил '+r.status);\n      const j=await r.json();\n      items=(j.rows||[]).filter(x=>x&&x.id).map(fromRow);\n      setStatus('Из таблицы «Календарь» · поводов: '+items.length);\n      render();\n    }catch(e){ setStatus('Не загрузилось: '+e.message,true); }\n  }\n\n  // ---------- events ----------\n  document.addEventListener('click',e=>{\n    const cell=e.target.closest('.day[data-day]');\n    if(cell && cell.dataset.day && window.matchMedia('(max-width:700px)').matches){ const el=document.getElementById('ag-'+cell.dataset.day); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),1200);} return; }\n    const ev=e.target.closest('[data-id]'); if(ev){ const it=items.find(x=>x.id===ev.dataset.id); if(it) openEdit(it); return; }\n    const add=e.target.closest('[data-add]'); if(add){ openEdit(null,add.dataset.add); return; }\n    const more=e.target.closest('[data-more]'); if(more){ expanded=more.dataset.more; renderMonth(); return; }\n    const ch=e.target.closest('[data-ch]'); if(ch){ ui.channel=ch.dataset.ch; saveUi(); render(); return; }\n    const st=e.target.closest('[data-st]'); if(st){ ui.status=st.dataset.st; saveUi(); render(); return; }\n  });\n  $('showSkip').onchange=e=>{ui.showSkip=e.target.checked; saveUi(); render();};\n  $('prev').onclick=()=>{view.m--; if(view.m<0){view.m=11;view.y--;} render();};\n  $('next').onclick=()=>{view.m++; if(view.m>11){view.m=0;view.y++;} render();};\n  $('todayBtn').onclick=()=>{view={y:today.getFullYear(),m:today.getMonth()}; render();};\n  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(!$('editScrim').hidden) closeEdit(); } });\n\n  render();\n  load();\n  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) load(); });\n  try{ if(window.Telegram&&Telegram.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } }catch(e){}\n})();\n</script>\n\n</body>\n</html>\n",
         "options": {
           "responseCode": 200,
           "responseHeaders": {
@@ -804,7 +804,7 @@
           }
         }
       },
-      "id": "06b7976d-f2a6-495a-b229-903b2750fffc",
+      "id": "6ed41b55-107f-4eaa-bd10-aab9cb18392a",
       "name": "Отдаём страницу",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -816,11 +816,11 @@
     {
       "parameters": {
         "httpMethod": "GET",
-        "path": "calendar-data",
+        "path": "cal-rk7shuoXXwcvXvJ8CH8cyQoI/data",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "e537c4b9-fdd8-4cef-a6e0-da6bb5ee433f",
+      "id": "0c282c4c-0a63-4c62-9b0c-fe38be1fa6d7",
       "name": "Данные календаря",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -828,38 +828,7 @@
         0,
         1200
       ],
-      "webhookId": "a0aa1831-16f9-4420-89cf-c1274f183b53"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $('Данные календаря').first().json.query.k }}",
-              "rightValue": "rk7shuoXXwcvXvJ8CH8cyQoI",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "91a0bab2-b166-4bfd-9dbd-29caf372dbec",
-      "name": "Ключ верный? (данные)",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        220,
-        1200
-      ]
+      "webhookId": "5d716c31-e5d3-41fe-8dab-6902879be751"
     },
     {
       "parameters": {
@@ -879,13 +848,13 @@
         },
         "options": {}
       },
-      "id": "2ba2e2d2-775a-4dbc-b977-bf537b9db109",
+      "id": "e1ae0bda-62f4-4a99-928c-c6c1f3dd55b2",
       "name": "Читаем календарь (страница)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
-        440,
-        1160
+        220,
+        1200
       ],
       "credentials": {
         "googleApi": {
@@ -899,13 +868,13 @@
       "parameters": {
         "jsCode": "// все строки листа одним JSON для страницы\nconst rows = $input.all().map(i => i.json).filter(r => r && String(r.id || '').trim());\nreturn [{ json: { body: JSON.stringify({ rows }) } }];"
       },
-      "id": "e96e869f-a20a-48e1-a295-563e36a9cc82",
+      "id": "de012e94-2d3c-42bc-a940-a394f120086f",
       "name": "Собираем данные",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
-        1160
+        440,
+        1200
       ]
     },
     {
@@ -928,103 +897,43 @@
           }
         }
       },
-      "id": "7b55979f-ee27-49a4-a26c-7858e303f8ea",
+      "id": "7e95e90e-b8a7-4421-906a-56dc2f40577f",
       "name": "Отдаём данные",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        880,
-        1160
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "{\"error\":\"forbidden\"}",
-        "options": {
-          "responseCode": 403,
-          "responseHeaders": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json; charset=utf-8"
-              },
-              {
-                "name": "Cache-Control",
-                "value": "no-store"
-              }
-            ]
-          }
-        }
-      },
-      "id": "713a282b-8e36-4fdd-87f7-0baae18c43a0",
-      "name": "Нет доступа (данные)",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        440,
-        1320
+        660,
+        1200
       ]
     },
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "calendar-save",
+        "path": "cal-rk7shuoXXwcvXvJ8CH8cyQoI/save",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "54404615-74b4-4e45-82b7-069b9dbfac2a",
+      "id": "da0b3927-b0ed-4009-b7d9-6f67781fdce7",
       "name": "Сохранение со страницы",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
         0,
-        1520
+        1400
       ],
-      "webhookId": "3900fc02-3a3f-4300-b315-a1dd9f42c9f8"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "conditions": [
-            {
-              "leftValue": "={{ $('Сохранение со страницы').first().json.query.k }}",
-              "rightValue": "rk7shuoXXwcvXvJ8CH8cyQoI",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "74658bfa-1f73-49c1-b4cf-6b490fafee0c",
-      "name": "Ключ верный? (сохранение)",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        220,
-        1520
-      ]
+      "webhookId": "fc0782e8-aab7-457e-bf88-eb4a1fccfc0e"
     },
     {
       "parameters": {
         "jsCode": "// строка, которую прислала страница: берём только известные колонки\nconst COLS = ['id','year','month','day','title','channel','status','project','note','sources','createdAt','updatedAt'];\nconst STATUSES = ['Идея','Выбран','В работе','Вышел','Отклонён'];\nconst r = ($('Сохранение со страницы').first().json.body || {}).row || {};\nconst id = String(r.id || '').trim();\nif (!/^[A-Za-z0-9_-]{2,40}$/.test(id)) throw new Error('bad id');\nconst m = Number(r.month), d = Number(r.day);\nif (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) throw new Error('bad date');\nconst now = new Date().toISOString();\nconst out = {};\nfor (const c of COLS) out[c] = r[c] === null || r[c] === undefined ? '' : String(r[c]).slice(0, 20000);\nout.id = id; out.month = String(m); out.day = String(d);\nif (!STATUSES.includes(out.status)) out.status = 'Идея';\nout.channel = (out.channel || 'pengui').toLowerCase();\nout.updatedAt = now;\nif (!out.createdAt) out.createdAt = now;\nreturn [{ json: out }];\n"
       },
-      "id": "99667b62-dfda-4611-b02f-69cd024c22df",
+      "id": "c598d1dd-a62d-443b-a746-fb395cf8489a",
       "name": "Строка со страницы",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        440,
-        1480
+        220,
+        1400
       ]
     },
     {
@@ -1063,13 +972,13 @@
         },
         "options": {}
       },
-      "id": "9111d39f-5ef3-4133-8de7-590fb5bdaf56",
+      "id": "824ee188-903f-4ff8-9c21-9d01d38dd757",
       "name": "Записываем со страницы",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
-        660,
-        1480
+        440,
+        1400
       ],
       "credentials": {
         "googleApi": {
@@ -1098,52 +1007,23 @@
           }
         }
       },
-      "id": "71cdb585-362e-4622-9e66-00e36cb5a159",
+      "id": "3f505b4e-f496-488c-986c-773dc8b4402d",
       "name": "Сохранено",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        880,
-        1480
+        660,
+        1400
       ]
     },
     {
       "parameters": {
-        "respondWith": "text",
-        "responseBody": "{\"error\":\"forbidden\"}",
-        "options": {
-          "responseCode": 403,
-          "responseHeaders": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "application/json; charset=utf-8"
-              },
-              {
-                "name": "Cache-Control",
-                "value": "no-store"
-              }
-            ]
-          }
-        }
-      },
-      "id": "b0dd0824-9e54-45aa-b3c5-a3f887150e2c",
-      "name": "Нет доступа (сохранение)",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        440,
-        1640
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Страница календаря\nОткрывается кнопкой «Календарь» в боте (Menu Button в BotFather) — прямо внутри Telegram.\nАдрес: https://tatka1976.store/webhook/calendar?k=… (ключ в ссылке — без него данные не отдаются).\nСтраница читает и пишет тот же лист «Календарь».",
+        "content": "## Страница календаря\nОткрывается кнопкой «Календарь» в боте (Menu Button в BotFather) — прямо внутри Telegram.\nАдрес: https://tatka1976.store/webhook/cal-<ключ> — сам адрес и есть пароль.\nСтраница читает и пишет тот же лист «Календарь».",
         "height": 220,
         "width": 520,
         "color": 5
       },
-      "id": "368ed57a-f0e3-4ce1-8389-54cfdf030f59",
+      "id": "0ea5d1f0-6852-4f47-bbf0-69f0a1f45078",
       "name": "Заметка страница",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -1169,25 +1049,7 @@
       "main": [
         [
           {
-            "node": "Ключ верный? (данные)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ключ верный? (данные)": {
-      "main": [
-        [
-          {
             "node": "Читаем календарь (страница)",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Нет доступа (данные)",
             "type": "main",
             "index": 0
           }
@@ -1220,25 +1082,7 @@
       "main": [
         [
           {
-            "node": "Ключ верный? (сохранение)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ключ верный? (сохранение)": {
-      "main": [
-        [
-          {
             "node": "Строка со страницы",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Нет доступа (сохранение)",
             "type": "main",
             "index": 0
           }

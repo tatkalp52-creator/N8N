@@ -89,10 +89,17 @@ label.tog{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:va
 .ev .dot{background:var(--c)}
 .more{font-size:11px;color:var(--muted);border:none;background:none;text-align:left;padding:0 4px}
 .agenda{display:none}
+.dots{display:none;flex-wrap:wrap;gap:3px;padding-top:2px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--c);display:block}
+.dots i.idea{background:transparent;border:1.5px solid var(--c)}
 @media (max-width:700px){
-  .grid-wrap{display:none}
-  .agenda{display:flex;flex-direction:column}
+  .agenda{display:flex;flex-direction:column;border-top:1px solid var(--line)}
   .brand h1{font-size:19px}
+  .day{min-height:54px;padding:4px;gap:2px;cursor:pointer}
+  .day .ev,.day .more,.day .add{display:none}
+  .dots{display:flex}
+  .wd{padding:6px 4px;font-size:10px}
+  .ag-day.flash{background:var(--sunk)}
 }
 .ag-day{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
 .ag-day:last-child{border-bottom:none}
@@ -291,7 +298,7 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
       const out=d.getMonth()!==m; const isT=d.getTime()===today.getTime();
       const evs=onDay(d.getFullYear(),d.getMonth(),d.getDate());
       const key=`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; const shown=expanded===key?evs:evs.slice(0,3);
-      html+=`<div class="day${out?' out':''}${isT?' today':''}"><div class="num"><b>${d.getDate()}</b><button type="button" class="add" data-add="${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}" aria-label="Добавить повод на ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}">+</button></div>${shown.map(evBtn).join('')}${evs.length>3&&expanded!==key?`<button type="button" class="more" data-more="${d.getFullYear()}-${d.getMonth()}-${d.getDate()}">ещё ${evs.length-3}</button>`:''}</div>`;
+      html+=`<div class="day${out?' out':''}${isT?' today':''}" data-day="${out?'':d.getDate()}"><div class="num"><b>${d.getDate()}</b><button type="button" class="add" data-add="${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}" aria-label="Добавить повод на ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}">+</button></div><div class="dots">${evs.slice(0,8).map(it=>`<i class="${it.status==='idea'?'idea':''}" style="--c:${chColor(it.channel)}"></i>`).join('')}</div>${shown.map(evBtn).join('')}${evs.length>3&&expanded!==key?`<button type="button" class="more" data-more="${d.getFullYear()}-${d.getMonth()}-${d.getDate()}">ещё ${evs.length-3}</button>`:''}</div>`;
     }
     $('grid').innerHTML=html;
     // agenda (phone)
@@ -299,7 +306,7 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
     for(let d=1;d<=days;d++){
       const evs=onDay(y,m,d); if(!evs.length) continue;
       const wd=WD[(new Date(y,m,d).getDay()+6)%7];
-      ag+=`<div class="ag-day"><div class="ag-date"><b>${d}</b>${wd}</div><div class="ag-list">${evs.map(evBtn).join('')}</div></div>`;
+      ag+=`<div class="ag-day" id="ag-${d}"><div class="ag-date"><b>${d}</b>${wd}</div><div class="ag-list">${evs.map(evBtn).join('')}</div></div>`;
     }
     $('agenda').innerHTML=ag||`<div class="empty">В этом месяце поводов пока нет. Вставь список или добавь повод кнопкой «+ Повод».</div>`;
   }
@@ -360,7 +367,7 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
   $('btnAdd').onclick=()=>openEdit(null);
 
   // ---------- storage (n8n) ----------
-  const KEY=new URLSearchParams(location.search).get('k')||'';
+  const BASE=location.pathname.replace(/\/+$/,'');
   const RU={idea:'Идея',picked:'Выбран',work:'В работе',done:'Вышел',skip:'Отклонён'};
   const CODE=Object.fromEntries(Object.entries(RU).map(([a,b])=>[b,a]));
   function newId(){ return 'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -374,7 +381,7 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
     if(i>=0) items[i]={id,...data}; else items.push({id,...data});
     render();
     try{
-      const r=await fetch('calendar-save?k='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({row:toRow(id,data)})});
+      const r=await fetch(BASE+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({row:toRow(id,data)})});
       if(!r.ok) throw new Error('сервер ответил '+r.status);
       setStatus('Сохранено · поводов: '+items.length);
     }catch(e){ setStatus('Не сохранилось: '+e.message+'. Попробуй ещё раз.',true); }
@@ -384,8 +391,8 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
   async function load(){
     setStatus('Загружаю…');
     try{
-      const r=await fetch('calendar-data?k='+encodeURIComponent(KEY));
-      if(!r.ok) throw new Error(r.status===403?'нет доступа (ссылка без ключа)':'сервер ответил '+r.status);
+      const r=await fetch(BASE+'/data',{cache:'no-store'});
+      if(!r.ok) throw new Error('сервер ответил '+r.status);
       const j=await r.json();
       items=(j.rows||[]).filter(x=>x&&x.id).map(fromRow);
       setStatus('Из таблицы «Календарь» · поводов: '+items.length);
@@ -395,6 +402,8 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
 
   // ---------- events ----------
   document.addEventListener('click',e=>{
+    const cell=e.target.closest('.day[data-day]');
+    if(cell && cell.dataset.day && window.matchMedia('(max-width:700px)').matches){ const el=document.getElementById('ag-'+cell.dataset.day); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),1200);} return; }
     const ev=e.target.closest('[data-id]'); if(ev){ const it=items.find(x=>x.id===ev.dataset.id); if(it) openEdit(it); return; }
     const add=e.target.closest('[data-add]'); if(add){ openEdit(null,add.dataset.add); return; }
     const more=e.target.closest('[data-more]'); if(more){ expanded=more.dataset.more; renderMonth(); return; }
