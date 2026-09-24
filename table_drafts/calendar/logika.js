@@ -63,7 +63,40 @@ function parseLine(raw) {
   let title = matched ? line.replace(matched, ' ') : line;
   title = title.replace(/^[\s\-–—:|,.()]+|[\s\-–—:|,(]+$/g, '').replace(/\s{2,}/g, ' ').trim();
   const ok = mo >= 1 && mo <= 12 && d >= 1 && d <= 31;
-  return { title: title || line, month: ok ? mo : 0, day: ok ? d : 0, year: y, ok, raw: line };
+  return { title: title || line, rest: title, month: ok ? mo : 0, day: ok ? d : 0, year: y, ok, raw: line };
+}
+// Список целиком. Понимает и «дата — название — идея» в одну строку, и блоки:
+// строка с датой, под ней название, под ним идея (как присылает ChatGPT).
+// Строки-сноски («National Day Calendar», ссылки, «�») выбрасываются.
+function isNoise(l) {
+  return /^(national day calendar|days of the year|checkiday|wikipedia|timeanddate(\.com)?|источник|source)\s*:?\s*$/i.test(l) || /^https?:\/\//i.test(l);
+}
+const isDateOnlyTitle = s => /^[\d.\/\s–-]*$/.test(String(s || ''));
+function parseList(text) {
+  const items = [];
+  let cur = null;
+  const flush = () => { if (cur) { cur.ok = cur.ok && !!cur.title; items.push(cur); cur = null; } };
+  for (let raw of String(text).split(/\n/)) {
+    raw = raw.replace(/\uFFFD/g, '').trim();
+    if (!raw || isNoise(raw)) continue;
+    const p = parseLine(raw);
+    if (!p) continue;
+    if (p.ok) {
+      flush();
+      let title = p.rest || '', note = '';
+      const sp = title.split(/\s+[—–]\s+/);
+      if (sp.length > 1) { title = sp.shift().trim(); note = sp.join(' — ').trim(); }
+      cur = { title, note, month: p.month, day: p.day, year: p.year, ok: true, raw: p.raw };
+    } else if (cur && !cur.title) {
+      cur.title = p.raw;
+    } else if (cur) {
+      cur.note = cur.note ? cur.note + '\n' + p.raw : p.raw;
+    } else {
+      items.push({ title: p.raw, note: '', month: 0, day: 0, year: null, ok: false, raw: p.raw });
+    }
+  }
+  flush();
+  return items;
 }
 const STOP = new Set(['день','дня','всемирный','всемирного','международный','международного','национальный','day','world','international','national','the','of','and','для','рождения','birthday','born']);
 function words(s) { return new Set(String(s).toLowerCase().replace(/[^a-zа-яё0-9 ]/gi, ' ').split(/\s+/).filter(w => w.length > 2 && !STOP.has(w)).map(w => w.slice(0, 6))); }
@@ -77,6 +110,8 @@ function classify(p) {
     if (!it.ok) { out.bad.push(it); continue; }
     const hit = rows.find(r => r.channel === ch && r.month === it.month && r.day === it.day && similar(r.title, it.title));
     if (hit) { out.dup.push({ it, hit }); continue; }
+    const junk = rows.find(r => r.channel === ch && r.month === it.month && r.day === it.day && isDateOnlyTitle(r.title) && !out.fresh.some(f => f.repair === r));
+    if (junk) { it.repair = junk; out.fresh.push(it); batch.push(it); continue; }
     if (batch.some(b => b.month === it.month && b.day === it.day && similar(b.title, it.title))) continue;
     batch.push(it); out.fresh.push(it);
   }
@@ -86,12 +121,12 @@ const dstr = it => it.day + ' ' + MON_GEN[it.month - 1].slice(0, 3) + (it.year ?
 function previewText(p) {
   const c = classify(p);
   const L = [];
-  L.push(`<b>Список поводов</b>: строк ${p.lines.length}`);
+  L.push(`<b>Список поводов</b>: поводов ${p.lines.length}`);
   L.push(`🆕 новых: ${c.fresh.length}   🔁 уже есть: ${c.dup.length}${c.bad.length ? `   ⚠️ без даты: ${c.bad.length}` : ''}`);
   L.push(`Канал: <b>${esc(chName(p.channel))}</b>`);
-  if (c.fresh.length) { L.push('', '<b>Новые</b>'); c.fresh.slice(0, 30).forEach(it => L.push(`• ${dstr(it)} — ${esc(it.title)}`)); if (c.fresh.length > 30) L.push(`…и ещё ${c.fresh.length - 30}`); }
+  if (c.fresh.length) { L.push('', '<b>Новые</b>'); c.fresh.slice(0, 30).forEach(it => L.push(`• ${dstr(it)} — <b>${esc(it.title)}</b>${it.note ? '\n   <i>' + esc(it.note.slice(0, 90)) + (it.note.length > 90 ? '…' : '') + '</i>' : ''}`)); if (c.fresh.length > 30) L.push(`…и ещё ${c.fresh.length - 30}`); }
   if (c.dup.length) { L.push('', '<b>Уже в календаре</b> (станут ×' + '2+)'); c.dup.slice(0, 15).forEach(({ it, hit }) => L.push(`• ${dstr(it)} — ${esc(hit.title)} ×${srcList(hit).length + 1}`)); if (c.dup.length > 15) L.push(`…и ещё ${c.dup.length - 15}`); }
-  if (c.bad.length) { L.push('', '<b>Не поняла дату</b>'); c.bad.slice(0, 10).forEach(it => L.push(`• ${esc(it.raw.slice(0, 80))}`)); }
+  if (c.bad.length) { L.push('', '<b>Не поняла дату</b>'); c.bad.slice(0, 10).forEach(it => L.push(`• ${esc((it.raw || it.title).slice(0, 80))}`)); }
   L.push('', 'Выбери канал и нажми «✅ Добавить».');
   return L.join('\n').slice(0, 4000);
 }
@@ -169,7 +204,8 @@ if (!tg) {
       const c = classify(p);
       const d0 = new Date(p.t); const src = 'список ' + String(d0.getDate()).padStart(2, '0') + '.' + String(d0.getMonth() + 1).padStart(2, '0') + ' ' + parts[1].slice(-4);
       for (const it of c.fresh) {
-        const r = { id: newId(), year: it.year || '', month: it.month, day: it.day, title: it.title, channel: p.channel, status: 'Идея', project: '', note: '', sources: src, createdAt: nowIso };
+        const base = it.repair ? { ...it.repair } : { id: newId(), status: 'Идея', project: '', createdAt: nowIso };
+        const r = { ...base, year: it.year || '', month: it.month, day: it.day, title: it.title, channel: p.channel, note: it.note || '', sources: src };
         put(r);
       }
       let merged = 0;
@@ -178,7 +214,11 @@ if (!tg) {
         if (touched.has(hit.id)) continue;
         touched.add(hit.id);
         const s = srcList(hit);
-        if (!s.includes(src)) { s.push(src); hit.sources = s.join('; '); put(hit); merged++; }
+        let changed = false;
+        if (!s.includes(src)) { s.push(src); hit.sources = s.join('; '); merged++; changed = true; }
+        const idea = (c.dup.find(x => x.hit === hit).it.note || '').trim();
+        if (idea && !String(hit.note || '').includes(idea)) { hit.note = (hit.note ? String(hit.note) + '\n\n' : '') + idea; changed = true; }
+        if (changed) put(hit);
       }
       delete store.pending[parts[1]];
       messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)}\nНовых поводов: ${c.fresh.length}\nСовпадений (стали ×N+1): ${merged}${c.bad.length ? `\nБез даты, пропущено: ${c.bad.length}` : ''}\n\nКалендарь — кнопка «Календарь» внизу слева.` });
@@ -231,7 +271,7 @@ if (!tg) {
     const days = new Date(y, mIdx + 1, 0).getDate() - 1;
     messages.push({ type: 'send', chatId, text: summary(from, days, `<b>${MON_NOM[mIdx]} ${y}</b>`) + '\n\n⭐ выбран · 🛠 в работе · ✓ вышел. Выбирать — в «Календаре» (кнопка внизу слева).' });
   } else {
-    const lines = text.split(/\n+/).map(parseLine).filter(Boolean);
+    const lines = parseList(text);
     if (!lines.some(l => l.ok)) {
       messages.push({ type: 'send', chatId, text: 'Не нашла в сообщении ни одной даты.\n\n' + HELP });
     } else {

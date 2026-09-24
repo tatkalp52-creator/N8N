@@ -158,6 +158,7 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
     </div>
     <div class="actions">
       <button class="btn" id="btnAdd" type="button">+ Повод</button>
+      <button class="btn" id="btnClose" type="button" hidden>✕ Закрыть</button>
       
     </div>
   </header>
@@ -419,7 +420,16 @@ textarea{min-height:150px;resize:vertical;font-size:14px}
   render();
   load();
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) load(); });
-  try{ if(window.Telegram&&Telegram.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } }catch(e){}
+  try{
+    const W=window.Telegram&&Telegram.WebApp;
+    if(W&&W.initData){
+      W.ready(); W.expand();
+      try{ W.enableVerticalSwipes&&W.enableVerticalSwipes(); }catch(e){}
+      try{ W.disableClosingConfirmation&&W.disableClosingConfirmation(); }catch(e){}
+      $('btnClose').hidden=false;
+      $('btnClose').onclick=()=>{ try{ W.close(); }catch(e){} };
+    }
+  }catch(e){}
 })();
 </script>
 
