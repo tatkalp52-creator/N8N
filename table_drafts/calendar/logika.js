@@ -220,8 +220,14 @@ if (!tg) {
         if (idea && !String(hit.note || '').includes(idea)) { hit.note = (hit.note ? String(hit.note) + '\n\n' : '') + idea; changed = true; }
         if (changed) put(hit);
       }
+      // пустышки (вместо названия — одна дата): не нашли замену — прячем
+      let junkHidden = 0;
+      const repaired = new Set(c.fresh.filter(it => it.repair).map(it => it.repair.id));
+      for (const r of rows) {
+        if (isDateOnlyTitle(r.title) && !repaired.has(r.id) && r.status !== 'Отклонён') { r.status = 'Отклонён'; put(r); junkHidden++; }
+      }
       delete store.pending[parts[1]];
-      messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)}\nНовых поводов: ${c.fresh.length}\nСовпадений (стали ×N+1): ${merged}${c.bad.length ? `\nБез даты, пропущено: ${c.bad.length}` : ''}\n\nКалендарь — кнопка «Календарь» внизу слева.` });
+      messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)}\nНовых поводов: ${c.fresh.length}\nСовпадений (стали ×N+1): ${merged}${c.bad.length ? `\nБез даты, пропущено: ${c.bad.length}` : ''}${junkHidden ? `\nПустых строк спрятано: ${junkHidden}` : ''}\n\nКалендарь — кнопка «Календарь» внизу слева.` });
       messages.push({ type: 'answer', queryId, text: 'Добавлено' });
     }
   } else if (parts[0] === 'st') {
