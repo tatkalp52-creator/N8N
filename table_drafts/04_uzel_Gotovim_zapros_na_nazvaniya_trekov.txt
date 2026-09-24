@@ -1,0 +1,41 @@
+const proj = $('Читаем проект').first().json;
+const info = $('Считаем длительности треков').first().json;
+const channelRow = $json;
+
+function findByLabel(row, label) {
+  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);
+  return key ? row[key] : undefined;
+}
+
+// НОВОЕ (24.09): названия тайм-кодов Редактор пишет заранее — пункт 4
+// текстового блока, согласованный автором, лежит в колонке
+// ai_TimecodeNames (по одному названию на строку). Имена файлов больше не
+// используются: переименовываются ВСЕ треки. Берём заготовленные по
+// порядку — первый трек получает первое название и т.д. Лишние названия
+// просто не используются. Если заготовленных меньше, чем треков (или их
+// нет вообще — старый проект), недостающие придумывает GPT по правилам
+// канала из таблицы.
+const prewritten = String(proj.ai_TimecodeNames || '')
+  .split('\n').map(s => s.trim()).filter(Boolean);
+
+const needsNaming = info.tracks.filter((t, pos) => !prewritten[pos]);
+
+if (needsNaming.length === 0) {
+  return [{ json: { skipGpt: true, prewritten, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];
+}
+
+// Как называть — правила канала из таблицы (PackagingRules, раздел про
+// тайм-коды) и паспорт персонажа; в коде только формат ответа.
+const packagingRules = findByLabel(channelRow, 'tmpl_PackagingRules') || '';
+const characterPassport = findByLabel(channelRow, 'tmpl_CharacterPassport') || '';
+
+const systemPrompt = 'Придумай названия для инструментальных треков YouTube-видео по правилам канала ниже.\n\n' +
+  (characterPassport ? 'Персонаж канала: ' + characterPassport + '\n\n' : '') +
+  (packagingRules ? 'Правила канала:\n' + packagingRules + '\n\n' : '') +
+  'Верни JSON строго такого вида: {"names": {"<index>": "Name", ...}} — по одному имени на каждый индекс из списка.';
+
+const userPrompt = 'Описание выпуска: ' + (proj.ai_DescriptionEN || proj.ai_Description || proj.ai_UserBrief || '') + '\n\n' +
+  (prewritten.length ? 'Уже есть названия (не повторяй их): ' + prewritten.join('; ') + '\n\n' : '') +
+  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');
+
+return [{ json: { skipGpt: false, prewritten, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];
