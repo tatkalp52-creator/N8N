@@ -1446,3 +1446,18 @@ release/threshold/reduction + 2 кроссовера) — это не наход
 `claude/syntax-errors-variables-96dut1`. Если новая сессия стартует на
 другой ветке — сначала проверить `git log` на всех ветках и взять самую
 свежую, иначе можно начать с устаревшего состояния.
+
+## 24–25.09 — эффекты сборщика (задеплоено)
+- Сервер: `/health` → `2026-09-24-old-film-pixel-shift` (подтверждено автором).
+- Таблица Templates (pengui): `🎬tmpl_OldFilm`=2 (4 царапины, 12 тёмных,
+  7 светлых пылинок), `🎬tmpl_PixelShift`=4 (невидимый сдвиг для OLED),
+  `🎬tmpl_OverlayLineSpacing`=0.75, `🎬tmpl_DenoiseAmount`=8. 0/пусто = выкл.
+- Отклонено автором: зерно (FilmGrain, колонка удалена), пульсация, виньетка.
+- Правила роста Пингви согласованы в SystemPrompt / EditorNotes / DalleExamples:
+  рост — одной фразой сравнения с предметом. Пример в DalleExamples
+  нейтральный (не сцена текущего выпуска). Тексты — `table_drafts/25_09/`,
+  сверены с таблицей символ в символ.
+- Coolify-терминал: `kex_exchange_identification: Connection closed` —
+  сервер сбрасывает SSH при частых подключениях; не жать Connect повторно,
+  подождать ~5 мин и открыть один раз.
+- Потом: строка «OLED friendly» в футер (PackagingRules).
