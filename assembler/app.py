@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-24-old-film-pixel-shift"
+ASSEMBLER_VERSION = "2026-09-25-fps5-input"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -953,9 +953,6 @@ def assemble():
             video_filters.extend(pixel_shift_filters(pixel_shift))
             print(f"[effects] сдвиг пикселей ±{pixel_shift}")
         if old_film > 0:
-            # картинка подаётся 25 раз в секунду, в видео пишется fps —
-            # прореживаем до эффектов, чтобы не рисовать лишние кадры
-            video_filters.append(f"fps={fps}")
             video_filters.extend(old_film_filters(old_film))
             print(f"[effects] старая плёнка, сила {old_film:g}")
 
@@ -1022,7 +1019,7 @@ def assemble():
             )
             video_chain_graph = (
                 f"[0:v]{base_chain}[base];"
-                f"color=c=black@0.0:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:d={duration}[shadowbg];"
+                f"color=c=black@0.0:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:r={fps}:d={duration}[shadowbg];"
                 f"{shadow_chain};"
                 f"[sh{len(shadow_layers)}]gblur=sigma={shadow_blur}[shadow_blurred];"
                 f"[base][shadow_blurred]overlay=0:0[with_shadow];"
@@ -1042,8 +1039,14 @@ def assemble():
         audio_chain = ",".join(audio_filters + [audio_fade]) if audio_filters else audio_fade
 
         output_path = os.path.join(work_dir, f"{project_id}.mp4")
+        # НОВОЕ (25.09): картинка подаётся сразу с частотой fps (5 кадров/с),
+        # а не 25 по умолчанию. Раньше -r 5 на выходе лишь выбрасывал кадры
+        # В КОНЦЕ, а все фильтры (масштаб, размытая тень надписи, сдвиг
+        # пикселей, плёнка) честно считали все 25 кадров в секунду на весь
+        # час видео — 4 из 5 кадров впустую. Картинка статична, результат
+        # тот же; слой тени (color=...:r=fps) — с той же частотой.
         run_ffmpeg([
-            "-loop", "1", "-i", image_path,
+            "-loop", "1", "-framerate", str(fps), "-i", image_path,
             "-i", audio_path,
             "-filter_complex",
             f"{video_chain_graph};[1:a]{audio_chain}[a]",
