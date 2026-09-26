@@ -1,0 +1,451 @@
+import json, uuid, copy, os
+
+REPO = '/home/user/N8N'
+JS = os.path.join(os.path.dirname(__file__), 'js')
+DOC = '1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs'
+CRED_SHEETS = {'googleApi': {'id': '1uQkgKbOPhjKOB2l', 'name': 'Google Sheets account 2'}}
+CRED_OPENAI = {'openAiApi': {'id': 'HvMLVgMnS8OU4ebj', 'name': 'OpenAi account'}}
+# Тот же бот, что у старых воркфлоу (автор решила не заводить отдельный).
+# Одновременно включён ТОЛЬКО один из двух: 00_Вход_и_диспетчер или этот.
+CRED_TG = {'telegramApi': {'id': 'UW2MJh6bPIyVZeig', 'name': 'Telegram account 2'}}
+VIDEO_WF_ID = 'Ajn6GuRmndcwqm16'
+
+LIB = open(os.path.join(JS, 'lib_state.js')).read()
+
+nodes = []
+conns = {}
+names = set()
+
+def uid():
+    return str(uuid.uuid4())
+
+def add(node):
+    assert node['name'] not in names, node['name']
+    names.add(node['name'])
+    node.setdefault('id', uid())
+    nodes.append(node)
+    return node['name']
+
+def code(name, file, pos, lib=False):
+    src = open(os.path.join(JS, file)).read()
+    if lib:
+        src = LIB + '\n' + src
+    return add({'parameters': {'jsCode': src}, 'name': name, 'type': 'n8n-nodes-base.code', 'typeVersion': 2, 'position': pos})
+
+def link(src, dst, out=0):
+    c = conns.setdefault(src, {'main': []})['main']
+    while len(c) <= out:
+        c.append([])
+    c[out].append({'node': dst, 'type': 'main', 'index': 0})
+
+def chain(*ns):
+    for a, b in zip(ns, ns[1:]):
+        link(a, b)
+
+def if_node(name, expr, pos):
+    return add({
+        'parameters': {'conditions': {
+            'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'loose'},
+            'conditions': [{'id': uid(), 'leftValue': '={{ ' + expr + ' }}', 'rightValue': True,
+                            'operator': {'type': 'boolean', 'operation': 'true', 'singleValue': True}}],
+            'combinator': 'and'}, 'options': {}},
+        'name': name, 'type': 'n8n-nodes-base.if', 'typeVersion': 2, 'position': pos})
+
+def switch_node(name, expr, values, pos):
+    rules = []
+    for v in values:
+        rules.append({'conditions': {
+            'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'loose'},
+            'conditions': [{'leftValue': '={{ ' + expr + ' }}', 'rightValue': v,
+                            'operator': {'type': 'string', 'operation': 'equals'}}],
+            'combinator': 'and'}})
+    return add({'parameters': {'rules': {'values': rules}, 'options': {'fallbackOutput': 'extra'}},
+                'name': name, 'type': 'n8n-nodes-base.switch', 'typeVersion': 3, 'position': pos})
+
+def sheets_read(name, sheet_expr, filters, pos, always=True):
+    n = {'parameters': {'authentication': 'serviceAccount',
+                        'documentId': {'__rl': True, 'value': DOC, 'mode': 'id'},
+                        'sheetName': {'__rl': True, 'value': sheet_expr, 'mode': 'name'},
+                        'filtersUI': {'values': [{'lookupColumn': c, 'lookupValue': v} for c, v in filters]},
+                        'options': {}},
+         'name': name, 'type': 'n8n-nodes-base.googleSheets', 'typeVersion': 4, 'position': pos,
+         'credentials': copy.deepcopy(CRED_SHEETS)}
+    if always:
+        n['alwaysOutputData'] = True
+    return add(n)
+
+def sheets_update(name, sheet_expr, values, pos, match='sys_ProjectID'):
+    return add({'parameters': {'authentication': 'serviceAccount', 'operation': 'update',
+                               'documentId': {'__rl': True, 'value': DOC, 'mode': 'id'},
+                               'sheetName': {'__rl': True, 'value': sheet_expr, 'mode': 'name'},
+                               'columns': {'mappingMode': 'defineBelow', 'matchingColumns': [match], 'value': values},
+                               'options': {}},
+                'name': name, 'type': 'n8n-nodes-base.googleSheets', 'typeVersion': 4, 'position': pos,
+                'credentials': copy.deepcopy(CRED_SHEETS)})
+
+def tg_send(name, chat_expr, text_expr, pos, button=None):
+    p = {'resource': 'message', 'operation': 'sendMessage', 'chatId': chat_expr, 'text': text_expr,
+         'additionalFields': {'appendAttribution': False, 'parse_mode': 'HTML'}}
+    if button:
+        btn_text, cb_expr = button
+        p['replyMarkup'] = 'inlineKeyboard'
+        p['inlineKeyboard'] = {'rows': [{'row': {'buttons': [
+            {'text': btn_text, 'additionalFields': {'callback_data': cb_expr}}]}}]}
+    return add({'parameters': p, 'name': name, 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2,
+                'position': pos, 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG)})
+
+def tg_photo(name, chat_expr, url_expr, caption_expr, btn_text_expr, cb_expr, pos):
+    p = {'resource': 'message', 'operation': 'sendPhoto', 'chatId': chat_expr, 'file': url_expr,
+         'replyMarkup': 'inlineKeyboard',
+         'inlineKeyboard': {'rows': [{'row': {'buttons': [
+             {'text': btn_text_expr, 'additionalFields': {'callback_data': cb_expr}}]}}]},
+         'additionalFields': {'caption': caption_expr}}
+    return add({'parameters': p, 'name': name, 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2,
+                'position': pos, 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG)})
+
+def tg_answer(name, pos):
+    return add({'parameters': {'resource': 'callback', 'operation': 'answerQuery', 'queryId': "={{ $('Разбираем входящее').first().json.callbackQueryId }}",
+                               'additionalFields': {}},
+                'name': name, 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2, 'position': pos,
+                'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG), 'onError': 'continueRegularOutput'})
+
+def openai_http(name, body_expr, url, pos):
+    return add({'parameters': {'method': 'POST', 'url': url, 'authentication': 'predefinedCredentialType',
+                               'nodeCredentialType': 'openAiApi', 'sendBody': True, 'specifyBody': 'json',
+                               'jsonBody': body_expr, 'options': {}},
+                'name': name, 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': pos,
+                'credentials': copy.deepcopy(CRED_OPENAI)})
+
+CTX = "$('Контекст проекта').first().json"
+P = "$('Парсим ответ редактора').first().json"
+SHEET = '={{ ' + CTX + '.sheetName }}'
+
+# ═════════════ ВХОД ═════════════
+X = 0; Y = 0
+add({'parameters': {'updates': ['message', 'callback_query'], 'additionalFields': {}},
+     'name': 'Telegram Trigger', 'type': 'n8n-nodes-base.telegramTrigger', 'typeVersion': 1.1,
+     'position': [X, Y], 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG)})
+add({'parameters': {'conditions': {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'loose'},
+     'conditions': [{'leftValue': "={{ String($json.message?.from?.id || $json.callback_query?.from?.id || '') }}",
+                     'rightValue': '285577543', 'operator': {'type': 'string', 'operation': 'equals'}}],
+     'combinator': 'and'}, 'options': {}},
+     'name': 'Это владелец бота?', 'type': 'n8n-nodes-base.if', 'typeVersion': 2, 'position': [X + 220, Y]})
+code('Разбираем входящее', 'razbor.js', [X + 440, Y])
+switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown'], [X + 660, Y])
+chain('Telegram Trigger', 'Это владелец бота?', 'Разбираем входящее', 'Что пришло?')
+
+# ── новый заход: кнопки каналов
+sheets_read('Читаем каталог каналов', 'Catalog', [], [X + 900, Y - 700], always=False)
+code('Кнопка на каждый канал', 'kanaly.js', [X + 1120, Y - 700], lib=True)
+tg_send('Предлагаем каналы', '={{ $json.chatId }}', '={{ $json.text }}', [X + 1340, Y - 700],
+        button=('▶ Начать проект', '={{ $json.channel }}'))
+link('Что пришло?', 'Читаем каталог каналов', 0)
+chain('Читаем каталог каналов', 'Кнопка на каждый канал', 'Предлагаем каналы')
+
+# ── выбран канал: создаём проект
+tg_answer('Отвечаем на кнопку канала', [X + 900, Y - 450])
+sheets_read('Ищем канал в каталоге', 'Catalog', [('Channel', "={{ $('Разбируем входящее').first().json.channelKey }}".replace('Разбируем', 'Разбираем'))], [X + 1120, Y - 450], always=False)
+code('Генерируем ProjectID', 'projectid.js', [X + 1340, Y - 450])
+add({'parameters': {'authentication': 'serviceAccount', 'operation': 'append',
+                    'documentId': {'__rl': True, 'value': DOC, 'mode': 'id'},
+                    'sheetName': {'__rl': True, 'value': '={{ $json.sheetName }}', 'mode': 'name'},
+                    'columns': {'mappingMode': 'defineBelow', 'value': {
+                        'sys_ProjectID': '={{ $json.projectId }}', 'sys_Status': 'Картинка в работе'}},
+                    'options': {}},
+     'name': 'Создаём проект', 'type': 'n8n-nodes-base.googleSheets', 'typeVersion': 4,
+     'position': [X + 1560, Y - 450], 'credentials': copy.deepcopy(CRED_SHEETS)})
+tg_send('Проект создан', "={{ $('Генерируем ProjectID').first().json.chatId }}",
+        "=Проект создан ✅\nID: {{ $('Генерируем ProjectID').first().json.projectId }}\n\nО чём сегодня думаем? Отвечайте на мои сообщения (reply) — так я понимаю, о каком проекте речь.",
+        [X + 1780, Y - 450])
+link('Что пришло?', 'Отвечаем на кнопку канала', 1)
+chain('Отвечаем на кнопку канала', 'Ищем канал в каталоге', 'Генерируем ProjectID', 'Создаём проект', 'Проект создан')
+
+# ── всё, что относится к существующему проекту
+if_node('Это кнопка?', "!!$('Разбираем входящее').first().json.callbackQueryId", [X + 900, Y])
+tg_answer('Отвечаем на кнопку', [X + 1120, Y - 150])
+sheets_read('Находим лист канала', 'Catalog', [('Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1340, Y])
+sheets_read('Читаем строку проекта', '={{ $json.SheetName }}', [('sys_ProjectID', "={{ $('Разбираем входящее').first().json.projectId }}")], [X + 1560, Y])
+sheets_read('Читаем шаблоны канала', 'Templates', [('tmpl_Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1780, Y])
+code('Контекст проекта', 'kontekst.js', [X + 2000, Y])
+if_node('Проект найден?', '$json.found', [X + 2220, Y])
+tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2440, Y + 200])
+switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton'], [X + 2440, Y])
+tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопка из старой схемы — в новом канвасе она ничего не делает.\n\nID: {{ $json.projectId }}', [X + 2700, Y + 1500])
+link('Что пришло?', 'Это кнопка?', 3)  # 2 = unknown → никуда
+link('Это кнопка?', 'Отвечаем на кнопку', 0)
+link('Это кнопка?', 'Находим лист канала', 1)
+chain('Отвечаем на кнопку', 'Находим лист канала', 'Читаем строку проекта', 'Читаем шаблоны канала', 'Контекст проекта', 'Проект найден?')
+link('Проект найден?', 'Куда дальше?', 0)
+link('Проект найден?', 'Проект не найден', 1)
+link('Куда дальше?', 'Старая кнопка', 4)
+
+# ═════════════ КНОПКА ✅ ПОД ВАРИАНТОМ КАРТИНКИ ═════════════
+BY = Y + 900
+code('Согласуем вариант', 'soglasuem_variant.js', [X + 2700, BY])
+if_node('Вариант нашёлся?', '$json.ok', [X + 2920, BY])
+sheets_update('Записываем согласованную картинку', SHEET, {
+    'sys_ProjectID': '={{ ' + CTX + '.projectId }}',
+    'ai_ApprovedImageUrl': "={{ $('Согласуем вариант').first().json.approvedUrl }}",
+    'sys_Status': "={{ $('Согласуем вариант').first().json.statusAfter }}",
+}, [X + 3140, BY])
+tg_send('Картинка согласована (кнопка)', '={{ ' + CTX + '.chatId }}', "={{ $('Согласуем вариант').first().json.confirmText }}", [X + 3360, BY])
+tg_send('Вариант не найден', '={{ ' + CTX + '.chatId }}', '={{ $json.notFoundText }}', [X + 3140, BY + 200])
+link('Куда дальше?', 'Согласуем вариант', 1)
+link('Согласуем вариант', 'Вариант нашёлся?')
+link('Вариант нашёлся?', 'Записываем согласованную картинку', 0)
+link('Вариант нашёлся?', 'Вариант не найден', 1)
+chain('Записываем согласованную картинку', 'Картинка согласована (кнопка)')
+
+# ═════════════ РЕДАКТОР ═════════════
+EY = Y - 1400
+EX = X + 2700
+code('Вход редактора', 'vhod_redaktora.js', [EX, EY])
+code('Собираем знания канала', 'znaniya.js', [EX + 220, EY], lib=True)
+if_node('Есть разговор?', "!!String(" + CTX + ".row.sys_ConversationId || '').trim()", [EX + 440, EY])
+openai_http('OpenAI: создаём разговор', "={{ JSON.stringify({ metadata: { project: " + CTX + ".projectId } }) }}",
+            'https://api.openai.com/v1/conversations', [EX + 660, EY + 180])
+if_node('Есть фото?', "!!$('Вход редактора').first().json.photo", [EX + 880, EY])
+add({'parameters': {'resource': 'file', 'operation': 'get', 'fileId': "={{ (function(){ const p = $('Вход редактора').first().json.photo; return p[p.length - 1].file_id; })() }}",
+                    'download': True, 'additionalFields': {}},
+     'name': 'Скачиваем фото', 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2,
+     'position': [EX + 1100, EY + 180], 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG)})
+code('Фото в base64', 'foto.js', [EX + 1320, EY + 180])
+code('Готовим запрос редактору', 'zapros.js', [EX + 1540, EY], lib=True)
+openai_http('OpenAI: Редактор', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 1760, EY])
+code('Парсим ответ редактора', 'parse.js', [EX + 1980, EY], lib=True)
+sheets_update('Сохраняем ход разговора', '={{ ' + P + '.sheetName }}', {
+    'sys_ProjectID': '={{ ' + P + '.projectId }}',
+    'sys_ConversationId': '={{ ' + P + '.conversationId }}',
+    'sys_PendingToolCallId': "={{ " + P + ".callId || '' }}",
+    'sys_EditorState': '={{ ' + P + '.editorState }}',
+    'sys_Status': '={{ ' + P + '.statusAfter }}',
+    'ai_UserBrief': '={{ ' + P + '.userBrief }}',
+}, [EX + 2200, EY])
+if_node('Есть заметки?', "!!" + P + ".communicationNotes", [EX + 2420, EY])
+sheets_update('Сохраняем заметки редактора', 'Templates', {
+    'tmpl_Channel': '={{ ' + P + '.channelKey }}',
+    '🖋_tmpl_EditorNotes': '={{ ' + P + '.communicationNotes }}',
+}, [EX + 2640, EY + 180], match='tmpl_Channel')
+switch_node('Что делает редактор?', P + '.action', ['chat', 'ready_to_draw', 'revise_point', 'approved', 'text_block'], [EX + 2860, EY])
+
+link('Куда дальше?', 'Вход редактора', 0)
+link('Картинка согласована (кнопка)', 'Вход редактора')
+sheets_read('Читаем прошлые выпуски', SHEET, [], [EX + 220, EY - 260])
+code('Прошлые главы', 'proshlye.js', [EX + 440, EY - 260])
+chain('Вход редактора', 'Собираем знания канала', 'Читаем прошлые выпуски', 'Прошлые главы', 'Есть разговор?')
+link('Есть разговор?', 'Есть фото?', 0)
+link('Есть разговор?', 'OpenAI: создаём разговор', 1)
+link('OpenAI: создаём разговор', 'Есть фото?')
+link('Есть фото?', 'Скачиваем фото', 0)
+link('Есть фото?', 'Готовим запрос редактору', 1)
+chain('Скачиваем фото', 'Фото в base64', 'Готовим запрос редактору')
+chain('Готовим запрос редактору', 'OpenAI: Редактор', 'Парсим ответ редактора', 'Сохраняем ход разговора', 'Есть заметки?')
+link('Есть заметки?', 'Сохраняем заметки редактора', 0)
+link('Есть заметки?', 'Что делает редактор?', 1)
+link('Сохраняем заметки редактора', 'Что делает редактор?')
+
+AX = EX + 3120
+# chat (и всё непонятное)
+code('Готовим реплику', 'otvet_chat.js', [AX, EY - 700], lib=True)
+tg_send('Отправляем реплику', '={{ $json.chatId }}', '={{ $json.text }}', [AX + 220, EY - 700])
+link('Что делает редактор?', 'Готовим реплику', 0)
+link('Что делает редактор?', 'Готовим реплику', 5)
+link('Готовим реплику', 'Отправляем реплику')
+
+# approved (картинка согласована через разговор)
+sheets_update('Записываем согласование картинки', '={{ ' + P + '.sheetName }}', {
+    'sys_ProjectID': '={{ ' + P + '.projectId }}',
+    'ai_ApprovedImageUrl': '={{ ' + P + '.resolvedApprovedImageUrl }}',
+    'ai_TargetBrightness': "={{ " + P + ".approveTargetBrightness || '' }}",
+}, [AX, EY + 1300])
+link('Что делает редактор?', 'Записываем согласование картинки', 3)
+# после записи — тот же показ текстового блока, что и для update_text_block
+link('Записываем согласование картинки', 'Собираем текстовый блок')
+
+# text_block
+code('Собираем текстовый блок', 'blok.js', [AX, EY + 1700], lib=True)
+if_node('Все 8 согласованы?', "$('Собираем текстовый блок').first().json.allAgreed", [AX + 220, EY + 1700])
+tg_send('Отправляем текстовый блок', '={{ $json.chatId }}', '={{ $json.text }}', [AX + 440, EY + 1900])
+openai_http('OpenAI: перевод описания', "={{ JSON.stringify($('Собираем текстовый блок').first().json.translateBody) }}",
+            'https://api.openai.com/v1/responses', [AX + 440, EY + 1700])
+code('Сводка на утверждение', 'svodka.js', [AX + 660, EY + 1700], lib=True)
+sheets_update('Сохраняем перевод', '={{ $json.sheetName }}', {
+    'sys_ProjectID': '={{ $json.projectId }}',
+    'sys_EditorState': '={{ $json.editorState }}',
+}, [AX + 880, EY + 1700])
+code('Режем сводку', 'svodka_kuski.js', [AX + 1100, EY + 1700])
+tg_send('Отправляем сводку', '={{ $json.chatId }}', '={{ $json.text }}', [AX + 1320, EY + 1700])
+code('Одно сообщение с кнопкой', 'svodka_knopka.js', [AX + 1540, EY + 1700], lib=True)
+tg_send('Кнопка финального согласования', '={{ $json.chatId }}', '={{ $json.text }}', [AX + 1760, EY + 1700],
+        button=('✅ Согласовано', '={{ $json.callbackData }}'))
+link('Что делает редактор?', 'Собираем текстовый блок', 4)
+link('Собираем текстовый блок', 'Все 8 согласованы?')
+link('Все 8 согласованы?', 'OpenAI: перевод описания', 0)
+link('Все 8 согласованы?', 'Отправляем текстовый блок', 1)
+chain('OpenAI: перевод описания', 'Сводка на утверждение', 'Сохраняем перевод', 'Режем сводку', 'Отправляем сводку', 'Одно сообщение с кнопкой', 'Кнопка финального согласования')
+
+# ═════════════ РИСОВАНИЕ (узлы перенесены из 01_Художник) ═════════════
+art = json.load(open(os.path.join(REPO, 'workflows/01_Художник.json')))
+art_nodes = {n['name']: n for n in art['nodes']}
+
+def take(name, pos):
+    n = copy.deepcopy(art_nodes[name])
+    n['id'] = uid()
+    n['position'] = pos
+    n.pop('webhookId', None)
+    return add(n)
+
+DY = EY - 400
+code('Реплика перед рисованием', 'otvet_korotkiy.js', [AX, DY], lib=True)
+tg_send('Сообщаем: рисую', '={{ $json.chatId }}', '={{ $json.text }}', [AX + 220, DY])
+B = ['Готовим список: style guide + референсы', 'Скачиваем референс (B)', 'Собираем референсы в один item (B)', 'Сколько картинок? (B)']
+for i, nm in enumerate(B):
+    take(nm, [AX + 440 + i * 220, DY])
+for i, nm in enumerate(['gpt-image-2: рисуем (B, 1 img)', 'gpt-image-2: рисуем (B, 2 img)', 'gpt-image-2: рисуем (B, 3 img)', 'gpt-image-2: рисуем (B, 4 img)', 'gpt-image-2: рисуем (B)']):
+    take(nm, [AX + 1320, DY - 400 + i * 180])
+B2 = ['Извлекаем картинку (B)', 'Загружаем на Диск (B)', 'Открываем доступ (B)', 'Собираем ссылку (B)', 'Сохраняем картинку и промпт (B)']
+for i, nm in enumerate(B2):
+    take(nm, [AX + 1540 + i * 220, DY])
+tg_photo('Отправляем картинку (B)', "={{ $('Собираем ссылку (B)').first().json.chatId }}",
+         "={{ $('Собираем ссылку (B)').first().json.ai_ImageUrl }}",
+         "=Вариант {{ $('Собираем ссылку (B)').first().json.variantNumber }}\nID: {{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}",
+         "=✅ Согласовать вариант {{ $('Собираем ссылку (B)').first().json.variantNumber }}",
+         "=img|{{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}|{{ $('Собираем ссылку (B)').first().json.variantNumber }}",
+         [AX + 2640, DY])
+link('Что делает редактор?', 'Реплика перед рисованием', 1)
+chain('Реплика перед рисованием', 'Сообщаем: рисую', *B)
+for i, nm in enumerate(['gpt-image-2: рисуем (B, 1 img)', 'gpt-image-2: рисуем (B, 2 img)', 'gpt-image-2: рисуем (B, 3 img)', 'gpt-image-2: рисуем (B, 4 img)', 'gpt-image-2: рисуем (B)']):
+    link('Сколько картинок? (B)', nm, i)
+    link(nm, 'Извлекаем картинку (B)')
+chain(*B2, 'Отправляем картинку (B)')
+
+CY = EY + 500
+code('Реплика перед правкой', 'otvet_korotkiy.js', [AX, CY], lib=True)
+tg_send('Сообщаем: поправляю', '={{ $json.chatId }}', '={{ $json.text }}', [AX + 220, CY])
+C = ['Скачиваем текущую картинку (C)', 'Готовим список: доп. референсы (C)', 'Скачиваем референс (C)', 'Собираем доп. референсы в один item (C)', 'Собираем все референсы (C)', 'Сколько картинок? (C)']
+for i, nm in enumerate(C):
+    take(nm, [AX + 440 + i * 220, CY])
+CG = ['gpt-image-2: точечная правка (C)', 'gpt-image-2: точечная правка (C, 3 img)', 'gpt-image-2: точечная правка (C, 4 img)', 'gpt-image-2: точечная правка (C, 5 img)', 'gpt-image-2: точечная правка (C, 6 img)', 'gpt-image-2: точечная правка (C, 7 img)']
+for i, nm in enumerate(CG):
+    take(nm, [AX + 1760, CY - 400 + i * 160])
+C2 = ['Извлекаем картинку (C)', 'Загружаем на Диск (C)', 'Открываем доступ (C)', 'Собираем ссылку (C)', 'Сохраняем картинку (C)']
+for i, nm in enumerate(C2):
+    take(nm, [AX + 1980 + i * 220, CY])
+tg_photo('Отправляем картинку (C)', "={{ $('Собираем ссылку (C)').first().json.chatId }}",
+         "={{ $('Собираем ссылку (C)').first().json.ai_ImageUrl }}",
+         "=Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено)\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}",
+         "=✅ Согласовать вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }}",
+         "=img|{{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}|{{ $('Собираем ссылку (C)').first().json.variantNumber }}",
+         [AX + 3080, CY])
+link('Что делает редактор?', 'Реплика перед правкой', 2)
+chain('Реплика перед правкой', 'Сообщаем: поправляю', *C)
+for i, nm in enumerate(CG):
+    link('Сколько картинок? (C)', nm, i)
+    link(nm, 'Извлекаем картинку (C)')
+chain(*C2, 'Отправляем картинку (C)')
+
+# ═════════════ ФИНАЛЬНАЯ КНОПКА ✅ ═════════════
+FY = Y + 1300
+code('Собираем пакет для таблицы', 'paket.js', [X + 2700, FY], lib=True)
+if_node('Пакет собран?', '$json.ok', [X + 2920, FY])
+fields = {k: "={{ $('Собираем пакет для таблицы').first().json.fields." + k + " }}" for k in
+          ['sys_ProjectID', 'ai_OverlayText', 'ai_OverlayPosition', 'ai_Title', 'ai_DescriptionDraft', 'ai_DescriptionEN',
+           'ai_Description', 'ai_Hashtags', 'ai_Tags', 'ai_PinnedComment', 'ai_TimecodeNames']}
+sheets_update('Записываем пакет в таблицу', SHEET, fields, [X + 3140, FY])
+sheets_read('Перечитываем строку (финал)', SHEET, [('sys_ProjectID', '={{ ' + CTX + '.projectId }}')], [X + 3360, FY])
+code('Проверяем таблицу (финал)', 'proverka_final.js', [X + 3580, FY], lib=True)
+if_node('Таблица в порядке?', '$json.ok', [X + 3800, FY])
+sheets_update('Ставим статус Утверждено', SHEET, {
+    'sys_ProjectID': '={{ ' + CTX + '.projectId }}', 'sys_Status': 'Утверждено'}, [X + 4020, FY])
+code('Сообщение: утверждено', 'utverzhdeno.js', [X + 4240, FY])
+tg_send('Отправляем: утверждено', '={{ $json.chatId }}', '={{ $json.text }}', [X + 4460, FY])
+if_node('Треки уже есть?', "$('Сообщение: утверждено').first().json.hasTracks", [X + 5340, FY])
+tg_send('Не могу утвердить', '={{ ' + CTX + '.chatId }}', '={{ $json.problemsText }}', [X + 3140, FY + 220])
+link('Куда дальше?', 'Собираем пакет для таблицы', 2)
+link('Собираем пакет для таблицы', 'Пакет собран?')
+link('Пакет собран?', 'Записываем пакет в таблицу', 0)
+link('Пакет собран?', 'Не могу утвердить', 1)
+chain('Записываем пакет в таблицу', 'Перечитываем строку (финал)', 'Проверяем таблицу (финал)', 'Таблица в порядке?')
+link('Таблица в порядке?', 'Ставим статус Утверждено', 0)
+link('Таблица в порядке?', 'Не могу утвердить', 1)
+code('Карточка выпуска для памяти', 'pamyat.js', [X + 4460, FY + 260], lib=True)
+if_node('Есть память канала?', '$json.hasMemory', [X + 4680, FY + 260])
+add({'parameters': {'method': 'POST', 'url': 'https://api.openai.com/v1/files', 'authentication': 'predefinedCredentialType',
+                    'nodeCredentialType': 'openAiApi', 'sendBody': True, 'contentType': 'multipart-form-data',
+                    'bodyParameters': {'parameters': [{'name': 'purpose', 'value': 'assistants'},
+                                                      {'parameterType': 'formBinaryData', 'name': 'file', 'inputDataFieldName': 'data'}]},
+                    'options': {}},
+     'name': 'OpenAI: файл выпуска', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2,
+     'position': [X + 4900, FY + 180], 'credentials': copy.deepcopy(CRED_OPENAI), 'onError': 'continueRegularOutput'})
+add({'parameters': {'method': 'POST', 'url': "={{ 'https://api.openai.com/v1/vector_stores/' + $('Карточка выпуска для памяти').first().json.vsId + '/files' }}",
+                    'authentication': 'predefinedCredentialType', 'nodeCredentialType': 'openAiApi', 'sendBody': True,
+                    'specifyBody': 'json', 'jsonBody': '={{ JSON.stringify({ file_id: $json.id }) }}', 'options': {}},
+     'name': 'OpenAI: кладём в память', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2,
+     'position': [X + 5120, FY + 180], 'credentials': copy.deepcopy(CRED_OPENAI), 'onError': 'continueRegularOutput'})
+chain('Ставим статус Утверждено', 'Сообщение: утверждено', 'Отправляем: утверждено', 'Карточка выпуска для памяти', 'Есть память канала?')
+link('Есть память канала?', 'OpenAI: файл выпуска', 0)
+link('Есть память канала?', 'Треки уже есть?', 1)
+chain('OpenAI: файл выпуска', 'OpenAI: кладём в память', 'Треки уже есть?')
+
+# ═════════════ ССЫЛКА НА ТРЕКИ ═════════════
+TY = Y + 1900
+code('Разбираем ссылку на треки', 'treki.js', [X + 2700, TY])
+if_node('Уже опубликован?', '$json.published', [X + 2920, TY])
+tg_send('Сообщаем: уже опубликован', '={{ ' + CTX + '.chatId }}', '={{ $json.publishedText }}', [X + 3140, TY - 200])
+sheets_update('Сохраняем ссылку на треки', SHEET, {
+    'sys_ProjectID': '={{ ' + CTX + '.projectId }}', 'sys_AudioZipUrl': '={{ ' + CTX + '.tracksUrl }}'}, [X + 3140, TY])
+if_node('Уже утверждено?', "$('Разбираем ссылку на треки').first().json.approved", [X + 3360, TY])
+tg_send('Ссылка сохранена, ждём ✅', '={{ ' + CTX + '.chatId }}', "={{ $('Разбираем ссылку на треки').first().json.waitText }}", [X + 3580, TY + 200])
+link('Куда дальше?', 'Разбираем ссылку на треки', 3)
+link('Разбираем ссылку на треки', 'Уже опубликован?')
+link('Уже опубликован?', 'Сообщаем: уже опубликован', 0)
+link('Уже опубликован?', 'Сохраняем ссылку на треки', 1)
+link('Сохраняем ссылку на треки', 'Уже утверждено?')
+link('Уже утверждено?', 'Ссылка сохранена, ждём ✅', 1)
+
+# ═════════════ СТЕНА ПЕРЕД СБОРЩИКОМ ═════════════
+WX = X + 4900; WY = Y + 1600
+sheets_read('Перечитываем строку (стена)', SHEET, [('sys_ProjectID', '={{ ' + CTX + '.projectId }}')], [WX, WY])
+code('Стена: проверяем таблицу', 'barier.js', [WX + 220, WY], lib=True)
+if_node('Всё на месте?', '$json.ok', [WX + 440, WY])
+tg_send('Треки получены, приступаю к сборке', '={{ $json.chatId }}', '={{ $json.okText }}', [WX + 660, WY - 100])
+add({'parameters': {'workflowId': {'__rl': True, 'value': VIDEO_WF_ID, 'mode': 'list',
+                                   'cachedResultUrl': '/workflow/' + VIDEO_WF_ID, 'cachedResultName': '04_Video'},
+                    'workflowInputs': {'mappingMode': 'defineBelow',
+                                       'value': {'message': "={{ { text: '/render ' + $('Стена: проверяем таблицу').first().json.projectId, chat: { id: $('Стена: проверяем таблицу').first().json.chatId } } }}"},
+                                       'matchingColumns': [], 'schema': [], 'attemptToConvertTypes': False, 'convertFieldsToString': False},
+                    'options': {'waitForSubWorkflow': False}},
+     'name': '04_Video', 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.2, 'position': [WX + 880, WY - 100]})
+tg_send('Сборку не запускаю', '={{ $json.chatId }}', '={{ $json.problemsText }}', [WX + 660, WY + 150])
+link('Треки уже есть?', 'Перечитываем строку (стена)', 0)
+link('Уже утверждено?', 'Перечитываем строку (стена)', 0)
+chain('Перечитываем строку (стена)', 'Стена: проверяем таблицу', 'Всё на месте?')
+link('Всё на месте?', 'Треки получены, приступаю к сборке', 0)
+link('Всё на месте?', 'Сборку не запускаю', 1)
+link('Треки получены, приступаю к сборке', '04_Video')
+
+
+def sticky(text, pos, w, h, color=7):
+    add({'parameters': {'content': text, 'height': h, 'width': w, 'color': color},
+         'name': 'Заметка ' + str(len(nodes)), 'type': 'n8n-nodes-base.stickyNote', 'typeVersion': 1, 'position': pos})
+
+sticky("## Вход\nВсё из Телеграма разбирается в одном месте («Разбираем входящее»). Никаких статусов и ключевых слов для выбора этапа.\n\nБот тот же, что у старых воркфлоу. Включён должен быть ТОЛЬКО один: 00_Вход_и_диспетчер или этот канвас (у бота один вебхук — кто включён последним, тот и забирает сообщения).", [X - 40, Y - 360], 620, 300, 4)
+sticky("## Редактор — один на весь выпуск\nКаждый ход видит карточку состояния: варианты картинки, что согласовано, все 8 пунктов текстового блока. Вперёд/назад — по смыслу, без переключений.\n\nСтатус в таблице здесь НЕ решает, кто отвечает: он нужен только как стена перед сборщиком.", [EX - 40, EY - 420], 900, 300, 5)
+sticky("## Рисование\nУзлы перенесены из 01_Художник без изменений (референсы, gpt-image-2, Диск). Под каждой картинкой своя кнопка «✅ Согласовать вариант N».", [AX - 40, DY - 560], 700, 200, 6)
+sticky("## Текстовый блок\n8 пунктов, номера закреплены. Показываем только то, что ждёт согласования. Когда согласованы все 8 — перевод описания и сводка с ОДНОЙ кнопкой ✅.", [AX - 40, EY + 1560], 800, 200, 6)
+sticky("## Финальная кнопка ✅\n1) пишем пакет в таблицу (без статуса)\n2) ПЕРЕЧИТЫВАЕМ строку\n3) проверяем каждое поле\n4) только потом ставим «Утверждено»", [X + 2660, FY - 260], 900, 220, 3)
+sticky("## Стена перед сборщиком\n«Треки получены, приступаю к сборке» стоит ПОСЛЕ проверки заново перечитанной строки. Если в таблице чего-то нет — до этого сообщения и до 04_Video цепочка физически не доходит.", [WX - 40, WY - 360], 1100, 220, 3)
+
+wf = {
+    'name': '10_Единый_редактор',
+    'nodes': nodes,
+    'connections': conns,
+    'active': False,
+    'settings': {'executionOrder': 'v1', 'binaryMode': 'separate', 'errorWorkflow': 'FIjHQQSAlggtP8ij',
+                 'callerPolicy': 'workflowsFromSameOwner'},
+    'pinData': {},
+    'tags': [],
+}
+out = os.path.join(REPO, 'workflows/10_Единый_редактор.json')
+json.dump(wf, open(out, 'w'), ensure_ascii=False, indent=2)
+print('nodes', len(nodes), '->', out)
