@@ -328,6 +328,11 @@ for i, nm in enumerate(C):
 CG = ['gpt-image-2: точечная правка (C)', 'gpt-image-2: точечная правка (C, 3 img)', 'gpt-image-2: точечная правка (C, 4 img)', 'gpt-image-2: точечная правка (C, 5 img)', 'gpt-image-2: точечная правка (C, 6 img)', 'gpt-image-2: точечная правка (C, 7 img)']
 for i, nm in enumerate(CG):
     take(nm, [AX + 1760, CY - 400 + i * 160])
+    n = nodes[-1]
+    # Правка — в том же качестве, что и рисование, иначе цвета уплывают в «пластик»
+    bp = n['parameters']['bodyParameters']['parameters']
+    if not any(x.get('name') == 'quality' for x in bp):
+        bp.insert(3, {'name': 'quality', 'value': 'high'})
 C2 = ['Извлекаем картинку (C)', 'Загружаем на Диск (C)', 'Открываем доступ (C)', 'Собираем ссылку (C)', 'Сохраняем картинку (C)']
 for i, nm in enumerate(C2):
     take(nm, [AX + 1980 + i * 220, CY])
