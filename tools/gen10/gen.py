@@ -368,24 +368,7 @@ link('Пакет собран?', 'Не могу утвердить', 1)
 chain('Записываем пакет в таблицу', 'Перечитываем строку (финал)', 'Проверяем таблицу (финал)', 'Таблица в порядке?')
 link('Таблица в порядке?', 'Ставим статус Утверждено', 0)
 link('Таблица в порядке?', 'Не могу утвердить', 1)
-code('Карточка выпуска для памяти', 'pamyat.js', [X + 4460, FY + 260], lib=True)
-if_node('Есть память канала?', '$json.hasMemory', [X + 4680, FY + 260])
-add({'parameters': {'method': 'POST', 'url': 'https://api.openai.com/v1/files', 'authentication': 'predefinedCredentialType',
-                    'nodeCredentialType': 'openAiApi', 'sendBody': True, 'contentType': 'multipart-form-data',
-                    'bodyParameters': {'parameters': [{'name': 'purpose', 'value': 'assistants'},
-                                                      {'parameterType': 'formBinaryData', 'name': 'file', 'inputDataFieldName': 'data'}]},
-                    'options': {}},
-     'name': 'OpenAI: файл выпуска', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2,
-     'position': [X + 4900, FY + 180], 'credentials': copy.deepcopy(CRED_OPENAI), 'onError': 'continueRegularOutput'})
-add({'parameters': {'method': 'POST', 'url': "={{ 'https://api.openai.com/v1/vector_stores/' + $('Карточка выпуска для памяти').first().json.vsId + '/files' }}",
-                    'authentication': 'predefinedCredentialType', 'nodeCredentialType': 'openAiApi', 'sendBody': True,
-                    'specifyBody': 'json', 'jsonBody': '={{ JSON.stringify({ file_id: $json.id }) }}', 'options': {}},
-     'name': 'OpenAI: кладём в память', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2,
-     'position': [X + 5120, FY + 180], 'credentials': copy.deepcopy(CRED_OPENAI), 'onError': 'continueRegularOutput'})
-chain('Ставим статус Утверждено', 'Сообщение: утверждено', 'Отправляем: утверждено', 'Карточка выпуска для памяти', 'Есть память канала?')
-link('Есть память канала?', 'OpenAI: файл выпуска', 0)
-link('Есть память канала?', 'Треки уже есть?', 1)
-chain('OpenAI: файл выпуска', 'OpenAI: кладём в память', 'Треки уже есть?')
+chain('Ставим статус Утверждено', 'Сообщение: утверждено', 'Отправляем: утверждено', 'Треки уже есть?')
 
 # ═════════════ ССЫЛКА НА ТРЕКИ ═════════════
 TY = Y + 1900
