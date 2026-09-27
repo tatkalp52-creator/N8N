@@ -101,7 +101,9 @@ def tg_photo(name, chat_expr, url_expr, caption_expr, btn_text_expr, cb_expr, po
              {'text': btn_text_expr, 'additionalFields': {'callback_data': cb_expr}}]}}]},
          'additionalFields': {'caption': caption_expr}}
     return add({'parameters': p, 'name': name, 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2,
-                'position': pos, 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG)})
+                'position': pos, 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG),
+                # Ссылка на свежий файл Диска открывается не сразу — Телеграм может не скачать её с первого раза
+                'retryOnFail': True, 'maxTries': 3, 'waitBetweenTries': 5000})
 
 def tg_answer(name, pos):
     return add({'parameters': {'resource': 'callback', 'operation': 'answerQuery', 'queryId': "={{ $('Разбираем входящее').first().json.callbackQueryId }}",
