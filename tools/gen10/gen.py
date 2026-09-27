@@ -319,6 +319,12 @@ for i, nm in enumerate(B):
     take(nm, [AX + 440 + i * 220, DY])
 for i, nm in enumerate(['gpt-image-2: рисуем (B, 1 img)', 'gpt-image-2: рисуем (B, 2 img)', 'gpt-image-2: рисуем (B, 3 img)', 'gpt-image-2: рисуем (B, 4 img)', 'gpt-image-2: рисуем (B)']):
     take(nm, [AX + 1320, DY - 400 + i * 180])
+    # Модель и роли референсов — из таблицы (см. znaniya.js)
+    for x in nodes[-1]['parameters']['bodyParameters']['parameters']:
+        if x.get('name') == 'model':
+            x['value'] = "={{ $('Собираем знания канала').first().json.imageModel }}"
+        if x.get('name') == 'prompt':
+            x['value'] = "={{ $('Собираем знания канала').first().json.referenceRolesDraw }}{{ $json.dallePrompt }}"
 B2 = ['Извлекаем картинку (B)', 'Загружаем на Диск (B)', 'Открываем доступ (B)', 'Собираем ссылку (B)', 'Сохраняем картинку и промпт (B)']
 for i, nm in enumerate(B2):
     take(nm, [AX + 1540 + i * 220, DY])
@@ -352,7 +358,9 @@ for i, nm in enumerate(CG):
     # Первая картинка — основа правки, остальные только референсы (иначе художник может править референс)
     for x in bp:
         if x.get('name') == 'prompt':
-            x['value'] = "=Edit the first image. The other images are only references for the drawing style and for Pengui; do not bring their scenes into the picture.\n\n{{ $json.revisionInstruction }}"
+            x['value'] = "=Edit the first image. The other images are only references for the drawing style and the character; do not bring their scenes into the picture.\n\n{{ $('Собираем знания канала').first().json.referenceRolesEdit }}{{ $json.revisionInstruction }}"
+        if x.get('name') == 'model':
+            x['value'] = "={{ $('Собираем знания канала').first().json.imageModel }}"
 
 C2 = ['Извлекаем картинку (C)', 'Загружаем на Диск (C)', 'Открываем доступ (C)', 'Собираем ссылку (C)', 'Сохраняем картинку (C)']
 for i, nm in enumerate(C2):

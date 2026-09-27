@@ -35,6 +35,12 @@ async function parseEd(c, story) {
   assert.equal(kb.timecodeCount, 20); assert.equal(kb.styleGuideUrl, 'https://lh3.googleusercontent.com/d/STYLE=s2000');
   assert.ok(kb.knowledgeText.includes('SystemPrompt (описание):\nтепло'));
   assert.ok(!kb.knowledgeText.includes('drive.google.com'));
+  // роль референса — строка под его ссылкой; художнику уходит «Image N — роль»
+  assert.equal(kb.referenceRolesDraw, 'Reference images: Image 2 — пастель.\n\n');
+  assert.equal(kb.referenceRolesEdit, 'Reference images: Image 3 — пастель.\n\n', 'в правке первая картинка — сама правка');
+  assert.equal(kb.imageModel, 'gpt-image-2', 'без колонки — прежняя модель');
+  const kb2 = (await run('Собираем знания канала', { nodes: { 'Контекст проекта': { ...ctx, tmpl: { ...tmpl, tmpl_ImageModel: 'gpt-image-2.5-sunburst' } } } }))[0];
+  assert.equal(kb2.imageModel, 'gpt-image-2.5-sunburst');
   const nodes = { 'Контекст проекта': ctx, 'Вход редактора': vhod, 'Собираем знания канала': kb };
   let prep = (await run('Готовим запрос редактору', { nodes }))[0];
   const body = prep.requestBody;

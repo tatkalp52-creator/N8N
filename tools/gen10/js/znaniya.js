@@ -23,6 +23,9 @@ function toDirectImageUrl(url) {
 
 const textParts = [];
 const imageUrls = [];
+// Роль картинки — строка, написанная в ячейке сразу под её ссылкой (например,
+// «манера и размер героя в кадре»). Художнику уходит «Image N — роль».
+const imageRoles = [];
 const urlLine = /^https?:\/\/\S+$/;
 for (const key of Object.keys(tmpl)) {
   if (key.includes('tmpl_SystemPrompt')) continue;
@@ -30,11 +33,14 @@ for (const key of Object.keys(tmpl)) {
   const value = String(tmpl[key] || '');
   const lines = value.split('\n');
   const keep = [];
+  let lastImage = -1;
   for (const line of lines) {
     const t = line.trim();
     if (urlLine.test(t)) {
-      if (key.includes('🎨')) imageUrls.push(toDirectImageUrl(t));
+      if (key.includes('🎨')) { imageUrls.push(toDirectImageUrl(t)); imageRoles.push(''); lastImage = imageUrls.length - 1; }
     } else {
+      if (t && lastImage >= 0 && !imageRoles[lastImage]) imageRoles[lastImage] = t;
+      else if (t) lastImage = -1;
       keep.push(line);
     }
   }
@@ -62,6 +68,20 @@ const translationRules = extractSection(sp, 'ПЕРЕВОД');
 let timecodeCount = parseInt(findByLabel(tmpl, 'tmpl_TimecodeCount'), 10);
 if (!timecodeCount || timecodeCount < 1) timecodeCount = 25;
 
+// Роли референсов для художника. Рисование: Image 1.. = референсы по порядку.
+// Правка: Image 1 = текущая картинка, референсы сдвигаются на один.
+const MAX_REFS = 5;
+function rolesText(shift) {
+  const parts = imageRoles.slice(0, MAX_REFS)
+    .map((r, i) => (r ? `Image ${i + 1 + shift} — ${r}.` : ''))
+    .filter(Boolean);
+  return parts.length ? 'Reference images: ' + parts.join(' ') + '\n\n' : '';
+}
+const referenceRolesDraw = rolesText(0);
+const referenceRolesEdit = rolesText(1);
+// Модель художника — из таблицы (колонка tmpl_ImageModel); пусто — прежняя.
+const imageModel = String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2';
+
 const vectorStoreId = String(findByLabel(tmpl, 'tmpl_ChannelVectorStoreId') || '').trim();
 const characterPassport = String(findByLabel(tmpl, 'tmpl_CharacterPassport') || '').trim();
 // Писателю — только то, что нужно для истории (правила описания, мир Пингви, заметки о стиле).
@@ -82,6 +102,9 @@ return [{
     vectorStoreId,
     characterPassport,
     writerRules,
+    referenceRolesDraw,
+    referenceRolesEdit,
+    imageModel,
     writerWorld,
     translationRules,
   }
