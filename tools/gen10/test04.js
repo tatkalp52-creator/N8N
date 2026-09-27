@@ -14,13 +14,13 @@ async function run(name, nodes, input){
   let proj={ai_TimecodeNames:'A One\nB Two\nC Three\nD Four',sys_LoopCount:''};
   let b=(await run('Готовим запрос на названия треков',{'Читаем проект':proj,'Считаем длительности треков':info},tmpl))[0];
   assert.equal(b.skipGpt,true);
-  let t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj}))[0].timecodesText;
-  assert.equal(t,'0:00 A One\n3:20 B Two\n6:40 C Three\n10:00 Repeat'); console.log('1 OK\n'+t);
+  let t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj,'Читаем стиль оверлея':{'🎬tmpl_GapSeconds':'1.4'}}))[0].timecodesText;
+  assert.equal(t,'0:00 A One\n3:20 B Two\n6:40 C Three\n10:02 Repeat', 'Repeat = конец + пауза, вверх'); console.log('1 OK\n'+t);
   // 2) названий меньше
   proj={ai_TimecodeNames:'A One',sys_LoopCount:''};
   b=(await run('Готовим запрос на названия треков',{'Читаем проект':proj,'Считаем длительности треков':info},tmpl))[0];
   assert.equal(b.skipGpt,false); assert.ok(b.userPrompt.includes('индексами: 1, 2')); assert.ok(b.systemPrompt.includes('[TIMECODES] rules here')); assert.ok(!b.systemPrompt.includes('Nap Attack'));
-  t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj,'OpenAI: названия треков':{choices:[{message:{content:JSON.stringify({names:{'1':'G One','2':'G Two'}})}}]}}))[0].timecodesText;
+  t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj,'OpenAI: названия треков':{choices:[{message:{content:JSON.stringify({names:{'1':'G One','2':'G Two'}})}}]},'Читаем стиль оверлея':{}}))[0].timecodesText;
   assert.equal(t,'0:00 A One\n3:20 G One\n6:40 G Two\n10:00 Repeat'); console.log('2 OK');
   // 3) старый проект без колонки — все треки называет GPT, имена файлов не используются
   proj={sys_LoopCount:'1'};
