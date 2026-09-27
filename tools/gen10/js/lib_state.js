@@ -64,7 +64,7 @@ function tbItemText(s, n) {
       if (!s.set[1]) return '';
       return it.overlayText ? `${it.overlayText}${tr(ru.overlayText)} — ${tbPositionRu(it.overlayPosition) || 'позиция не указана'}` : '— без оверлея';
     case 2: return it.title ? it.title + tr(ru.title) : '';
-    case 3: return it.description || '';
+    case 3: return (it.description || '') + (it.description && ru.description ? `\n\n— Перевод для автора —\n${ru.description}` : '');
     case 4: return (it.timecodes || []).map((t, i) => `${i + 1}. ${t}${tr((ru.timecodes || [])[i])}`).join('\n');
     case 5: return it.footer || '';
     case 6: return it.hashtags || '';

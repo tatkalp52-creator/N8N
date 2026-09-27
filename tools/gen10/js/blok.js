@@ -19,14 +19,19 @@ if (tbAllAgreed(state)) {
   // Все 8 согласованы → сначала переводим описание, потом шлём сводку.
   const passport = kb.characterPassport ? `\n\nПаспорт персонажа (имена пиши так, как здесь): ${kb.characterPassport.slice(0, 1500)}` : '';
   const rules = kb.translationRules ? `\n\nПравила перевода канала:\n${kb.translationRules}` : '';
-  const translateBody = {
-    model: 'gpt-5',
-    input: [
-      { role: 'system', content: 'Переведи этот текст на английский. Ответь только переводом.' + rules + passport },
-      { role: 'user', content: state.items.description },
-    ],
-  };
-  return [{ json: { allAgreed: true, translateBody, chatId: p.chatId, projectId: p.projectId } }];
+  // Описание от Писателя уже и есть оригинал для YouTube — переводить его не нужно,
+  // освежаем только русский перевод для автора. Старые проекты (описание по-русски) — как раньше.
+  const originalReady = !!state.descriptionEN && state.descriptionENFor === state.items.description;
+  const translateBody = originalReady
+    ? { model: 'gpt-5', input: [
+        { role: 'system', content: 'Переведи этот текст на русский для автора канала. Ответь только переводом.' + rules },
+        { role: 'user', content: state.items.description },
+      ] }
+    : { model: 'gpt-5', input: [
+        { role: 'system', content: 'Переведи этот текст на английский. Ответь только переводом.' + rules + passport },
+        { role: 'user', content: state.items.description },
+      ] };
+  return [{ json: { allAgreed: true, originalReady, translateBody, chatId: p.chatId, projectId: p.projectId } }];
 }
 
 const pending = TB_ITEMS.filter(it => !state.agreed[it.n]);

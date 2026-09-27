@@ -221,6 +221,9 @@ code('Готовим задание писателю', 'pisatel_zadanie.js', [EX
 openai_http('OpenAI: Писатель', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2200, EY + 400])
 nodes[-1]['parameters']['options'] = {'timeout': 600000}
 nodes[-1]['onError'] = 'continueRegularOutput'
+code('Готовим перевод для автора', 'pisatel_perevod.js', [EX + 2420, EY + 400])
+openai_http('OpenAI: перевод для автора', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2640, EY + 400])
+nodes[-1]['onError'] = 'continueRegularOutput'
 code('Парсим ответ редактора', 'pisatel_itog.js', [EX + 1980, EY], lib=True)
 sheets_update('Сохраняем ход разговора', '={{ ' + P + '.sheetName }}', {
     'sys_ProjectID': '={{ ' + P + '.projectId }}',
@@ -251,7 +254,7 @@ chain('Скачиваем фото', 'Фото в base64', 'Готовим за�
 chain('Готовим запрос редактору', 'OpenAI: Редактор', 'Разбираем ответ редактора', 'Нужен писатель?')
 link('Нужен писатель?', 'Готовим задание писателю', 0)
 link('Нужен писатель?', 'Парсим ответ редактора', 1)
-chain('Готовим задание писателю', 'OpenAI: Писатель', 'Парсим ответ редактора')
+chain('Готовим задание писателю', 'OpenAI: Писатель', 'Готовим перевод для автора', 'OpenAI: перевод для автора', 'Парсим ответ редактора')
 chain('Парсим ответ редактора', 'Сохраняем ход разговора', 'Есть заметки?')
 link('Есть заметки?', 'Сохраняем заметки редактора', 0)
 link('Есть заметки?', 'Что делает редактор?', 1)

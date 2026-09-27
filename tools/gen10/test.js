@@ -4,8 +4,8 @@ const writerOut = t => ({ output: [{ type: 'message', content: [{ type: 'output_
 // Ход редактора целиком: разбор ответа → (писатель, если заказан) → итог хода.
 async function parseEd(c, story) {
   const b = (await run('Разбираем ответ редактора', c))[0];
-  const nodes2 = { ...c.nodes, 'Разбираем ответ редактора': b };
-  const inp = b.storyBrief ? [story === undefined ? writerOut('ИСТОРИЯ') : story] : [b];
+  const nodes2 = { ...c.nodes, 'Разбираем ответ редактора': b, 'OpenAI: Писатель': story === undefined ? writerOut('STORY') : story };
+  const inp = b.storyBrief ? [writerOut('ПЕРЕВОД')] : [b];
   return run('Парсим ответ редактора', { nodes: nodes2, input: inp });
 }
 (async () => {
@@ -82,9 +82,10 @@ async function parseEd(c, story) {
   assert.ok(wr.input[0].content[0].text.includes('Пингви пишет записку соседу'));
   assert.ok(!wr.input[0].content[0].text.includes('Прежний текст'), 'без похвалы прежний текст писатель не видит');
   assert.equal(wr.input[0].content[2].image_url, 'U2', 'писатель видит согласованную картинку');
-  p = (await parseEd({ nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('commission_story', { storyBrief: 'Пингви пишет записку соседу', messageToUser: 'Заказала писателю' })] }, writerOut('Новое описание')))[0];
+  p = (await parseEd({ nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('commission_story', { storyBrief: 'Пингви пишет записку соседу', messageToUser: 'Заказала писателю' })] }, writerOut('New story')))[0];
   st = JSON.parse(p.editorState);
-  assert.equal(st.items.description, 'Новое описание');
+  assert.equal(st.items.description, 'New story', 'оригинал писателя');
+  assert.equal(st.ru.description, 'ПЕРЕВОД', 'автору — перевод рядом');
   assert.deepEqual(p.changedItems, [3]);
   // писатель не ответил — описание не трогаем, автору говорим
   const pf = (await parseEd({ nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('commission_story', { storyBrief: 'x', messageToUser: 'Заказала' })] }, { error: 'timeout' }))[0];
@@ -107,12 +108,15 @@ async function parseEd(c, story) {
   assert.equal(p.allAgreed, true);
   nodes['Парсим ответ редактора'] = p;
   blk = await run('Собираем текстовый блок', { nodes });
-  assert.equal(blk[0].allAgreed, true); assert.equal(blk[0].translateBody.input[1].content, 'Новое описание');
-  const sv = (await run('Сводка на утверждение', { nodes, input: [{ output: [{ type: 'message', content: [{ type: 'output_text', text: 'New description' }] }] }] }))[0];
+  assert.equal(blk[0].allAgreed, true); assert.equal(blk[0].originalReady, true, 'оригинал уже есть — обратно не переводим');
+  assert.ok(blk[0].translateBody.input[0].content.includes('на русский')); assert.equal(blk[0].translateBody.input[1].content, 'New story');
+  nodes['Собираем текстовый блок'] = blk[0];
+  const sv = (await run('Сводка на утверждение', { nodes, input: [{ output: [{ type: 'message', content: [{ type: 'output_text', text: 'Свежий перевод' }] }] }] }))[0];
   const svText = sv.chunks.join('\n');
-  assert.ok(svText.includes('EN — так уйдёт на YouTube:</i>\nNew description'));
+  assert.ok(svText.includes('(так уйдёт на YouTube)</i>\nNew story'));
+  assert.ok(svText.includes('— Перевод для автора —\nСвежий перевод'));
   const st4 = JSON.parse(sv.editorState);
-  assert.equal(st4.descriptionEN, 'New description'); assert.equal(st4.descriptionENFor, 'Новое описание');
+  assert.equal(st4.descriptionEN, 'New story'); assert.equal(st4.descriptionENFor, 'New story');
   nodes['Сводка на утверждение'] = sv;
   const kn = (await run('Одно сообщение с кнопкой', { nodes }))[0];
   assert.equal(kn.callbackData, 'final|P');
@@ -123,7 +127,7 @@ async function parseEd(c, story) {
   const ctxF = { ...ctx, kind: 'finalApprove', row: rowF };
   const pk = (await run('Собираем пакет для таблицы', { nodes: { 'Контекст проекта': ctxF } }))[0];
   assert.equal(pk.ok, true, pk.problemsText);
-  assert.equal(pk.fields.ai_Description, 'New description\n\nMusic by X\n\n[Timecodes]\n\nSubscribe!');
+  assert.equal(pk.fields.ai_Description, 'New story\n\nMusic by X\n\n[Timecodes]\n\nSubscribe!');
   assert.equal(pk.fields.ai_PinnedComment, '');
   assert.equal(pk.fields.ai_TimecodeNames.split('\n').length, 20);
   const fresh = { ...rowF, ...pk.fields };
@@ -167,7 +171,7 @@ async function parseEd(c, story) {
   // кнопка → Редактор согласует и СРАЗУ присылает все 8 пунктов
   const ctxB2 = { ...ctxB, row: { ...ctxB.row, sys_EditorState: '' } };
   p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': ctxB2, 'Вход редактора': vB }, input: [call('approve_image', { variantNumber: 1, messageToUser: 'Ура, вот текст', items: { overlayText: 'Just Mail', overlayPosition: 'left', title: 'T', timecodes: ['a','b'], footer: '[Timecodes]\nF', hashtags: '#h', tags: 't', pinnedComment: '-' }, storyBrief: 'про почту' })] }))[0];
-  assert.equal(JSON.parse(p.editorState).items.description, 'ИСТОРИЯ', 'описание от писателя');
+  assert.equal(JSON.parse(p.editorState).items.description, 'STORY', 'описание от писателя');
   assert.equal(p.action, 'approved'); assert.equal(p.resolvedApprovedImageUrl, 'U1'); assert.equal(p.textBlockTouched, true);
   assert.equal(JSON.parse(p.editorState).items.title, 'T');
   let bl = await run('Собираем текстовый блок', { nodes: { ...nodes, 'Парсим ответ редактора': p } });

@@ -3,12 +3,13 @@
 const base = $('Разбираем ответ редактора').first().json;
 if (!base.storyBrief) return [{ json: base }];
 
-const resp = $input.first().json || {};
-const story = (resp.output || [])
+const textOf = r => ((r && r.output) || [])
   .filter(i => i.type === 'message')
   .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text))
   .join('\n\n')
   .trim();
+const story = textOf($('OpenAI: Писатель').first().json);
+const storyRu = textOf($input.first().json);
 
 if (!story) {
   const note = '⚠️ Писатель не прислал описание — попросите ещё раз.';
@@ -19,7 +20,11 @@ const state = tbParseState(base.editorState);
 state.items.description = story;
 state.set[3] = true;
 state.agreed[3] = false;
-if (state.descriptionENFor !== story) { state.descriptionEN = ''; state.descriptionENFor = ''; }
+// Писатель пишет оригинал, который и уйдёт на YouTube; автору — перевод рядом.
+state.descriptionEN = story;
+state.descriptionENFor = story;
+state.ru = state.ru || {};
+if (storyRu) state.ru.description = storyRu; else delete state.ru.description;
 
 const changedItems = base.changedItems.includes(3) ? base.changedItems : [...base.changedItems, 3];
 let statusAfter = base.statusAfter;
