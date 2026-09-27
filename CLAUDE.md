@@ -42,4 +42,5 @@ Key flow in workflow 10: `Разбираем ответ редактора` (par
 
 - `tools/colab/suno_clean.ipynb` — Google Colab notebook denoising Suno tracks with Mel-RoFormer (audio-separator) before assembly.
 - `compose_backup/` — n8n docker-compose backups (DNS fix for OpenAI).
+- Be proactive: when you know tools or approaches relevant to the author's recurring pains (picture colour/style consistency, text rounds, Suno noise, manual steps), propose them unprompted with a recommendation. The "да" rule covers making changes, not suggesting ideas.
 - Communicate with the author in Russian, plainly, with copy-paste-ready text in code blocks; no model identifiers in commits.
