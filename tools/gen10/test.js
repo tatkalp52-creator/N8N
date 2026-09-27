@@ -140,6 +140,15 @@ async function parseEd(c, story) {
   const stale = JSON.parse(sv.editorState); stale.items.description = 'другое';
   const pk2 = (await run('Собираем пакет для таблицы', { nodes: { 'Контекст проекта': { ...ctxF, row: { ...rowF, sys_EditorState: JSON.stringify(stale) } } } }))[0];
   assert.equal(pk2.ok, false); assert.ok(pk2.problemsText.includes('перевод описания устарел'));
+  // летопись: после утверждения дописываем строки о выпуске
+  const ctxL = { ...ctxF, projectId: '20260926_175112_pengui', tmpl: { ...ctxF.tmpl, '🖋_tmpl_Chronicle': '12.09.2026\nПёк печенье с предсказаниями.' } };
+  const lz = (await run('Готовим запись в летопись', { nodes: { 'Контекст проекта': ctxL } }))[0];
+  assert.equal(lz.date, '26.09.2026'); assert.ok(lz.requestBody.input[1].content.includes('Пёк печенье'));
+  const li = (await run('Дописываем летопись', { nodes: { 'Готовим запись в летопись': lz }, input: [writerOut('Отнёс печенье соседу в вязаной шапке.')] }))[0];
+  assert.equal(li.ok, true);
+  assert.equal(li.chronicle, '12.09.2026\nПёк печенье с предсказаниями.\n\n26.09.2026\nОтнёс печенье соседу в вязаной шапке.');
+  const lf = (await run('Дописываем летопись', { nodes: { 'Готовим запись в летопись': lz }, input: [{ error: 'x' }] }))[0];
+  assert.equal(lf.ok, false, 'сбой летописи не ломает утверждение');
   console.log('5 финальная кнопка OK');
 
   // ── 6. Стена перед сборщиком

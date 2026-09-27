@@ -66,7 +66,7 @@ const vectorStoreId = String(findByLabel(tmpl, 'tmpl_ChannelVectorStoreId') || '
 const characterPassport = String(findByLabel(tmpl, 'tmpl_CharacterPassport') || '').trim();
 // Писателю — только то, что нужно для истории (правила описания, мир Пингви, заметки о стиле).
 const writerRules = extractSection(sp, 'ОПИСАНИЕ');
-const writerWorld = ['tmpl_ProjectContext', 'tmpl_CharacterPassport', 'tmpl_LocationPassports', 'tmpl_EditorNotes']
+const writerWorld = ['tmpl_ProjectContext', 'tmpl_CharacterPassport', 'tmpl_LocationPassports', 'tmpl_Chronicle', 'tmpl_EditorNotes']
   .map(label => {
     const key = Object.keys(tmpl).find(k => k.includes(label));
     const v = key ? String(tmpl[key] || '').trim() : '';
