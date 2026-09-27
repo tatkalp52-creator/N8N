@@ -333,6 +333,11 @@ for i, nm in enumerate(CG):
     bp = n['parameters']['bodyParameters']['parameters']
     if not any(x.get('name') == 'quality' for x in bp):
         bp.insert(3, {'name': 'quality', 'value': 'high'})
+    # Первая картинка — основа правки, остальные только референсы (иначе художник может править референс)
+    for x in bp:
+        if x.get('name') == 'prompt':
+            x['value'] = "=Edit the first image. The other images are only references for the drawing style and for Pengui; do not bring their scenes into the picture.\n\n{{ $json.revisionInstruction }}"
+
 C2 = ['Извлекаем картинку (C)', 'Загружаем на Диск (C)', 'Открываем доступ (C)', 'Собираем ссылку (C)', 'Сохраняем картинку (C)']
 for i, nm in enumerate(C2):
     take(nm, [AX + 1980 + i * 220, CY])

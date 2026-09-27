@@ -160,6 +160,7 @@ const assert = require('assert');
   // ── 8. Рисование / правка варианта
   p = (await run('Парсим ответ редактора', { nodes: nU, input: [call('request_revision', { variantNumber: 1, isNewVariant: false, revisionInstruction: 'add hat', preserveDetails: 'the mug', messageToUser: 'Поправляю' })] }))[0];
   assert.equal(p.action, 'revise_point'); assert.equal(p.revisionTargetImageUrl, 'U1'); assert.equal(p.revisionInstruction, 'add hat', 'художнику уходит ровно текст правки');
+  assert.equal(p.revisionIsNewVariant, true, 'правка всегда сохраняется новым вариантом');
   p = (await run('Парсим ответ редактора', { nodes: nU, input: [call('start_drawing', { dallePrompt: 'scene', messageToUser: 'Рисую!' })] }))[0];
   assert.equal(p.action, 'ready_to_draw'); assert.equal(p.styleGuideUrl, kb.styleGuideUrl);
   console.log('8 рисование OK');

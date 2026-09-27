@@ -112,7 +112,8 @@ if (functionName === 'start_drawing') {
 } else if (functionName === 'request_revision') {
   action = 'revise_point';
   revisionInstruction = args.revisionInstruction || '';
-  revisionIsNewVariant = !!args.isNewVariant;
+  // Правка всегда сохраняется новым вариантом: удачная картинка не теряется из-за неудачной правки.
+  revisionIsNewVariant = true;
   const target = args.variantNumber ? variants.find(v => Number(v.n) === Number(args.variantNumber)) : null;
   if (target && target.url) {
     revisionTargetImageUrl = target.url;
