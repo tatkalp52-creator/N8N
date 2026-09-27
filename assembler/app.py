@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-27-sound-order-v3"
+ASSEMBLER_VERSION = "2026-09-27-overlay-wrap-fade"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -94,7 +94,7 @@ def measure_text_width(text, font_path, font_size):
 
 def build_overlay_drawtext(overlay_text, position, font_path, font_size,
                             font_color, shadow_color, shadow_opacity,
-                            overlay_alpha, margin=60, line_spacing=0.875):
+                            overlay_alpha, margin=60, line_spacing=0.875, visible_until=18):
     """Собирает список (shadow_filters, main_filters) для оверлея — либо
     одну строку как раньше, либо, если текст не помещается в отведённую
     по бокам зону (см. build_overlay_positions), автоматический стек из
@@ -118,16 +118,23 @@ def build_overlay_drawtext(overlay_text, position, font_path, font_size,
     needs_stack = False
     if len(words) == 2 and zone_width is not None:
         try:
-            needs_stack = measure_text_width(text, font_path, font_size) > zone_width
+            width = measure_text_width(text, font_path, font_size)
         except Exception as e:
-            print(f"[overlay] не удалось измерить ширину текста, оставляю одну строку: {e}")
+            # НОВОЕ (27.09): на сервере не оказалось Pillow — ширина не мерилась,
+            # надпись оставалась одной строкой и уходила за край кадра. Теперь
+            # без Pillow ширина оценивается по числу букв с запасом (у рукописного
+            # шрифта канала буква в среднем ~0.37 от размера, берём 0.45): при
+            # сомнении лучше перенести на две строки, чем вылезти за край.
+            width = len(text) * float(font_size) * 0.45
+            print(f"[overlay] Pillow недоступен ({e}), ширина оценена по буквам: {width:.0f}px")
+        needs_stack = width > zone_width
 
     def layer(line_text, xy_part, color, opacity=None):
         color_part = f"0x{color}@{opacity}" if opacity is not None else f"0x{color}"
         return (
             f"drawtext=text='{esc(line_text)}':fontfile={font_path}:"
             f"fontcolor={color_part}:fontsize={font_size}:{xy_part}:"
-            f"alpha='{overlay_alpha}':enable='between(t,0,18)'"
+            f"alpha='{overlay_alpha}':enable='between(t,0,{visible_until})'"
         )
 
     if not needs_stack:
@@ -999,10 +1006,25 @@ def assemble():
         # мгновенное появление, потом 3 секунды угасания. Добавлено
         # симметричное появление: первые 3 секунды текст плавно проявляется,
         # с 3 по 15 держится на полной видимости, с 15 по 18 гаснет.
+        # НОВОЕ (27.09): длительность появления и угасания — из таблицы
+        # (🎬tmpl_OverlayFadeInSeconds / 🎬tmpl_OverlayFadeOutSeconds). При 5
+        # кадрах в секунду короткое угасание видно ступеньками — чем дольше
+        # фейд, тем мельче каждая ступенька. Полная видимость по-прежнему до
+        # 15-й секунды; без значений в таблице — прежние 3 и 3 секунды.
+        def _fade(key, default):
+            try:
+                v = float(data.get(key) or default)
+                return v if v > 0 else default
+            except (TypeError, ValueError):
+                return default
+        overlay_fade_in = _fade("overlayFadeInSeconds", 3.0)
+        overlay_fade_out = _fade("overlayFadeOutSeconds", 3.0)
+        overlay_hold_until = max(15.0, overlay_fade_in)
+        overlay_visible_until = overlay_hold_until + overlay_fade_out
         overlay_alpha = (
-            "if(lt(t,3),t/3,"
-            "if(lt(t,15),1,"
-            "if(lt(t,18),(18-t)/3,0)))"
+            f"if(lt(t,{overlay_fade_in:g}),t/{overlay_fade_in:g},"
+            f"if(lt(t,{overlay_hold_until:g}),1,"
+            f"if(lt(t,{overlay_visible_until:g}),({overlay_visible_until:g}-t)/{overlay_fade_out:g},0)))"
         )
 
         # НОВОЕ: тень раньше была жёсткой копией текста со сдвигом на 2px
@@ -1026,6 +1048,7 @@ def assemble():
             overlay_text, overlay_position, font_path, font_size,
             font_color, shadow_color, shadow_opacity, overlay_alpha,
             margin=overlay_margin, line_spacing=overlay_line_spacing,
+            visible_until=f"{overlay_visible_until:g}",
         )
 
         # ОТКАЧЕНО (20.09): 19.09 ночью сюда добавили фейд ВСЕГО видео целиком
@@ -1097,7 +1120,7 @@ def assemble():
         # ним уже ПОСЛЕ того, как получит и обработает само видео.
         thumbnail_path = os.path.join(THUMBNAIL_DIR, f"{project_id}.jpg")
         try:
-            run_ffmpeg(["-ss", "9", "-i", output_path, "-frames:v", "1", thumbnail_path])
+            run_ffmpeg(["-ss", f"{(overlay_fade_in + overlay_hold_until) / 2:g}", "-i", output_path, "-frames:v", "1", thumbnail_path])
         except Exception as thumb_error:
             print(f"[thumbnail] не удалось вырезать кадр для {project_id}: {thumb_error}")
 

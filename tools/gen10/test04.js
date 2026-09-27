@@ -15,7 +15,7 @@ async function run(name, nodes, input){
   let b=(await run('Готовим запрос на названия треков',{'Читаем проект':proj,'Считаем длительности треков':info},tmpl))[0];
   assert.equal(b.skipGpt,true);
   let t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj,'Читаем стиль оверлея':{'🎬tmpl_GapSeconds':'1.4'}}))[0].timecodesText;
-  assert.equal(t,'0:00 A One\n3:20 B Two\n6:40 C Three\n10:02 Repeat', 'Repeat = конец + пауза, вверх'); console.log('1 OK\n'+t);
+  assert.equal(t,'0:00 A One\n3:20 B Two\n6:40 C Three\n10:01 Repeat', 'Repeat = конец + пауза, вниз — в паузу'); console.log('1 OK\n'+t);
   // 2) названий меньше
   proj={ai_TimecodeNames:'A One',sys_LoopCount:''};
   b=(await run('Готовим запрос на названия треков',{'Читаем проект':proj,'Считаем длительности треков':info},tmpl))[0];
