@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-25-fps5-input"
+ASSEMBLER_VERSION = "2026-09-27-sound-order-v3"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -489,6 +489,25 @@ def linear_gain_filter(input_path, target_lufs, target_tp=-1.5):
     return f"volume={gain_db:.4f}dB"
 
 
+# НОВОЕ (27.09, «версия 3» по прослушиванию автора): громкость доводим до
+# цели ЦЕЛИКОМ, без урезания по пику — пики после этого ловит лимитер с
+# выключенным автоподъёмом (level=disabled). Раньше усиление урезалось по
+# пику, и тихие треки оставались тише цели, а финальный компрессор и
+# лимитер с автоподъёмом (у alimiter он включён по умолчанию) сминали
+# динамику: LRA падал с 2-3 до 1.6-1.9, фон поднимался на 7-9 дБ.
+def gain_to_target(input_path, target_lufs):
+    measured = measure_loudnorm(input_path, target_lufs)
+    if not measured:
+        print(f"[gain] измерение не удалось для {input_path} — поправка громкости не применяется (0 дБ)")
+        return "volume=0dB"
+    return f"volume={target_lufs - float(measured['input_i']):.4f}dB"
+
+
+# Потолок лимитера на отдельном треке: -1.5 dBFS — тот же запас по пику,
+# что и в linear_gain_filter выше.
+TRACK_PEAK_LIMIT = 10 ** (-1.5 / 20)
+
+
 def build_audio_track(
     audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
     gap_seconds=0, loop_count=None, mix_seconds=None,
@@ -570,14 +589,29 @@ def build_audio_track(
         # ffmpeg — 12) — чем больше, тем агрессивнее чистка и тем выше риск
         # "подводного" призвука на деталях (например, рояль). Начинать
         # стоит с малых значений (5-10) и слушать, не с дефолтных 12+.
-        denoise_filter = f"afftdn=nr={denoise_amount}," if denoise_amount else ""
+        # НОВОЕ (27.09): порядок «версии 3». Сначала чистка (если задана) —
+        # отдельным проходом, чтобы громкость мерилась уже по чистому звуку.
+        # Потом громкость ровно в цель и лимитер пиков трека (без автоподъёма);
+        # лимитер мог чуть убавить — второй замер добивает точно в цель.
+        # Фейды — последними, по уже готовому уровню.
+        track_limiter = (
+            f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack={limiter_attack_ms}:"
+            f"release={limiter_release_ms}:level=disabled"
+        )
+        source_path = trimmed_path
+        if denoise_amount:
+            source_path = os.path.join(faded_dir, f"denoised_{i}.wav")
+            run_ffmpeg(["-i", trimmed_path, "-af", f"afftdn=nr={denoise_amount}", source_path])
+        leveled_path = os.path.join(faded_dir, f"leveled_{i}.wav")
+        run_ffmpeg(["-i", source_path, "-af", f"{gain_to_target(source_path, target_lufs)},{track_limiter}", leveled_path])
         af_parts = [
-            linear_gain_filter(trimmed_path, target_lufs),
+            gain_to_target(leveled_path, target_lufs),
+            track_limiter,
             f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri",
             f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri",
         ]
         faded_path = os.path.join(faded_dir, f"faded_{i}.wav")
-        run_ffmpeg(["-i", trimmed_path, "-af", denoise_filter + ",".join(af_parts), faded_path])
+        run_ffmpeg(["-i", leveled_path, "-af", ",".join(af_parts), faded_path])
         faded_tracks.append(faded_path)
 
     # НОВОЕ (09.09): два взаимоисключающих режима склейки, оба на уже
@@ -668,34 +702,32 @@ def build_audio_track(
     # попросила оставить). Потолок 0.89 (не 1.0) — запас на случай, что
     # YouTube при пережатии слегка поднимет пики между сэмплами (true peak),
     # которые alimiter у ffmpeg не видит технически.
+    # НОВОЕ (27.09, «версия 3»): компрессор — только если в таблице ratio > 1
+    # (при ratio 1 он ничего не делает, лишний проход не нужен). Дальше:
+    # замер → громкость ровно в цель → лимитер ПОСЛЕДНИМ, без автоподъёма
+    # (level=disabled), чтобы он только ловил пики и не поднимал фон.
+    bus_in = concat_out
+    if float(compressor_ratio or 1) > 1:
+        bus_in = os.path.join(work_dir, "audio_compressed.wav")
+        run_ffmpeg([
+            "-i", concat_out,
+            "-af", (
+                f"acompressor=threshold={compressor_threshold_db}dB:ratio={compressor_ratio}:"
+                f"attack={compressor_attack_sec * 1000}:release={compressor_release_sec * 1000}"
+            ),
+            bus_in
+        ])
     normalized_out = os.path.join(work_dir, "audio_final.wav")
-    compressor = (
-        f"acompressor=threshold={compressor_threshold_db}dB:ratio={compressor_ratio}:"
-        f"attack={compressor_attack_sec * 1000}:release={compressor_release_sec * 1000}"
+    limiter = (
+        f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms}:"
+        f"release={limiter_release_ms}:level=disabled"
     )
-    limiter = f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms}:release={limiter_release_ms}"
     run_ffmpeg([
-        "-i", concat_out,
-        "-af", f"{compressor},{limiter}",
+        "-i", bus_in,
+        "-af", f"{gain_to_target(bus_in, target_lufs)},{limiter}",
         normalized_out
     ])
 
-    # НОВОЕ (20.09, утро): acompressor давит всё, что громче threshold, но
-    # без makeup gain ничего не поднимает обратно — на практике итоговая
-    # громкость после этой ступени оказывалась заметно ниже target_lufs,
-    # хотя каждый трек до склейки был выставлен ровно в цель (автор
-    # заметила видео "на порядок тише", чем у других каналов). Тот же
-    # приём, что и для отдельных треков (linear_gain_filter) — меряем,
-    # что реально получилось после компрессора/лимитера, и точечно
-    # доводим до target_lufs одним статичным volume=...dB, вместо того
-    # чтобы полагаться на то, что компрессор сам оставит громкость на месте.
-    matched_out = os.path.join(work_dir, "audio_final_matched.wav")
-    run_ffmpeg([
-        "-i", normalized_out,
-        "-af", linear_gain_filter(normalized_out, target_lufs),
-        matched_out
-    ])
-    normalized_out = matched_out
 
     probe_single = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries",
@@ -1053,7 +1085,7 @@ def assemble():
             "-map", "[v]", "-map", "[a]",
             "-t", str(duration),
             "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k",
+            "-c:a", "aac", "-b:a", "384k",
             "-r", str(fps),
             output_path
         ])
