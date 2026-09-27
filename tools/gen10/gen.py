@@ -214,7 +214,14 @@ add({'parameters': {'resource': 'file', 'operation': 'get', 'fileId': "={{ (func
 code('Фото в base64', 'foto.js', [EX + 1320, EY + 180])
 code('Готовим запрос редактору', 'zapros.js', [EX + 1540, EY], lib=True)
 openai_http('OpenAI: Редактор', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 1760, EY])
-code('Парсим ответ редактора', 'parse.js', [EX + 1980, EY], lib=True)
+code('Разбираем ответ редактора', 'parse.js', [EX + 1980, EY - 260], lib=True)
+# ── Писатель: описание (пункт 3) пишет отдельный вызов, только по правилам ОПИСАНИЯ
+if_node('Нужен писатель?', "!!$('Разбираем ответ редактора').first().json.storyBrief", [EX + 1980, EY + 180])
+code('Готовим задание писателю', 'pisatel_zadanie.js', [EX + 1980, EY + 400], lib=True)
+openai_http('OpenAI: Писатель', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2200, EY + 400])
+nodes[-1]['parameters']['options'] = {'timeout': 600000}
+nodes[-1]['onError'] = 'continueRegularOutput'
+code('Парсим ответ редактора', 'pisatel_itog.js', [EX + 1980, EY], lib=True)
 sheets_update('Сохраняем ход разговора', '={{ ' + P + '.sheetName }}', {
     'sys_ProjectID': '={{ ' + P + '.projectId }}',
     'sys_ConversationId': '={{ ' + P + '.conversationId }}',
@@ -241,7 +248,11 @@ link('OpenAI: создаём разговор', 'Есть фото?')
 link('Есть фото?', 'Скачиваем фото', 0)
 link('Есть фото?', 'Готовим запрос редактору', 1)
 chain('Скачиваем фото', 'Фото в base64', 'Готовим запрос редактору')
-chain('Готовим запрос редактору', 'OpenAI: Редактор', 'Парсим ответ редактора', 'Сохраняем ход разговора', 'Есть заметки?')
+chain('Готовим запрос редактору', 'OpenAI: Редактор', 'Разбираем ответ редактора', 'Нужен писатель?')
+link('Нужен писатель?', 'Готовим задание писателю', 0)
+link('Нужен писатель?', 'Парсим ответ редактора', 1)
+chain('Готовим задание писателю', 'OpenAI: Писатель', 'Парсим ответ редактора')
+chain('Парсим ответ редактора', 'Сохраняем ход разговора', 'Есть заметки?')
 link('Есть заметки?', 'Сохраняем заметки редактора', 0)
 link('Есть заметки?', 'Что делает редактор?', 1)
 link('Сохраняем заметки редактора', 'Что делает редактор?')

@@ -44,6 +44,8 @@ let approveVariantNumber = null;
 let approveTargetBrightness = null;
 let resolvedApprovedImageUrl = '';
 let communicationNotes = '';
+let storyBrief = '';
+let storyKeep = '';
 const changedItems = [];
 let textBlockTouched = false;
 
@@ -65,7 +67,7 @@ function applyTextBlock(args) {
   if (str(items.overlayText)) setVal('overlayText', 1, str(items.overlayText) === '-' ? '' : str(items.overlayText));
   if (str(items.overlayPosition)) setVal('overlayPosition', 1, str(items.overlayPosition).toLowerCase());
   if (str(items.title)) setVal('title', 2, str(items.title));
-  if (str(items.description)) setVal('description', 3, str(items.description));
+  // Пункт 3 (описание) пишет только Писатель — через storyBrief, не здесь.
   let tc = items.timecodes;
   if (typeof tc === 'string') tc = tc.split('\n');
   if (Array.isArray(tc)) {
@@ -132,6 +134,13 @@ if (functionName === 'start_drawing') {
     textBlockTouched = true;
     applyTextBlock(args);
   }
+  if (action === 'approved') storyBrief = String(args.storyBrief || '').trim();
+} else if (functionName === 'commission_story') {
+  action = 'text_block';
+  textBlockTouched = true;
+  storyBrief = String(args.storyBrief || '').trim();
+  storyKeep = String(args.keepFromPrevious || '').trim();
+  if (!storyBrief) action = 'chat';
 } else if (functionName === 'update_communication_notes') {
   communicationNotes = args.notes || '';
 } else if (functionName === 'update_text_block') {
@@ -172,6 +181,8 @@ return [{
     textBlockTouched,
     allAgreed: tbAllAgreed(state),
     communicationNotes,
+    storyBrief,
+    storyKeep,
     userBrief: String(row.ai_UserBrief || '').trim() || (vhod.fromButton ? '' : vhod.userText),
     // для веток рисования (узлы перенесены из 01_Художник без изменений)
     dallePrompt,

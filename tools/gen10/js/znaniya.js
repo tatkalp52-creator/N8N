@@ -64,6 +64,14 @@ if (!timecodeCount || timecodeCount < 1) timecodeCount = 25;
 
 const vectorStoreId = String(findByLabel(tmpl, 'tmpl_ChannelVectorStoreId') || '').trim();
 const characterPassport = String(findByLabel(tmpl, 'tmpl_CharacterPassport') || '').trim();
+// Писателю — только то, что нужно для истории (правила описания, мир Пингви, заметки о стиле).
+const writerRules = extractSection(sp, 'ОПИСАНИЕ');
+const writerWorld = ['tmpl_ProjectContext', 'tmpl_CharacterPassport', 'tmpl_LocationPassports', 'tmpl_EditorNotes']
+  .map(label => {
+    const key = Object.keys(tmpl).find(k => k.includes(label));
+    const v = key ? String(tmpl[key] || '').trim() : '';
+    return v ? stripLabel(key) + ':\n' + v : '';
+  }).filter(Boolean).join('\n\n');
 
 return [{
   json: {
@@ -73,6 +81,8 @@ return [{
     timecodeCount,
     vectorStoreId,
     characterPassport,
+    writerRules,
+    writerWorld,
     translationRules,
   }
 }];

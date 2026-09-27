@@ -1,5 +1,13 @@
 const { run } = require('./harness');
 const assert = require('assert');
+const writerOut = t => ({ output: [{ type: 'message', content: [{ type: 'output_text', text: t }] }] });
+// Ход редактора целиком: разбор ответа → (писатель, если заказан) → итог хода.
+async function parseEd(c, story) {
+  const b = (await run('Разбираем ответ редактора', c))[0];
+  const nodes2 = { ...c.nodes, 'Разбираем ответ редактора': b };
+  const inp = b.storyBrief ? [story === undefined ? writerOut('ИСТОРИЯ') : story] : [b];
+  return run('Парсим ответ редактора', { nodes: nodes2, input: inp });
+}
 (async () => {
   // ── 1. Разбор входящего
   let r = await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { message: { chat: { id: 1 }, text: 'давай к описанию, картинка ок', reply_to_message: { text: 'Вариант 2\nID: 20260924_101010_pengui' } } } } });
@@ -39,8 +47,9 @@ const assert = require('assert');
   nodes['Готовим запрос редактору'] = prep;
   const tc = Array.from({ length: 20 }, (_, i) => 'Name ' + (i + 1));
   const call = (name, args) => ({ output: [{ type: 'function_call', call_id: 'call_1', name, arguments: JSON.stringify(args) }] });
-  let p = (await run('Парсим ответ редактора', { nodes, input: [call('update_text_block', { items: { overlayText: 'Just Love', overlayPosition: 'Right', title: 'Pengui writes a love note', description: 'Пингви пишет записку…', timecodes: tc, footer: 'Music by X\n\n[Timecodes]\n\nSubscribe!', hashtags: '#lofi', tags: 'lofi, jazz', pinnedComment: '-' }, messageToUser: 'Вот первый вариант!' })] }))[0];
-  assert.equal(p.action, 'text_block'); assert.equal(p.allAgreed, false); assert.deepEqual(p.changedItems, [1, 2, 3, 4, 5, 6, 7, 8]);
+  let p = (await parseEd({ nodes, input: [call('update_text_block', { items: { overlayText: 'Just Love', overlayPosition: 'Right', title: 'Pengui writes a love note', description: 'Пингви пишет записку…', timecodes: tc, footer: 'Music by X\n\n[Timecodes]\n\nSubscribe!', hashtags: '#lofi', tags: 'lofi, jazz', pinnedComment: '-' }, messageToUser: 'Вот первый вариант!' })] }))[0];
+  assert.equal(p.action, 'text_block'); assert.equal(p.allAgreed, false); assert.deepEqual(p.changedItems, [1, 2, 4, 5, 6, 7, 8], 'описание Редактор не пишет');
+  assert.equal(JSON.parse(p.editorState).items.description, '');
   assert.equal(p.statusAfter, 'Картинка согласована');
   let st = JSON.parse(p.editorState);
   assert.equal(st.items.overlayPosition, 'right'); assert.equal(st.items.pinnedComment, ''); assert.equal(st.set[8], true);
@@ -59,9 +68,28 @@ const assert = require('assert');
   prep = (await run('Готовим запрос редактору', { nodes: { ...nodes, 'Контекст проекта': ctx } }))[0];
   assert.equal(prep.requestBody.input[1].content, 'давай текст', 'картинки повторно не прикладываются');
   nodes['Готовим запрос редактору'] = prep;
-  p = (await run('Парсим ответ редактора', { nodes, input: [call('update_text_block', { items: { description: 'Новое описание', title: '' }, agreedItems: [1, 2, 4, 5, 8], messageToUser: 'Поправила 3' })] }))[0];
+  p = (await parseEd({ nodes, input: [call('update_text_block', { items: { title: '' }, agreedItems: [1, 2, 4, 5, 8], messageToUser: 'Ок' })] }))[0];
+  row = { ...row, sys_EditorState: p.editorState, sys_PendingToolCallId: 'call_1' };
+  ctx.row = row;
+  // Описание заказывается писателю: он получает только правила ОПИСАНИЯ, мир героя и задание
+  const b3 = (await run('Разбираем ответ редактора', { nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('commission_story', { storyBrief: 'Пингви пишет записку соседу', messageToUser: 'Заказала писателю' })] }))[0];
+  assert.equal(b3.action, 'text_block'); assert.equal(b3.storyBrief, 'Пингви пишет записку соседу');
+  const wr = (await run('Готовим задание писателю', { nodes: { ...nodes, 'Контекст проекта': ctx, 'Разбираем ответ редактора': b3 } }))[0].requestBody;
+  assert.equal(wr.reasoning.effort, 'high');
+  assert.ok(wr.instructions.includes('ПРАВИЛА ОПИСАНИЯ:\nтепло'));
+  assert.ok(wr.instructions.includes('Pengui — пингвин'));
+  assert.ok(!wr.instructions.includes('рисуй мило'), 'правила картинки писателю не нужны');
+  assert.ok(wr.input[0].content[0].text.includes('Пингви пишет записку соседу'));
+  assert.ok(!wr.input[0].content[0].text.includes('Прежний текст'), 'без похвалы прежний текст писатель не видит');
+  assert.equal(wr.input[0].content[2].image_url, 'U2', 'писатель видит согласованную картинку');
+  p = (await parseEd({ nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('commission_story', { storyBrief: 'Пингви пишет записку соседу', messageToUser: 'Заказала писателю' })] }, writerOut('Новое описание')))[0];
   st = JSON.parse(p.editorState);
+  assert.equal(st.items.description, 'Новое описание');
   assert.deepEqual(p.changedItems, [3]);
+  // писатель не ответил — описание не трогаем, автору говорим
+  const pf = (await parseEd({ nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('commission_story', { storyBrief: 'x', messageToUser: 'Заказала' })] }, { error: 'timeout' }))[0];
+  assert.ok(pf.messageToUser.includes('Писатель не прислал описание'));
+  assert.equal(JSON.parse(pf.editorState).items.description, '');
   assert.equal(st.items.title, 'Pengui writes a love note', 'пустая строка не стирает пункт');
   assert.deepEqual(Object.keys(st.agreed).filter(k => st.agreed[k]).map(Number), [1, 2, 4, 5, 8]);
   nodes['Парсим ответ редактора'] = p;
@@ -75,7 +103,7 @@ const assert = require('assert');
   // ── 4. Всё согласовано → перевод → сводка
   row = { ...row, sys_EditorState: p.editorState };
   ctx.row = row;
-  p = (await run('Парсим ответ редактора', { nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('update_text_block', { agreedItems: [3, 6, 7], messageToUser: 'Ура!' })] }))[0];
+  p = (await parseEd({ nodes: { ...nodes, 'Контекст проекта': ctx }, input: [call('update_text_block', { agreedItems: [3, 6, 7], messageToUser: 'Ура!' })] }))[0];
   assert.equal(p.allAgreed, true);
   nodes['Парсим ответ редактора'] = p;
   blk = await run('Собираем текстовый блок', { nodes });
@@ -123,9 +151,9 @@ const assert = require('assert');
   const ctxU = { ...ctx, row: { ...rowF, sys_Status: 'Утверждено' }, status: 'Утверждено' };
   const vU = (await run('Вход редактора', { nodes: { 'Контекст проекта': ctxU } }))[0];
   const nU = { 'Контекст проекта': ctxU, 'Вход редактора': vU, 'Собираем знания канала': kb, 'Готовим запрос редактору': prep };
-  p = (await run('Парсим ответ редактора', { nodes: nU, input: [call('update_text_block', { items: { tags: 'new, tags' }, messageToUser: 'ок' })] }))[0];
+  p = (await parseEd({ nodes: nU, input: [call('update_text_block', { items: { tags: 'new, tags' }, messageToUser: 'ок' })] }))[0];
   assert.equal(p.statusAfter, 'Картинка согласована'); assert.equal(p.statusReverted, true);
-  p = (await run('Парсим ответ редактора', { nodes: nU, input: [{ output: [{ type: 'message', content: [{ type: 'output_text', text: 'просто болтаем' }] }] }] }))[0];
+  p = (await parseEd({ nodes: nU, input: [{ output: [{ type: 'message', content: [{ type: 'output_text', text: 'просто болтаем' }] }] }] }))[0];
   assert.equal(p.statusAfter, 'Утверждено'); assert.equal(p.action, 'chat');
   // кнопка "✅" под вариантом 1, когда было Утверждено с вариантом 2
   const ctxB = { ...ctxU, kind: 'imgApprove', variantNumber: 1 };
@@ -134,11 +162,12 @@ const assert = require('assert');
   const vB = (await run('Вход редактора', { nodes: { 'Контекст проекта': ctxB, 'Согласуем вариант': sb } }))[0];
   assert.equal(vB.status, 'Картинка согласована'); assert.equal(vB.approvedUrl, 'U1'); assert.equal(vB.fromButton, true);
   // редактор после кнопки просто ответил текстом — статус НЕ возвращается в Утверждено
-  p = (await run('Парсим ответ редактора', { nodes: { ...nU, 'Контекст проекта': ctxB, 'Вход редактора': vB }, input: [{ output: [{ type: 'message', content: [{ type: 'output_text', text: 'ура' }] }] }] }))[0];
+  p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': ctxB, 'Вход редактора': vB }, input: [{ output: [{ type: 'message', content: [{ type: 'output_text', text: 'ура' }] }] }] }))[0];
   assert.equal(p.statusAfter, 'Картинка согласована');
   // кнопка → Редактор согласует и СРАЗУ присылает все 8 пунктов
   const ctxB2 = { ...ctxB, row: { ...ctxB.row, sys_EditorState: '' } };
-  p = (await run('Парсим ответ редактора', { nodes: { ...nU, 'Контекст проекта': ctxB2, 'Вход редактора': vB }, input: [call('approve_image', { variantNumber: 1, messageToUser: 'Ура, вот текст', items: { overlayText: 'Just Mail', overlayPosition: 'left', title: 'T', description: 'Д', timecodes: ['a','b'], footer: '[Timecodes]\nF', hashtags: '#h', tags: 't', pinnedComment: '-' } })] }))[0];
+  p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': ctxB2, 'Вход редактора': vB }, input: [call('approve_image', { variantNumber: 1, messageToUser: 'Ура, вот текст', items: { overlayText: 'Just Mail', overlayPosition: 'left', title: 'T', timecodes: ['a','b'], footer: '[Timecodes]\nF', hashtags: '#h', tags: 't', pinnedComment: '-' }, storyBrief: 'про почту' })] }))[0];
+  assert.equal(JSON.parse(p.editorState).items.description, 'ИСТОРИЯ', 'описание от писателя');
   assert.equal(p.action, 'approved'); assert.equal(p.resolvedApprovedImageUrl, 'U1'); assert.equal(p.textBlockTouched, true);
   assert.equal(JSON.parse(p.editorState).items.title, 'T');
   let bl = await run('Собираем текстовый блок', { nodes: { ...nodes, 'Парсим ответ редактора': p } });
@@ -146,26 +175,26 @@ const assert = require('assert');
   assert.ok(!bt.includes('✅ Картинка согласована'), 'после кнопки не дублируем ✅');
   assert.ok(bt.includes('ждут согласования: 1, 2, 3, 4, 5, 6, 7, 8'), 'блок пришёл сразу');
   // согласование словами → ✅ и блок одним сообщением
-  p = (await run('Парсим ответ редактора', { nodes: { ...nU, 'Контекст проекта': { ...ctxU, row: { ...ctxU.row, sys_EditorState: '' } } }, input: [call('approve_image', { variantNumber: 2, messageToUser: 'Супер', items: { title: 'T2' } })] }))[0];
+  p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': { ...ctxU, row: { ...ctxU.row, sys_EditorState: '' } } }, input: [call('approve_image', { variantNumber: 2, messageToUser: 'Супер', items: { title: 'T2' } })] }))[0];
   bl = await run('Собираем текстовый блок', { nodes: { ...nodes, 'Парсим ответ редактора': p } });
   bt = bl.map(x => x.text).join('');
   assert.ok(bt.startsWith('✅ Картинка согласована (вариант 2).'), bt.slice(0, 80));
   assert.ok(bt.includes('<b>2. Название</b>\nT2'));
   // согласовал без пунктов — просто подтверждение, без пустого блока
-  p = (await run('Парсим ответ редактора', { nodes: nU, input: [call('approve_image', { variantNumber: 2, messageToUser: 'Супер' })] }))[0];
+  p = (await parseEd({ nodes: nU, input: [call('approve_image', { variantNumber: 2, messageToUser: 'Супер' })] }))[0];
   bl = await run('Собираем текстовый блок', { nodes: { ...nodes, 'Парсим ответ редактора': p } });
   assert.ok(!bl[0].text.includes('Текстовый блок'));
   console.log('7 статусы и кнопка картинки OK');
 
   // ── 8. Рисование / правка варианта
-  p = (await run('Парсим ответ редактора', { nodes: nU, input: [call('request_revision', { variantNumber: 1, isNewVariant: false, revisionInstruction: 'add hat', preserveDetails: 'the mug', messageToUser: 'Поправляю' })] }))[0];
+  p = (await parseEd({ nodes: nU, input: [call('request_revision', { variantNumber: 1, isNewVariant: false, revisionInstruction: 'add hat', preserveDetails: 'the mug', messageToUser: 'Поправляю' })] }))[0];
   assert.equal(p.action, 'revise_point'); assert.equal(p.revisionTargetImageUrl, 'U1'); assert.equal(p.revisionInstruction, 'add hat', 'художнику уходит ровно текст правки');
   assert.equal(p.revisionIsNewVariant, true, 'правка всегда сохраняется новым вариантом');
-  p = (await run('Парсим ответ редактора', { nodes: nU, input: [call('start_drawing', { dallePrompt: 'scene', messageToUser: 'Рисую!' })] }))[0];
+  p = (await parseEd({ nodes: nU, input: [call('start_drawing', { dallePrompt: 'scene', messageToUser: 'Рисую!' })] }))[0];
   assert.equal(p.action, 'ready_to_draw'); assert.equal(p.styleGuideUrl, kb.styleGuideUrl);
   console.log('8 рисование OK');
   // ── 9. Русский перевод: виден автору, но не уходит в таблицу/YouTube
-  p = (await run('Парсим ответ редактора', { nodes: { ...nU, 'Контекст проекта': { ...ctxU, status: 'Картинка согласована', row: { ...ctxU.row, sys_Status: 'Картинка согласована', sys_EditorState: '' } }, 'Вход редактора': { ...vU, status: 'Картинка согласована' } }, input: [call('update_text_block', { items: { overlayText: 'Just Warm', overlayPosition: 'left', title: 'Lofi Jazz | Reimagining Elgar', timecodes: ['Tiptoe Reach', 'Steam and Ink'], pinnedComment: 'Write one line' }, ruTranslations: { overlayText: 'Просто тепло', title: 'Лоуфай-джаз | Элгар по-новому', timecodes: ['На цыпочках', 'Пар и чернила'], pinnedComment: 'Напишите одну строку' }, messageToUser: 'Вот' })] }))[0];
+  p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': { ...ctxU, status: 'Картинка согласована', row: { ...ctxU.row, sys_Status: 'Картинка согласована', sys_EditorState: '' } }, 'Вход редактора': { ...vU, status: 'Картинка согласована' } }, input: [call('update_text_block', { items: { overlayText: 'Just Warm', overlayPosition: 'left', title: 'Lofi Jazz | Reimagining Elgar', timecodes: ['Tiptoe Reach', 'Steam and Ink'], pinnedComment: 'Write one line' }, ruTranslations: { overlayText: 'Просто тепло', title: 'Лоуфай-джаз | Элгар по-новому', timecodes: ['На цыпочках', 'Пар и чернила'], pinnedComment: 'Напишите одну строку' }, messageToUser: 'Вот' })] }))[0];
   let stR = JSON.parse(p.editorState);
   assert.equal(stR.items.title, 'Lofi Jazz | Reimagining Elgar', 'в самом пункте — только английский');
   nodes['Парсим ответ редактора'] = p;
@@ -176,7 +205,7 @@ const assert = require('assert');
   assert.ok(bR.includes('Write one line\n(Напишите одну строку)'));
   // правка названия без перевода — старый перевод убирается
   const ctxR = { ...ctxU, status: 'Картинка согласована', row: { ...ctxU.row, sys_Status: 'Картинка согласована', sys_EditorState: p.editorState } };
-  p = (await run('Парсим ответ редактора', { nodes: { ...nU, 'Контекст проекта': ctxR, 'Вход редактора': { ...vU, status: 'Картинка согласована' } }, input: [call('update_text_block', { items: { title: 'New Title' }, messageToUser: 'ок' })] }))[0];
+  p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': ctxR, 'Вход редактора': { ...vU, status: 'Картинка согласована' } }, input: [call('update_text_block', { items: { title: 'New Title' }, messageToUser: 'ок' })] }))[0];
   stR = JSON.parse(p.editorState);
   assert.equal(stR.ru.title, undefined); assert.equal(stR.ru.overlayText, 'Просто тепло');
   // финальный пакет — без переводов
