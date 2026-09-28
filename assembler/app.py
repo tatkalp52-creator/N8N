@@ -20,7 +20,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-27-overlay-wrap-fade"
+ASSEMBLER_VERSION = "2026-09-28-kaggle-output"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -218,7 +218,58 @@ def run_ffmpeg(args):
     return result
 
 
+# НОВОЕ (28.09): треки можно брать прямо из результата блокнота Kaggle
+# (чистка шума). Автор отправляет боту ссылку на блокнот вида
+# https://www.kaggle.com/code/<автор>/<блокнот> — сервер сам спрашивает
+# у Kaggle список файлов последнего запуска (вкладка Output) и скачивает
+# оттуда .zip. Ключ Kaggle — переменная KAGGLE_API_TOKEN или файл
+# /app/kaggle_token.txt (persistent storage, переживает Restart).
+# Сервер ничего не открывает наружу — только сам ходит в Kaggle.
+KAGGLE_OUTPUT_API = "https://api.kaggle.com/v1/kernels.KernelsApiService/ListKernelSessionOutput"
+
+
+def kaggle_token():
+    token = os.environ.get("KAGGLE_API_TOKEN", "").strip()
+    if not token and os.path.exists("/app/kaggle_token.txt"):
+        with open("/app/kaggle_token.txt") as f:
+            token = f.read().strip()
+    return token
+
+
+def download_kaggle_output_zip(url, dest_path):
+    m = re.search(r"kaggle\.com/code/([^/?#]+)/([^/?#]+)", url)
+    if not m:
+        raise RuntimeError(f"Не понимаю ссылку на Kaggle: {url}")
+    token = kaggle_token()
+    if not token:
+        raise RuntimeError("Нет ключа Kaggle: положите его в /app/kaggle_token.txt")
+    files, page = [], None
+    while True:
+        body = {"userName": m.group(1), "kernelSlug": m.group(2)}
+        if page:
+            body["pageToken"] = page
+        r = requests.post(KAGGLE_OUTPUT_API, json=body,
+                          headers={"Authorization": f"Bearer {token}"}, timeout=60)
+        r.raise_for_status()
+        data = r.json()
+        files += data.get("files") or []
+        page = data.get("nextPageToken")
+        if not page:
+            break
+    zips = [f for f in files if str(f.get("fileName", "")).lower().endswith(".zip") and f.get("url")]
+    if not zips:
+        raise RuntimeError("В результате блокнота Kaggle нет .zip — запуск ещё идёт или упал")
+    with requests.get(zips[0]["url"], stream=True, timeout=300) as r:
+        r.raise_for_status()
+        with open(dest_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                f.write(chunk)
+    return dest_path
+
+
 def download_file(url, dest_path):
+    if "kaggle.com/code/" in url:
+        return download_kaggle_output_zip(url, dest_path)
     if "drive.google.com" in url or "drive.usercontent.google.com" in url:
         id_match = re.search(r"[?&/]id[=/]([a-zA-Z0-9_-]+)", url) or re.search(r"/d/([a-zA-Z0-9_-]+)", url)
         if id_match:
