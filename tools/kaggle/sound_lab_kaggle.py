@@ -6,7 +6,8 @@
 # Запускать в ОТДЕЛЬНОМ блокноте (не suno-clean!).
 
 # ===== НАСТРОЙКИ =====
-TRACK_LINK = ""     # ссылка на ОДИН трек (.wav/.mp3) на Google Диске, доступ «всем, у кого есть ссылка»
+TRACK_LINK = ""     # ссылка на Google Диске (доступ «всем, у кого есть ссылка»): ОДИН трек (.wav/.mp3) ИЛИ целый .zip выпуска
+TRACK_NUMBER = 1    # если ссылка на .zip — какой трек из архива взять (1 — первый, 2 — второй…)
 CLIP_SECONDS = 40   # длина отрывка для прослушивания
 CLIP_FROM = "auto"  # какой кусок брать: "auto" — самое плотное место; "end" — конец трека (где «вьюга»); или секунда начала, напр. "95"
 # =====================
@@ -25,6 +26,15 @@ for f in glob.glob(f'{OUT}/*'):
 shutil.rmtree('/tmp/lab', ignore_errors=True); os.makedirs('/tmp/lab/src')
 assert TRACK_LINK.strip(), 'Вставь ссылку на трек в TRACK_LINK'
 src = gdown.download(TRACK_LINK.strip(), output='/tmp/lab/src/', fuzzy=True, quiet=False)
+if src.lower().endswith('.zip'):
+    import zipfile
+    with zipfile.ZipFile(src) as z:
+        tracks = [n for n in z.namelist() if n.lower().endswith(('.wav', '.mp3', '.flac')) and not n.startswith('__MACOSX')]
+        assert 1 <= TRACK_NUMBER <= len(tracks), f'В архиве {len(tracks)} треков, а TRACK_NUMBER = {TRACK_NUMBER}'
+        pick = tracks[TRACK_NUMBER - 1]
+        z.extract(pick, '/tmp/lab/src/')
+    src = os.path.join('/tmp/lab/src', pick)
+    print('Трек из архива:', pick)
 sh(f'ffmpeg -loglevel error -y -i "{src}" -ar 44100 -ac 2 /tmp/lab/orig.wav')
 
 # Самое плотное место трека: окно с наибольшей средней громкостью
