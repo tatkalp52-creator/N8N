@@ -8,6 +8,7 @@
 # ===== НАСТРОЙКИ =====
 TRACK_LINK = ""     # ссылка на ОДИН трек (.wav/.mp3) на Google Диске, доступ «всем, у кого есть ссылка»
 CLIP_SECONDS = 40   # длина отрывка для прослушивания
+CLIP_FROM = "auto"  # какой кусок брать: "auto" — самое плотное место; "end" — конец трека (где «вьюга»); или секунда начала, напр. "95"
 # =====================
 
 import subprocess, sys, os, glob, shutil, random, json, re
@@ -31,13 +32,18 @@ import numpy as np, soundfile as sf
 audio, sr = sf.read('/tmp/lab/orig.wav')
 mono = np.abs(audio).mean(axis=1) if audio.ndim > 1 else np.abs(audio)
 win = CLIP_SECONDS * sr
-if len(mono) > win:
+if len(mono) <= win:
+    start = 0
+elif str(CLIP_FROM).strip().lower() == 'end':
+    start = (len(mono) - win) / sr - 1          # последние CLIP_SECONDS секунд
+elif str(CLIP_FROM).strip().lower() not in ('auto', ''):
+    start = min(float(CLIP_FROM), (len(mono) - win) / sr)
+else:
     csum = np.concatenate([[0], np.cumsum(mono ** 2)])
     step = sr
     starts = range(0, len(mono) - win, step)
     start = max(starts, key=lambda s: csum[s + win] - csum[s]) / sr
-else:
-    start = 0
+start = max(0.0, start)
 print(f'Отрывок: с {start:.0f} с, {CLIP_SECONDS} с')
 # Дальше работаем только с этим куском (+5 с запаса с каждой стороны) — так в разы быстрее
 PAD = 5
