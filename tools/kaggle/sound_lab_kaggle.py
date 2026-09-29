@@ -184,4 +184,36 @@ for letter, name in zip('ABCDEFGHIJKL', names):
        f'-af "afade=t=in:d=0.5,afade=t=out:st={CLIP_SECONDS - 1}:d=1" -c:a libmp3lame -q:a 0 "{OUT}/{letter}.mp3"')
     answers.append(f'{letter} — {name}')
 open(f'{OUT}/ответы.txt', 'w').write('\n'.join(answers) + '\n')
+
+# ЦИФРЫ к ушам — по тем же буквам (вслепую). Смысл колонок:
+#   громкость — средний уровень, дБ;
+#   дно — уровень в самых тихих местах (чем ниже, тем меньше шума в паузах), дБ;
+#   верха — энергия 8–16 кГц относительно всего звука (где живут и воздух, и песок), дБ;
+#   шершавость — насколько верха похожи на шум, а не на звук инструмента (0 — чистый тон, 1 — чистый шум);
+#   яркость — «центр тяжести» спектра, Гц (упала сильно — звук стал глухим).
+def metrics(path):
+    x, _ = sf.read(path)
+    x = x[int(start * sr): int((start + CLIP_SECONDS) * sr)]
+    m = x.mean(axis=1) if x.ndim > 1 else x
+    frames = m[: len(m) // 2048 * 2048].reshape(-1, 2048)
+    rms = np.sqrt((frames ** 2).mean(axis=1)) + 1e-9
+    f, _, Z = stft(m, fs=sr, nperseg=4096)
+    P = np.abs(Z) ** 2 + 1e-12
+    hf = (f >= 8000) & (f <= 16000)
+    flat = np.exp(np.mean(np.log(P[hf]), axis=0)) / np.mean(P[hf], axis=0)
+    centroid = np.sum(f[:, None] * P, axis=0) / np.sum(P, axis=0)
+    return (20 * np.log10(np.sqrt(np.mean(m ** 2)) + 1e-9),
+            20 * np.log10(np.percentile(rms, 10)),
+            10 * np.log10(P[hf].sum() / P.sum()),
+            float(np.median(flat)),
+            float(np.median(centroid)))
+rows = ['буква | громкость дБ | дно дБ | верха дБ | шершавость | яркость Гц']
+for letter, name in zip('ABCDEFGHIJKL', names):
+    try:
+        v = metrics(variants[name])
+        rows.append(f'{letter} | {v[0]:6.1f} | {v[1]:6.1f} | {v[2]:6.1f} | {v[3]:.2f} | {v[4]:6.0f}')
+    except Exception as e:
+        rows.append(f'{letter} | ошибка: {e}')
+open(f'{OUT}/цифры.txt', 'w').write('\n'.join(rows) + '\n')
+print('\n'.join(rows))
 print('ГОТОВО: в Output отрывки A…', letter, '.mp3 и ответы.txt (открыть после прослушивания)')
