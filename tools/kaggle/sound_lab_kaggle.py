@@ -10,7 +10,7 @@ TRACK_LINK = ""     # ссылка на ОДИН трек (.wav/.mp3) на Googl
 CLIP_SECONDS = 40   # длина отрывка для прослушивания
 # =====================
 
-import subprocess, sys, os, glob, shutil, random, json
+import subprocess, sys, os, glob, shutil, random, json, re
 def sh(cmd):
     print('>', cmd); subprocess.run(cmd, shell=True, check=True)
 
@@ -54,9 +54,11 @@ def clean(inp, model, tag, arch_overlap=4):
     sep.load_model(model_filename=model)
     outs = [os.path.join(out_dir, os.path.basename(o)) for o in sep.separate(inp)]
     # «чистая» часть: (dry) у denoise-моделей, (No Noise) у UVR-DeNoise
-    keep = [o for o in outs if any(k in o for k in ('(dry)', '(Dry)', '(No Noise)', '(No noise)', '(Instrumental)'))]
+    # смотрим на ПОСЛЕДНЮЮ метку в скобках: в имени могут остаться метки прошлых проходов, напр. «(dry)»
+    lab = lambda o: (re.findall(r'\(([^)]+)\)', os.path.basename(o)) or [''])[-1].lower()
+    keep = [o for o in outs if lab(o) in ('dry', 'no noise', 'instrumental')]
     if not keep:  # на всякий случай — любой выход, кроме самого шума
-        keep = [o for o in outs if not any(k in o.lower() for k in ('(noise)', 'bleed)', '(other)'))]
+        keep = [o for o in outs if lab(o) not in ('noise', 'other', 'bleed')]
     print(tag, '→', [os.path.basename(o) for o in outs], '| беру:', os.path.basename((keep or outs)[0]))
     NOISE[tag] = [o for o in outs if o not in keep]  # отдельная дорожка шума — пригодится для «возврата гармоник»
     return (keep or outs)[0]
@@ -125,8 +127,8 @@ def split(path, model_sep, tag):
     sep.load_model(model_filename=model_sep)
     res = {}
     for o in sep.separate(path):
-        m = re.search(r'_\(([^)]+)\)', os.path.basename(o))
-        res[m.group(1) if m else os.path.basename(o)] = os.path.join(d, os.path.basename(o))
+        labels = re.findall(r'\(([^)]+)\)', os.path.basename(o))
+        res[labels[-1].lower() if labels else os.path.basename(o)] = os.path.join(d, os.path.basename(o))
     return res
 
 def band_envelope(x, nfft=4096):

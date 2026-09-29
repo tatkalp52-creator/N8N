@@ -58,9 +58,11 @@ def run_model(model, path, out_dir):
 
 def denoise(path, model, out_dir):
     outs = run_model(model, path, out_dir)
-    keep = [o for o in outs if any(k in o for k in ('(dry)', '(Dry)', '(No Noise)', '(No noise)'))]
+    # смотрим на ПОСЛЕДНЮЮ метку в скобках: в имени могут остаться метки прошлых проходов, напр. «(dry)»
+    lab = lambda o: (re.findall(r'\(([^)]+)\)', os.path.basename(o)) or [''])[-1].lower()
+    keep = [o for o in outs if lab(o) in ('dry', 'no noise', 'instrumental')]
     if not keep:
-        keep = [o for o in outs if not any(k in o.lower() for k in ('(noise)', 'bleed)'))]
+        keep = [o for o in outs if lab(o) not in ('noise', 'other', 'bleed')]
     for o in outs:  # шумовую дорожку выбрасываем
         if o not in keep[:1]:
             try: os.remove(o)
@@ -74,8 +76,8 @@ def split(path, out_dir):
         try:
             res = {}
             for o in run_model(m, path, out_dir):
-                mm = re.search(r'_\(([^)]+)\)', os.path.basename(o))
-                res[mm.group(1) if mm else os.path.basename(o)] = o
+                labels = re.findall(r'\(([^)]+)\)', os.path.basename(o))
+                res[labels[-1].lower() if labels else os.path.basename(o)] = o
             return res
         except Exception as e:
             last = e; print(f'⚠️ разложение {m} не вышло: {e}')
