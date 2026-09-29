@@ -111,6 +111,71 @@ for model_sep, name in [('BS-Roformer-SW.ckpt', 'по слоям (BS-Roformer 6 
     except Exception as e:
         print(f'⚠️ {name} не получилось: {e}')
 
+# ШУМ ОТДЕЛЬНОЙ ДОРОЖКОЙ → УДАЛИТЬ → РУЧКИ ПО ИНСТРУМЕНТАМ (схема автора):
+# 1) чистка выделяет шум в свою дорожку — её просто выбрасываем (остаётся чистая «a»);
+# 2) исходник и чистый трек раскладываются на инструменты одной и той же моделью;
+# 3) для каждого инструмента сравниваем его тембр ДО и ПОСЛЕ чистки (средний спектр по полосам)
+#    и крутим «эквалайзер» на всю длину стема, возвращая то, что ушло вместе с шумом:
+#    только поднимаем, плавно, не больше +6 дБ — это тембр, а не шорох, поэтому песок не возвращается;
+# 4) складываем обратно.
+from scipy.signal import stft, istft
+def split(path, model_sep, tag):
+    d = f'/tmp/lab/split_{tag}'; os.makedirs(d, exist_ok=True)
+    sep = Separator(output_dir=d, output_format='WAV', model_file_dir='/tmp/models')
+    sep.load_model(model_filename=model_sep)
+    res = {}
+    for o in sep.separate(path):
+        m = re.search(r'_\(([^)]+)\)', os.path.basename(o))
+        res[m.group(1) if m else os.path.basename(o)] = os.path.join(d, os.path.basename(o))
+    return res
+
+def band_envelope(x, nfft=4096):
+    mono = x.mean(axis=1) if x.ndim > 1 else x
+    _, _, Z = stft(mono, fs=sr, nperseg=nfft)
+    return np.mean(np.abs(Z), axis=1) + 1e-9
+
+def smooth(v, width=9):
+    k = np.ones(width) / width
+    return np.convolve(np.pad(v, width // 2, mode='edge'), k, mode='valid')
+
+def apply_eq(x, gain_lin, nfft=4096):
+    out = np.zeros_like(x)
+    for ch in range(x.shape[1] if x.ndim > 1 else 1):
+        sig = x[:, ch] if x.ndim > 1 else x
+        _, _, Z = stft(sig, fs=sr, nperseg=nfft)
+        _, y = istft(Z * gain_lin[:, None], fs=sr, nperseg=nfft)
+        y = y[:len(sig)]
+        if x.ndim > 1: out[:len(y), ch] = y
+        else: out[:len(y)] = y
+    return out
+
+import re
+for model_sep in ('BS-Roformer-SW.ckpt', 'htdemucs_6s.yaml'):
+    try:
+        before = split('/tmp/lab/orig.wav', model_sep, 'before')
+        after = split(a, model_sep, 'after')
+        total = None
+        for label, p_after in after.items():
+            y, _ = sf.read(p_after)
+            if np.sqrt(np.mean(y ** 2)) < 1e-4:
+                continue
+            if label in before:
+                x, _ = sf.read(before[label])
+                n = min(len(x), len(y)); x, y = x[:n], y[:n]
+                g_db = 20 * np.log10(band_envelope(x) / band_envelope(y))
+                g_db = np.clip(smooth(g_db), 0, 6)          # только вернуть, плавно, максимум +6 дБ
+                print(f'{label}: подъём до {g_db.max():.1f} дБ')
+                y = apply_eq(y, 10 ** (g_db / 20))
+            total = y if total is None else total[:min(len(total), len(y))] + y[:min(len(total), len(y))]
+        peak = np.max(np.abs(total)) + 1e-9
+        orig_peak = np.max(np.abs(sf.read('/tmp/lab/orig.wav')[0]))
+        out = '/tmp/lab/noise_out_knobs.wav'
+        sf.write(out, total * min(1.0, orig_peak / peak), sr)
+        variants['шум отдельно → удалить → ручки по инструментам'] = out
+        break
+    except Exception as e:
+        print(f'⚠️ «ручки по инструментам» с {model_sep} не получились: {e}')
+
 # Отрывки под буквами, в случайном порядке — слушать вслепую
 names = list(variants); random.shuffle(names)
 answers = []
