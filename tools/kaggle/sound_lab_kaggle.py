@@ -68,28 +68,6 @@ variants['исходник (без чистки)'] = '/tmp/lab/orig.wav'
 a = clean('/tmp/lab/orig.wav', AGGR, 'aggr')
 variants['aufr33 aggressive (как сейчас)'] = a
 
-# ШУМ ОТДЕЛЬНО + ВОЗВРАТ ГАРМОНИК: дорожка шума, которую чистка выбросила,
-# делится на «тональное» (ноты, гармоники инструментов, случайно ушедшие в шум)
-# и «шорох». Тональное бережно возвращаем в чистую дорожку, шорох выбрасываем.
-try:
-    import librosa
-    noise_path = NOISE['aggr'][0]
-    nz, _ = sf.read(noise_path)
-    dry, _ = sf.read(a)
-    n = min(len(nz), len(dry)); nz, dry = nz[:n], dry[:n]
-    back = np.zeros_like(nz)
-    for ch in range(nz.shape[1] if nz.ndim > 1 else 1):
-        sig = nz[:, ch] if nz.ndim > 1 else nz
-        S = librosa.stft(sig)
-        H, _P = librosa.decompose.hpss(S, margin=3.0)   # margin 3 — берём только явно тональное
-        h = librosa.istft(H, length=len(sig))
-        if nz.ndim > 1: back[:, ch] = h
-        else: back = h
-    out = '/tmp/lab/harmonics_back.wav'
-    sf.write(out, dry + 0.8 * back, sr)
-    variants['aggressive + возврат гармоник из шума'] = out
-except Exception as e:
-    print(f'⚠️ возврат гармоник не получился: {e}')
 variants['aufr33 aggressive ×2 (два прохода)'] = clean(a, AGGR, 'aggr2')
 variants['aufr33 normal'] = clean('/tmp/lab/orig.wav', 'denoise_mel_band_roformer_aufr33_sdr_27.9959.ckpt', 'normal')
 for model, name in [('mel_band_roformer_denoise_debleed_gabox.ckpt', 'gabox denoise-debleed'),
