@@ -136,7 +136,7 @@ for model_sep, name in [('BS-Roformer-SW.ckpt', 'по слоям (BS-Roformer 6 
 # Отрывки под буквами, в случайном порядке — слушать вслепую
 names = list(variants); random.shuffle(names)
 answers = []
-for letter, name in zip('ABCDEFGH', names):
+for letter, name in zip('ABCDEFGHIJKL', names):
     sh(f'ffmpeg -loglevel error -y -ss {start} -t {CLIP_SECONDS} -i "{variants[name]}" '
        f'-af "afade=t=in:d=0.5,afade=t=out:st={CLIP_SECONDS - 1}:d=1" -c:a libmp3lame -q:a 0 "{OUT}/{letter}.mp3"')
     answers.append(f'{letter} — {name}')
