@@ -3,7 +3,7 @@
 
 # ===== НАСТРОЙКИ =====
 TRACKS_LINK = ""     # ссылка на zip с треками на Google Диске (доступ «всем, у кого есть ссылка»)
-MODE = "aggressive"  # способ чистки — то, что победило в звуковой лаборатории:
+MODE = "aggressive2" # способ чистки — то, что победило в звуковой лаборатории:
 #   "aggressive"  — aufr33 aggressive (как было)
 #   "aggressive2" — aufr33 aggressive, два прохода
 #   "normal"      — aufr33 normal (бережнее)
@@ -12,6 +12,9 @@ MODE = "aggressive"  # способ чистки — то, что победил
 #   "layers"      — по слоям: разложить на инструменты, почистить каждый, вернуть громкость
 #   "knobs"       — шум отдельно → удалить → ручки по инструментам (EQ до/после, только подъём ≤ +6 дБ)
 SPEED = "quality"    # "quality" — аккуратнее; "fast" — вдвое быстрее
+BLEND = 0.10         # сколько ИСХОДНОГО звука подмешать обратно после чистки (0.10 = 10%) — «жизнь» инструментам; 0 — не подмешивать
+BLEND_STEMS = "guitar, other, vocals"  # к каким слоям подмешивать; пусто — ко всему треку.
+#   Слои: bass (контрабас), drums (щётки), guitar (гитара), piano (фортепиано), other и vocals (сюда обычно уходит кларнет)
 # =====================
 
 import subprocess, sys, os, glob, shutil, zipfile, re
@@ -151,9 +154,33 @@ def clean_track(path, i):
         return mix(parts, wav, f'{d}/clean.wav')
     raise ValueError(f'Неизвестный MODE: {MODE}')
 
+def blend_back(clean_path, i):
+    # подмешиваем немного исходника — ко всему треку или только к выбранным слоям
+    d = f'{work}/t{i}'
+    orig = f'{d}/orig.wav'
+    y, _ = sf.read(clean_path)
+    wanted = [s.strip().lower() for s in BLEND_STEMS.split(',') if s.strip()]
+    if wanted:
+        stems = split(orig, f'{d}/blend_stems')
+        parts = [sf.read(p)[0] for lab, p in stems.items() if lab in wanted]
+        if not parts:
+            print(f'⚠️ трек {i}: нужных слоёв {wanted} нет, подмешиваю весь исходник')
+            parts = [sf.read(orig)[0]]
+        n = min([len(y)] + [len(p) for p in parts])
+        add = sum(p[:n] for p in parts)
+    else:
+        x, _ = sf.read(orig); n = min(len(x), len(y)); add = x[:n]
+    out = y[:n] + BLEND * add
+    ref_peak = np.max(np.abs(sf.read(orig)[0]))
+    out = out * min(1.0, ref_peak / (np.max(np.abs(out)) + 1e-9))
+    sf.write(f'{d}/blended.wav', out, 44100)
+    return f'{d}/blended.wav'
+
 clean = {}
 for i, name in enumerate(order, 1):
     clean[name] = clean_track(os.path.join(f'{work}/in', name), i)
+    if BLEND > 0:
+        clean[name] = blend_back(clean[name], i)
     print(f'{i}/{len(order)} готов: {os.path.basename(name)}')
 
 base = os.path.splitext(os.path.basename(src))[0]
@@ -164,4 +191,4 @@ with zipfile.ZipFile(dst, 'w', zipfile.ZIP_DEFLATED) as z:
     for name in order:  # те же имена и тот же порядок, что в исходном архиве
         z.write(clean[name], arcname=os.path.basename(name).rsplit('.', 1)[0] + '.wav')
 shutil.rmtree(work, ignore_errors=True)
-print('ГОТОВО:', os.path.basename(dst), round(os.path.getsize(dst) / 1e6), 'МБ — способ', MODE)
+print('ГОТОВО:', os.path.basename(dst), round(os.path.getsize(dst) / 1e6), 'МБ — способ', MODE, '| подмес', BLEND, BLEND_STEMS or 'весь трек')
