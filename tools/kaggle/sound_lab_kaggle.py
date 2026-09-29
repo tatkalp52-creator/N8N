@@ -39,6 +39,12 @@ if len(mono) > win:
 else:
     start = 0
 print(f'Отрывок: с {start:.0f} с, {CLIP_SECONDS} с')
+# Дальше работаем только с этим куском (+5 с запаса с каждой стороны) — так в разы быстрее
+PAD = 5
+cut_from = max(0.0, start - PAD)
+sh(f'ffmpeg -loglevel error -y -ss {cut_from} -t {CLIP_SECONDS + 2 * PAD} -i /tmp/lab/orig.wav /tmp/lab/piece.wav')
+shutil.move('/tmp/lab/piece.wav', '/tmp/lab/orig.wav')
+start = start - cut_from
 
 from audio_separator.separator import Separator
 def clean(inp, model, tag, arch_overlap=4):
@@ -65,6 +71,40 @@ for model, name in [('mel_band_roformer_denoise_debleed_gabox.ckpt', 'gabox deno
                     ('UVR-DeNoise.pth', 'UVR-DeNoise')]:
     try:
         variants[name] = clean('/tmp/lab/orig.wav', model, name.split()[0])
+    except Exception as e:
+        print(f'⚠️ {name} не получилось: {e}')
+
+# ПО СЛОЯМ: разложить на инструменты → почистить каждый отдельно →
+# вернуть каждому его прежнюю громкость (то, что чистка «съела» вместе с шумом) → сложить обратно.
+def layered(model_sep):
+    d = f'/tmp/lab/stems_{model_sep.split(".")[0]}'; os.makedirs(d, exist_ok=True)
+    sep = Separator(output_dir=d, output_format='WAV', model_file_dir='/tmp/models')
+    sep.load_model(model_filename=model_sep)
+    stems = [os.path.join(d, os.path.basename(o)) for o in sep.separate('/tmp/lab/orig.wav')]
+    print('Слои:', [os.path.basename(s) for s in stems])
+    total = None
+    for i, st in enumerate(stems):
+        x, _ = sf.read(st)
+        rms_before = np.sqrt(np.mean(x ** 2)) + 1e-9
+        if rms_before < 1e-4:          # пустой слой (например, вокала нет) — пропускаем
+            continue
+        y, _ = sf.read(clean(st, AGGR, f'layer{i}'))
+        n = min(len(x), len(y)); y = y[:n]
+        gain = min(rms_before / (np.sqrt(np.mean(y ** 2)) + 1e-9), 10 ** (3 / 20))  # подтянуть, но не больше +3 дБ
+        y = y * gain
+        total = y if total is None else total[:n] + y[:len(total[:n])]
+    peak = np.max(np.abs(total)) + 1e-9
+    orig_peak = np.max(np.abs(sf.read('/tmp/lab/orig.wav')[0]))
+    total = total * min(1.0, orig_peak / peak)
+    out = f'/tmp/lab/layered_{model_sep.split(".")[0]}.wav'
+    sf.write(out, total, sr)
+    return out
+
+for model_sep, name in [('BS-Roformer-SW.ckpt', 'по слоям (BS-Roformer 6 слоёв)'),
+                        ('htdemucs_6s.yaml', 'по слоям (Demucs 6 слоёв)')]:
+    try:
+        variants[name] = layered(model_sep)
+        break  # хватит одного способа разложения
     except Exception as e:
         print(f'⚠️ {name} не получилось: {e}')
 
