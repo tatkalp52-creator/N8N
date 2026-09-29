@@ -219,30 +219,36 @@ for letter, name in zip('ABCDEFGHIJKL', names):
 open(f'{OUT}/цифры.txt', 'w').write('\n'.join(rows) + '\n')
 print('\n'.join(rows))
 
-# ВЕРДИКТ ПРИБОРОВ (по буквам, вслепую): сравнение с исходником.
-#   шум меньше  — насколько упала шершавость верхов и «дно»;
-#   глухость    — насколько упала яркость (больше 25% — предупреждение «глухо»);
-# Итоговый балл: чем больше убрано шума и чем меньше потеряно яркости, тем выше.
+# ВЕРДИКТ ПРИБОРОВ (по буквам, вслепую). Считаем, ЧТО ИМЕННО вычтено из исходника, по полосам:
+#   «убрано верхов» 8–16 кГц — там живёт песок: чем больше (ближе к 0 дБ), тем сильнее чистка;
+#   «задето середины» 1–5 кГц — там сами инструменты: чем больше, тем выше риск повредить музыку;
+#   «баланс» = убрано верхов минус задето середины: чем больше, тем прицельнее чистка.
+#   Все числа — уровень вычтенного относительно исходника, дБ (−10 — заметно, −30 — почти ничего).
+from scipy.signal import welch
+def removed_db(path, lo, hi):
+    o, _ = sf.read(variants['исходник (без чистки)']); x, _ = sf.read(path)
+    o = o.mean(axis=1) if o.ndim > 1 else o; x = x.mean(axis=1) if x.ndim > 1 else x
+    n = min(len(o), len(x)); a, b = int(start * sr), int((start + CLIP_SECONDS) * sr)
+    o, x = o[:n][a:b], x[:n][a:b]
+    f, Po = welch(o, sr, nperseg=8192); _, Pd = welch(o - x, sr, nperseg=8192)
+    m = (f >= lo) & (f < hi)
+    return 10 * np.log10(Pd[m].sum() / (Po[m].sum() + 1e-20) + 1e-20)
 try:
     ref_name = 'исходник (без чистки)'
-    ref = metrics(variants[ref_name])
     scored = []
     for letter, name in zip('ABCDEFGHIJKL', names):
         if name == ref_name:
             continue
-        v = metrics(variants[name])
-        rough_drop = (ref[3] - v[3]) / max(ref[3], 1e-6)      # доля убранной шершавости
-        floor_drop = ref[1] - v[1]                            # дБ, насколько ниже «дно»
-        bright_loss = max(0.0, (ref[4] - v[4]) / ref[4])      # доля потерянной яркости
-        score = 100 * rough_drop + 2 * floor_drop - 120 * bright_loss
+        hi_ = removed_db(variants[name], 8000, 16000)
+        mid = removed_db(variants[name], 1000, 5000)
         notes = []
-        if bright_loss > 0.25: notes.append('глухо')
-        if rough_drop < 0.10: notes.append('шум почти не убран')
-        scored.append((score, letter, rough_drop, floor_drop, bright_loss, notes))
+        if hi_ < -25: notes.append('почти ничего не убрано')
+        if mid > -15: notes.append('задета музыка — слушать внимательно')
+        scored.append((hi_ - mid, letter, hi_, mid, notes))
     scored.sort(reverse=True)
-    lines = ['Место | буква | убрано шершавости | дно ниже, дБ | потеря яркости | замечания']
-    for k, (score, letter, rd, fd, bl, notes) in enumerate(scored, 1):
-        lines.append(f'{k} | {letter} | {rd*100:5.0f}% | {fd:5.1f} | {bl*100:4.0f}% | {", ".join(notes) or "—"}')
+    lines = ['Место | буква | убрано верхов, дБ | задето середины, дБ | баланс | замечания']
+    for k, (bal, letter, hi_, mid, notes) in enumerate(scored, 1):
+        lines.append(f'{k} | {letter} | {hi_:6.1f} | {mid:6.1f} | {bal:5.1f} | {", ".join(notes) or "—"}')
     open(f'{OUT}/вердикт приборов.txt', 'w').write('\n'.join(lines) + '\n')
     print('\n'.join(lines))
 except Exception as e:
