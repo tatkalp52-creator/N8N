@@ -216,4 +216,49 @@ for letter, name in zip('ABCDEFGHIJKL', names):
         rows.append(f'{letter} | ошибка: {e}')
 open(f'{OUT}/цифры.txt', 'w').write('\n'.join(rows) + '\n')
 print('\n'.join(rows))
+
+# ВЕРДИКТ ПРИБОРОВ (по буквам, вслепую): сравнение с исходником.
+#   шум меньше  — насколько упала шершавость верхов и «дно»;
+#   глухость    — насколько упала яркость (больше 25% — предупреждение «глухо»);
+# Итоговый балл: чем больше убрано шума и чем меньше потеряно яркости, тем выше.
+try:
+    ref_name = 'исходник (без чистки)'
+    ref = metrics(variants[ref_name])
+    scored = []
+    for letter, name in zip('ABCDEFGHIJKL', names):
+        if name == ref_name:
+            continue
+        v = metrics(variants[name])
+        rough_drop = (ref[3] - v[3]) / max(ref[3], 1e-6)      # доля убранной шершавости
+        floor_drop = ref[1] - v[1]                            # дБ, насколько ниже «дно»
+        bright_loss = max(0.0, (ref[4] - v[4]) / ref[4])      # доля потерянной яркости
+        score = 100 * rough_drop + 2 * floor_drop - 120 * bright_loss
+        notes = []
+        if bright_loss > 0.25: notes.append('глухо')
+        if rough_drop < 0.10: notes.append('шум почти не убран')
+        scored.append((score, letter, rough_drop, floor_drop, bright_loss, notes))
+    scored.sort(reverse=True)
+    lines = ['Место | буква | убрано шершавости | дно ниже, дБ | потеря яркости | замечания']
+    for k, (score, letter, rd, fd, bl, notes) in enumerate(scored, 1):
+        lines.append(f'{k} | {letter} | {rd*100:5.0f}% | {fd:5.1f} | {bl*100:4.0f}% | {", ".join(notes) or "—"}')
+    open(f'{OUT}/вердикт приборов.txt', 'w').write('\n'.join(lines) + '\n')
+    print('\n'.join(lines))
+except Exception as e:
+    print(f'⚠️ вердикт не посчитался: {e}')
+
+# СПЕКТРОГРАММЫ по буквам — «картинка звука»: песок виден как серая сыпь в верхней части
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    for letter, name in zip('ABCDEFGHIJKL', names):
+        x, _ = sf.read(variants[name])
+        x = x[int(start * sr): int((start + CLIP_SECONDS) * sr)]
+        m = x.mean(axis=1) if x.ndim > 1 else x
+        plt.figure(figsize=(12, 4))
+        plt.specgram(m, NFFT=2048, Fs=sr, noverlap=1024, cmap='magma', vmin=-120, vmax=-20)
+        plt.ylim(0, 18000); plt.title(f'{letter}'); plt.ylabel('Гц'); plt.xlabel('с')
+        plt.tight_layout(); plt.savefig(f'{OUT}/спектр_{letter}.png', dpi=80); plt.close()
+except Exception as e:
+    print(f'⚠️ спектрограммы не нарисовались: {e}')
 print('ГОТОВО: в Output отрывки A…', letter, '.mp3 и ответы.txt (открыть после прослушивания)')
