@@ -233,5 +233,40 @@ async function parseEd(c, story) {
   const pkR = (await run('Собираем пакет для таблицы', { nodes: { 'Контекст проекта': { ...ctxF, row: { ...rowF, sys_EditorState: JSON.stringify(allSt) } } } }))[0];
   assert.equal(pkR.fields.ai_OverlayText, 'Just Warm'); assert.equal(pkR.fields.ai_TimecodeNames, 'Tiptoe Reach\nSteam and Ink'); assert.equal(pkR.fields.ai_PinnedComment, 'Write one line');
   console.log('9 перевод для автора OK');
+  // ── 10. «Художнику: …» — напрямую, без Редактора
+  {
+    const vs = [{ n: 1, url: 'U1' }, { n: 2, url: 'U2' }];
+    const rowD = { sys_ProjectID: 'P', sys_Status: 'Картинка в работе', sys_ConversationId: 'conv_9', sys_PendingToolCallId: 'call_7', sys_EditorState: '{"x":1}', ai_ImageVariants: JSON.stringify(vs), ai_ImageUrl: 'U2', ai_UserBrief: 'бриф' };
+    const tmplD = { tmpl_Channel: 'pengui', '🎨_tmpl_StyleRefs': 'https://drive.google.com/file/d/STYLE/view' };
+    const mk = text => ({ kind: 'message', projectId: 'P', chatId: 1, sheetName: 'Pengui', channelKey: 'pengui', row: rowD, tmpl: tmplD, status: rowD.sys_Status, text, photo: null });
+    const go = async text => {
+      const c = mk(text);
+      const v = (await run('Вход редактора', { nodes: { 'Контекст проекта': c } }))[0];
+      if (!v.directArt) return { v };
+      const k = (await run('Собираем знания канала', { nodes: { 'Контекст проекта': c } }))[0];
+      const n = { 'Контекст проекта': c, 'Вход редактора': v, 'Собираем знания канала': k };
+      const d = (await run('Задание художнику напрямую', { nodes: n }))[0];
+      const f = (await run('Парсим ответ редактора', { nodes: n, input: [d] }))[0];
+      return { v, d: f };
+    };
+    let x = await go('Художнику: Pengui reads under a lamp, matte colors');
+    assert.deepEqual(x.v.directArt, { edit: false, variant: null, text: 'Pengui reads under a lamp, matte colors' });
+    assert.equal(x.d.action, 'ready_to_draw'); assert.equal(x.d.dallePrompt, 'Pengui reads under a lamp, matte colors');
+    assert.equal(x.d.callId, 'call_7', 'незакрытый вызов Редактора не теряем');
+    assert.equal(x.d.conversationId, 'conv_9'); assert.equal(x.d.editorState, '{"x":1}'); assert.equal(x.d.userBrief, 'бриф');
+    assert.equal(x.d.statusAfter, 'Картинка в работе'); assert.equal(x.d.styleGuideUrl, 'https://lh3.googleusercontent.com/d/STYLE=s2000');
+    x = await go('художнику,  нарисуй кота'); assert.equal(x.d.dallePrompt, 'нарисуй кота');
+    x = await go('ХУДОЖНИКУ — правка: warmer light');
+    assert.equal(x.d.action, 'revise_point'); assert.equal(x.d.revisionInstruction, 'warmer light');
+    assert.equal(x.d.revisionTargetImageUrl, 'U2'); assert.equal(x.d.revisionTargetVariantNumber, 2);
+    x = await go('Художнику правка 1: less people');
+    assert.equal(x.d.revisionTargetImageUrl, 'U1'); assert.equal(x.d.revisionTargetVariantNumber, 1); assert.equal(x.d.revisionInstruction, 'less people');
+    x = await go('Художнику правка 5: x'); assert.equal(x.d.action, 'chat'); assert.ok(x.d.messageToUser.includes('Не нашла вариант 5'));
+    x = await go('Художнику:'); assert.equal(x.d.action, 'chat');
+    x = await go('Художникутром поговорим'); assert.equal(x.v.directArt, null, 'похожее слово — не команда');
+    x = await go('давай художнику скажем'); assert.equal(x.v.directArt, null, 'только в начале');
+    x = await go('Художнику правкой займёмся потом'); assert.equal(x.d.action, 'ready_to_draw', '«правкой» — не команда правки');
+  }
+  console.log('10 художнику напрямую OK');
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
