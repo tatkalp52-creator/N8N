@@ -28,4 +28,10 @@ async function run(name, nodes, input){
   assert.ok(b.userPrompt.includes('индексами: 0, 1, 2'));
   t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj,'OpenAI: названия треков':{choices:[{message:{content:JSON.stringify({names:{'0':'X','1':'Y','2':'Z'}})}}]}}))[0].timecodesText;
   assert.equal(t,'0:00 X\n3:20 Y\n6:40 Z'); console.log('3 OK');
+  // 4) после часа — «1:00:22», не «60:22»
+  const longInfo={tracks:[0,1,2].map(i=>({index:i,filename:'T'+i,startSeconds:[0,3622,7385][i]})),totalDurationSeconds:7400};
+  proj={ai_TimecodeNames:'A\nB\nC',sys_LoopCount:''};
+  b=(await run('Готовим запрос на названия треков',{'Читаем проект':proj,'Считаем длительности треков':longInfo},tmpl))[0];
+  t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj,'Читаем стиль оверлея':{}}))[0].timecodesText;
+  assert.equal(t,'0:00 A\n1:00:22 B\n2:03:05 C'); console.log('4 OK (часы)');
 })().catch(e=>{console.error('FAIL',e);process.exit(1)});

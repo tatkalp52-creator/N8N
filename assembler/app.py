@@ -1,5 +1,6 @@
 import os
 import re
+import random
 import json
 import subprocess
 import tempfile
@@ -20,7 +21,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-09-28-kaggle-output"
+ASSEMBLER_VERSION = "2026-10-01-pieces"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -236,7 +237,7 @@ def kaggle_token():
     return token
 
 
-def download_kaggle_output_zip(url, dest_path):
+def download_kaggle_output_file(url, dest_path, ext=".zip", prefer=None):
     m = re.search(r"kaggle\.com/code/([^/?#]+)/([^/?#]+)", url)
     if not m:
         raise RuntimeError(f"Не понимаю ссылку на Kaggle: {url}")
@@ -256,15 +257,21 @@ def download_kaggle_output_zip(url, dest_path):
         page = data.get("nextPageToken")
         if not page:
             break
-    zips = [f for f in files if str(f.get("fileName", "")).lower().endswith(".zip") and f.get("url")]
+    zips = [f for f in files if str(f.get("fileName", "")).lower().endswith(ext) and f.get("url")]
+    if prefer:
+        zips.sort(key=lambda f: os.path.basename(str(f.get("fileName", ""))) != prefer)
     if not zips:
-        raise RuntimeError("В результате блокнота Kaggle нет .zip — запуск ещё идёт или упал")
+        raise RuntimeError(f"В результате блокнота Kaggle нет {ext} — запуск ещё идёт или упал")
     with requests.get(zips[0]["url"], stream=True, timeout=300) as r:
         r.raise_for_status()
         with open(dest_path, "wb") as f:
             for chunk in r.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
     return dest_path
+
+
+def download_kaggle_output_zip(url, dest_path):
+    return download_kaggle_output_file(url, dest_path)
 
 
 def download_file(url, dest_path):
@@ -954,11 +961,208 @@ def collect_fx_filters(data, registry, *args):
             continue
         if not value:
             continue
+        if key in MEDIA_FX_KEYS:
+            continue
         if key in registry:
             filters.append(registry[key](value, *args) if args else registry[key](value))
         else:
             print(f"[video-assembler] unknown effect '{key}', skipping")
     return filters
+
+
+
+# НОВОЕ (01.10): сборка видео КУСКАМИ. Каждый кусок (вступление с надписью,
+# минута статики, петля, событие) рендерится один раз коротким клипом с
+# одинаковыми параметрами кодека, а длинное видео склеивается из копий этих
+# кусков без пересчёта (concat, -c:v copy). Поэтому всё видео идёт в одной
+# частоте кадров (по умолчанию 24) и собирается не дольше прежнего.
+# Тело видео выбирается тем, что лежит в строке проекта:
+#   fx_LoopUrl пусто, fx_EventUrls пусто  -> статика
+#   только fx_LoopUrl                      -> бесконечная петля
+#   только fx_EventUrls                    -> статика + события с паузами
+#   оба                                    -> петля + события поверх неё
+# Петля и события должны начинаться и заканчиваться исходной картинкой
+# (так их делает блокнот Wan: первый кадр = последний = картинка).
+MEDIA_FX_KEYS = ("fx_LoopUrl", "fx_EventUrls")
+
+
+def piece_codec_args(fps):
+    # одинаковые для ВСЕХ кусков — иначе склейка копированием не сработает
+    return ["-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+            "-pix_fmt", "yuv420p", "-profile:v", "high", "-r", str(fps),
+            "-g", str(fps * 2), "-video_track_timescale", str(fps * 1000)]
+
+
+def media_duration(path):
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                        "-of", "csv=p=0", path], capture_output=True, text=True)
+    return float(r.stdout.strip())
+
+
+def download_media(url, dest_path):
+    # Kaggle-блокнот Wan: берём петля.mp4 из его результата; иначе — как обычный файл
+    if "kaggle.com/code/" in url:
+        return download_kaggle_output_file(url, dest_path, ext=".mp4", prefer="петля.mp4")
+    return download_file(url, dest_path)
+
+
+def normalize_clip(src, out, fps):
+    # любой клип (Wan отдаёт 16 кадров/с и свой размер) -> размер кадра и общая частота
+    run_ffmpeg(["-i", src, "-vf",
+                f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:flags=lanczos,setsar=1,fps={fps}",
+                "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "16",
+                "-pix_fmt", "yuv420p", out])
+    return out
+
+
+def render_still_piece(image_path, seconds, base_chain, fps, out):
+    run_ffmpeg(["-loop", "1", "-framerate", str(fps), "-t", f"{seconds:g}", "-i", image_path,
+                "-vf", base_chain] + piece_codec_args(fps) + [out])
+    return out
+
+
+def render_loop_piece(loop_path, seconds, base_chain, fps, out):
+    run_ffmpeg(["-stream_loop", "-1", "-i", loop_path, "-t", f"{seconds:g}",
+                "-vf", base_chain] + piece_codec_args(fps) + [out])
+    return out
+
+
+def render_event_piece(event_path, image_path, loop_path, seconds, base_chain, fps, out):
+    # без петли — сам клип события; с петлёй — движение события поверх петли:
+    # маска там, где кадр события отличается от исходной картинки
+    if not loop_path:
+        run_ffmpeg(["-i", event_path, "-t", f"{seconds:g}", "-vf",
+                    f"tpad=stop_mode=clone:stop_duration={seconds:g},{base_chain}"]
+                   + piece_codec_args(fps) + [out])
+        return out
+    graph = (
+        f"[0:v]tpad=stop_mode=clone:stop_duration={seconds:g},split[ev][evm];"
+        f"[1:v]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,format=yuv420p[st];"
+        f"[evm][st]blend=all_mode=difference,format=gray,"
+        f"geq=lum='if(gt(lum(X\\,Y)\\,10)\\,255\\,0)',boxblur=8[m];"
+        f"[ev][m]alphamerge[eva];"
+        f"[2:v][eva]overlay=0:0:shortest=1,{base_chain}[v]"
+    )
+    run_ffmpeg(["-i", event_path,
+                "-loop", "1", "-framerate", str(fps), "-t", f"{seconds:g}", "-i", image_path,
+                "-stream_loop", "-1", "-t", f"{seconds:g}", "-i", loop_path,
+                "-filter_complex", graph, "-map", "[v]", "-t", f"{seconds:g}"]
+               + piece_codec_args(fps) + [out])
+    return out
+
+
+def render_intro_piece(image_path, loop_path, seconds, base_chain, shadow_layers, main_layers,
+                       shadow_blur, fps, out):
+    src = (["-stream_loop", "-1", "-i", loop_path] if loop_path
+           else ["-loop", "1", "-framerate", str(fps), "-i", image_path])
+    if shadow_layers:
+        shadow_chain = ";".join(
+            f"[{'shadowbg' if i == 0 else f'sh{i}'}]{f}[sh{i + 1}]" for i, f in enumerate(shadow_layers))
+        main_chain = ";".join(
+            f"[{'with_shadow' if i == 0 else f'm{i}'}]{f}[{f'm{i + 1}' if i + 1 < len(main_layers) else 'v'}]"
+            for i, f in enumerate(main_layers))
+        graph = (f"[0:v]{base_chain}[base];"
+                 f"color=c=black@0.0:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:r={fps}:d={seconds:g}[shadowbg];"
+                 f"{shadow_chain};[sh{len(shadow_layers)}]gblur=sigma={shadow_blur}[shadow_blurred];"
+                 f"[base][shadow_blurred]overlay=0:0[with_shadow];{main_chain}")
+    else:
+        graph = f"[0:v]{base_chain}[v]"
+    run_ffmpeg(src + ["-t", f"{seconds:g}", "-filter_complex", graph, "-map", "[v]",
+                      "-t", f"{seconds:g}"] + piece_codec_args(fps) + [out])
+    return out
+
+
+def plan_body(duration, intro, loop_len, event_lens, gap_min, gap_max, seed):
+    """Список кусков тела после вступления: ('still', сек) / ('loop', сек) / ('event', номер).
+    С петлёй все паузы кратны длине петли — петля не сбивается с шага."""
+    rnd = random.Random(seed)
+    parts, t = [], intro
+    unit = loop_len if loop_len else 10.0
+    big = unit * max(1, round(60 / unit))
+    base = "loop" if loop_len else "still"
+    if not event_lens:
+        while t < duration:
+            parts.append((base, big)); t += big
+        return parts, big
+    k = 0
+    while t < duration:
+        gap = rnd.uniform(gap_min, gap_max)
+        n_big, rest = int(gap // big), gap % big
+        parts += [(base, big)] * n_big
+        n_small = int(round(rest / unit))
+        parts += [(base, unit)] * n_small
+        t += n_big * big + n_small * unit
+        if t >= duration:
+            break
+        i = k % len(event_lens); k += 1
+        parts.append(("event", i)); t += event_lens[i]
+    return parts, big
+
+
+def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, base_chain,
+                            shadow_layers, main_layers, shadow_blur, overlay_visible_until,
+                            audio_chain, output_path, project_id):
+    def _f(key, default):
+        try:
+            v = float(data.get(key) or default)
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+    fps = int(_f("videoFps", 24))
+    gap_min = _f("eventGapMinSeconds", 60)
+    gap_max = max(gap_min, _f("eventGapMaxSeconds", 240))
+    loop_url = str(data.get("fx_LoopUrl") or "").strip()
+    event_urls = [u for u in re.split(r"[\s,;]+", str(data.get("fx_EventUrls") or "")) if u.startswith("http")]
+    pdir = os.path.join(work_dir, "pieces"); os.makedirs(pdir, exist_ok=True)
+
+    loop_path, loop_len = None, 0.0
+    if loop_url:
+        raw = download_media(loop_url, os.path.join(pdir, "loop_src.mp4"))
+        loop_path = normalize_clip(raw, os.path.join(pdir, "loop_norm.mp4"), fps)
+        loop_len = media_duration(loop_path)
+    events = []
+    for i, u in enumerate(event_urls):
+        raw = download_media(u, os.path.join(pdir, f"event{i}_src.mp4"))
+        ev = normalize_clip(raw, os.path.join(pdir, f"event{i}_norm.mp4"), fps)
+        ln = media_duration(ev)
+        if loop_len:  # событие поверх петли — длина кратна петле
+            ln = loop_len * max(1, -(-ln // loop_len))
+        events.append((ev, ln))
+    mode = ("петля + события" if loop_path and events else "петля" if loop_path
+            else "события" if events else "статика")
+    print(f"[video] тело: {mode}, {fps} кадров/с")
+
+    intro = float(int(overlay_visible_until) + 2)
+    if loop_len:
+        intro = loop_len * max(1, -(-intro // loop_len))
+    pieces = [render_intro_piece(image_path, loop_path, intro, base_chain, shadow_layers,
+                                 main_layers, shadow_blur, fps, os.path.join(pdir, "intro.mp4"))]
+    parts, big = plan_body(duration, intro, loop_len, [e[1] for e in events], gap_min, gap_max,
+                           project_id)
+    cache = {}
+    for kind, val in parts:
+        key = (kind, val)
+        if key not in cache:
+            out = os.path.join(pdir, f"{kind}_{str(val).replace('.', '_')}.mp4")
+            if kind == "still":
+                cache[key] = render_still_piece(image_path, val, base_chain, fps, out)
+            elif kind == "loop":
+                cache[key] = render_loop_piece(loop_path, val, base_chain, fps, out)
+            else:
+                ev, ln = events[val]
+                cache[key] = render_event_piece(ev, image_path, loop_path, ln, base_chain, fps, out)
+        pieces.append(cache[key])
+
+    list_path = os.path.join(pdir, "list.txt")
+    with open(list_path, "w") as f:
+        for p in pieces:
+            f.write(f"file '{os.path.abspath(p)}'\n")
+    run_ffmpeg(["-f", "concat", "-safe", "0", "-i", list_path, "-i", audio_path,
+                "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-af", audio_chain,
+                "-c:a", "aac", "-b:a", "384k", "-t", str(duration),
+                "-movflags", "+faststart", output_path])
+    print(f"[video] кусков: {len(pieces)}, разных: {len(cache) + 1}")
+    return output_path
 
 
 @app.route("/assemble", methods=["POST"])
@@ -1151,18 +1355,26 @@ def assemble():
         # пикселей, плёнка) честно считали все 25 кадров в секунду на весь
         # час видео — 4 из 5 кадров впустую. Картинка статична, результат
         # тот же; слой тени (color=...:r=fps) — с той же частотой.
-        run_ffmpeg([
-            "-loop", "1", "-framerate", str(fps), "-i", image_path,
-            "-i", audio_path,
-            "-filter_complex",
-            f"{video_chain_graph};[1:a]{audio_chain}[a]",
-            "-map", "[v]", "-map", "[a]",
-            "-t", str(duration),
-            "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "384k",
-            "-r", str(fps),
-            output_path
-        ])
+        # Зум и сдвиг пикселей меняются на протяжении всего видео — для них
+        # прежняя сборка одним проходом; во всех остальных случаях — кусками.
+        if not data.get("fx_ZoomEnabled") and pixel_shift <= 0:
+            build_video_from_pieces(
+                data, work_dir, image_path, audio_path, duration, base_chain,
+                shadow_layers, main_layers, shadow_blur, overlay_visible_until,
+                audio_chain, output_path, project_id)
+        else:
+            run_ffmpeg([
+                "-loop", "1", "-framerate", str(fps), "-i", image_path,
+                "-i", audio_path,
+                "-filter_complex",
+                f"{video_chain_graph};[1:a]{audio_chain}[a]",
+                "-map", "[v]", "-map", "[a]",
+                "-t", str(duration),
+                "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage", "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "384k",
+                "-r", str(fps),
+                output_path
+            ])
 
         # НОВОЕ: вырезаем один кадр в момент полной видимости оверлея
         # (середина стабильного окна 3-15 сек — берём 9-ю секунду, с запасом
