@@ -58,7 +58,8 @@ return [{
     storyBrief: '',
     storyKeep: '',
     userBrief: String(row.ai_UserBrief || '').trim(),
-    dallePrompt: action === 'ready_to_draw' ? d.text : '',
+    // новая картинка: постоянные правила из таблицы + сцена автора; правка — только слова автора
+    dallePrompt: action === 'ready_to_draw' ? [kb.artistRules, d.text].filter(Boolean).join('\n\n') : '',
     revisionInstruction: action === 'revise_point' ? d.text : '',
     revisionIsNewVariant: true,
     revisionTargetImageUrl,

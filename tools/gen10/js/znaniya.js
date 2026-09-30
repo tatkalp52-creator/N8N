@@ -81,6 +81,8 @@ const referenceRolesDraw = rolesText(0);
 const referenceRolesEdit = rolesText(1);
 // Модель художника — из таблицы (колонка tmpl_ImageModel); пусто — прежняя.
 const imageModel = String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2';
+// Постоянные правила для прямых заданий «Художнику: …» — из таблицы (колонка tmpl_ArtistRules); пусто — без них.
+const artistRules = String(findByLabel(tmpl, 'tmpl_ArtistRules') || '').trim();
 
 const vectorStoreId = String(findByLabel(tmpl, 'tmpl_ChannelVectorStoreId') || '').trim();
 const characterPassport = String(findByLabel(tmpl, 'tmpl_CharacterPassport') || '').trim();
@@ -96,6 +98,7 @@ const writerWorld = ['tmpl_ProjectContext', 'tmpl_CharacterPassport', 'tmpl_Loca
 return [{
   json: {
     knowledgeText,
+    artistRules,
     styleGuideUrl: imageUrls[0] || null,
     referenceUrls: imageUrls.slice(1),
     timecodeCount,

@@ -256,6 +256,19 @@ async function parseEd(c, story) {
     assert.equal(x.d.conversationId, 'conv_9'); assert.equal(x.d.editorState, '{"x":1}'); assert.equal(x.d.userBrief, 'бриф');
     assert.equal(x.d.statusAfter, 'Картинка в работе'); assert.equal(x.d.styleGuideUrl, 'https://lh3.googleusercontent.com/d/STYLE=s2000');
     x = await go('художнику,  нарисуй кота'); assert.equal(x.d.dallePrompt, 'нарисуй кота');
+    {
+      const c = { ...mk('Художнику: кот в кафе'), tmpl: { ...tmplD, '🎨_tmpl_ArtistRules': 'Pengui is small. The scene:' } };
+      const v = (await run('Вход редактора', { nodes: { 'Контекст проекта': c } }))[0];
+      const k = (await run('Собираем знания канала', { nodes: { 'Контекст проекта': c } }))[0];
+      assert.equal(k.artistRules, 'Pengui is small. The scene:');
+      const n = { 'Контекст проекта': c, 'Вход редактора': v, 'Собираем знания канала': k };
+      const dd = (await run('Задание художнику напрямую', { nodes: n }))[0];
+      assert.equal(dd.dallePrompt, 'Pengui is small. The scene:\n\nкот в кафе', 'правила из таблицы + сцена');
+      const c2 = { ...mk('Художнику правка: теплее'), tmpl: c.tmpl };
+      const v2 = (await run('Вход редактора', { nodes: { 'Контекст проекта': c2 } }))[0];
+      const d2 = (await run('Задание художнику напрямую', { nodes: { ...n, 'Контекст проекта': c2, 'Вход редактора': v2 } }))[0];
+      assert.equal(d2.revisionInstruction, 'теплее', 'в правку правила не подклеиваем');
+    }
     x = await go('ХУДОЖНИКУ — правка: warmer light');
     assert.equal(x.d.action, 'revise_point'); assert.equal(x.d.revisionInstruction, 'warmer light');
     assert.equal(x.d.revisionTargetImageUrl, 'U2'); assert.equal(x.d.revisionTargetVariantNumber, 2);
