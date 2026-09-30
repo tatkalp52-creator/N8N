@@ -193,6 +193,15 @@ async function parseEd(c, story) {
   let bt = bl.map(x => x.text).join('');
   assert.ok(!bt.includes('✅ Картинка согласована'), 'после кнопки не дублируем ✅');
   assert.ok(bt.includes('ждут согласования: 1, 2, 3, 4, 5, 6, 7, 8'), 'блок пришёл сразу');
+  // описание уже согласовано → новая картинка его не переписывает
+  {
+    const agreedSt = { items: { description: 'OLD' }, set: { 3: true }, agreed: { 3: true } };
+    const ctxK = { ...ctxB, row: { ...ctxB.row, sys_EditorState: JSON.stringify(agreedSt) } };
+    const pk = (await parseEd({ nodes: { ...nU, 'Контекст проекта': ctxK, 'Вход редактора': vB }, input: [call('approve_image', { variantNumber: 1, messageToUser: 'Ок', storyBrief: 'про новую картинку' })] }))[0];
+    assert.equal(pk.storyBrief, '', 'писатель не вызывается');
+    assert.equal(JSON.parse(pk.editorState).items.description, 'OLD', 'согласованное описание на месте');
+    assert.ok(pk.messageToUser.includes('«3: перепиши»'));
+  }
   // согласование словами → ✅ и блок одним сообщением
   p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': { ...ctxU, row: { ...ctxU.row, sys_EditorState: '' } } }, input: [call('approve_image', { variantNumber: 2, messageToUser: 'Супер', items: { title: 'T2' } })] }))[0];
   bl = await run('Собираем текстовый блок', { nodes: { ...nodes, 'Парсим ответ редактора': p } });

@@ -135,6 +135,13 @@ if (functionName === 'start_drawing') {
     applyTextBlock(args);
   }
   if (action === 'approved') storyBrief = String(args.storyBrief || '').trim();
+  // Смена картинки не переписывает уже согласованное описание: Писатель пишет
+  // заново, только если автор сама попросит (commission_story).
+  if (storyBrief && state.agreed && state.agreed[3]) {
+    storyBrief = '';
+    const note = 'Описание уже согласовано — не переписываю. Если нужно под новую картинку, напишите: «3: перепиши».';
+    messageToUser = messageToUser ? messageToUser + '\n\n' + note : note;
+  }
 } else if (functionName === 'commission_story') {
   action = 'text_block';
   textBlockTouched = true;
