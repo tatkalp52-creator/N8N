@@ -66,7 +66,9 @@ if (userText.includes(m[0])) {
 
 // Любая ссылка в сообщении по проекту — это ссылка на треки (так было и в
 // старой схеме). Картинки для Редактора присылаются фотографией, не ссылкой.
-const urlMatch = userText.match(/https?:\/\/\S+/);
+// Задание художнику может содержать ссылку — это не треки.
+const toArtist = /^\s*художнику(?![а-яё])/iu.test(userText);
+const urlMatch = toArtist ? null : userText.match(/https?:\/\/\S+/);
 let tracksUrl = '';
 if (urlMatch) {
   tracksUrl = urlMatch[0];
@@ -86,6 +88,8 @@ return [{
     photo: msg.photo || null,
     callbackQueryId: '',
     variantNumber: null,
+    // ответ на картинку «Вариант N» — какой вариант имеется в виду
+    replyVariant: (() => { const r = msg.reply_to_message; const mm = r && String(r.caption || r.text || '').match(/Вариант\s+(\d+)/); return mm ? Number(mm[1]) : null; })(),
     tracksUrl,
   }
 }];

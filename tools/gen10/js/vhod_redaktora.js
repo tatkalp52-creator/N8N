@@ -23,6 +23,8 @@ if (m) {
   const e = rest.match(new RegExp('^правк[аиу](?![а-яё])(?:\\s*(?:вариант[а]?|№)?\\s*(\\d+))?' + SEP, 'iu'));
   let edit = false, variant = null;
   if (e) { edit = true; variant = e[1] ? Number(e[1]) : null; rest = rest.slice(e[0].length); }
+  // номер не написан, но это ответ на картинку «Вариант N» — правим её
+  if (edit && !variant) { try { variant = $('Разбираем входящее').first().json.replyVariant || null; } catch (err) {} }
   directArt = { edit, variant, text: rest.trim() };
 }
 

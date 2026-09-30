@@ -261,6 +261,17 @@ async function parseEd(c, story) {
     assert.equal(x.d.revisionTargetImageUrl, 'U2'); assert.equal(x.d.revisionTargetVariantNumber, 2);
     x = await go('Художнику правка 1: less people');
     assert.equal(x.d.revisionTargetImageUrl, 'U1'); assert.equal(x.d.revisionTargetVariantNumber, 1); assert.equal(x.d.revisionInstruction, 'less people');
+    {
+      const c = mk('Художнику правка: brighter');
+      const v = (await run('Вход редактора', { nodes: { 'Контекст проекта': c, 'Разбираем входящее': { replyVariant: 1 } } }))[0];
+      assert.equal(v.directArt.variant, 1, 'ответ на «Вариант 1» — правим вариант 1');
+      const v2 = (await run('Вход редактора', { nodes: { 'Контекст проекта': mk('Художнику правка 2: x'), 'Разбираем входящее': { replyVariant: 1 } } }))[0];
+      assert.equal(v2.directArt.variant, 2, 'номер в тексте важнее');
+      const rz = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { message: { chat: { id: 1 }, text: 'Художнику правка: теплее', reply_to_message: { caption: 'Вариант 3\nID: 20260924_101010_pengui' } } } } }))[0];
+      assert.equal(rz.kind, 'message'); assert.equal(rz.replyVariant, 3);
+      const rz2 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { message: { chat: { id: 1 }, text: 'Художнику: как тут https://drive.google.com/file/d/X/view', reply_to_message: { text: 'ID: 20260924_101010_pengui' } } } } }))[0];
+      assert.equal(rz2.kind, 'message', 'ссылка в задании художнику — не треки');
+    }
     x = await go('Художнику правка 5: x'); assert.equal(x.d.action, 'chat'); assert.ok(x.d.messageToUser.includes('Не нашла вариант 5'));
     x = await go('Художнику:'); assert.equal(x.d.action, 'chat');
     x = await go('Художникутром поговорим'); assert.equal(x.v.directArt, null, 'похожее слово — не команда');

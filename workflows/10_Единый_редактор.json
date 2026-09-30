@@ -16,14 +16,14 @@
         0,
         0
       ],
-      "webhookId": "401f77a3-f7e4-4f7d-bf9f-94b7d5646def",
+      "webhookId": "2de241cd-a8de-4e43-b051-dcc387912a56",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "d7789dc1-dcba-4f8e-b17a-85fb2f8ef314"
+      "id": "594001f1-daba-41c6-875e-d5dc05904bb6"
     },
     {
       "parameters": {
@@ -54,11 +54,11 @@
         220,
         0
       ],
-      "id": "872e3eaf-2a86-4bb2-8bf3-be7e2f37c1f9"
+      "id": "21edc9ad-6f3e-4070-b852-82662ba558ad"
     },
     {
       "parameters": {
-        "jsCode": "// Единая точка разбора всего, что пришло из Телеграма. Дальше по канвасу\n// никто не лезет в сырое сообщение — все берут готовые поля отсюда.\n// kind:\n//   newStart     — сообщение без ID проекта → предлагаем выбрать канал\n//   channelPick  — нажата кнопка выбора канала → создаём проект\n//   imgApprove   — кнопка \"✅\" под конкретным вариантом картинки (img|ID|N)\n//   finalApprove — финальная кнопка \"✅ Согласовано\" под сводкой (final|ID)\n//   oldButton    — кнопка из старой схемы (approve|ID)\n//   tracks       — сообщение по проекту со ссылкой (ссылка на треки)\n//   message      — обычная реплика по проекту → Редактору\nconst t = $('Telegram Trigger').first().json;\nconst ID_RE = /(\\d{8})_?(\\d{6})_?([A-Za-z0-9]+)/;\n\nfunction fromId(m) {\n  return { projectId: m[1] + '_' + m[2] + '_' + m[3], channelKey: m[3] };\n}\n\nif (t.callback_query) {\n  const cb = t.callback_query;\n  const data = String(cb.data || '').trim();\n  const base = {\n    chatId: cb.message && cb.message.chat ? cb.message.chat.id : (cb.from ? cb.from.id : null),\n    callbackQueryId: cb.id,\n    text: '',\n    photo: null,\n    projectId: '',\n    channelKey: '',\n    variantNumber: null,\n    tracksUrl: '',\n  };\n  const parts = data.split('|');\n  const idMatch = parts[1] ? parts[1].match(ID_RE) : null;\n\n  if (parts[0] === 'img' && idMatch) {\n    return [{ json: { ...base, ...fromId(idMatch), kind: 'imgApprove', variantNumber: parseInt(parts[2], 10) || null } }];\n  }\n  if (parts[0] === 'final' && idMatch) {\n    return [{ json: { ...base, ...fromId(idMatch), kind: 'finalApprove' } }];\n  }\n  if (parts[0] === 'approve' && idMatch) {\n    return [{ json: { ...base, ...fromId(idMatch), kind: 'oldButton' } }];\n  }\n  if (!data.includes('|') && data) {\n    return [{ json: { ...base, kind: 'channelPick', channelKey: data } }];\n  }\n  return [{ json: { ...base, kind: 'unknown' } }];\n}\n\nconst msg = t.message || {};\nconst ownText = msg.text || msg.caption || '';\nlet search = ownText;\nif (msg.reply_to_message) {\n  search += ' ' + (msg.reply_to_message.text || msg.reply_to_message.caption || '');\n}\nconst m = search.match(ID_RE);\nconst chatId = msg.chat ? msg.chat.id : null;\n\nif (!m) {\n  return [{ json: { kind: 'newStart', chatId, text: ownText, photo: null, projectId: '', channelKey: '', callbackQueryId: '', variantNumber: null, tracksUrl: '' } }];\n}\n\nlet userText = ownText;\nif (userText.includes(m[0])) {\n  userText = userText.replace(m[0], '').replace(/ID\\s*:?/gi, '').trim();\n}\n\n// Любая ссылка в сообщении по проекту — это ссылка на треки (так было и в\n// старой схеме). Картинки для Редактора присылаются фотографией, не ссылкой.\nconst urlMatch = userText.match(/https?:\\/\\/\\S+/);\nlet tracksUrl = '';\nif (urlMatch) {\n  tracksUrl = urlMatch[0];\n  // Тот же перевод ссылки Google Drive в прямую, что делает 04_Video.\n  const driveMatch = tracksUrl.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || tracksUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  if (driveMatch) {\n    tracksUrl = 'https://drive.google.com/uc?export=download&id=' + driveMatch[1];\n  }\n}\n\nreturn [{\n  json: {\n    kind: tracksUrl ? 'tracks' : 'message',\n    chatId,\n    ...fromId(m),\n    text: userText,\n    photo: msg.photo || null,\n    callbackQueryId: '',\n    variantNumber: null,\n    tracksUrl,\n  }\n}];\n"
+        "jsCode": "// Единая точка разбора всего, что пришло из Телеграма. Дальше по канвасу\n// никто не лезет в сырое сообщение — все берут готовые поля отсюда.\n// kind:\n//   newStart     — сообщение без ID проекта → предлагаем выбрать канал\n//   channelPick  — нажата кнопка выбора канала → создаём проект\n//   imgApprove   — кнопка \"✅\" под конкретным вариантом картинки (img|ID|N)\n//   finalApprove — финальная кнопка \"✅ Согласовано\" под сводкой (final|ID)\n//   oldButton    — кнопка из старой схемы (approve|ID)\n//   tracks       — сообщение по проекту со ссылкой (ссылка на треки)\n//   message      — обычная реплика по проекту → Редактору\nconst t = $('Telegram Trigger').first().json;\nconst ID_RE = /(\\d{8})_?(\\d{6})_?([A-Za-z0-9]+)/;\n\nfunction fromId(m) {\n  return { projectId: m[1] + '_' + m[2] + '_' + m[3], channelKey: m[3] };\n}\n\nif (t.callback_query) {\n  const cb = t.callback_query;\n  const data = String(cb.data || '').trim();\n  const base = {\n    chatId: cb.message && cb.message.chat ? cb.message.chat.id : (cb.from ? cb.from.id : null),\n    callbackQueryId: cb.id,\n    text: '',\n    photo: null,\n    projectId: '',\n    channelKey: '',\n    variantNumber: null,\n    tracksUrl: '',\n  };\n  const parts = data.split('|');\n  const idMatch = parts[1] ? parts[1].match(ID_RE) : null;\n\n  if (parts[0] === 'img' && idMatch) {\n    return [{ json: { ...base, ...fromId(idMatch), kind: 'imgApprove', variantNumber: parseInt(parts[2], 10) || null } }];\n  }\n  if (parts[0] === 'final' && idMatch) {\n    return [{ json: { ...base, ...fromId(idMatch), kind: 'finalApprove' } }];\n  }\n  if (parts[0] === 'approve' && idMatch) {\n    return [{ json: { ...base, ...fromId(idMatch), kind: 'oldButton' } }];\n  }\n  if (!data.includes('|') && data) {\n    return [{ json: { ...base, kind: 'channelPick', channelKey: data } }];\n  }\n  return [{ json: { ...base, kind: 'unknown' } }];\n}\n\nconst msg = t.message || {};\nconst ownText = msg.text || msg.caption || '';\nlet search = ownText;\nif (msg.reply_to_message) {\n  search += ' ' + (msg.reply_to_message.text || msg.reply_to_message.caption || '');\n}\nconst m = search.match(ID_RE);\nconst chatId = msg.chat ? msg.chat.id : null;\n\nif (!m) {\n  return [{ json: { kind: 'newStart', chatId, text: ownText, photo: null, projectId: '', channelKey: '', callbackQueryId: '', variantNumber: null, tracksUrl: '' } }];\n}\n\nlet userText = ownText;\nif (userText.includes(m[0])) {\n  userText = userText.replace(m[0], '').replace(/ID\\s*:?/gi, '').trim();\n}\n\n// Любая ссылка в сообщении по проекту — это ссылка на треки (так было и в\n// старой схеме). Картинки для Редактора присылаются фотографией, не ссылкой.\n// Задание художнику может содержать ссылку — это не треки.\nconst toArtist = /^\\s*художнику(?![а-яё])/iu.test(userText);\nconst urlMatch = toArtist ? null : userText.match(/https?:\\/\\/\\S+/);\nlet tracksUrl = '';\nif (urlMatch) {\n  tracksUrl = urlMatch[0];\n  // Тот же перевод ссылки Google Drive в прямую, что делает 04_Video.\n  const driveMatch = tracksUrl.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || tracksUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  if (driveMatch) {\n    tracksUrl = 'https://drive.google.com/uc?export=download&id=' + driveMatch[1];\n  }\n}\n\nreturn [{\n  json: {\n    kind: tracksUrl ? 'tracks' : 'message',\n    chatId,\n    ...fromId(m),\n    text: userText,\n    photo: msg.photo || null,\n    callbackQueryId: '',\n    variantNumber: null,\n    // ответ на картинку «Вариант N» — какой вариант имеется в виду\n    replyVariant: (() => { const r = msg.reply_to_message; const mm = r && String(r.caption || r.text || '').match(/Вариант\\s+(\\d+)/); return mm ? Number(mm[1]) : null; })(),\n    tracksUrl,\n  }\n}];\n"
       },
       "name": "Разбираем входящее",
       "type": "n8n-nodes-base.code",
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "819a9ec2-6614-4397-91ac-956848367fb5"
+      "id": "81ce0dea-273e-4086-9d68-dae31400fe89"
     },
     {
       "parameters": {
@@ -146,7 +146,7 @@
         660,
         0
       ],
-      "id": "11a71627-7813-46ed-90cc-933f101b527c"
+      "id": "5b04ce70-1850-4834-9b92-e7637c1d79fb"
     },
     {
       "parameters": {
@@ -179,7 +179,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "3a6fe6c7-b887-4068-abaa-2501f01aff75"
+      "id": "211776f1-30fc-43f0-9427-820c60ac2d86"
     },
     {
       "parameters": {
@@ -192,7 +192,7 @@
         1120,
         -700
       ],
-      "id": "905fc62a-c1bf-48d6-9f41-5a94292adab3"
+      "id": "25051761-a1d0-4327-b7fb-65d24bc83aec"
     },
     {
       "parameters": {
@@ -229,14 +229,14 @@
         1340,
         -700
       ],
-      "webhookId": "b342a027-c69a-4ba4-9266-fb7f6d54380e",
+      "webhookId": "65e7ef4d-8ed0-44a6-aa51-e62637bf6879",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "6b0ee9bd-bc2b-4a30-bee3-260e21a1975c"
+      "id": "fe07b17d-5911-48c4-82ee-1dc44cf9c5be"
     },
     {
       "parameters": {
@@ -252,7 +252,7 @@
         900,
         -450
       ],
-      "webhookId": "52171f0a-b62b-4263-8355-f22257fb485c",
+      "webhookId": "ec6bd8b5-58a2-48b5-9ed7-bdaed24d78ad",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -260,7 +260,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "ce7d1ea7-4a7e-40c6-b992-04ba426cd7cd"
+      "id": "f12a7986-7f6d-4c9d-afd3-2058c950a1a7"
     },
     {
       "parameters": {
@@ -298,7 +298,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "3c0a0c13-cf1c-4c57-ac83-c16b3ed16f6c"
+      "id": "04fb34e8-a43c-493d-aeed-8b903106a157"
     },
     {
       "parameters": {
@@ -311,7 +311,7 @@
         1340,
         -450
       ],
-      "id": "695dc506-11f0-4dcd-b2ca-7e13b574632a"
+      "id": "c543231f-f795-40f4-b25b-e29f12edc8da"
     },
     {
       "parameters": {
@@ -349,7 +349,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "686f9513-1bb5-47d1-9cc5-73779a746692"
+      "id": "92418110-2bca-4b8b-a6ae-8e54236d3200"
     },
     {
       "parameters": {
@@ -369,14 +369,14 @@
         1780,
         -450
       ],
-      "webhookId": "25d48519-32bc-4728-95fb-446f7e8361fb",
+      "webhookId": "74b5d36e-357b-4713-ac36-cd5563c2a96f",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "c10c9730-5f62-4939-a4a5-8e01c76bae4b"
+      "id": "1d2a194a-41fd-4371-8340-39b2b6eaaa0b"
     },
     {
       "parameters": {
@@ -388,7 +388,7 @@
           },
           "conditions": [
             {
-              "id": "44baffe5-d43b-4edd-bb16-9fb18206ab0c",
+              "id": "7cc97ec6-3351-4899-ac8c-7376e7701e4c",
               "leftValue": "={{ !!$('Разбираем входящее').first().json.callbackQueryId }}",
               "rightValue": true,
               "operator": {
@@ -409,7 +409,7 @@
         900,
         0
       ],
-      "id": "9519cb0d-d98d-45ec-b6ab-532dac48ff6e"
+      "id": "35172252-c038-4d5a-bee6-fa3bf53898e3"
     },
     {
       "parameters": {
@@ -425,7 +425,7 @@
         1120,
         -150
       ],
-      "webhookId": "d88b2a72-eb87-42a6-88ff-9e13578fe32e",
+      "webhookId": "b4ad6fce-3859-4825-be8d-e50fadb62046",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -433,7 +433,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "5b49a6fc-cf17-4c68-a77d-fecaf5406450"
+      "id": "1600f003-9c95-49ee-a370-f9dd2edae372"
     },
     {
       "parameters": {
@@ -472,7 +472,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "ff9b6aab-3a3e-465a-bf04-df8aa1f7b93e"
+      "id": "de67ec1e-ef15-402d-b9bb-93482a4a723a"
     },
     {
       "parameters": {
@@ -511,7 +511,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "3e4f3c57-daa4-4b7b-9d41-6e1d8db0e4ef"
+      "id": "1868cdc5-6e41-43e1-bd48-cf5896f6aee9"
     },
     {
       "parameters": {
@@ -550,7 +550,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "f6a61e45-1d5f-42ec-9963-a685e5923594"
+      "id": "8a8cf7f5-f5e4-4f5e-9bfa-6f39658ce010"
     },
     {
       "parameters": {
@@ -563,7 +563,7 @@
         2000,
         0
       ],
-      "id": "6f5706fc-c65a-48b0-9c91-6bbdd719b49e"
+      "id": "4c0ab954-b2cb-41f5-8195-d7dfebd4b9c3"
     },
     {
       "parameters": {
@@ -575,7 +575,7 @@
           },
           "conditions": [
             {
-              "id": "c134b385-b4f1-4dc5-b217-f4b562a50797",
+              "id": "e9c040f6-19d7-4557-97b8-1db0d21297eb",
               "leftValue": "={{ $json.found }}",
               "rightValue": true,
               "operator": {
@@ -596,7 +596,7 @@
         2220,
         0
       ],
-      "id": "7a61901e-340d-4b6d-b0fa-3682d31cc933"
+      "id": "70f94464-801c-40ff-85be-117e6d5dab23"
     },
     {
       "parameters": {
@@ -616,14 +616,14 @@
         2440,
         200
       ],
-      "webhookId": "fdb324f0-efa1-4e14-9c3c-43e798cc2e92",
+      "webhookId": "90fd0b4c-2fec-475a-a2d3-3085f55da07b",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "4bbab6f9-0f33-4d02-9ce7-96da32019ea1"
+      "id": "3f5e3562-109e-4feb-a908-b15d4c7de2a9"
     },
     {
       "parameters": {
@@ -742,7 +742,7 @@
         2440,
         0
       ],
-      "id": "9d35c811-54ae-48b4-a89f-6eb50eede09a"
+      "id": "6a24b6b8-8c46-409d-a8e7-7bb6d43e7723"
     },
     {
       "parameters": {
@@ -762,14 +762,14 @@
         2700,
         1500
       ],
-      "webhookId": "3a10e149-96f9-4b76-8cee-2d3cd17c558c",
+      "webhookId": "baa1fb69-c684-4fd3-a24b-6db5dca8ff58",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "de4da81e-e428-412a-ac7a-c6419654bbdc"
+      "id": "0b84175b-acc0-4678-a168-b1615ff5094e"
     },
     {
       "parameters": {
@@ -782,7 +782,7 @@
         2700,
         900
       ],
-      "id": "37cb3db8-6f5f-4f47-aa23-18c89c1647c6"
+      "id": "fdeeccac-3e80-4be4-868d-e067e8644fe9"
     },
     {
       "parameters": {
@@ -794,7 +794,7 @@
           },
           "conditions": [
             {
-              "id": "fa68745c-6942-4eb6-9580-05979fc01989",
+              "id": "008bff28-a5be-4dc7-9b9c-6275049b8052",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -815,7 +815,7 @@
         2920,
         900
       ],
-      "id": "9ddebd96-4e72-4270-a4ab-5521735b981f"
+      "id": "80739788-e25b-43e7-9382-067b4a1ed334"
     },
     {
       "parameters": {
@@ -857,7 +857,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "68ca7032-e1f9-45fd-abfa-ebd24563a605"
+      "id": "a7cc91c4-7750-4549-801a-eb647ac1850f"
     },
     {
       "parameters": {
@@ -877,14 +877,14 @@
         3360,
         900
       ],
-      "webhookId": "010a43a8-9df8-4743-bbe5-31fa31671066",
+      "webhookId": "77555b4b-dbc4-4d26-9a89-4099965fabf3",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "6d98b3f9-496e-4644-b6ec-1a42880d4f08"
+      "id": "af8add6f-53a6-47a1-8f3d-e1cd0e0f08ef"
     },
     {
       "parameters": {
@@ -904,18 +904,18 @@
         3140,
         1100
       ],
-      "webhookId": "c5b61a03-0ac2-495a-8467-65d7a2655eba",
+      "webhookId": "7a23ccac-34c9-47c1-8d88-c21fee978a91",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "2832f90a-e2e0-4c3c-a988-997f4914d40c"
+      "id": "e12b54dc-f0ad-45f6-9eb0-90a30054a6f2"
     },
     {
       "parameters": {
-        "jsCode": "// Сюда приходят два пути: обычная реплика автора и нажатие \"✅\" под\n// вариантом картинки (тогда Редактору уходит служебная фраза о кнопке).\nconst ctx = $('Контекст проекта').first().json;\nlet synthetic = '';\nlet btn = null;\ntry { btn = $('Согласуем вариант').first().json; synthetic = btn.syntheticText || ''; } catch (e) {}\n// После кнопки строка проекта, прочитанная в начале, уже устарела: статус и\n// согласованная картинка только что записаны — берём свежие значения.\nconst status = btn && btn.ok ? btn.statusAfter : ctx.status;\nconst approvedUrl = btn && btn.ok ? btn.approvedUrl : String((ctx.row || {}).ai_ApprovedImageUrl || '').trim();\n\nconst photo = synthetic ? null : (ctx.photo && ctx.photo.length ? ctx.photo : null);\nlet userText = synthetic || ctx.text || '';\nif (!userText.trim()) userText = photo ? '(фото без подписи)' : '(пустое сообщение)';\n\n// «Художнику: …» — задание уходит художнику напрямую, без Редактора.\n// «Художнику правка: …» / «Художнику правка 3: …» — правка последнего / 3-го варианта.\nlet directArt = null;\nconst SEP = '[\\\\s:,.!—–-]*';\nconst m = synthetic ? null : String(ctx.text || '').match(new RegExp('^\\\\s*художнику(?![а-яё])' + SEP, 'iu'));\nif (m) {\n  let rest = String(ctx.text).slice(m[0].length);\n  const e = rest.match(new RegExp('^правк[аиу](?![а-яё])(?:\\\\s*(?:вариант[а]?|№)?\\\\s*(\\\\d+))?' + SEP, 'iu'));\n  let edit = false, variant = null;\n  if (e) { edit = true; variant = e[1] ? Number(e[1]) : null; rest = rest.slice(e[0].length); }\n  directArt = { edit, variant, text: rest.trim() };\n}\n\nreturn [{\n  json: {\n    projectId: ctx.projectId,\n    chatId: ctx.chatId,\n    sheetName: ctx.sheetName,\n    channelKey: ctx.channelKey,\n    userText,\n    photo,\n    fromButton: !!synthetic,\n    status,\n    approvedUrl,\n    directArt,\n  }\n}];\n"
+        "jsCode": "// Сюда приходят два пути: обычная реплика автора и нажатие \"✅\" под\n// вариантом картинки (тогда Редактору уходит служебная фраза о кнопке).\nconst ctx = $('Контекст проекта').first().json;\nlet synthetic = '';\nlet btn = null;\ntry { btn = $('Согласуем вариант').first().json; synthetic = btn.syntheticText || ''; } catch (e) {}\n// После кнопки строка проекта, прочитанная в начале, уже устарела: статус и\n// согласованная картинка только что записаны — берём свежие значения.\nconst status = btn && btn.ok ? btn.statusAfter : ctx.status;\nconst approvedUrl = btn && btn.ok ? btn.approvedUrl : String((ctx.row || {}).ai_ApprovedImageUrl || '').trim();\n\nconst photo = synthetic ? null : (ctx.photo && ctx.photo.length ? ctx.photo : null);\nlet userText = synthetic || ctx.text || '';\nif (!userText.trim()) userText = photo ? '(фото без подписи)' : '(пустое сообщение)';\n\n// «Художнику: …» — задание уходит художнику напрямую, без Редактора.\n// «Художнику правка: …» / «Художнику правка 3: …» — правка последнего / 3-го варианта.\nlet directArt = null;\nconst SEP = '[\\\\s:,.!—–-]*';\nconst m = synthetic ? null : String(ctx.text || '').match(new RegExp('^\\\\s*художнику(?![а-яё])' + SEP, 'iu'));\nif (m) {\n  let rest = String(ctx.text).slice(m[0].length);\n  const e = rest.match(new RegExp('^правк[аиу](?![а-яё])(?:\\\\s*(?:вариант[а]?|№)?\\\\s*(\\\\d+))?' + SEP, 'iu'));\n  let edit = false, variant = null;\n  if (e) { edit = true; variant = e[1] ? Number(e[1]) : null; rest = rest.slice(e[0].length); }\n  // номер не написан, но это ответ на картинку «Вариант N» — правим её\n  if (edit && !variant) { try { variant = $('Разбираем входящее').first().json.replyVariant || null; } catch (err) {} }\n  directArt = { edit, variant, text: rest.trim() };\n}\n\nreturn [{\n  json: {\n    projectId: ctx.projectId,\n    chatId: ctx.chatId,\n    sheetName: ctx.sheetName,\n    channelKey: ctx.channelKey,\n    userText,\n    photo,\n    fromButton: !!synthetic,\n    status,\n    approvedUrl,\n    directArt,\n  }\n}];\n"
       },
       "name": "Вход редактора",
       "type": "n8n-nodes-base.code",
@@ -924,7 +924,7 @@
         2700,
         -1400
       ],
-      "id": "8453c754-2f40-46a0-9d35-d6c2ec581784"
+      "id": "e4d1869f-1f74-4d99-a015-d8806c282e89"
     },
     {
       "parameters": {
@@ -937,7 +937,7 @@
         2920,
         -1400
       ],
-      "id": "600afaee-1c2b-4809-9a62-733b1213eb48"
+      "id": "d3b8f7b9-78c6-4578-b1be-8ff347042b4e"
     },
     {
       "parameters": {
@@ -949,7 +949,7 @@
           },
           "conditions": [
             {
-              "id": "89fc18c0-49ef-4ba1-92f0-cb345073255e",
+              "id": "5f3b267e-095c-48c6-96b9-3e51c7184f0d",
               "leftValue": "={{ !!String($('Контекст проекта').first().json.row.sys_ConversationId || '').trim() }}",
               "rightValue": true,
               "operator": {
@@ -970,7 +970,7 @@
         3140,
         -1400
       ],
-      "id": "be70fd08-0e19-48f6-b425-9925289a51ce"
+      "id": "9c4f01c0-8f2f-4f7b-8f1a-5110fadb712a"
     },
     {
       "parameters": {
@@ -996,7 +996,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "d818b995-351b-4f50-912a-3980beb11fef"
+      "id": "0e80eaee-d693-444a-ae2f-5210375ae4b0"
     },
     {
       "parameters": {
@@ -1008,7 +1008,7 @@
           },
           "conditions": [
             {
-              "id": "3165bb20-994f-45d1-8341-41cd70623681",
+              "id": "e15b91df-757e-45a8-8a9d-373845112cd4",
               "leftValue": "={{ !!$('Вход редактора').first().json.photo }}",
               "rightValue": true,
               "operator": {
@@ -1029,7 +1029,7 @@
         3580,
         -1400
       ],
-      "id": "34af15f3-12cc-4530-bbfd-8d837488ef97"
+      "id": "ed6626cc-8b6b-484b-bb70-079c95e790e1"
     },
     {
       "parameters": {
@@ -1046,14 +1046,14 @@
         3800,
         -1220
       ],
-      "webhookId": "e920de18-9ee3-4055-9b96-4b0735ea33b9",
+      "webhookId": "dadda4ac-2096-4a5a-96e7-9548ee03c3a3",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "5d2f4760-a8f4-4dd9-82a7-7bf13f04781b"
+      "id": "eb09af38-7f5c-46f4-be94-df7013384974"
     },
     {
       "parameters": {
@@ -1066,7 +1066,7 @@
         4020,
         -1220
       ],
-      "id": "74464ec0-7aec-4586-a528-7179ca384da3"
+      "id": "149f3054-db1a-4508-bacb-77ccd628aa8e"
     },
     {
       "parameters": {
@@ -1079,7 +1079,7 @@
         4240,
         -1400
       ],
-      "id": "b1edb0fc-1a05-4497-9e5e-6e538dec1fcb"
+      "id": "afb6b5b8-e3e2-497c-9efe-15ee467df1dd"
     },
     {
       "parameters": {
@@ -1105,7 +1105,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "71ee7f80-f963-48a3-8db2-24066efecbf7"
+      "id": "ea938641-4134-4a5c-bda0-c655bd8179ab"
     },
     {
       "parameters": {
@@ -1118,7 +1118,7 @@
         4680,
         -1660
       ],
-      "id": "bd4cdd8b-0d0e-4525-bbec-e1dbb2052957"
+      "id": "61231b01-ad59-47f1-ab49-c5114d5ea6a7"
     },
     {
       "parameters": {
@@ -1130,7 +1130,7 @@
           },
           "conditions": [
             {
-              "id": "4ee0d53c-07d2-458a-8afe-79ef18e5a805",
+              "id": "2e7ae287-8f29-4ad6-8dc7-06315c677898",
               "leftValue": "={{ !!$('Разбираем ответ редактора').first().json.storyBrief }}",
               "rightValue": true,
               "operator": {
@@ -1151,7 +1151,7 @@
         4680,
         -1220
       ],
-      "id": "450f12aa-f8c2-4d40-900e-bd95c41d38c9"
+      "id": "1122eee8-84a6-43d2-9f30-babf400767fa"
     },
     {
       "parameters": {
@@ -1164,7 +1164,7 @@
         4680,
         -1000
       ],
-      "id": "37cfae81-d7aa-474c-b386-488ec9600cc7"
+      "id": "8ac90d3b-7273-4567-8441-d5033f10b29b"
     },
     {
       "parameters": {
@@ -1192,7 +1192,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "c696e946-87d8-413a-8ddb-d42ccf997ae1",
+      "id": "f42855ca-e241-40b6-a8a2-7af85411917e",
       "onError": "continueRegularOutput"
     },
     {
@@ -1206,7 +1206,7 @@
         5120,
         -1000
       ],
-      "id": "862c1d9a-c1aa-435d-887f-7d98e52522ff"
+      "id": "3e74e6aa-6cb4-4808-8bc8-d38fefbde87c"
     },
     {
       "parameters": {
@@ -1232,7 +1232,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "75ce6bc9-9f6d-466c-a94e-5c36155577a8",
+      "id": "36f21c9e-29c1-4875-b557-e91543634063",
       "onError": "continueRegularOutput"
     },
     {
@@ -1246,7 +1246,7 @@
         4680,
         -1400
       ],
-      "id": "dd4086f3-71c6-489a-bbe9-fbd1203faa2d"
+      "id": "2d4ec444-7e6a-4f15-8b50-8f6b18895972"
     },
     {
       "parameters": {
@@ -1291,7 +1291,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "989eca4f-f115-4f47-a4b9-335ee346fd4c"
+      "id": "a2005e5e-d268-4703-8081-35244ef565b0"
     },
     {
       "parameters": {
@@ -1303,7 +1303,7 @@
           },
           "conditions": [
             {
-              "id": "9862b3c9-1856-42f4-9f0a-ec43516096f4",
+              "id": "2d5b9681-d021-45b2-8b10-f3d655e659ae",
               "leftValue": "={{ !!$('Парсим ответ редактора').first().json.communicationNotes }}",
               "rightValue": true,
               "operator": {
@@ -1324,7 +1324,7 @@
         5120,
         -1400
       ],
-      "id": "a86c94e9-c03f-40ae-a5d4-d4bdfc7c42fb"
+      "id": "03d0eec5-7d7c-44d3-af50-3e32668ba36c"
     },
     {
       "parameters": {
@@ -1365,7 +1365,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "66804053-dd8c-4c14-9c6f-b7a015b753b7"
+      "id": "5bebe7c2-2136-4f53-9e15-f3b049a4e4bb"
     },
     {
       "parameters": {
@@ -1484,7 +1484,7 @@
         5560,
         -1400
       ],
-      "id": "2f04dda4-63a2-43af-8df9-ed2aaaf7a03c"
+      "id": "fbb7ce09-8a0a-4c04-89bd-0db270f81f92"
     },
     {
       "parameters": {
@@ -1518,7 +1518,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "2e5a5172-9de5-4f1a-b4ba-de8a3686f5b5"
+      "id": "fabd6826-3a59-4cd7-a09e-0f6d23f7078f"
     },
     {
       "parameters": {
@@ -1531,7 +1531,7 @@
         3140,
         -1660
       ],
-      "id": "fde4b0b3-0d1d-4219-8200-b11e789a0294"
+      "id": "74ea4dcd-10c7-468f-891b-171edd856aa6"
     },
     {
       "parameters": {
@@ -1543,7 +1543,7 @@
           },
           "conditions": [
             {
-              "id": "ddfcc107-f15e-46f6-bbd4-190061d5b585",
+              "id": "83afcd18-6532-46eb-a519-c53b703ee24e",
               "leftValue": "={{ !!$('Вход редактора').first().json.directArt }}",
               "rightValue": true,
               "operator": {
@@ -1564,7 +1564,7 @@
         2920,
         -1140
       ],
-      "id": "6e702f62-56a3-42c8-b34e-bcf8412897df"
+      "id": "37c42bde-834d-4380-98af-a4b80567aa6f"
     },
     {
       "parameters": {
@@ -1577,7 +1577,7 @@
         4460,
         -1140
       ],
-      "id": "eb499c6d-1f47-43f4-93cc-3ba44379e45d"
+      "id": "ff470db7-2db3-4b5f-96ca-e52d2a7ed1a4"
     },
     {
       "parameters": {
@@ -1590,7 +1590,7 @@
         5820,
         -2100
       ],
-      "id": "a521619a-36d4-49ed-8007-94cae1627c10"
+      "id": "ef847e99-9b7a-43f8-95e3-b7d9028826d0"
     },
     {
       "parameters": {
@@ -1610,14 +1610,14 @@
         6040,
         -2100
       ],
-      "webhookId": "e0c9f1ed-6335-4ad0-9fa1-7b489a660a12",
+      "webhookId": "b92b9c33-586e-44ec-bf0b-49666ca21e6c",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "7b3dd1ad-a3e9-4845-bee8-41659a3d51e6"
+      "id": "48939e04-0c5a-40cf-a16b-7cae7f495403"
     },
     {
       "parameters": {
@@ -1659,7 +1659,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "048958e1-6b11-429c-b767-45d09528dbdf"
+      "id": "30b0479c-2dea-428d-b72d-1a5589d535c9"
     },
     {
       "parameters": {
@@ -1672,7 +1672,7 @@
         5820,
         300
       ],
-      "id": "a4cb1c50-5a83-43bf-a3fd-86d811120d2b"
+      "id": "baa65042-2143-4638-bddf-360fc4f4c09f"
     },
     {
       "parameters": {
@@ -1684,7 +1684,7 @@
           },
           "conditions": [
             {
-              "id": "4266c3cd-95c8-4f8e-9e63-7cdb1dcdcda2",
+              "id": "bb2c7eca-b9d9-4f95-8842-041c6bb054b6",
               "leftValue": "={{ $('Собираем текстовый блок').first().json.allAgreed }}",
               "rightValue": true,
               "operator": {
@@ -1705,7 +1705,7 @@
         6040,
         300
       ],
-      "id": "1c0944a3-f115-4cd8-ba78-5964ba24e774"
+      "id": "239b8d7b-217e-4768-ade8-3ba054ba0c35"
     },
     {
       "parameters": {
@@ -1725,14 +1725,14 @@
         6260,
         500
       ],
-      "webhookId": "a7b2ae1b-8b4b-40df-a71c-4e152c423c56",
+      "webhookId": "14088c32-08fb-4160-91e2-b9c8f147d1a9",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "53d27e37-cbcc-4d41-aa43-91c087e8b046"
+      "id": "d906a1c2-65ff-4524-a17c-fb3bd1c888ee"
     },
     {
       "parameters": {
@@ -1758,7 +1758,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "3e629c63-f6cd-4914-ac3d-0f82757a2987"
+      "id": "e194184e-50b4-48bd-bd3c-e717b9f8f5bb"
     },
     {
       "parameters": {
@@ -1771,7 +1771,7 @@
         6480,
         300
       ],
-      "id": "60e9da61-b392-4132-9773-464045c01be3"
+      "id": "e4c7692b-86e6-4eb5-9fb3-188fb108ced4"
     },
     {
       "parameters": {
@@ -1812,7 +1812,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "b5c6a470-9328-4179-971c-46234d208562"
+      "id": "6b766e3c-2baa-454e-8aa9-727751a37cf5"
     },
     {
       "parameters": {
@@ -1825,7 +1825,7 @@
         6920,
         300
       ],
-      "id": "b3193448-5ecd-4460-9893-cd96ff33a5c0"
+      "id": "504516d1-d70e-48f1-aae3-6db0fe8be6ab"
     },
     {
       "parameters": {
@@ -1845,14 +1845,14 @@
         7140,
         300
       ],
-      "webhookId": "9076fbb1-4fad-4f4c-a408-1a6894111191",
+      "webhookId": "78ef9807-be19-4865-b125-ee5a09415ab6",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "dcebbf1b-769e-4d45-8bde-b01fac7ccc0f"
+      "id": "cb665536-ef65-43fb-9a3b-458a5a1b02cb"
     },
     {
       "parameters": {
@@ -1865,7 +1865,7 @@
         7360,
         300
       ],
-      "id": "54c2e309-f5d8-456a-89cf-7ae61a6fc341"
+      "id": "6427478a-7f11-4412-8a97-dfc309873f39"
     },
     {
       "parameters": {
@@ -1902,14 +1902,14 @@
         7580,
         300
       ],
-      "webhookId": "3d9c950c-bf54-4c62-82fa-68421d96bae6",
+      "webhookId": "f5742f15-09cd-4907-a95a-9622b93deace",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "070b1358-08f0-4223-a75a-ec9b52d0339f"
+      "id": "d7f2bfba-eef9-48fb-a4f5-fef4edd3865e"
     },
     {
       "parameters": {
@@ -1922,7 +1922,7 @@
         5820,
         -1800
       ],
-      "id": "aec74e51-b32a-4a93-9ccb-989557f021dd"
+      "id": "638619b7-f3bc-4ea5-bfeb-0fc62a727009"
     },
     {
       "parameters": {
@@ -1942,20 +1942,20 @@
         6040,
         -1800
       ],
-      "webhookId": "b88ef4e9-87ef-4c68-a1ae-9c9c719fe5ac",
+      "webhookId": "dce794c4-8a31-4f75-b7a8-6bce95a6ca90",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "abbc0722-bdac-4054-a34a-d2d00310bdf3"
+      "id": "66e8698f-b6a3-4533-ba24-8e818499cc0e"
     },
     {
       "parameters": {
         "jsCode": "const j = $('Парсим ответ редактора').first().json;\n// Style guide всегда первым, затем обычные референсы. Максимум 5 файлов\n// на вызов (ограничение API, столько же полей image[] заведено в узле\n// рисования) — берём сколько реально есть в таблице, без дублирования\n// до полного числа: меньше ссылок — меньше картинок уходит в запрос.\nconst urls = [j.styleGuideUrl, ...(j.referenceUrls || [])].filter(Boolean).slice(0, 5);\n\nreturn urls.map((url, i) => ({\n  json: { ...j, refUrl: url, refIndex: i }\n}));"
       },
-      "id": "eccec5f2-4b22-47e4-b37c-176c15a79ef8",
+      "id": "8caae095-f20e-4be3-9991-79e6507b1343",
       "name": "Готовим список: style guide + референсы",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -1975,7 +1975,7 @@
           }
         }
       },
-      "id": "934109e6-d09e-4b6a-ae0f-1f8509046a68",
+      "id": "2bde1a0c-f404-40fa-b34a-4dc99bb9d6cd",
       "name": "Скачиваем референс (B)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -1988,7 +1988,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    dallePrompt: first.dallePrompt,\n    action: first.action,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    imageCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "e4ce8b00-9f7a-4023-b73c-aa93c2dee03a",
+      "id": "c1ef822f-3a31-4864-a024-aec059b8a7df",
       "name": "Собираем референсы в один item (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2087,7 +2087,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "b3d94b2e-ed2a-4b36-9f4a-74cc50248a00",
+      "id": "64004531-78ca-47fe-b538-c9563c870c41",
       "name": "Сколько картинок? (B)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -2133,7 +2133,7 @@
         },
         "options": {}
       },
-      "id": "5301fe86-f993-411b-ab09-85d78df5e216",
+      "id": "ad02b433-46a6-4b76-b453-79d3fbcbe6de",
       "name": "gpt-image-2: рисуем (B, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2188,7 +2188,7 @@
         },
         "options": {}
       },
-      "id": "1bab2880-c4a1-47f5-98a2-8365e6aa072b",
+      "id": "8fc59de7-b249-4175-87a6-d7af78004b29",
       "name": "gpt-image-2: рисуем (B, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2248,7 +2248,7 @@
         },
         "options": {}
       },
-      "id": "504ce7b7-137f-45e8-8649-efceed99089b",
+      "id": "91239ef8-4df3-49b9-8e24-ba1b515c3d00",
       "name": "gpt-image-2: рисуем (B, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2313,7 +2313,7 @@
         },
         "options": {}
       },
-      "id": "2e2c5d41-e36f-4fd9-b3fe-6d0ef53656e0",
+      "id": "9e659267-6751-43c9-96e8-7d2df3c69410",
       "name": "gpt-image-2: рисуем (B, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2383,7 +2383,7 @@
         },
         "options": {}
       },
-      "id": "6c5e5b23-fb33-415f-a21b-e23ad59d9fec",
+      "id": "be03dd09-8c19-4b98-993d-a79049ead255",
       "name": "gpt-image-2: рисуем (B)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2402,7 +2402,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    dallePrompt: $('Собираем референсы в один item (B)').first().json.dallePrompt,\n    projectId: $('Собираем референсы в один item (B)').first().json.projectId,\n    sheetName: $('Собираем референсы в один item (B)').first().json.sheetName,\n    chatId: $('Собираем референсы в один item (B)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "d238eaa9-c5a0-4df6-93ab-03cacf353883",
+      "id": "12deb089-7436-4e4d-8676-6aa22b3141f5",
       "name": "Извлекаем картинку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2426,7 +2426,7 @@
         },
         "options": {}
       },
-      "id": "e1903521-aaac-413e-9352-cc4c51a3b8d4",
+      "id": "02edd90b-dfd7-4cdf-86b0-d64d3199fad9",
       "name": "Загружаем на Диск (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -2457,7 +2457,7 @@
         },
         "options": {}
       },
-      "id": "01506928-7de0-4f43-9523-4c3041b00fc1",
+      "id": "623f4f25-3876-493a-85ac-e7bc6705020a",
       "name": "Открываем доступ (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -2476,7 +2476,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (B)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (B)').first().json;\n\n// Каждый успешный рисунок через start_drawing — это НОВЫЙ вариант сцены,\n// добавляем его в конец списка вариантов, а не перезаписываем единственную\n// ячейку (иначе предыдущие варианты терялись бы при каждом новом рисунке).\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst variantNumber = variants.length + 1;\nvariants.push({ n: variantNumber, url: newUrl, dallePrompt: draft.dallePrompt });\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: newUrl,\n    ai_DallePromptDraft: draft.dallePrompt,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "f9c2a710-da0d-47b6-aef2-a690840a3096",
+      "id": "0fc566d9-9d2d-44cb-966b-80aefca3c841",
       "name": "Собираем ссылку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2513,7 +2513,7 @@
         },
         "options": {}
       },
-      "id": "66654a28-4891-41ea-bf32-9e541f0925c8",
+      "id": "06b082de-5373-4749-8bd9-3d206a47b568",
       "name": "Сохраняем картинку и промпт (B)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -2562,7 +2562,7 @@
         8460,
         -1800
       ],
-      "webhookId": "c5080904-ffb2-4ffc-b815-0752fb0b1679",
+      "webhookId": "b8e3bc51-d137-4edc-9d75-8228ca0b8ce0",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -2572,7 +2572,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "24a6237a-5b89-464d-8cd3-31a981356686"
+      "id": "bee2a315-067b-4a85-a699-c4fb212be2c2"
     },
     {
       "parameters": {
@@ -2585,7 +2585,7 @@
         5820,
         -900
       ],
-      "id": "e33d58e4-3a63-47aa-80a3-3b759d3ae590"
+      "id": "a8808d61-f8aa-44ce-af6b-56caa8119aa0"
     },
     {
       "parameters": {
@@ -2605,14 +2605,14 @@
         6040,
         -900
       ],
-      "webhookId": "4c591538-746f-4876-9b9f-5bd08f728711",
+      "webhookId": "75eafc1c-0f7a-4747-9544-d3f07fddc0ed",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "d78a2992-0b65-4580-9a80-0dae313f27f9"
+      "id": "004001f2-3fd2-4b30-8b6d-48804dd60638"
     },
     {
       "parameters": {
@@ -2626,7 +2626,7 @@
           }
         }
       },
-      "id": "8d8b5a9d-693c-45c3-806e-b8b0f1428e6a",
+      "id": "1b84f748-3f08-45f0-b4a3-fb7bbdbec190",
       "name": "Скачиваем текущую картинку (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -2639,7 +2639,7 @@
       "parameters": {
         "jsCode": "const parsed = $('Парсим ответ редактора').first().json;\n// Style guide + до 5 референсов — столько, сколько реально есть, без\n// дублирования до фиксированного числа (тот же принцип, что и при первом\n// рисовании): мало ссылок — меньше картинок уйдёт художнику на правку.\nconst urls = [parsed.styleGuideUrl, ...(parsed.referenceUrls || [])].filter(Boolean).slice(0, 5);\n\nreturn urls.map((url, i) => ({\n  json: {\n    refUrl: url,\n    refIndex: i + 1,\n    revisionInstruction: parsed.revisionInstruction,\n    projectId: parsed.projectId,\n    chatId: parsed.chatId,\n    sheetName: parsed.sheetName,\n  }\n}));"
       },
-      "id": "2b985fb7-6de0-4a10-b4a1-cda9f50498fa",
+      "id": "605779fb-2e68-465e-9aa2-6ca130dcb61b",
       "name": "Готовим список: доп. референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2659,7 +2659,7 @@
           }
         }
       },
-      "id": "e57d60a9-8f57-4a5f-bd47-46323d0a26d4",
+      "id": "bb16bec5-0c11-4958-b1e4-3153a37ff45a",
       "name": "Скачиваем референс (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -2672,7 +2672,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    revisionInstruction: first.revisionInstruction,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    extraCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "8ad65c7c-d965-4f59-b5e3-48eebaa31751",
+      "id": "476dd54a-1c94-433b-925f-8b6a7a1c2fed",
       "name": "Собираем доп. референсы в один item (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2685,7 +2685,7 @@
       "parameters": {
         "jsCode": "// Текущая картинка (image_0) скачана отдельной веткой ещё раньше; здесь\n// подмешиваем к ней style guide + референсы (image_1, image_2, ...), собранные\n// в предыдущем узле — и считаем итоговое число картинок для правильного\n// маршрута на шаге ниже (\"Сколько картинок? (C)\").\nconst curItem = $('Скачиваем текущую картинку (C)').first();\nconst extra = $input.first();\n\nconst binary = { image_0: curItem.binary.image_0 };\nObject.assign(binary, extra.binary || {});\n\nconst imageCount = 1 + (extra.json.extraCount || 0);\n\nreturn [{\n  json: {\n    revisionInstruction: extra.json.revisionInstruction,\n    projectId: extra.json.projectId,\n    chatId: extra.json.chatId,\n    sheetName: extra.json.sheetName,\n    imageCount,\n  },\n  binary\n}];"
       },
-      "id": "d9026931-a3af-4bf7-902f-8bb517a8841f",
+      "id": "49914175-1ca9-405c-9df7-859538901b93",
       "name": "Собираем все референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2806,7 +2806,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "9a3b74e3-6ca9-4953-a677-874af12b7f98",
+      "id": "985f7d8d-78c8-49ae-b081-f29c2864419f",
       "name": "Сколько картинок? (C)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -2857,7 +2857,7 @@
         },
         "options": {}
       },
-      "id": "7fe4e414-0bf9-4e5a-8626-ce78aca96dfd",
+      "id": "211cfa0e-3d03-4b62-85dd-a72c57f3b1c1",
       "name": "gpt-image-2: точечная правка (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2917,7 +2917,7 @@
         },
         "options": {}
       },
-      "id": "d9013497-9de6-4383-a61d-a50900e575d5",
+      "id": "18093fc9-e4e1-4eb4-bb30-2f97b550b396",
       "name": "gpt-image-2: точечная правка (C, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2982,7 +2982,7 @@
         },
         "options": {}
       },
-      "id": "ad381968-9ee6-4239-854a-d61f94bb338c",
+      "id": "e0b00d15-4a34-4ca5-aeb7-2c28cfb76ff6",
       "name": "gpt-image-2: точечная правка (C, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3052,7 +3052,7 @@
         },
         "options": {}
       },
-      "id": "458fb5cc-be0b-4de4-9a21-35f4da0c6416",
+      "id": "26b1426c-ebbe-4314-a0ab-35733990b31e",
       "name": "gpt-image-2: точечная правка (C, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3127,7 +3127,7 @@
         },
         "options": {}
       },
-      "id": "c27c7c3b-533b-4605-8b7d-63f479379d3b",
+      "id": "c448bcfb-d6e9-4a82-ad7b-ae46a0e3c334",
       "name": "gpt-image-2: точечная правка (C, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3207,7 +3207,7 @@
         },
         "options": {}
       },
-      "id": "ca4e534b-1c96-4f8e-af7d-11b6095d86b9",
+      "id": "1c697d38-162d-40fe-b683-95799bf39fb4",
       "name": "gpt-image-2: точечная правка (C, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3226,7 +3226,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    projectId: $('Собираем все референсы (C)').first().json.projectId,\n    sheetName: $('Собираем все референсы (C)').first().json.sheetName,\n    chatId: $('Собираем все референсы (C)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "333b6cba-abdd-4811-b9aa-eff34318be38",
+      "id": "b3605f59-9649-442a-9f92-3eade86fdec0",
       "name": "Извлекаем картинку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3250,7 +3250,7 @@
         },
         "options": {}
       },
-      "id": "da79d859-2f98-44b3-a0fc-025cffc6bb53",
+      "id": "600c3ce3-391d-4666-a4f0-f4ab91d7e807",
       "name": "Загружаем на Диск (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3281,7 +3281,7 @@
         },
         "options": {}
       },
-      "id": "a5c8f884-9af4-4c6b-9bd1-ccef5bdb141d",
+      "id": "101f25e3-0810-430b-a86a-6c77c26e2d6b",
       "name": "Открываем доступ (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3300,7 +3300,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (C)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (C)').first().json;\nconst parsed = $('Парсим ответ редактора').first().json;\n\n// Точечная правка (revisionIsNewVariant=false) меняет ссылку у ИМЕННО ТОГО\n// варианта, который был назван (revisionTargetVariantNumber) — номер не\n// меняется. Структурная правка (revisionIsNewVariant=true) — это по сути\n// другая сценка, поэтому сохраняется как СЛЕДУЮЩИЙ отдельный вариант, а\n// прежний остаётся нетронутым для сравнения.\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\n\nlet entry;\nif (parsed.revisionIsNewVariant) {\n  const variantNumber = variants.length + 1;\n  entry = { n: variantNumber, url: newUrl, dallePrompt: parsed.revisionInstruction || '' };\n  variants.push(entry);\n} else {\n  const targetNumber = parsed.revisionTargetVariantNumber || (variants.length ? variants[variants.length - 1].n : 1);\n  entry = variants.find(v => Number(v.n) === Number(targetNumber));\n  if (entry) {\n    entry.url = newUrl;\n  } else {\n    entry = { n: targetNumber, url: newUrl, dallePrompt: '' };\n    variants.push(entry);\n  }\n}\n\n// ai_ImageUrl/ai_DallePromptDraft остаются \"последним по списку\" вариантом —\n// как и раньше, это удобный алиас для тех мест кода, которым нужен просто\n// один текущий URL (например, форс-согласование или \"текущая картинка\" для\n// свежей правки без явного номера).\nconst lastVariant = variants[variants.length - 1];\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: lastVariant.url,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber: entry.n,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "27a8afea-bfab-4961-8561-2d20f96bf7e6",
+      "id": "c7e09752-9cf5-4282-a330-57d699b10c26",
       "name": "Собираем ссылку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3336,7 +3336,7 @@
         },
         "options": {}
       },
-      "id": "149dad8e-70e8-488a-ad9f-d0307fffb376",
+      "id": "6ebc7f6c-bc70-496a-8a03-8234ae9e96d8",
       "name": "Сохраняем картинку (C)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -3385,7 +3385,7 @@
         8900,
         -900
       ],
-      "webhookId": "86127117-32d6-4f2f-a390-b061a229c68f",
+      "webhookId": "fc61ec5d-ff59-40b2-b641-c6b08925b2b3",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -3395,7 +3395,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "aaa1e76d-16bc-4824-9cea-2dfa6cdccf7d"
+      "id": "dff8ea7e-d4ff-4b68-bf1c-1b3a05c78307"
     },
     {
       "parameters": {
@@ -3408,7 +3408,7 @@
         2700,
         1300
       ],
-      "id": "84f9876c-032a-4b76-878c-c14738a6eb2b"
+      "id": "500cd140-5c24-4090-8363-6399c88349c7"
     },
     {
       "parameters": {
@@ -3420,7 +3420,7 @@
           },
           "conditions": [
             {
-              "id": "b33defd0-c0a0-455e-8b59-08c55c8035ff",
+              "id": "f69edb7b-30ce-4eb3-b9f7-2a435e71f003",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -3441,7 +3441,7 @@
         2920,
         1300
       ],
-      "id": "ae81808b-0a58-423a-9c26-7255b73eb75a"
+      "id": "1a584620-94fa-476b-b1ad-3e594f901aa4"
     },
     {
       "parameters": {
@@ -3491,7 +3491,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "cea92adf-8fd2-46c9-afa7-8add5e88f2d7"
+      "id": "e34dabf2-c161-4303-aa3f-746a3f7f28da"
     },
     {
       "parameters": {
@@ -3530,7 +3530,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "48d8a450-de4a-444c-b738-f08c33df7ea1"
+      "id": "0c88b422-9407-4799-b697-9325af2602a8"
     },
     {
       "parameters": {
@@ -3543,7 +3543,7 @@
         3580,
         1300
       ],
-      "id": "7d9ff310-2c2d-4048-bf33-3c01f1771840"
+      "id": "6f9f204c-bba5-42c2-8674-2c058d3c50b1"
     },
     {
       "parameters": {
@@ -3555,7 +3555,7 @@
           },
           "conditions": [
             {
-              "id": "f115ae02-63b1-4cf3-94ee-304c44ac9fab",
+              "id": "494617f4-e62a-4ff6-94de-572f65113704",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -3576,7 +3576,7 @@
         3800,
         1300
       ],
-      "id": "aa9a47a1-c2e4-4ba0-b160-3ae64baed753"
+      "id": "41f06141-f4a6-49c6-9543-e7dc36b9e4d5"
     },
     {
       "parameters": {
@@ -3617,7 +3617,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "5851a9f2-9bed-4352-a89d-3dd512ebfe89"
+      "id": "529c8e9d-ea4e-4ced-b454-a597f82d45e0"
     },
     {
       "parameters": {
@@ -3630,7 +3630,7 @@
         4020,
         1560
       ],
-      "id": "9320a54a-3d94-47bd-8c57-cf814757859a"
+      "id": "089bcdf0-298b-4623-9b28-353734bf7663"
     },
     {
       "parameters": {
@@ -3656,7 +3656,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "5670dbb5-717a-4002-bafb-a31f021e0681",
+      "id": "17e1f040-0724-4be9-b4ec-e1734ba0b445",
       "onError": "continueRegularOutput"
     },
     {
@@ -3670,7 +3670,7 @@
         4460,
         1560
       ],
-      "id": "a3172025-4df4-4c30-9c45-d71f5ac482e2"
+      "id": "9e1bc9a3-9f72-4658-8e81-18557d7ab77f"
     },
     {
       "parameters": {
@@ -3682,7 +3682,7 @@
           },
           "conditions": [
             {
-              "id": "ad4a9016-0899-425e-b998-ac46ffe0ae8f",
+              "id": "c6a97454-44b2-4754-8677-861a2a05455a",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -3703,7 +3703,7 @@
         4680,
         1560
       ],
-      "id": "3bef6f66-e9bd-449c-bd43-8906fd4ac0c2"
+      "id": "551ea6b5-f54c-4e50-b857-64b4eb46e260"
     },
     {
       "parameters": {
@@ -3744,7 +3744,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "7d9073ef-e25b-4c19-ba78-f74542f2c683",
+      "id": "58c96e45-d1a4-450a-a297-3144b8bca86f",
       "onError": "continueRegularOutput"
     },
     {
@@ -3758,7 +3758,7 @@
         4240,
         1300
       ],
-      "id": "d901f4dc-bf75-4900-8630-7cae80ec5a83"
+      "id": "3719d61e-c7de-467f-98dc-f1e9eb425816"
     },
     {
       "parameters": {
@@ -3778,14 +3778,14 @@
         4460,
         1300
       ],
-      "webhookId": "047eb084-e39a-425d-80bb-d55576f3de0a",
+      "webhookId": "bd541a58-1897-4649-bb8f-d2f3e6af1f5b",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "bc9b97c0-d3df-488b-a3f2-17d8a3e33490"
+      "id": "a860000a-1df8-4b70-95de-2b3a42840368"
     },
     {
       "parameters": {
@@ -3797,7 +3797,7 @@
           },
           "conditions": [
             {
-              "id": "e365072d-0952-4bf9-98d7-656c33338b4b",
+              "id": "1f324ea8-30ee-4ec8-8b32-59b84e0fb3d0",
               "leftValue": "={{ $('Сообщение: утверждено').first().json.hasTracks }}",
               "rightValue": true,
               "operator": {
@@ -3818,7 +3818,7 @@
         5340,
         1300
       ],
-      "id": "8ba8f37a-45b4-45aa-afd0-c3f81404d3e9"
+      "id": "fc7aabf5-4f32-4e90-bba3-a61a9bdfe4d4"
     },
     {
       "parameters": {
@@ -3838,14 +3838,14 @@
         3140,
         1520
       ],
-      "webhookId": "7d67f905-cc41-45d4-bed4-f5c804583e19",
+      "webhookId": "67767f6e-ea91-482c-8ac6-98a9d832bdd5",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "e4b836f7-3e35-484b-930f-086f2edc3fb7"
+      "id": "8526ef3c-cf6d-4e5d-b581-38d6c230b9b7"
     },
     {
       "parameters": {
@@ -3858,7 +3858,7 @@
         2700,
         1900
       ],
-      "id": "7b4d8ee3-8d00-463a-ab5a-1b7dcac53aca"
+      "id": "3b3b8edd-3edd-428a-b133-502a00b8165d"
     },
     {
       "parameters": {
@@ -3870,7 +3870,7 @@
           },
           "conditions": [
             {
-              "id": "631b7f12-e662-4db5-a536-adeeed04661f",
+              "id": "b1a0e521-2953-4f79-8ff5-cff2fe9c8b3d",
               "leftValue": "={{ $json.published }}",
               "rightValue": true,
               "operator": {
@@ -3891,7 +3891,7 @@
         2920,
         1900
       ],
-      "id": "b3c489b9-6b11-416b-bb25-d950bf1656bb"
+      "id": "3221a774-abe4-40cb-8b05-f726456280bf"
     },
     {
       "parameters": {
@@ -3911,14 +3911,14 @@
         3140,
         1700
       ],
-      "webhookId": "912da51b-8067-4b45-b6bf-cb6e1193dd5d",
+      "webhookId": "b2aae423-b345-42fb-af0b-e56334152047",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "543ec710-f632-4c6e-b8c0-21f1296677cc"
+      "id": "c7776146-9ab2-4d0e-bd7d-fb91396cb495"
     },
     {
       "parameters": {
@@ -3959,7 +3959,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "e1684ff1-e43a-4f2b-a820-a68f23551ea7"
+      "id": "f7038bf8-ce97-4b28-a67b-f0dd0cd46b27"
     },
     {
       "parameters": {
@@ -3971,7 +3971,7 @@
           },
           "conditions": [
             {
-              "id": "4d89eaf0-3cb8-4141-a1ae-edcdda1bc56a",
+              "id": "9b8b0585-9135-46ae-8a86-f04b34bf9e42",
               "leftValue": "={{ $('Разбираем ссылку на треки').first().json.approved }}",
               "rightValue": true,
               "operator": {
@@ -3992,7 +3992,7 @@
         3360,
         1900
       ],
-      "id": "23985415-9a4a-45a1-899b-4d89aa78c995"
+      "id": "f890a655-7f1f-4be8-9b78-823897d636e7"
     },
     {
       "parameters": {
@@ -4012,14 +4012,14 @@
         3580,
         2100
       ],
-      "webhookId": "04c32edd-a4ff-46a4-8893-1067c5844b4d",
+      "webhookId": "ccc3838f-4404-4065-879f-9fd6e42b66cf",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "affc5e88-7bba-465e-874c-d666c3a7200e"
+      "id": "5cf45daf-db81-4c6f-a4fd-b2876f323f85"
     },
     {
       "parameters": {
@@ -4058,7 +4058,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "b84b930b-1100-403d-acde-6a0c922ae2f0"
+      "id": "6cdae300-b140-453b-a94a-bcc04fb51997"
     },
     {
       "parameters": {
@@ -4071,7 +4071,7 @@
         5120,
         1600
       ],
-      "id": "8df355d3-0f22-406a-bfdf-a6d4da209c85"
+      "id": "569ea49b-a9c1-4ee3-85c9-41e0b34d262e"
     },
     {
       "parameters": {
@@ -4083,7 +4083,7 @@
           },
           "conditions": [
             {
-              "id": "77bc3096-b21f-4b35-9ef1-eaee9d514b8e",
+              "id": "5f6eff75-8575-4c19-b3e2-a8d7713a1e11",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -4104,7 +4104,7 @@
         5340,
         1600
       ],
-      "id": "54f16343-72b5-43e9-bf8c-8cc3ed8d5d6a"
+      "id": "f7d31a2d-59b4-4559-a2d9-b810c498a359"
     },
     {
       "parameters": {
@@ -4124,14 +4124,14 @@
         5560,
         1500
       ],
-      "webhookId": "eba59b73-46b0-44cf-83d1-7faa5b622317",
+      "webhookId": "d7f382e5-c748-45f4-bb37-8149170713a3",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "2282c781-a993-42a8-b177-a85a2a556973"
+      "id": "a2ecc96b-9f0d-4c6b-ab62-4783ddba34cf"
     },
     {
       "parameters": {
@@ -4163,7 +4163,7 @@
         5780,
         1500
       ],
-      "id": "d74d9cf3-36ba-4254-b7f3-8d5138ea637b"
+      "id": "217c298a-b751-40c1-971e-5b77bf1f2431"
     },
     {
       "parameters": {
@@ -4183,14 +4183,14 @@
         5560,
         1750
       ],
-      "webhookId": "0d631e98-e7d2-4e7b-855d-ffc77ee4b8ef",
+      "webhookId": "1d7f957c-b0f7-4bd7-9113-f4b7a85eecec",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "830ceab1-3ea7-4611-828d-10d1db15a90c"
+      "id": "efcfa9b0-3c50-4968-a191-e26693d8a813"
     },
     {
       "parameters": {
@@ -4206,7 +4206,7 @@
         -40,
         -360
       ],
-      "id": "f750f761-82c1-409b-b1e7-cfbe2805e4a2"
+      "id": "61114ad2-8675-474a-a83a-28355b16f608"
     },
     {
       "parameters": {
@@ -4222,7 +4222,7 @@
         2660,
         -1820
       ],
-      "id": "376212b0-f033-41bf-bce1-f6cc78d49879"
+      "id": "dbf97bef-62b4-4736-b5ac-bea5fa32dc1c"
     },
     {
       "parameters": {
@@ -4238,7 +4238,7 @@
         5780,
         -2360
       ],
-      "id": "e0aae7a9-f480-4da1-8f37-5e2ad77844fc"
+      "id": "55d04012-0dbd-4824-bf1e-91487cd49845"
     },
     {
       "parameters": {
@@ -4254,7 +4254,7 @@
         5780,
         160
       ],
-      "id": "37a3af98-cf15-40ed-9ccb-55b635149314"
+      "id": "0a05742b-c3aa-47fe-a920-b81e12486839"
     },
     {
       "parameters": {
@@ -4270,7 +4270,7 @@
         2660,
         1040
       ],
-      "id": "bc6ebfb1-fcdf-482a-907a-3d51726bd61c"
+      "id": "3f8c52b2-09bc-40e2-8a03-2bd6990c95e4"
     },
     {
       "parameters": {
@@ -4286,7 +4286,7 @@
         4860,
         1240
       ],
-      "id": "1e022d38-8164-491b-8e58-a614cee9fb4b"
+      "id": "6ebf1040-9296-4391-8769-4f6275021410"
     }
   ],
   "connections": {
