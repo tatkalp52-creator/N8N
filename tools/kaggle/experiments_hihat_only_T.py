@@ -27,3 +27,9 @@ for tag,hh in (('T1',hh1),('T2',hh2),('T3',hh1*10**(-3/20))):
     ps=mel+rest+[hh]; n=min(len(p) for p in ps); tot=sum(p[:n] for p in ps)
     tot*=min(1.0,np.max(np.abs(ref))/(np.max(np.abs(tot))+1e-9))
     sf.write(f'{R}/{tag}.wav',tot,sr); print(tag,'done')
+# T4 — исходный хэт: верха выше 9 кГц на 5 дБ тише (мягкий срез песка), сам хэт на 2 дБ тише
+from scipy.signal import butter, sosfiltfilt
+hi=sosfiltfilt(butter(2,9000,btype='high',fs=sr,output='sos'),hh0,axis=0)
+hh4=(hh0-hi*(1-10**(-5/20)))*10**(-2/20)
+ps=mel+rest+[hh4]; n=min(len(p) for p in ps); tot=sum(p[:n] for p in ps)
+tot*=min(1.0,np.max(np.abs(ref))/(np.max(np.abs(tot))+1e-9)); sf.write(f'{R}/T4.wav',tot,sr); print('T4 done')
