@@ -29,6 +29,8 @@ const imageRoles = [];
 const urlLine = /^https?:\/\/\S+$/;
 for (const key of Object.keys(tmpl)) {
   if (key.includes('tmpl_SystemPrompt')) continue;
+  // Картинки локаций уходят художнику только по словам задания (см. ниже), не всегда.
+  if (key.includes('tmpl_LocationImages')) continue;
   if (!key.includes('🖋') && !key.includes('🎨')) continue;
   const value = String(tmpl[key] || '');
   const lines = value.split('\n');
@@ -70,9 +72,9 @@ if (!timecodeCount || timecodeCount < 1) timecodeCount = 25;
 
 // Роли референсов для художника. Рисование: Image 1.. = референсы по порядку.
 // Правка: Image 1 = текущая картинка, референсы сдвигаются на один.
-const MAX_REFS = 5;
+const MAX_REFS = 16;
 function rolesText(shift) {
-  const parts = imageRoles.slice(0, MAX_REFS)
+  const parts = imageRoles.slice(0, MAX_REFS - shift)
     .map((r, i) => (r ? `Image ${i + 1 + shift} — ${r}.` : ''))
     .filter(Boolean);
   return parts.length ? 'Reference images: ' + parts.join(' ') + '\n\n' : '';
@@ -83,6 +85,37 @@ const referenceRolesEdit = rolesText(1);
 const imageModel = String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2';
 // Постоянные правила для прямых заданий «Художнику: …» — из таблицы (колонка tmpl_ArtistRules); пусто — без них.
 const artistRules = String(findByLabel(tmpl, 'tmpl_ArtistRules') || '').trim();
+
+// Локации: колонка tmpl_LocationImages, по блоку на место.
+//   KITCHEN: кухн, kitchen        ← название и слова-триггеры (ловятся по началу слова)
+//   https://…                     ← картинки места
+//   роль картинки                 ← строка сразу под ссылкой
+// Текст места — строки паспортов локаций (tmpl_LocationPassports), начинающиеся с названия.
+const locPassportLines = String(findByLabel(tmpl, 'tmpl_LocationPassports') || '').split('\n').map(l => l.trim()).filter(Boolean);
+const locations = [];
+{
+  let cur = null;
+  let lastRef = null;
+  let afterBlank = true;
+  for (const raw of String(findByLabel(tmpl, 'tmpl_LocationImages') || '').split('\n')) {
+    const t = raw.trim();
+    if (!t) { afterBlank = true; lastRef = null; continue; }
+    if (urlLine.test(t)) {
+      if (cur) { lastRef = { url: toDirectImageUrl(t), role: '' }; cur.refs.push(lastRef); }
+    } else if (lastRef && !lastRef.role) {
+      lastRef.role = t;
+    } else if ((afterBlank || !cur) && t.includes(':')) {
+      const name = t.slice(0, t.indexOf(':')).trim();
+      const triggers = [name, ...t.slice(t.indexOf(':') + 1).split(',')].map(w => w.trim().toLowerCase()).filter(Boolean);
+      const passport = locPassportLines.filter(l => l.toUpperCase().startsWith(name.toUpperCase())).join('\n');
+      cur = { name, triggers, refs: [], passport };
+      locations.push(cur);
+      lastRef = null;
+    }
+    afterBlank = false;
+  }
+}
+const baseRefs = imageUrls.map((url, i) => ({ url, role: imageRoles[i] || '' }));
 
 const vectorStoreId = String(findByLabel(tmpl, 'tmpl_ChannelVectorStoreId') || '').trim();
 const characterPassport = String(findByLabel(tmpl, 'tmpl_CharacterPassport') || '').trim();
@@ -101,6 +134,8 @@ return [{
     artistRules,
     styleGuideUrl: imageUrls[0] || null,
     referenceUrls: imageUrls.slice(1),
+    baseRefs,
+    locations,
     timecodeCount,
     vectorStoreId,
     characterPassport,

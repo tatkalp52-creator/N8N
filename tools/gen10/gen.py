@@ -246,7 +246,7 @@ sheets_read('Читаем прошлые выпуски', SHEET, [], [EX + 220, 
 code('Прошлые главы', 'proshlye.js', [EX + 440, EY - 260])
 # «Художнику: …» — сразу в рисование, без Редактора
 if_node('Напрямую художнику?', "!!$('Вход редактора').first().json.directArt", [EX + 220, EY + 260])
-code('Задание художнику напрямую', 'hudozhniku.js', [EX + 1760, EY + 260])
+code('Задание художнику напрямую', 'hudozhniku.js', [EX + 1760, EY + 260], lib=True)
 chain('Вход редактора', 'Собираем знания канала', 'Напрямую художнику?')
 link('Напрямую художнику?', 'Задание художнику напрямую', 0)
 link('Напрямую художнику?', 'Читаем прошлые выпуски', 1)
@@ -324,14 +324,46 @@ tg_send('Сообщаем: рисую', '={{ $json.chatId }}', '={{ $json.text }
 B = ['Готовим список: style guide + референсы', 'Скачиваем референс (B)', 'Собираем референсы в один item (B)', 'Сколько картинок? (B)']
 for i, nm in enumerate(B):
     take(nm, [AX + 440 + i * 220, DY])
-for i, nm in enumerate(['gpt-image-2: рисуем (B, 1 img)', 'gpt-image-2: рисуем (B, 2 img)', 'gpt-image-2: рисуем (B, 3 img)', 'gpt-image-2: рисуем (B, 4 img)', 'gpt-image-2: рисуем (B)']):
-    take(nm, [AX + 1320, DY - 400 + i * 180])
-    # Модель и роли референсов — из таблицы (см. znaniya.js)
-    for x in nodes[-1]['parameters']['bodyParameters']['parameters']:
+nodes_by = lambda nm: [n for n in nodes if n['name'] == nm][0]
+nodes_by(B[0])['parameters']['jsCode'] = open(os.path.join(JS, 'spisok_b.js')).read()
+MAX_IMAGES = 16  # столько картинок модель принимает за один вызов
+
+def image_switch(name, counts):
+    """Переключатель по числу картинок: выход i — counts[i], последний — «всё остальное»."""
+    sw = nodes_by(name)
+    tmpl_rule = sw['parameters']['rules']['values'][0]
+    rules = []
+    for c in counts[:-1]:
+        r = copy.deepcopy(tmpl_rule)
+        r['conditions']['conditions'][0]['rightValue'] = c
+        rules.append(r)
+    sw['parameters']['rules']['values'] = rules
+    sw['parameters']['options'] = {'fallbackOutput': 'extra'}
+
+def image_call(template, name, count, prompt, pos):
+    """Вызов художника ровно с count картинками image_0..image_{count-1}."""
+    n = copy.deepcopy(art_nodes[template])
+    n['id'] = uid(); n['name'] = name; n['position'] = pos
+    bp = [x for x in n['parameters']['bodyParameters']['parameters'] if x.get('parameterType') != 'formBinaryData']
+    for x in bp:
         if x.get('name') == 'model':
             x['value'] = "={{ $('Собираем знания канала').first().json.imageModel }}"
         if x.get('name') == 'prompt':
-            x['value'] = "={{ $('Собираем знания канала').first().json.referenceRolesDraw }}{{ $json.dallePrompt }}"
+            x['value'] = prompt
+    if not any(x.get('name') == 'quality' for x in bp):
+        bp.insert(3, {'name': 'quality', 'value': 'high'})
+    bp += [{'parameterType': 'formBinaryData', 'name': 'image[]', 'inputDataFieldName': f'image_{k}'} for k in range(count)]
+    n['parameters']['bodyParameters']['parameters'] = bp
+    return add(n)
+
+B_COUNTS = list(range(1, MAX_IMAGES + 1))
+BG = [f'gpt-image-2: рисуем (B, {c} img)' for c in B_COUNTS]
+for i, (nm, c) in enumerate(zip(BG, B_COUNTS)):
+    # Роли референсов (и картинок места) — из «Парсим ответ редактора» (tbPickRefs)
+    image_call('gpt-image-2: рисуем (B)', nm, c,
+               "={{ $('Парсим ответ редактора').first().json.drawRoles || $('Собираем знания канала').first().json.referenceRolesDraw }}{{ $json.dallePrompt }}",
+               [AX + 1320, DY - 1400 + i * 160])
+image_switch('Сколько картинок? (B)', B_COUNTS)
 B2 = ['Извлекаем картинку (B)', 'Загружаем на Диск (B)', 'Открываем доступ (B)', 'Собираем ссылку (B)', 'Сохраняем картинку и промпт (B)']
 for i, nm in enumerate(B2):
     take(nm, [AX + 1540 + i * 220, DY])
@@ -343,7 +375,7 @@ tg_photo('Отправляем картинку (B)', "={{ $('Собираем �
          [AX + 2640, DY])
 link('Что делает редактор?', 'Реплика перед рисованием', 1)
 chain('Реплика перед рисованием', 'Сообщаем: рисую', *B)
-for i, nm in enumerate(['gpt-image-2: рисуем (B, 1 img)', 'gpt-image-2: рисуем (B, 2 img)', 'gpt-image-2: рисуем (B, 3 img)', 'gpt-image-2: рисуем (B, 4 img)', 'gpt-image-2: рисуем (B)']):
+for i, nm in enumerate(BG):
     link('Сколько картинок? (B)', nm, i)
     link(nm, 'Извлекаем картинку (B)')
 chain(*B2, 'Отправляем картинку (B)')
@@ -354,20 +386,16 @@ tg_send('Сообщаем: поправляю', '={{ $json.chatId }}', '={{ $jso
 C = ['Скачиваем текущую картинку (C)', 'Готовим список: доп. референсы (C)', 'Скачиваем референс (C)', 'Собираем доп. референсы в один item (C)', 'Собираем все референсы (C)', 'Сколько картинок? (C)']
 for i, nm in enumerate(C):
     take(nm, [AX + 440 + i * 220, CY])
-CG = ['gpt-image-2: точечная правка (C)', 'gpt-image-2: точечная правка (C, 3 img)', 'gpt-image-2: точечная правка (C, 4 img)', 'gpt-image-2: точечная правка (C, 5 img)', 'gpt-image-2: точечная правка (C, 6 img)', 'gpt-image-2: точечная правка (C, 7 img)']
-for i, nm in enumerate(CG):
-    take(nm, [AX + 1760, CY - 400 + i * 160])
-    n = nodes[-1]
-    # Правка — в том же качестве, что и рисование, иначе цвета уплывают в «пластик»
-    bp = n['parameters']['bodyParameters']['parameters']
-    if not any(x.get('name') == 'quality' for x in bp):
-        bp.insert(3, {'name': 'quality', 'value': 'high'})
-    # Первая картинка — основа правки, остальные только референсы (иначе художник может править референс)
-    for x in bp:
-        if x.get('name') == 'prompt':
-            x['value'] = "=Edit the first image. The other images are only references for the drawing style and the character; do not bring their scenes into the picture.\n\n{{ $('Собираем знания канала').first().json.referenceRolesEdit }}{{ $json.revisionInstruction }}"
-        if x.get('name') == 'model':
-            x['value'] = "={{ $('Собираем знания канала').first().json.imageModel }}"
+nodes_by('Готовим список: доп. референсы (C)')['parameters']['jsCode'] = open(os.path.join(JS, 'spisok_c.js')).read()
+C_COUNTS = list(range(1, MAX_IMAGES + 1))
+CG = [f'gpt-image-2: точечная правка (C, {c} img)' for c in C_COUNTS]
+for i, (nm, c) in enumerate(zip(CG, C_COUNTS)):
+    # Первая картинка — основа правки, остальные только референсы (иначе художник может править референс).
+    # Правка — в том же качестве, что и рисование, иначе цвета уплывают в «пластик».
+    image_call('gpt-image-2: точечная правка (C)', nm, c,
+               "=Edit the first image. The other images are only references for the drawing style, the character and his places; do not bring their scenes into the picture.\n\n{{ $('Парсим ответ редактора').first().json.editRoles || $('Собираем знания канала').first().json.referenceRolesEdit }}{{ $json.revisionInstruction }}",
+               [AX + 1760, CY - 1400 + i * 160])
+image_switch('Сколько картинок? (C)', C_COUNTS)
 
 C2 = ['Извлекаем картинку (C)', 'Загружаем на Диск (C)', 'Открываем доступ (C)', 'Собираем ссылку (C)', 'Сохраняем картинку (C)']
 for i, nm in enumerate(C2):

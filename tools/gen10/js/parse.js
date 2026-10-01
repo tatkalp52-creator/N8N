@@ -202,6 +202,7 @@ return [{
     resolvedApprovedImageUrl,
     styleGuideUrl: kb.styleGuideUrl,
     referenceUrls: kb.referenceUrls,
+    ...(({ places, ...r }) => r)(tbPickRefs(kb, dallePrompt || revisionInstruction)),
     fromButton: vhod.fromButton,
     projectId: ctx.projectId,
     chatId: ctx.chatId,

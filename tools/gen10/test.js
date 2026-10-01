@@ -361,5 +361,46 @@ async function parseEd(c, story) {
     assert.ok(s3.text.includes('Чистка идёт (30 мин)'), s3.text); assert.equal(s3.button, false);
   }
   console.log('12 чистка по событию OK');
+  // ── 13. Паспорт и места художнику; до 16 картинок
+  {
+    const refs = Array.from({ length: 18 }, (_, i) => `https://drive.google.com/file/d/R${i}/view\nроль ${i}`).join('\n\n');
+    const tmplL = {
+      tmpl_Channel: 'pengui',
+      '🎨_tmpl_ReferenceImages': refs,
+      '🎨_tmpl_ArtistRules': 'Rules. The scene:',
+      '🖋🎨_tmpl_CharacterPassport': 'Pengui loves herring.',
+      '🖋🎨_tmpl_LocationPassports': 'LIVING ROOM — armchair.\nKITCHEN — Fixed: a stove.\nBATHROOM — tub.',
+      '🎨_tmpl_LocationImages': 'KITCHEN: кухн, kitchen\nhttps://drive.google.com/file/d/K1/view\nPengui\'s kitchen: layout\nhttps://drive.google.com/file/d/K2/view\n\nBEACH: пляж\nhttps://drive.google.com/file/d/B1/view',
+    };
+    const rowL = { sys_ProjectID: 'P', sys_Status: 'Картинка в работе', ai_ImageVariants: '[]', ai_ImageUrl: '' };
+    const mk = text => ({ kind: 'message', projectId: 'P', chatId: 1, sheetName: 'Pengui', channelKey: 'pengui', row: rowL, tmpl: tmplL, status: rowL.sys_Status, text, photo: null });
+    const go = async text => {
+      const c = mk(text);
+      const v = (await run('Вход редактора', { nodes: { 'Контекст проекта': c } }))[0];
+      const k = (await run('Собираем знания канала', { nodes: { 'Контекст проекта': c } }))[0];
+      const n = { 'Контекст проекта': c, 'Вход редактора': v, 'Собираем знания канала': k };
+      const d = (await run('Задание художнику напрямую', { nodes: n }))[0];
+      return { k, d: (await run('Парсим ответ редактора', { nodes: n, input: [d] }))[0] };
+    };
+    let { k, d } = await go('Художнику: Пингви на своей кухне пишет открытки');
+    assert.ok(!k.knowledgeText.includes('K1'), 'картинки мест не уходят в общие знания');
+    assert.equal(k.baseRefs.length, 18); assert.equal(k.locations.length, 2);
+    assert.equal(d.dallePrompt, "About Pengui (character passport):\nPengui loves herring.\n\nPengui's place — KITCHEN — Fixed: a stove.\n\nRules. The scene:\n\nПингви на своей кухне пишет открытки");
+    assert.equal(d.drawRefUrls.length, 16, 'не больше 16 картинок');
+    assert.equal(d.drawRefUrls[0], 'https://lh3.googleusercontent.com/d/R0=s2000', 'style guide первым');
+    assert.deepEqual(d.drawRefUrls.slice(-2), ['https://lh3.googleusercontent.com/d/K1=s2000', 'https://lh3.googleusercontent.com/d/K2=s2000'], 'картинки кухни в конце, общие сокращены');
+    assert.ok(d.drawRoles.includes("Image 15 — Pengui's kitchen: layout."));
+    assert.equal(d.editRefUrls.length, 15); assert.ok(d.editRoles.includes("Image 15 — Pengui's kitchen: layout."));
+    ({ d } = await go('Художнику: Пингви на пляже'));
+    assert.ok(!d.dallePrompt.includes('KITCHEN')); assert.equal(d.drawRefUrls.at(-1), 'https://lh3.googleusercontent.com/d/B1=s2000');
+    ({ d } = await go('Художнику: Пингви в парке'));
+    assert.ok(!d.dallePrompt.includes("place —")); assert.equal(d.drawRefUrls.length, 16); assert.equal(d.drawRefUrls.at(-1), 'https://lh3.googleusercontent.com/d/R15=s2000');
+    // список для узлов рисования и правки
+    const pb = await run('Готовим список: style guide + референсы', { nodes: { 'Парсим ответ редактора': d } });
+    assert.equal(pb.length, 16); assert.equal(pb[15].json ? pb[15].json.refIndex : pb[15].refIndex, 15);
+    const pc = await run('Готовим список: доп. референсы (C)', { nodes: { 'Парсим ответ редактора': d } });
+    assert.equal(pc.length, 15);
+  }
+  console.log('13 паспорт и места художнику OK');
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

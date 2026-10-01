@@ -138,3 +138,33 @@ function validateForAssembler(row, tmpl, opts) {
   return problems;
 }
 // ── конец общего куска ─────────────────────────────────────────────────────
+
+// Референсы художнику: общие из таблицы + картинки мест, чьи слова-триггеры
+// встретились в задании («кухн» ловит «кухня», «на кухне»…). Модель берёт до 16
+// картинок; в правке одно место занимает сама картинка. Не помещается — сокращаем
+// общие с конца (style guide остаётся первым), места оставляем.
+function tbPickRefs(kb, text) {
+  const low = String(text || '').toLowerCase();
+  const esc = w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const places = (kb.locations || []).filter(l =>
+    (l.triggers || []).some(w => new RegExp('(^|[^\\p{L}\\p{N}])' + esc(w), 'u').test(low)));
+  const base = kb.baseRefs || [];
+  const loc = places.flatMap(p => p.refs || []);
+  const fit = max => {
+    const room = Math.max(1, max - loc.length);
+    return [...base.slice(0, room), ...loc].slice(0, max);
+  };
+  const roles = (list, shift) => {
+    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);
+    return parts.length ? 'Reference images: ' + parts.join(' ') + '\n\n' : '';
+  };
+  const draw = fit(16);
+  const edit = fit(15);
+  return {
+    places,
+    drawRefUrls: draw.map(r => r.url),
+    drawRoles: roles(draw, 0),
+    editRefUrls: edit.map(r => r.url),
+    editRoles: roles(edit, 1),
+  };
+}

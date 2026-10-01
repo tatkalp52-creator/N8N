@@ -39,6 +39,17 @@ if (action !== 'chat' && !d.text) {
     : 'Напиши задание после слова: «Художнику: …».';
 }
 
+// Художник знает героя и его места: паспорт персонажа и (если в задании названо
+// место) паспорт места + его картинки. Правка — только слова автора.
+const pick = tbPickRefs(kb, d.text);
+const placeText = pick.places.filter(p => p.passport).map(p => `Pengui's place — ${p.passport}`).join('\n\n');
+const drawPrompt = [
+  kb.characterPassport ? `About Pengui (character passport):\n${kb.characterPassport}` : '',
+  placeText,
+  kb.artistRules,
+  d.text,
+].filter(Boolean).join('\n\n');
+
 return [{
   json: {
     direct: true,
@@ -59,7 +70,7 @@ return [{
     storyKeep: '',
     userBrief: String(row.ai_UserBrief || '').trim(),
     // новая картинка: постоянные правила из таблицы + сцена автора; правка — только слова автора
-    dallePrompt: action === 'ready_to_draw' ? [kb.artistRules, d.text].filter(Boolean).join('\n\n') : '',
+    dallePrompt: action === 'ready_to_draw' ? drawPrompt : '',
     revisionInstruction: action === 'revise_point' ? d.text : '',
     revisionIsNewVariant: true,
     revisionTargetImageUrl,
@@ -69,6 +80,10 @@ return [{
     resolvedApprovedImageUrl: '',
     styleGuideUrl: kb.styleGuideUrl,
     referenceUrls: kb.referenceUrls,
+    drawRefUrls: pick.drawRefUrls,
+    drawRoles: pick.drawRoles,
+    editRefUrls: pick.editRefUrls,
+    editRoles: pick.editRoles,
     fromButton: false,
     projectId: ctx.projectId,
     chatId: ctx.chatId,
