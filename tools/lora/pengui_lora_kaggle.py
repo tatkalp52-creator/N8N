@@ -27,7 +27,7 @@ if not os.path.exists('/tmp/diffusers'):
     sh('git clone -q --depth 1 https://github.com/huggingface/diffusers /tmp/diffusers')
 sh(f'{sys.executable} -m pip -q install -e /tmp/diffusers')
 sh(f'{sys.executable} -m pip -q install -r /tmp/diffusers/examples/dreambooth/requirements_sdxl.txt')
-sh(f'{sys.executable} -m pip -q install peft bitsandbytes gdown datasets')
+sh(f'{sys.executable} -m pip -q install -U peft bitsandbytes gdown datasets')
 # старый torchao из образа Kaggle ломает свежий diffusers; нам он не нужен
 sh(f'{sys.executable} -m pip -q uninstall -y torchao')
 import torch
