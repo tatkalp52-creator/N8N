@@ -39,12 +39,12 @@ if (action !== 'chat' && !d.text) {
     : 'Напиши задание после слова: «Художнику: …».';
 }
 
-// Художник знает героя и его места: паспорт персонажа и (если в задании названо
-// место) паспорт места + его картинки. Правка — только слова автора.
+// Если в задании названо место — описание места и его картинки. Правка — только слова автора.
 const pick = tbPickRefs(kb, d.text);
 const placeText = pick.places.filter(p => p.passport).map(p => `Pengui's place — ${p.passport}`).join('\n\n');
+// Паспорт персонажа художнику НЕ даём (01.10): длинный текст забивает сцену —
+// художник рисует «по списку» всё, что прочитал. Паспорт — для Редактора и Писателя.
 const drawPrompt = [
-  kb.characterPassport ? `About Pengui (character passport):\n${kb.characterPassport}` : '',
   placeText,
   kb.artistRules,
   d.text,

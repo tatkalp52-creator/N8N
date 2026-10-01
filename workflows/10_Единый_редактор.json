@@ -16,14 +16,14 @@
         0,
         0
       ],
-      "webhookId": "54ac9c36-1024-4716-9ae9-3349e73abc8e",
+      "webhookId": "a50b4964-8b51-4bb8-af6d-fa7644dd870a",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "90392351-7bf6-4a52-8056-3b4f6fbc577c"
+      "id": "e6472e5a-6ba3-4d47-8ff3-c4c5aaf851b9"
     },
     {
       "parameters": {
@@ -54,7 +54,7 @@
         220,
         0
       ],
-      "id": "a3662fcd-72ab-4eb4-b948-536369ddee05"
+      "id": "88ea281c-61f2-4c62-810e-a63f31d61c07"
     },
     {
       "parameters": {
@@ -67,7 +67,7 @@
         440,
         0
       ],
-      "id": "1b775a2b-1754-4f51-8810-7296c7f104cf"
+      "id": "698c6070-c833-41c7-944f-bdd28c112d12"
     },
     {
       "parameters": {
@@ -146,7 +146,7 @@
         660,
         0
       ],
-      "id": "877145c4-ca52-4dda-bc44-593ddfb959ed"
+      "id": "98cd3abe-2055-40dd-9467-597a9db00993"
     },
     {
       "parameters": {
@@ -179,7 +179,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "bb34dd37-d48c-47d1-8806-341f820d6776"
+      "id": "1adf9dc7-bd54-4803-919d-6aeddceb336a"
     },
     {
       "parameters": {
@@ -192,7 +192,7 @@
         1120,
         -700
       ],
-      "id": "5490c718-196d-4bf0-bc7f-2cce5291bad0"
+      "id": "0ad06fad-9d6f-490d-bf51-bed931bf9ffb"
     },
     {
       "parameters": {
@@ -229,14 +229,14 @@
         1340,
         -700
       ],
-      "webhookId": "c89a4bbf-ba91-4e2f-a0f9-83c1f25fd489",
+      "webhookId": "f63ea6b2-2930-43ff-85a7-8cb679706c86",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "c8bbf262-2f35-42f5-b049-8094fc1e7163"
+      "id": "1cefb36f-89ef-4a9e-923d-16f71875a84c"
     },
     {
       "parameters": {
@@ -252,7 +252,7 @@
         900,
         -450
       ],
-      "webhookId": "0c15a813-12b3-4363-bb87-d4ba8bfc19e9",
+      "webhookId": "779660dc-85a5-433e-aa49-2b4f90b732a6",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -260,7 +260,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "530bf2b1-36ce-4d00-8e08-e52dfeeb32ea"
+      "id": "0c4f3d22-fd77-4d38-b291-b80bc553e70f"
     },
     {
       "parameters": {
@@ -298,7 +298,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "fdce8a8b-7755-4fae-977f-4c847a3b8036"
+      "id": "5bf356c7-ac4d-41fa-b991-06a20a22900b"
     },
     {
       "parameters": {
@@ -311,7 +311,7 @@
         1340,
         -450
       ],
-      "id": "ca20220a-1544-4185-ac75-ac161c62b78c"
+      "id": "323a0d34-bdf4-4753-8f2c-453ef1dcbf8f"
     },
     {
       "parameters": {
@@ -349,7 +349,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "7837ba64-f137-4247-ba7c-37b7f8340aac"
+      "id": "2dd979df-0424-44bd-b30c-8247e19b5316"
     },
     {
       "parameters": {
@@ -369,14 +369,14 @@
         1780,
         -450
       ],
-      "webhookId": "51fc88a5-041e-46b7-8935-8ab57b516b7b",
+      "webhookId": "fe889e4a-a31d-4e96-805d-2665d3bd52f5",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "eb12ff0e-5123-49e7-a02f-1e57bad8c127"
+      "id": "efebcfe6-b7b0-4533-88aa-9c2bb9bd91f8"
     },
     {
       "parameters": {
@@ -388,7 +388,7 @@
           },
           "conditions": [
             {
-              "id": "3013118d-a585-4ac8-a12a-2b16bd02ef8d",
+              "id": "784df21c-e2b8-4d69-b092-889e4468d1d7",
               "leftValue": "={{ !!$('Разбираем входящее').first().json.callbackQueryId }}",
               "rightValue": true,
               "operator": {
@@ -409,7 +409,7 @@
         900,
         0
       ],
-      "id": "ebfb074e-50c6-45bf-99d1-f9f1269a2b92"
+      "id": "10b4ec73-e28c-49f3-9b5f-8600fd28bf8c"
     },
     {
       "parameters": {
@@ -427,7 +427,7 @@
         1120,
         -150
       ],
-      "webhookId": "31154b82-620c-4269-a293-06ea5a437e18",
+      "webhookId": "5892a6c7-8e5e-4411-b5b9-a75e670a8f89",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -435,7 +435,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "3e420001-2250-451e-86bb-d07adf291c6c"
+      "id": "44bf55b7-b94b-4f7a-9363-e8eda2aa9268"
     },
     {
       "parameters": {
@@ -474,7 +474,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "197611ff-edde-4dd5-8b1b-c0e0a6b8355f"
+      "id": "624ba1db-a909-4de8-9a36-df6586baf7a4"
     },
     {
       "parameters": {
@@ -513,7 +513,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "00745056-2d4b-4fca-ac9f-5e88efd533a8"
+      "id": "591a0114-f84a-4d1c-b9bc-9e378a1c6e76"
     },
     {
       "parameters": {
@@ -552,7 +552,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "9b8f16be-652a-408c-97af-fd4c71471858"
+      "id": "e1c304d7-8d58-497c-9c9b-6c2a01478631"
     },
     {
       "parameters": {
@@ -565,7 +565,7 @@
         2000,
         0
       ],
-      "id": "ead5df60-24a5-4d98-8fa4-13a0ad8ed048"
+      "id": "1969cfab-868f-4466-aaaa-ff6aa0145d36"
     },
     {
       "parameters": {
@@ -577,7 +577,7 @@
           },
           "conditions": [
             {
-              "id": "7fa2fed5-f115-4467-af96-88f192cc3360",
+              "id": "fd70fb11-94da-44ee-be95-369fa92e044c",
               "leftValue": "={{ $json.found }}",
               "rightValue": true,
               "operator": {
@@ -598,7 +598,7 @@
         2220,
         0
       ],
-      "id": "c3bc7948-8380-4803-ae3d-dab1551272d0"
+      "id": "f3ba8617-e64e-4d12-9c6c-4ae5b61b4999"
     },
     {
       "parameters": {
@@ -618,14 +618,14 @@
         2440,
         200
       ],
-      "webhookId": "68cee759-b969-47d1-ad90-1e9c9b7e52f2",
+      "webhookId": "10e4a880-b820-403a-b91b-67b34b116dca",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "e5bf6287-5bd1-4bfe-9067-f09280aac9ff"
+      "id": "f905c4aa-e315-4fa5-852f-f4e7948ce5a9"
     },
     {
       "parameters": {
@@ -784,7 +784,7 @@
         2440,
         0
       ],
-      "id": "e1527180-da0e-4db7-8b79-39161ff37609"
+      "id": "642a477a-2706-47a9-bc88-36362c143167"
     },
     {
       "parameters": {
@@ -804,14 +804,14 @@
         2700,
         1500
       ],
-      "webhookId": "621dcedf-479d-4a40-8969-6cd5b12f8544",
+      "webhookId": "bb01402f-bc8a-4974-8565-ba4a035bb362",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "1d9f5908-af7e-4b91-b5bf-93b7d359cec0"
+      "id": "dc938da3-3416-42d3-842a-739c984b0175"
     },
     {
       "parameters": {
@@ -824,7 +824,7 @@
         2700,
         900
       ],
-      "id": "f4f090e0-d389-4bb8-843c-bb677a6e4ed3"
+      "id": "7fea57d5-ad8a-407c-8fce-75d131f825ec"
     },
     {
       "parameters": {
@@ -836,7 +836,7 @@
           },
           "conditions": [
             {
-              "id": "d68c6d70-4826-4473-b72e-8b9803eca3f0",
+              "id": "c2f31871-09d4-4a89-b5da-38e97c7e31c0",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -857,7 +857,7 @@
         2920,
         900
       ],
-      "id": "44bf8fd3-fc28-4214-bd73-9f9e9b0fd945"
+      "id": "05468ade-bd63-475d-a52f-b453f0474091"
     },
     {
       "parameters": {
@@ -899,7 +899,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "c5d6f177-8888-41c8-8c71-18e601330b1c"
+      "id": "e9c7c070-55c2-4a80-a076-6e93f64071f6"
     },
     {
       "parameters": {
@@ -919,14 +919,14 @@
         3360,
         900
       ],
-      "webhookId": "57d015f6-bad8-4326-9e47-da6b2e71b43c",
+      "webhookId": "f89d82ab-163c-4acf-bfcf-173a1aebbd28",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "b6725363-c7b0-4d24-b85d-fdcadc851723"
+      "id": "55d03dd0-d336-40b1-8131-c6785e7af277"
     },
     {
       "parameters": {
@@ -946,14 +946,14 @@
         3140,
         1100
       ],
-      "webhookId": "9dfdacbd-14d9-49b0-b1e6-28ddca19998f",
+      "webhookId": "70048ade-e876-4cf2-95b5-6f233f4cb7ec",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "3b9a2421-e8b8-478d-9dfb-76c5992340c2"
+      "id": "e59fdab5-5b82-4705-8779-ac65cd3a36e9"
     },
     {
       "parameters": {
@@ -966,7 +966,7 @@
         2700,
         -1400
       ],
-      "id": "ab06d673-9666-4534-9635-fef464f967d7"
+      "id": "0f052231-8f31-40bf-868c-c2da22b0acf3"
     },
     {
       "parameters": {
@@ -979,7 +979,7 @@
         2920,
         -1400
       ],
-      "id": "88a8cbad-4ffd-4965-aaef-6d7911486a4d"
+      "id": "2222148b-8ef1-46df-bf4b-0392bdb367f4"
     },
     {
       "parameters": {
@@ -991,7 +991,7 @@
           },
           "conditions": [
             {
-              "id": "a30bad6d-90bb-4263-899b-96fe6fb57427",
+              "id": "c2274183-1d0a-4720-9648-815956bd5c29",
               "leftValue": "={{ !!String($('Контекст проекта').first().json.row.sys_ConversationId || '').trim() }}",
               "rightValue": true,
               "operator": {
@@ -1012,7 +1012,7 @@
         3140,
         -1400
       ],
-      "id": "f917e007-b19c-42c5-aa55-819cf1ec3ad4"
+      "id": "943fc6fd-7cfb-418e-9e5e-32b0f2d52244"
     },
     {
       "parameters": {
@@ -1038,7 +1038,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "7aa4e205-924d-4fcd-ab8c-ac535adc8fa8"
+      "id": "f36ecbdc-67f9-4801-b00e-da06037a25a7"
     },
     {
       "parameters": {
@@ -1050,7 +1050,7 @@
           },
           "conditions": [
             {
-              "id": "56618c2a-06e2-4aec-9f3a-7416b9d72497",
+              "id": "49e5844a-53d1-4c45-80f3-d536f7796362",
               "leftValue": "={{ !!$('Вход редактора').first().json.photo }}",
               "rightValue": true,
               "operator": {
@@ -1071,7 +1071,7 @@
         3580,
         -1400
       ],
-      "id": "9092d037-8b3f-47a5-86b7-d62df0add490"
+      "id": "4c87e94e-075d-491d-83b2-d4f19d433df7"
     },
     {
       "parameters": {
@@ -1088,14 +1088,14 @@
         3800,
         -1220
       ],
-      "webhookId": "d80b9151-7c3e-4dfb-8ac1-ddfa3e923c76",
+      "webhookId": "da035116-68f3-48c9-804e-b1aafdcab2ef",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "d6c95100-0ac9-406c-9574-55c37547f6f6"
+      "id": "0c0a4f03-b7ae-4a50-821a-f58097ee1af3"
     },
     {
       "parameters": {
@@ -1108,7 +1108,7 @@
         4020,
         -1220
       ],
-      "id": "ff72da2d-4e04-4cff-b7bf-662eae0d6435"
+      "id": "7d0a7020-ccc9-4b81-8bfd-753ed1d2884e"
     },
     {
       "parameters": {
@@ -1121,7 +1121,7 @@
         4240,
         -1400
       ],
-      "id": "8608cd97-8d01-4171-88c4-71f5a7463617"
+      "id": "d8ac9d8b-b2b9-4f1f-988c-a184353390de"
     },
     {
       "parameters": {
@@ -1147,11 +1147,11 @@
           "name": "OpenAi account"
         }
       },
-      "id": "d7114aec-9fcc-4af4-a05a-3f2feb29696a"
+      "id": "6355770a-d5cd-41b8-90a1-4b2e4859a7eb"
     },
     {
       "parameters": {
-        "jsCode": "// ── Общий кусок (одинаковый в нескольких узлах этого канваса) ──────────────\n// Текстовый блок: 8 пунктов с ЖЁСТКО закреплёнными номерами. Номер никогда\n// не переприсваивается: 3 — это всегда \"Описание\".\nconst TB_ITEMS = [\n  { n: 1, name: 'Оверлей', keys: ['overlayText', 'overlayPosition'] },\n  { n: 2, name: 'Название', keys: ['title'] },\n  { n: 3, name: 'Описание', keys: ['description'] },\n  { n: 4, name: 'Тайм-коды', keys: ['timecodes'] },\n  { n: 5, name: 'Подвал', keys: ['footer'] },\n  { n: 6, name: 'Хэштеги', keys: ['hashtags'] },\n  { n: 7, name: 'Теги', keys: ['tags'] },\n  { n: 8, name: 'Закреплённый комментарий', keys: ['pinnedComment'] },\n];\n// Пункты, которые можно осознанно оставить пустыми (например, гайд без оверлея).\nconst TB_CAN_BE_EMPTY = [1, 8];\n\nfunction tbEmptyState() {\n  return {\n    v: 1,\n    items: { overlayText: '', overlayPosition: '', title: '', description: '', timecodes: [], footer: '', hashtags: '', tags: '', pinnedComment: '' },\n    set: {},\n    agreed: {},\n    descriptionEN: '',\n    descriptionENFor: '',\n    seenImages: [],\n    ru: {},\n  };\n}\n\nfunction tbParseState(raw) {\n  const s = tbEmptyState();\n  if (!raw) return s;\n  let p;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return s; }\n  if (!p || typeof p !== 'object') return s;\n  Object.assign(s.items, p.items || {});\n  if (!Array.isArray(s.items.timecodes)) s.items.timecodes = [];\n  s.set = p.set || {};\n  s.agreed = p.agreed || {};\n  s.descriptionEN = p.descriptionEN || '';\n  s.descriptionENFor = p.descriptionENFor || '';\n  s.seenImages = Array.isArray(p.seenImages) ? p.seenImages : [];\n  s.ru = (p.ru && typeof p.ru === 'object') ? p.ru : {};\n  return s;\n}\n\nfunction tbAllAgreed(s) {\n  return TB_ITEMS.every(it => s.agreed[it.n] === true);\n}\n\nfunction tbPositionRu(p) {\n  return { left: 'слева', right: 'справа', center: 'по центру' }[String(p || '').toLowerCase()] || (p || '');\n}\n\n// Текст одного пункта для показа автору (без номера и названия).\n// Русский перевод (state.ru) показывается рядом в скобках — только автору;\n// в таблицу и на YouTube уходит лишь сам текст пункта (state.items).\nfunction tbItemText(s, n) {\n  const it = s.items;\n  const ru = s.ru || {};\n  const tr = (v) => (v ? ` (${v})` : '');\n  switch (n) {\n    case 1:\n      if (!s.set[1]) return '';\n      return it.overlayText ? `${it.overlayText}${tr(ru.overlayText)} — ${tbPositionRu(it.overlayPosition) || 'позиция не указана'}` : '— без оверлея';\n    case 2: return it.title ? it.title + tr(ru.title) : '';\n    case 3: return (it.description || '') + (it.description && ru.description ? `\\n\\n— Перевод для автора —\\n${ru.description}` : '');\n    case 4: return (it.timecodes || []).map((t, i) => `${i + 1}. ${t}${tr((ru.timecodes || [])[i])}`).join('\\n');\n    case 5: return it.footer || '';\n    case 6: return it.hashtags || '';\n    case 7: return it.tags || '';\n    case 8:\n      if (!s.set[8]) return '';\n      return it.pinnedComment ? it.pinnedComment + (ru.pinnedComment ? `\\n(${ru.pinnedComment})` : '') : '— без закреплённого комментария';\n  }\n  return '';\n}\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Барьер перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице (строку\n// перечитываем заново перед проверкой), а не то, что мы \"вроде бы записали\".\nfunction validateForAssembler(row, tmpl, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n\n  let required = ['overlayPosition', 'title', 'hashtags', 'tags', 'description'];\n  const rawReq = findByLabel(tmpl, 'tmpl_RequiredTechFields');\n  if (rawReq && String(rawReq).trim()) {\n    required = String(rawReq).split(',').map(x => x.trim()).filter(Boolean);\n  }\n  const colFor = {\n    overlayText: 'ai_OverlayText', overlayPosition: 'ai_OverlayPosition', title: 'ai_Title',\n    hashtags: 'ai_Hashtags', tags: 'ai_Tags', description: 'ai_Description', pinnedComment: 'ai_PinnedComment',\n  };\n  for (const key of required) {\n    const col = colFor[key] || key;\n    if (!val(col)) problems.push(`${col} пустая`);\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  if (!val('ai_DescriptionEN')) problems.push('ai_DescriptionEN пустая (нет английского описания)');\n  if (val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') {\n    problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  }\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Референсы художнику: общие из таблицы + картинки мест, чьи слова-триггеры\n// встретились в задании («кухн» ловит «кухня», «на кухне»…). Модель берёт до 16\n// картинок; в правке одно место занимает сама картинка. Не помещается — сокращаем\n// общие с конца (style guide остаётся первым), места оставляем.\nfunction tbPickRefs(kb, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const places = (kb.locations || []).filter(l =>\n    (l.triggers || []).some(w => new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low)));\n  const base = kb.baseRefs || [];\n  const loc = places.flatMap(p => p.refs || []);\n  const fit = max => {\n    const room = Math.max(1, max - loc.length);\n    return [...base.slice(0, room), ...loc].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return {\n    places,\n    drawRefUrls: draw.map(r => r.url),\n    drawRoles: roles(draw, 0),\n    editRefUrls: edit.map(r => r.url),\n    editRoles: roles(edit, 1),\n  };\n}\n\nconst response = $input.first().json;\nconst prep = $('Готовим запрос редактору').first().json;\nconst ctx = $('Контекст проекта').first().json;\nconst kb = $('Собираем знания канала').first().json;\nconst vhod = $('Вход редактора').first().json;\nconst row = ctx.row || {};\nconst output = response.output || [];\n\n// Текст ответа (может быть несколько частей) и вызов инструмента — это\n// отдельные элементы output, никакого разбора регулярками.\nconst plainText = output\n  .filter(i => i.type === 'message')\n  .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text))\n  .join('\\n\\n')\n  .trim();\nconst callItem = output.find(i => i.type === 'function_call');\n\nlet action = 'chat';\nlet messageToUser = plainText;\nlet callId = null;\nlet functionName = null;\nlet args = {};\nif (callItem) {\n  callId = callItem.call_id;\n  functionName = callItem.name;\n  try { args = JSON.parse(callItem.arguments || '{}'); } catch (e) { args = {}; }\n  messageToUser = args.messageToUser || plainText || '';\n}\n\nconst state = tbParseState(row.sys_EditorState);\nstate.seenImages = prep.newSeenImages || state.seenImages;\n\nlet variants = [];\ntry { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst lastVariant = variants.length ? variants[variants.length - 1] : null;\n\nlet dallePrompt = '';\nlet revisionInstruction = '';\nlet revisionIsNewVariant = false;\nlet revisionTargetImageUrl = String(row.ai_ImageUrl || '');\nlet revisionTargetVariantNumber = lastVariant ? lastVariant.n : 1;\nlet approveVariantNumber = null;\nlet approveTargetBrightness = null;\nlet resolvedApprovedImageUrl = '';\nlet communicationNotes = '';\nlet storyBrief = '';\nlet storyKeep = '';\nconst changedItems = [];\nlet textBlockTouched = false;\n\nfunction applyTextBlock(args) {\n  const items = args.items || {};\n  const setVal = (key, n, value) => {\n    const old = state.items[key];\n    const same = Array.isArray(value) ? JSON.stringify(old) === JSON.stringify(value) : old === value;\n    const wasSet = !!state.set[n];\n    state.set[n] = true;\n    if (!same || !wasSet) {\n      state.items[key] = value;\n      if (!changedItems.includes(n)) changedItems.push(n);\n      state.agreed[n] = false;\n    }\n  };\n  const str = v => (typeof v === 'string' ? v.trim() : '');\n  // Пункт 1: текст и позиция живут вместе.\n  if (str(items.overlayText)) setVal('overlayText', 1, str(items.overlayText) === '-' ? '' : str(items.overlayText));\n  if (str(items.overlayPosition)) setVal('overlayPosition', 1, str(items.overlayPosition).toLowerCase());\n  if (str(items.title)) setVal('title', 2, str(items.title));\n  // Пункт 3 (описание) пишет только Писатель — через storyBrief, не здесь.\n  let tc = items.timecodes;\n  if (typeof tc === 'string') tc = tc.split('\\n');\n  if (Array.isArray(tc)) {\n    tc = tc.map(x => String(x || '').replace(/^\\s*\\d+[.)]\\s*/, '').trim()).filter(Boolean);\n    if (tc.length) setVal('timecodes', 4, tc);\n  }\n  if (str(items.footer)) setVal('footer', 5, str(items.footer));\n  if (str(items.hashtags)) setVal('hashtags', 6, str(items.hashtags));\n  if (str(items.tags)) setVal('tags', 7, str(items.tags));\n  if (str(items.pinnedComment)) setVal('pinnedComment', 8, str(items.pinnedComment) === '-' ? '' : str(items.pinnedComment));\n\n  // Русский перевод для автора: новый — сохраняем; если пункт изменился,\n  // а перевода к нему не прислали — старый перевод убираем (он устарел).\n  const ru = args.ruTranslations || {};\n  state.ru = state.ru || {};\n  for (const [key, n] of [['overlayText', 1], ['title', 2], ['pinnedComment', 8]]) {\n    if (typeof ru[key] === 'string' && ru[key].trim()) state.ru[key] = ru[key].trim();\n    else if (changedItems.includes(n)) delete state.ru[key];\n  }\n  if (Array.isArray(ru.timecodes) && ru.timecodes.length) state.ru.timecodes = ru.timecodes.map(x => String(x || '').replace(/^\\s*\\d+[.)]\\s*/, '').trim());\n  else if (changedItems.includes(4)) delete state.ru.timecodes;\n\n  // Английский перевод относится к конкретному тексту описания.\n  if (state.descriptionENFor !== state.items.description) {\n    state.descriptionEN = '';\n    state.descriptionENFor = '';\n  }\n\n  for (const n of (args.reopenItems || [])) {\n    if (state.agreed[n]) { state.agreed[n] = false; if (!changedItems.includes(n)) changedItems.push(n); }\n  }\n  for (const raw of (args.agreedItems || [])) {\n    const n = parseInt(raw, 10);\n    if (!(n >= 1 && n <= 8)) continue;\n    if (!state.set[n] && TB_CAN_BE_EMPTY.includes(n)) state.set[n] = true; // \"оверлей/коммент не нужен\"\n    if (state.set[n]) state.agreed[n] = true;\n  }\n}\n\nif (functionName === 'start_drawing') {\n  action = 'ready_to_draw';\n  dallePrompt = args.dallePrompt || '';\n  if (!dallePrompt.trim()) action = 'chat';\n} else if (functionName === 'request_revision') {\n  action = 'revise_point';\n  revisionInstruction = args.revisionInstruction || '';\n  // Правка всегда сохраняется новым вариантом: удачная картинка не теряется из-за неудачной правки.\n  revisionIsNewVariant = true;\n  const target = args.variantNumber ? variants.find(v => Number(v.n) === Number(args.variantNumber)) : null;\n  if (target && target.url) {\n    revisionTargetImageUrl = target.url;\n    revisionTargetVariantNumber = target.n;\n  }\n  if (!revisionTargetImageUrl) action = 'chat';\n} else if (functionName === 'approve_image') {\n  action = 'approved';\n  approveVariantNumber = args.variantNumber || null;\n  approveTargetBrightness = args.targetBrightness || null;\n  const found = approveVariantNumber ? variants.find(v => Number(v.n) === Number(approveVariantNumber)) : null;\n  resolvedApprovedImageUrl = (found && found.url) || (variants.length === 1 ? variants[0].url : '') || String(row.ai_ImageUrl || '');\n  if (!resolvedApprovedImageUrl) action = 'chat';\n  // Вместе с согласованием Редактор сразу присылает первый вариант текста.\n  if (action === 'approved' && args.items && Object.keys(args.items).length) {\n    textBlockTouched = true;\n    applyTextBlock(args);\n  }\n  if (action === 'approved') storyBrief = String(args.storyBrief || '').trim();\n  // Смена картинки не переписывает уже согласованное описание: Писатель пишет\n  // заново, только если автор сама попросит (commission_story).\n  if (storyBrief && state.agreed && state.agreed[3]) {\n    storyBrief = '';\n    const note = 'Описание уже согласовано — не переписываю. Если нужно под новую картинку, напишите: «3: перепиши».';\n    messageToUser = messageToUser ? messageToUser + '\\n\\n' + note : note;\n  }\n} else if (functionName === 'commission_story') {\n  action = 'text_block';\n  textBlockTouched = true;\n  storyBrief = String(args.storyBrief || '').trim();\n  storyKeep = String(args.keepFromPrevious || '').trim();\n  if (!storyBrief) action = 'chat';\n} else if (functionName === 'update_communication_notes') {\n  communicationNotes = args.notes || '';\n} else if (functionName === 'update_text_block') {\n  action = 'text_block';\n  textBlockTouched = true;\n  applyTextBlock(args);\n}\n\n// ── Статус в таблице ──\n// Статус больше НЕ управляет разговором — он нужен только как стена перед\n// сборщиком. Любая правка текста после \"Утверждено\" снимает утверждение.\nconst curStatus = vhod.status;\nlet statusAfter = curStatus || 'Картинка в работе';\nlet statusReverted = false;\nif (curStatus !== 'Опубликовано') {\n  if (action === 'approved') {\n    const sameAsApproved = resolvedApprovedImageUrl && resolvedApprovedImageUrl === vhod.approvedUrl;\n    if (!(curStatus === 'Утверждено' && sameAsApproved)) statusAfter = 'Картинка согласована';\n  }\n  if (curStatus === 'Утверждено' && action === 'text_block' && changedItems.length) {\n    statusAfter = 'Картинка согласована';\n  }\n  statusReverted = curStatus === 'Утверждено' && statusAfter !== 'Утверждено';\n}\n\nreturn [{\n  json: {\n    action,\n    functionName,\n    approvedNow: action === 'approved',\n    messageToUser,\n    callId,\n    conversationId: prep.conversationId,\n    editorState: JSON.stringify(state),\n    statusAfter,\n    statusReverted,\n    changedItems,\n    textBlockTouched,\n    allAgreed: tbAllAgreed(state),\n    communicationNotes,\n    storyBrief,\n    storyKeep,\n    userBrief: String(row.ai_UserBrief || '').trim() || (vhod.fromButton ? '' : vhod.userText),\n    // для веток рисования (узлы перенесены из 01_Художник без изменений)\n    dallePrompt,\n    revisionInstruction,\n    revisionIsNewVariant,\n    revisionTargetImageUrl,\n    revisionTargetVariantNumber,\n    approveVariantNumber,\n    approveTargetBrightness,\n    resolvedApprovedImageUrl,\n    styleGuideUrl: kb.styleGuideUrl,\n    referenceUrls: kb.referenceUrls,\n    ...(({ places, ...r }) => r)(tbPickRefs(kb, dallePrompt || revisionInstruction)),\n    fromButton: vhod.fromButton,\n    projectId: ctx.projectId,\n    chatId: ctx.chatId,\n    sheetName: ctx.sheetName,\n    channelKey: ctx.channelKey,\n  }\n}];\n"
+        "jsCode": "// ── Общий кусок (одинаковый в нескольких узлах этого канваса) ──────────────\n// Текстовый блок: 8 пунктов с ЖЁСТКО закреплёнными номерами. Номер никогда\n// не переприсваивается: 3 — это всегда \"Описание\".\nconst TB_ITEMS = [\n  { n: 1, name: 'Оверлей', keys: ['overlayText', 'overlayPosition'] },\n  { n: 2, name: 'Название', keys: ['title'] },\n  { n: 3, name: 'Описание', keys: ['description'] },\n  { n: 4, name: 'Тайм-коды', keys: ['timecodes'] },\n  { n: 5, name: 'Подвал', keys: ['footer'] },\n  { n: 6, name: 'Хэштеги', keys: ['hashtags'] },\n  { n: 7, name: 'Теги', keys: ['tags'] },\n  { n: 8, name: 'Закреплённый комментарий', keys: ['pinnedComment'] },\n];\n// Пункты, которые можно осознанно оставить пустыми (например, гайд без оверлея).\nconst TB_CAN_BE_EMPTY = [1, 8];\n\nfunction tbEmptyState() {\n  return {\n    v: 1,\n    items: { overlayText: '', overlayPosition: '', title: '', description: '', timecodes: [], footer: '', hashtags: '', tags: '', pinnedComment: '' },\n    set: {},\n    agreed: {},\n    descriptionEN: '',\n    descriptionENFor: '',\n    seenImages: [],\n    ru: {},\n  };\n}\n\nfunction tbParseState(raw) {\n  const s = tbEmptyState();\n  if (!raw) return s;\n  let p;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return s; }\n  if (!p || typeof p !== 'object') return s;\n  Object.assign(s.items, p.items || {});\n  if (!Array.isArray(s.items.timecodes)) s.items.timecodes = [];\n  s.set = p.set || {};\n  s.agreed = p.agreed || {};\n  s.descriptionEN = p.descriptionEN || '';\n  s.descriptionENFor = p.descriptionENFor || '';\n  s.seenImages = Array.isArray(p.seenImages) ? p.seenImages : [];\n  s.ru = (p.ru && typeof p.ru === 'object') ? p.ru : {};\n  return s;\n}\n\nfunction tbAllAgreed(s) {\n  return TB_ITEMS.every(it => s.agreed[it.n] === true);\n}\n\nfunction tbPositionRu(p) {\n  return { left: 'слева', right: 'справа', center: 'по центру' }[String(p || '').toLowerCase()] || (p || '');\n}\n\n// Текст одного пункта для показа автору (без номера и названия).\n// Русский перевод (state.ru) показывается рядом в скобках — только автору;\n// в таблицу и на YouTube уходит лишь сам текст пункта (state.items).\nfunction tbItemText(s, n) {\n  const it = s.items;\n  const ru = s.ru || {};\n  const tr = (v) => (v ? ` (${v})` : '');\n  switch (n) {\n    case 1:\n      if (!s.set[1]) return '';\n      return it.overlayText ? `${it.overlayText}${tr(ru.overlayText)} — ${tbPositionRu(it.overlayPosition) || 'позиция не указана'}` : '— без оверлея';\n    case 2: return it.title ? it.title + tr(ru.title) : '';\n    case 3: return (it.description || '') + (it.description && ru.description ? `\\n\\n— Перевод для автора —\\n${ru.description}` : '');\n    case 4: return (it.timecodes || []).map((t, i) => `${i + 1}. ${t}${tr((ru.timecodes || [])[i])}`).join('\\n');\n    case 5: return it.footer || '';\n    case 6: return it.hashtags || '';\n    case 7: return it.tags || '';\n    case 8:\n      if (!s.set[8]) return '';\n      return it.pinnedComment ? it.pinnedComment + (ru.pinnedComment ? `\\n(${ru.pinnedComment})` : '') : '— без закреплённого комментария';\n  }\n  return '';\n}\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Барьер перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице (строку\n// перечитываем заново перед проверкой), а не то, что мы \"вроде бы записали\".\nfunction validateForAssembler(row, tmpl, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n\n  let required = ['overlayPosition', 'title', 'hashtags', 'tags', 'description'];\n  const rawReq = findByLabel(tmpl, 'tmpl_RequiredTechFields');\n  if (rawReq && String(rawReq).trim()) {\n    required = String(rawReq).split(',').map(x => x.trim()).filter(Boolean);\n  }\n  const colFor = {\n    overlayText: 'ai_OverlayText', overlayPosition: 'ai_OverlayPosition', title: 'ai_Title',\n    hashtags: 'ai_Hashtags', tags: 'ai_Tags', description: 'ai_Description', pinnedComment: 'ai_PinnedComment',\n  };\n  for (const key of required) {\n    const col = colFor[key] || key;\n    if (!val(col)) problems.push(`${col} пустая`);\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  if (!val('ai_DescriptionEN')) problems.push('ai_DescriptionEN пустая (нет английского описания)');\n  if (val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') {\n    problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  }\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Референсы художнику: общие из таблицы + картинки мест, чьи слова-триггеры\n// встретились в задании («кухн» ловит «кухня», «на кухне»…). Модель берёт до 16\n// картинок; в правке одно место занимает сама картинка. Не помещается — сокращаем\n// общие с конца (style guide остаётся первым), места оставляем.\nfunction tbPickRefs(kb, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const places = (kb.locations || []).filter(l =>\n    (l.triggers || []).some(w => new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low)));\n  const base = kb.baseRefs || [];\n  const loc = places.flatMap(p => p.refs || []);\n  const fit = max => {\n    const room = Math.max(1, max - loc.length);\n    return [...base.slice(0, room), ...loc].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return {\n    places,\n    drawRefUrls: draw.map(r => r.url),\n    drawRoles: roles(draw, 0),\n    editRefUrls: edit.map(r => r.url),\n    editRoles: roles(edit, 1),\n  };\n}\n\nconst response = $input.first().json;\nconst prep = $('Готовим запрос редактору').first().json;\nconst ctx = $('Контекст проекта').first().json;\nconst kb = $('Собираем знания канала').first().json;\nconst vhod = $('Вход редактора').first().json;\nconst row = ctx.row || {};\nconst output = response.output || [];\n\n// Текст ответа (может быть несколько частей) и вызов инструмента — это\n// отдельные элементы output, никакого разбора регулярками.\nconst plainText = output\n  .filter(i => i.type === 'message')\n  .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text))\n  .join('\\n\\n')\n  .trim();\nconst callItem = output.find(i => i.type === 'function_call');\n\nlet action = 'chat';\nlet messageToUser = plainText;\nlet callId = null;\nlet functionName = null;\nlet args = {};\nif (callItem) {\n  callId = callItem.call_id;\n  functionName = callItem.name;\n  try { args = JSON.parse(callItem.arguments || '{}'); } catch (e) { args = {}; }\n  messageToUser = args.messageToUser || plainText || '';\n}\n\nconst state = tbParseState(row.sys_EditorState);\nstate.seenImages = prep.newSeenImages || state.seenImages;\n\nlet variants = [];\ntry { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst lastVariant = variants.length ? variants[variants.length - 1] : null;\n\nlet dallePrompt = '';\nlet revisionInstruction = '';\nlet revisionIsNewVariant = false;\nlet revisionTargetImageUrl = String(row.ai_ImageUrl || '');\nlet revisionTargetVariantNumber = lastVariant ? lastVariant.n : 1;\nlet approveVariantNumber = null;\nlet approveTargetBrightness = null;\nlet resolvedApprovedImageUrl = '';\nlet communicationNotes = '';\nlet storyBrief = '';\nlet storyKeep = '';\nconst changedItems = [];\nlet textBlockTouched = false;\n\nfunction applyTextBlock(args) {\n  const items = args.items || {};\n  const setVal = (key, n, value) => {\n    const old = state.items[key];\n    const same = Array.isArray(value) ? JSON.stringify(old) === JSON.stringify(value) : old === value;\n    const wasSet = !!state.set[n];\n    state.set[n] = true;\n    if (!same || !wasSet) {\n      state.items[key] = value;\n      if (!changedItems.includes(n)) changedItems.push(n);\n      state.agreed[n] = false;\n    }\n  };\n  const str = v => (typeof v === 'string' ? v.trim() : '');\n  // Пункт 1: текст и позиция живут вместе.\n  if (str(items.overlayText)) setVal('overlayText', 1, str(items.overlayText) === '-' ? '' : str(items.overlayText));\n  if (str(items.overlayPosition)) setVal('overlayPosition', 1, str(items.overlayPosition).toLowerCase());\n  if (str(items.title)) setVal('title', 2, str(items.title));\n  // Пункт 3 (описание) пишет только Писатель — через storyBrief, не здесь.\n  let tc = items.timecodes;\n  if (typeof tc === 'string') tc = tc.split('\\n');\n  if (Array.isArray(tc)) {\n    tc = tc.map(x => String(x || '').replace(/^\\s*\\d+[.)]\\s*/, '').trim()).filter(Boolean);\n    if (tc.length) setVal('timecodes', 4, tc);\n  }\n  if (str(items.footer)) setVal('footer', 5, str(items.footer));\n  if (str(items.hashtags)) setVal('hashtags', 6, str(items.hashtags));\n  if (str(items.tags)) setVal('tags', 7, str(items.tags));\n  if (str(items.pinnedComment)) setVal('pinnedComment', 8, str(items.pinnedComment) === '-' ? '' : str(items.pinnedComment));\n\n  // Русский перевод для автора: новый — сохраняем; если пункт изменился,\n  // а перевода к нему не прислали — старый перевод убираем (он устарел).\n  const ru = args.ruTranslations || {};\n  state.ru = state.ru || {};\n  for (const [key, n] of [['overlayText', 1], ['title', 2], ['pinnedComment', 8]]) {\n    if (typeof ru[key] === 'string' && ru[key].trim()) state.ru[key] = ru[key].trim();\n    else if (changedItems.includes(n)) delete state.ru[key];\n  }\n  if (Array.isArray(ru.timecodes) && ru.timecodes.length) state.ru.timecodes = ru.timecodes.map(x => String(x || '').replace(/^\\s*\\d+[.)]\\s*/, '').trim());\n  else if (changedItems.includes(4)) delete state.ru.timecodes;\n\n  // Английский перевод относится к конкретному тексту описания.\n  if (state.descriptionENFor !== state.items.description) {\n    state.descriptionEN = '';\n    state.descriptionENFor = '';\n  }\n\n  for (const n of (args.reopenItems || [])) {\n    if (state.agreed[n]) { state.agreed[n] = false; if (!changedItems.includes(n)) changedItems.push(n); }\n  }\n  for (const raw of (args.agreedItems || [])) {\n    const n = parseInt(raw, 10);\n    if (!(n >= 1 && n <= 8)) continue;\n    if (!state.set[n] && TB_CAN_BE_EMPTY.includes(n)) state.set[n] = true; // \"оверлей/коммент не нужен\"\n    if (state.set[n]) state.agreed[n] = true;\n  }\n}\n\nif (functionName === 'start_drawing') {\n  action = 'ready_to_draw';\n  dallePrompt = args.dallePrompt || '';\n  if (!dallePrompt.trim()) action = 'chat';\n} else if (functionName === 'request_revision') {\n  action = 'revise_point';\n  revisionInstruction = args.revisionInstruction || '';\n  // Правка всегда сохраняется новым вариантом: удачная картинка не теряется из-за неудачной правки.\n  revisionIsNewVariant = true;\n  const target = args.variantNumber ? variants.find(v => Number(v.n) === Number(args.variantNumber)) : null;\n  if (target && target.url) {\n    revisionTargetImageUrl = target.url;\n    revisionTargetVariantNumber = target.n;\n  }\n  if (!revisionTargetImageUrl) action = 'chat';\n} else if (functionName === 'approve_image') {\n  action = 'approved';\n  approveVariantNumber = args.variantNumber || null;\n  approveTargetBrightness = args.targetBrightness || null;\n  const found = approveVariantNumber ? variants.find(v => Number(v.n) === Number(approveVariantNumber)) : null;\n  resolvedApprovedImageUrl = (found && found.url) || (variants.length === 1 ? variants[0].url : '') || String(row.ai_ImageUrl || '');\n  if (!resolvedApprovedImageUrl) action = 'chat';\n  // Текст после согласования Редактор предлагает, когда автор рассказала, про что выпуск;\n  // если items всё же пришли — принимаем.\n  if (action === 'approved' && args.items && Object.keys(args.items).length) {\n    textBlockTouched = true;\n    applyTextBlock(args);\n  }\n  if (action === 'approved') storyBrief = String(args.storyBrief || '').trim();\n  // Смена картинки не переписывает уже согласованное описание: Писатель пишет\n  // заново, только если автор сама попросит (commission_story).\n  if (storyBrief && state.agreed && state.agreed[3]) {\n    storyBrief = '';\n    const note = 'Описание уже согласовано — не переписываю. Если нужно под новую картинку, напишите: «3: перепиши».';\n    messageToUser = messageToUser ? messageToUser + '\\n\\n' + note : note;\n  }\n} else if (functionName === 'commission_story') {\n  action = 'text_block';\n  textBlockTouched = true;\n  storyBrief = String(args.storyBrief || '').trim();\n  storyKeep = String(args.keepFromPrevious || '').trim();\n  if (!storyBrief) action = 'chat';\n} else if (functionName === 'update_communication_notes') {\n  communicationNotes = args.notes || '';\n} else if (functionName === 'update_text_block') {\n  action = 'text_block';\n  textBlockTouched = true;\n  applyTextBlock(args);\n}\n\n// ── Статус в таблице ──\n// Статус больше НЕ управляет разговором — он нужен только как стена перед\n// сборщиком. Любая правка текста после \"Утверждено\" снимает утверждение.\nconst curStatus = vhod.status;\nlet statusAfter = curStatus || 'Картинка в работе';\nlet statusReverted = false;\nif (curStatus !== 'Опубликовано') {\n  if (action === 'approved') {\n    const sameAsApproved = resolvedApprovedImageUrl && resolvedApprovedImageUrl === vhod.approvedUrl;\n    if (!(curStatus === 'Утверждено' && sameAsApproved)) statusAfter = 'Картинка согласована';\n  }\n  if (curStatus === 'Утверждено' && action === 'text_block' && changedItems.length) {\n    statusAfter = 'Картинка согласована';\n  }\n  statusReverted = curStatus === 'Утверждено' && statusAfter !== 'Утверждено';\n}\n\nreturn [{\n  json: {\n    action,\n    functionName,\n    approvedNow: action === 'approved',\n    messageToUser,\n    callId,\n    conversationId: prep.conversationId,\n    editorState: JSON.stringify(state),\n    statusAfter,\n    statusReverted,\n    changedItems,\n    textBlockTouched,\n    allAgreed: tbAllAgreed(state),\n    communicationNotes,\n    storyBrief,\n    storyKeep,\n    userBrief: String(row.ai_UserBrief || '').trim() || (vhod.fromButton ? '' : vhod.userText),\n    // для веток рисования (узлы перенесены из 01_Художник без изменений)\n    dallePrompt,\n    revisionInstruction,\n    revisionIsNewVariant,\n    revisionTargetImageUrl,\n    revisionTargetVariantNumber,\n    approveVariantNumber,\n    approveTargetBrightness,\n    resolvedApprovedImageUrl,\n    styleGuideUrl: kb.styleGuideUrl,\n    referenceUrls: kb.referenceUrls,\n    ...(({ places, ...r }) => r)(tbPickRefs(kb, dallePrompt || revisionInstruction)),\n    fromButton: vhod.fromButton,\n    projectId: ctx.projectId,\n    chatId: ctx.chatId,\n    sheetName: ctx.sheetName,\n    channelKey: ctx.channelKey,\n  }\n}];\n"
       },
       "name": "Разбираем ответ редактора",
       "type": "n8n-nodes-base.code",
@@ -1160,7 +1160,7 @@
         4680,
         -1660
       ],
-      "id": "63363a3b-fe9e-4499-918a-5ae914efddbd"
+      "id": "9c114680-5942-41fb-9fda-c28ea8efc146"
     },
     {
       "parameters": {
@@ -1172,7 +1172,7 @@
           },
           "conditions": [
             {
-              "id": "f3faafcd-b49c-4622-b569-b7013c8d6c2c",
+              "id": "ce86da04-b123-480b-a952-b61365cf06db",
               "leftValue": "={{ !!$('Разбираем ответ редактора').first().json.storyBrief }}",
               "rightValue": true,
               "operator": {
@@ -1193,7 +1193,7 @@
         4680,
         -1220
       ],
-      "id": "3296040e-06b0-46d3-b4e7-202503a53406"
+      "id": "6731a965-aa00-4c3b-8576-b41e4ad87fb6"
     },
     {
       "parameters": {
@@ -1206,7 +1206,7 @@
         4680,
         -1000
       ],
-      "id": "417dbb18-a697-4eab-915f-798d8c08409b"
+      "id": "053491d4-4b0b-4dfa-a127-eb085ad0b8bf"
     },
     {
       "parameters": {
@@ -1234,7 +1234,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "513e31ee-a075-4071-9e95-78ec71162211",
+      "id": "85bb4873-9e13-4426-9d72-f4509a6453ca",
       "onError": "continueRegularOutput"
     },
     {
@@ -1248,7 +1248,7 @@
         5120,
         -1000
       ],
-      "id": "ad8ecdc5-9ac7-486d-9987-618940bc6ae8"
+      "id": "221262aa-bfd6-4585-803f-0ec596d52bb0"
     },
     {
       "parameters": {
@@ -1274,7 +1274,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "0c7ed333-4038-45ea-aedd-c808d339d91b",
+      "id": "3cd310fd-7562-4411-a345-e337d2aed9f1",
       "onError": "continueRegularOutput"
     },
     {
@@ -1288,7 +1288,7 @@
         4680,
         -1400
       ],
-      "id": "b1ac9ce4-41a6-4bc2-a9b1-8aafab3cebeb"
+      "id": "23fd66fc-ce07-43c7-95c3-3d6187d1b9ed"
     },
     {
       "parameters": {
@@ -1333,7 +1333,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "a2e517f5-86f0-4381-89b5-1188e9760489"
+      "id": "8a4f844e-9423-41da-9c7b-b050d04fc8a4"
     },
     {
       "parameters": {
@@ -1345,7 +1345,7 @@
           },
           "conditions": [
             {
-              "id": "0eba7827-6ebc-4ef1-a900-be685640d30f",
+              "id": "be51ce36-faea-4b64-90dc-2e95b5454695",
               "leftValue": "={{ !!$('Парсим ответ редактора').first().json.communicationNotes }}",
               "rightValue": true,
               "operator": {
@@ -1366,7 +1366,7 @@
         5120,
         -1400
       ],
-      "id": "c9dd6008-4752-4c8a-866a-834ba6661b21"
+      "id": "486f30ce-ff25-4030-ba05-8bafab25d160"
     },
     {
       "parameters": {
@@ -1407,7 +1407,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "8d12d037-9617-4e43-ad70-96760c4c7cd1"
+      "id": "70e489f4-75e0-46cf-a446-1f8183adec29"
     },
     {
       "parameters": {
@@ -1526,7 +1526,7 @@
         5560,
         -1400
       ],
-      "id": "0489b5ce-839a-41cd-98de-f7a22ba6e992"
+      "id": "434db1dd-8e10-4e2a-ac4f-0881f9cd6b12"
     },
     {
       "parameters": {
@@ -1560,7 +1560,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "a19c8cee-ff41-4a22-b56e-c67b5d1196cc"
+      "id": "9ba58b82-a155-49de-aa9f-784bd06979c1"
     },
     {
       "parameters": {
@@ -1573,7 +1573,7 @@
         3140,
         -1660
       ],
-      "id": "951d5ff2-dddc-4aa9-9c3e-650c6ac50fab"
+      "id": "0d39c1bb-c196-4034-a262-b26adc56b8ce"
     },
     {
       "parameters": {
@@ -1585,7 +1585,7 @@
           },
           "conditions": [
             {
-              "id": "1a3677e6-c83f-43a0-a420-bbc42e0c8dd1",
+              "id": "18ab5c3d-dd7d-482c-bd62-a7034566a553",
               "leftValue": "={{ !!$('Вход редактора').first().json.directArt }}",
               "rightValue": true,
               "operator": {
@@ -1606,11 +1606,11 @@
         2920,
         -1140
       ],
-      "id": "02a5357c-78f5-4d10-bc55-a8fd4f2e9903"
+      "id": "9a8dec42-a090-4f3e-8f95-9c970e20e8c8"
     },
     {
       "parameters": {
-        "jsCode": "// ── Общий кусок (одинаковый в нескольких узлах этого канваса) ──────────────\n// Текстовый блок: 8 пунктов с ЖЁСТКО закреплёнными номерами. Номер никогда\n// не переприсваивается: 3 — это всегда \"Описание\".\nconst TB_ITEMS = [\n  { n: 1, name: 'Оверлей', keys: ['overlayText', 'overlayPosition'] },\n  { n: 2, name: 'Название', keys: ['title'] },\n  { n: 3, name: 'Описание', keys: ['description'] },\n  { n: 4, name: 'Тайм-коды', keys: ['timecodes'] },\n  { n: 5, name: 'Подвал', keys: ['footer'] },\n  { n: 6, name: 'Хэштеги', keys: ['hashtags'] },\n  { n: 7, name: 'Теги', keys: ['tags'] },\n  { n: 8, name: 'Закреплённый комментарий', keys: ['pinnedComment'] },\n];\n// Пункты, которые можно осознанно оставить пустыми (например, гайд без оверлея).\nconst TB_CAN_BE_EMPTY = [1, 8];\n\nfunction tbEmptyState() {\n  return {\n    v: 1,\n    items: { overlayText: '', overlayPosition: '', title: '', description: '', timecodes: [], footer: '', hashtags: '', tags: '', pinnedComment: '' },\n    set: {},\n    agreed: {},\n    descriptionEN: '',\n    descriptionENFor: '',\n    seenImages: [],\n    ru: {},\n  };\n}\n\nfunction tbParseState(raw) {\n  const s = tbEmptyState();\n  if (!raw) return s;\n  let p;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return s; }\n  if (!p || typeof p !== 'object') return s;\n  Object.assign(s.items, p.items || {});\n  if (!Array.isArray(s.items.timecodes)) s.items.timecodes = [];\n  s.set = p.set || {};\n  s.agreed = p.agreed || {};\n  s.descriptionEN = p.descriptionEN || '';\n  s.descriptionENFor = p.descriptionENFor || '';\n  s.seenImages = Array.isArray(p.seenImages) ? p.seenImages : [];\n  s.ru = (p.ru && typeof p.ru === 'object') ? p.ru : {};\n  return s;\n}\n\nfunction tbAllAgreed(s) {\n  return TB_ITEMS.every(it => s.agreed[it.n] === true);\n}\n\nfunction tbPositionRu(p) {\n  return { left: 'слева', right: 'справа', center: 'по центру' }[String(p || '').toLowerCase()] || (p || '');\n}\n\n// Текст одного пункта для показа автору (без номера и названия).\n// Русский перевод (state.ru) показывается рядом в скобках — только автору;\n// в таблицу и на YouTube уходит лишь сам текст пункта (state.items).\nfunction tbItemText(s, n) {\n  const it = s.items;\n  const ru = s.ru || {};\n  const tr = (v) => (v ? ` (${v})` : '');\n  switch (n) {\n    case 1:\n      if (!s.set[1]) return '';\n      return it.overlayText ? `${it.overlayText}${tr(ru.overlayText)} — ${tbPositionRu(it.overlayPosition) || 'позиция не указана'}` : '— без оверлея';\n    case 2: return it.title ? it.title + tr(ru.title) : '';\n    case 3: return (it.description || '') + (it.description && ru.description ? `\\n\\n— Перевод для автора —\\n${ru.description}` : '');\n    case 4: return (it.timecodes || []).map((t, i) => `${i + 1}. ${t}${tr((ru.timecodes || [])[i])}`).join('\\n');\n    case 5: return it.footer || '';\n    case 6: return it.hashtags || '';\n    case 7: return it.tags || '';\n    case 8:\n      if (!s.set[8]) return '';\n      return it.pinnedComment ? it.pinnedComment + (ru.pinnedComment ? `\\n(${ru.pinnedComment})` : '') : '— без закреплённого комментария';\n  }\n  return '';\n}\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Барьер перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице (строку\n// перечитываем заново перед проверкой), а не то, что мы \"вроде бы записали\".\nfunction validateForAssembler(row, tmpl, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n\n  let required = ['overlayPosition', 'title', 'hashtags', 'tags', 'description'];\n  const rawReq = findByLabel(tmpl, 'tmpl_RequiredTechFields');\n  if (rawReq && String(rawReq).trim()) {\n    required = String(rawReq).split(',').map(x => x.trim()).filter(Boolean);\n  }\n  const colFor = {\n    overlayText: 'ai_OverlayText', overlayPosition: 'ai_OverlayPosition', title: 'ai_Title',\n    hashtags: 'ai_Hashtags', tags: 'ai_Tags', description: 'ai_Description', pinnedComment: 'ai_PinnedComment',\n  };\n  for (const key of required) {\n    const col = colFor[key] || key;\n    if (!val(col)) problems.push(`${col} пустая`);\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  if (!val('ai_DescriptionEN')) problems.push('ai_DescriptionEN пустая (нет английского описания)');\n  if (val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') {\n    problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  }\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Референсы художнику: общие из таблицы + картинки мест, чьи слова-триггеры\n// встретились в задании («кухн» ловит «кухня», «на кухне»…). Модель берёт до 16\n// картинок; в правке одно место занимает сама картинка. Не помещается — сокращаем\n// общие с конца (style guide остаётся первым), места оставляем.\nfunction tbPickRefs(kb, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const places = (kb.locations || []).filter(l =>\n    (l.triggers || []).some(w => new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low)));\n  const base = kb.baseRefs || [];\n  const loc = places.flatMap(p => p.refs || []);\n  const fit = max => {\n    const room = Math.max(1, max - loc.length);\n    return [...base.slice(0, room), ...loc].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return {\n    places,\n    drawRefUrls: draw.map(r => r.url),\n    drawRoles: roles(draw, 0),\n    editRefUrls: edit.map(r => r.url),\n    editRoles: roles(edit, 1),\n  };\n}\n\n// «Художнику: …» — задание автора уходит в рисование как есть, Редактор не вызывается.\n// Выход — в том же виде, что у «Разбираем ответ редактора», чтобы дальше всё шло\n// по обычным веткам рисования/правки. Разговор с Редактором не трогаем: его\n// незакрытый вызов инструмента и состояние текста остаются как были.\nconst ctx = $('Контекст проекта').first().json;\nconst kb = $('Собираем знания канала').first().json;\nconst vhod = $('Вход редактора').first().json;\nconst row = ctx.row || {};\nconst d = vhod.directArt || {};\n\nlet variants = [];\ntry { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst last = variants.length ? variants[variants.length - 1] : null;\n\nlet action = d.edit ? 'revise_point' : 'ready_to_draw';\nlet messageToUser = d.edit ? 'Художник поправляет 🎨' : 'Художник рисует по твоему заданию 🎨';\nlet revisionTargetImageUrl = String(row.ai_ImageUrl || '');\nlet revisionTargetVariantNumber = last ? last.n : 1;\n\nif (d.edit) {\n  const target = d.variant ? variants.find(v => Number(v.n) === Number(d.variant)) : last;\n  if (target && target.url) {\n    revisionTargetImageUrl = target.url;\n    revisionTargetVariantNumber = target.n;\n  } else if (d.variant) {\n    action = 'chat';\n    messageToUser = `Не нашла вариант ${d.variant}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.`;\n  }\n  if (action === 'revise_point' && !revisionTargetImageUrl) {\n    action = 'chat';\n    messageToUser = 'Править пока нечего — сначала нарисуем: «Художнику: …».';\n  }\n}\nif (action !== 'chat' && !d.text) {\n  action = 'chat';\n  messageToUser = d.edit\n    ? 'Напиши, что поправить: «Художнику правка: …» (или «Художнику правка 2: …» для варианта 2).'\n    : 'Напиши задание после слова: «Художнику: …».';\n}\n\n// Художник знает героя и его места: паспорт персонажа и (если в задании названо\n// место) паспорт места + его картинки. Правка — только слова автора.\nconst pick = tbPickRefs(kb, d.text);\nconst placeText = pick.places.filter(p => p.passport).map(p => `Pengui's place — ${p.passport}`).join('\\n\\n');\nconst drawPrompt = [\n  kb.characterPassport ? `About Pengui (character passport):\\n${kb.characterPassport}` : '',\n  placeText,\n  kb.artistRules,\n  d.text,\n].filter(Boolean).join('\\n\\n');\n\nreturn [{\n  json: {\n    direct: true,\n    action,\n    functionName: 'direct_artist',\n    approvedNow: false,\n    messageToUser,\n    callId: String(row.sys_PendingToolCallId || '').trim() || null,\n    conversationId: String(row.sys_ConversationId || '').trim(),\n    editorState: String(row.sys_EditorState || ''),\n    statusAfter: vhod.status || 'Картинка в работе',\n    statusReverted: false,\n    changedItems: [],\n    textBlockTouched: false,\n    allAgreed: false,\n    communicationNotes: '',\n    storyBrief: '',\n    storyKeep: '',\n    userBrief: String(row.ai_UserBrief || '').trim(),\n    // новая картинка: постоянные правила из таблицы + сцена автора; правка — только слова автора\n    dallePrompt: action === 'ready_to_draw' ? drawPrompt : '',\n    revisionInstruction: action === 'revise_point' ? d.text : '',\n    revisionIsNewVariant: true,\n    revisionTargetImageUrl,\n    revisionTargetVariantNumber,\n    approveVariantNumber: null,\n    approveTargetBrightness: null,\n    resolvedApprovedImageUrl: '',\n    styleGuideUrl: kb.styleGuideUrl,\n    referenceUrls: kb.referenceUrls,\n    drawRefUrls: pick.drawRefUrls,\n    drawRoles: pick.drawRoles,\n    editRefUrls: pick.editRefUrls,\n    editRoles: pick.editRoles,\n    fromButton: false,\n    projectId: ctx.projectId,\n    chatId: ctx.chatId,\n    sheetName: ctx.sheetName,\n    channelKey: ctx.channelKey,\n  }\n}];\n"
+        "jsCode": "// ── Общий кусок (одинаковый в нескольких узлах этого канваса) ──────────────\n// Текстовый блок: 8 пунктов с ЖЁСТКО закреплёнными номерами. Номер никогда\n// не переприсваивается: 3 — это всегда \"Описание\".\nconst TB_ITEMS = [\n  { n: 1, name: 'Оверлей', keys: ['overlayText', 'overlayPosition'] },\n  { n: 2, name: 'Название', keys: ['title'] },\n  { n: 3, name: 'Описание', keys: ['description'] },\n  { n: 4, name: 'Тайм-коды', keys: ['timecodes'] },\n  { n: 5, name: 'Подвал', keys: ['footer'] },\n  { n: 6, name: 'Хэштеги', keys: ['hashtags'] },\n  { n: 7, name: 'Теги', keys: ['tags'] },\n  { n: 8, name: 'Закреплённый комментарий', keys: ['pinnedComment'] },\n];\n// Пункты, которые можно осознанно оставить пустыми (например, гайд без оверлея).\nconst TB_CAN_BE_EMPTY = [1, 8];\n\nfunction tbEmptyState() {\n  return {\n    v: 1,\n    items: { overlayText: '', overlayPosition: '', title: '', description: '', timecodes: [], footer: '', hashtags: '', tags: '', pinnedComment: '' },\n    set: {},\n    agreed: {},\n    descriptionEN: '',\n    descriptionENFor: '',\n    seenImages: [],\n    ru: {},\n  };\n}\n\nfunction tbParseState(raw) {\n  const s = tbEmptyState();\n  if (!raw) return s;\n  let p;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return s; }\n  if (!p || typeof p !== 'object') return s;\n  Object.assign(s.items, p.items || {});\n  if (!Array.isArray(s.items.timecodes)) s.items.timecodes = [];\n  s.set = p.set || {};\n  s.agreed = p.agreed || {};\n  s.descriptionEN = p.descriptionEN || '';\n  s.descriptionENFor = p.descriptionENFor || '';\n  s.seenImages = Array.isArray(p.seenImages) ? p.seenImages : [];\n  s.ru = (p.ru && typeof p.ru === 'object') ? p.ru : {};\n  return s;\n}\n\nfunction tbAllAgreed(s) {\n  return TB_ITEMS.every(it => s.agreed[it.n] === true);\n}\n\nfunction tbPositionRu(p) {\n  return { left: 'слева', right: 'справа', center: 'по центру' }[String(p || '').toLowerCase()] || (p || '');\n}\n\n// Текст одного пункта для показа автору (без номера и названия).\n// Русский перевод (state.ru) показывается рядом в скобках — только автору;\n// в таблицу и на YouTube уходит лишь сам текст пункта (state.items).\nfunction tbItemText(s, n) {\n  const it = s.items;\n  const ru = s.ru || {};\n  const tr = (v) => (v ? ` (${v})` : '');\n  switch (n) {\n    case 1:\n      if (!s.set[1]) return '';\n      return it.overlayText ? `${it.overlayText}${tr(ru.overlayText)} — ${tbPositionRu(it.overlayPosition) || 'позиция не указана'}` : '— без оверлея';\n    case 2: return it.title ? it.title + tr(ru.title) : '';\n    case 3: return (it.description || '') + (it.description && ru.description ? `\\n\\n— Перевод для автора —\\n${ru.description}` : '');\n    case 4: return (it.timecodes || []).map((t, i) => `${i + 1}. ${t}${tr((ru.timecodes || [])[i])}`).join('\\n');\n    case 5: return it.footer || '';\n    case 6: return it.hashtags || '';\n    case 7: return it.tags || '';\n    case 8:\n      if (!s.set[8]) return '';\n      return it.pinnedComment ? it.pinnedComment + (ru.pinnedComment ? `\\n(${ru.pinnedComment})` : '') : '— без закреплённого комментария';\n  }\n  return '';\n}\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Барьер перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице (строку\n// перечитываем заново перед проверкой), а не то, что мы \"вроде бы записали\".\nfunction validateForAssembler(row, tmpl, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n\n  let required = ['overlayPosition', 'title', 'hashtags', 'tags', 'description'];\n  const rawReq = findByLabel(tmpl, 'tmpl_RequiredTechFields');\n  if (rawReq && String(rawReq).trim()) {\n    required = String(rawReq).split(',').map(x => x.trim()).filter(Boolean);\n  }\n  const colFor = {\n    overlayText: 'ai_OverlayText', overlayPosition: 'ai_OverlayPosition', title: 'ai_Title',\n    hashtags: 'ai_Hashtags', tags: 'ai_Tags', description: 'ai_Description', pinnedComment: 'ai_PinnedComment',\n  };\n  for (const key of required) {\n    const col = colFor[key] || key;\n    if (!val(col)) problems.push(`${col} пустая`);\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  if (!val('ai_DescriptionEN')) problems.push('ai_DescriptionEN пустая (нет английского описания)');\n  if (val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') {\n    problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  }\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Референсы художнику: общие из таблицы + картинки мест, чьи слова-триггеры\n// встретились в задании («кухн» ловит «кухня», «на кухне»…). Модель берёт до 16\n// картинок; в правке одно место занимает сама картинка. Не помещается — сокращаем\n// общие с конца (style guide остаётся первым), места оставляем.\nfunction tbPickRefs(kb, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const places = (kb.locations || []).filter(l =>\n    (l.triggers || []).some(w => new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low)));\n  const base = kb.baseRefs || [];\n  const loc = places.flatMap(p => p.refs || []);\n  const fit = max => {\n    const room = Math.max(1, max - loc.length);\n    return [...base.slice(0, room), ...loc].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return {\n    places,\n    drawRefUrls: draw.map(r => r.url),\n    drawRoles: roles(draw, 0),\n    editRefUrls: edit.map(r => r.url),\n    editRoles: roles(edit, 1),\n  };\n}\n\n// «Художнику: …» — задание автора уходит в рисование как есть, Редактор не вызывается.\n// Выход — в том же виде, что у «Разбираем ответ редактора», чтобы дальше всё шло\n// по обычным веткам рисования/правки. Разговор с Редактором не трогаем: его\n// незакрытый вызов инструмента и состояние текста остаются как были.\nconst ctx = $('Контекст проекта').first().json;\nconst kb = $('Собираем знания канала').first().json;\nconst vhod = $('Вход редактора').first().json;\nconst row = ctx.row || {};\nconst d = vhod.directArt || {};\n\nlet variants = [];\ntry { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst last = variants.length ? variants[variants.length - 1] : null;\n\nlet action = d.edit ? 'revise_point' : 'ready_to_draw';\nlet messageToUser = d.edit ? 'Художник поправляет 🎨' : 'Художник рисует по твоему заданию 🎨';\nlet revisionTargetImageUrl = String(row.ai_ImageUrl || '');\nlet revisionTargetVariantNumber = last ? last.n : 1;\n\nif (d.edit) {\n  const target = d.variant ? variants.find(v => Number(v.n) === Number(d.variant)) : last;\n  if (target && target.url) {\n    revisionTargetImageUrl = target.url;\n    revisionTargetVariantNumber = target.n;\n  } else if (d.variant) {\n    action = 'chat';\n    messageToUser = `Не нашла вариант ${d.variant}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.`;\n  }\n  if (action === 'revise_point' && !revisionTargetImageUrl) {\n    action = 'chat';\n    messageToUser = 'Править пока нечего — сначала нарисуем: «Художнику: …».';\n  }\n}\nif (action !== 'chat' && !d.text) {\n  action = 'chat';\n  messageToUser = d.edit\n    ? 'Напиши, что поправить: «Художнику правка: …» (или «Художнику правка 2: …» для варианта 2).'\n    : 'Напиши задание после слова: «Художнику: …».';\n}\n\n// Если в задании названо место — описание места и его картинки. Правка — только слова автора.\nconst pick = tbPickRefs(kb, d.text);\nconst placeText = pick.places.filter(p => p.passport).map(p => `Pengui's place — ${p.passport}`).join('\\n\\n');\n// Паспорт персонажа художнику НЕ даём (01.10): длинный текст забивает сцену —\n// художник рисует «по списку» всё, что прочитал. Паспорт — для Редактора и Писателя.\nconst drawPrompt = [\n  placeText,\n  kb.artistRules,\n  d.text,\n].filter(Boolean).join('\\n\\n');\n\nreturn [{\n  json: {\n    direct: true,\n    action,\n    functionName: 'direct_artist',\n    approvedNow: false,\n    messageToUser,\n    callId: String(row.sys_PendingToolCallId || '').trim() || null,\n    conversationId: String(row.sys_ConversationId || '').trim(),\n    editorState: String(row.sys_EditorState || ''),\n    statusAfter: vhod.status || 'Картинка в работе',\n    statusReverted: false,\n    changedItems: [],\n    textBlockTouched: false,\n    allAgreed: false,\n    communicationNotes: '',\n    storyBrief: '',\n    storyKeep: '',\n    userBrief: String(row.ai_UserBrief || '').trim(),\n    // новая картинка: постоянные правила из таблицы + сцена автора; правка — только слова автора\n    dallePrompt: action === 'ready_to_draw' ? drawPrompt : '',\n    revisionInstruction: action === 'revise_point' ? d.text : '',\n    revisionIsNewVariant: true,\n    revisionTargetImageUrl,\n    revisionTargetVariantNumber,\n    approveVariantNumber: null,\n    approveTargetBrightness: null,\n    resolvedApprovedImageUrl: '',\n    styleGuideUrl: kb.styleGuideUrl,\n    referenceUrls: kb.referenceUrls,\n    drawRefUrls: pick.drawRefUrls,\n    drawRoles: pick.drawRoles,\n    editRefUrls: pick.editRefUrls,\n    editRoles: pick.editRoles,\n    fromButton: false,\n    projectId: ctx.projectId,\n    chatId: ctx.chatId,\n    sheetName: ctx.sheetName,\n    channelKey: ctx.channelKey,\n  }\n}];\n"
       },
       "name": "Задание художнику напрямую",
       "type": "n8n-nodes-base.code",
@@ -1619,7 +1619,7 @@
         4460,
         -1140
       ],
-      "id": "9dbd9d58-3740-4dac-9c6e-530084d2a537"
+      "id": "0e80466e-e3e2-4316-92cd-4fbe27f4f96d"
     },
     {
       "parameters": {
@@ -1632,7 +1632,7 @@
         5820,
         -2100
       ],
-      "id": "bbe4f0fe-8c8f-4ea2-aa54-bf78202d1e42"
+      "id": "9f72dce1-92b9-4ede-805f-7e320e1beaa7"
     },
     {
       "parameters": {
@@ -1652,14 +1652,14 @@
         6040,
         -2100
       ],
-      "webhookId": "33601c4c-f6dd-4936-991d-90502bc9eca3",
+      "webhookId": "d313d08e-1c00-46ea-8575-1b85b680b0e0",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "a706abbd-b862-4316-ae8c-b090526103bb"
+      "id": "83d8a4a9-8043-4789-9cfd-911ff7c52039"
     },
     {
       "parameters": {
@@ -1701,7 +1701,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "cc616b46-3129-403c-a851-1ab79cc428c9"
+      "id": "122b1f6d-a0cd-429d-aa91-0337bd443953"
     },
     {
       "parameters": {
@@ -1714,7 +1714,7 @@
         5820,
         300
       ],
-      "id": "9dd1dea2-8020-4519-8254-7a492296b44d"
+      "id": "96582cb1-cf8f-4fa4-bd2d-638195c7b41b"
     },
     {
       "parameters": {
@@ -1726,7 +1726,7 @@
           },
           "conditions": [
             {
-              "id": "155feb3f-3867-40bf-a33f-f06f5e7f00c0",
+              "id": "d5cd1038-9956-4814-a907-04e9f26b78ff",
               "leftValue": "={{ $('Собираем текстовый блок').first().json.allAgreed }}",
               "rightValue": true,
               "operator": {
@@ -1747,7 +1747,7 @@
         6040,
         300
       ],
-      "id": "bc8028ea-1b66-4960-99d8-a5770cbc6678"
+      "id": "fa215923-954b-4bb8-bf9d-51f9938b0ed3"
     },
     {
       "parameters": {
@@ -1767,14 +1767,14 @@
         6260,
         500
       ],
-      "webhookId": "a380a422-f82c-41c5-82f2-eddfc43178ee",
+      "webhookId": "5df12a81-7c89-467f-b8ae-fd75fbaec1e0",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "1aa9ee7d-a8e4-40a4-a02d-a8cea12c7569"
+      "id": "af51b3b3-323d-40bb-b4c8-52dc96194aa4"
     },
     {
       "parameters": {
@@ -1800,7 +1800,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "90dc3cea-7bec-48be-8fb9-124179474463"
+      "id": "c6e4ef69-0e2b-4a58-bc35-d353d19fe300"
     },
     {
       "parameters": {
@@ -1813,7 +1813,7 @@
         6480,
         300
       ],
-      "id": "06ccd2ee-6879-4d6f-ab77-4376fed834ee"
+      "id": "f6869833-8a04-4b1e-9a93-0d86f1508dcf"
     },
     {
       "parameters": {
@@ -1854,7 +1854,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "fce91eb0-e40f-4cc4-a85b-ca010a7391b8"
+      "id": "df366eb6-edd5-4f7e-af5f-56d7338bb0fd"
     },
     {
       "parameters": {
@@ -1867,7 +1867,7 @@
         6920,
         300
       ],
-      "id": "21e9665c-835d-433b-b86e-45a9403b441d"
+      "id": "1ebed519-d0df-46f7-b932-37c345d624cf"
     },
     {
       "parameters": {
@@ -1887,14 +1887,14 @@
         7140,
         300
       ],
-      "webhookId": "188a4ad7-84b4-48de-9971-26c26883dc6b",
+      "webhookId": "7da9bf60-c9b7-4cec-ada6-da13784bec33",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "bcae7d57-3650-444b-bfaf-f0a3b3652cc3"
+      "id": "9fbc4ca2-cc04-43d2-9c47-98c275a9211d"
     },
     {
       "parameters": {
@@ -1907,7 +1907,7 @@
         7360,
         300
       ],
-      "id": "b02a90b6-c337-4166-9324-47abd2fbf1ca"
+      "id": "efe4ae7d-e00f-4d45-a5da-a789ea305bcd"
     },
     {
       "parameters": {
@@ -1944,14 +1944,14 @@
         7580,
         300
       ],
-      "webhookId": "a4f583fe-d5d7-44f0-ac9f-5a0b8467dff5",
+      "webhookId": "f7c92132-c7a4-47b0-91ab-a3706b101b17",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "b5a97e53-295d-417b-9fe7-a4df46741e8e"
+      "id": "973157e5-2f27-49b8-b1fa-2bc219b11020"
     },
     {
       "parameters": {
@@ -1964,7 +1964,7 @@
         5820,
         -1800
       ],
-      "id": "a8b919e0-15ef-490a-9ea2-4fd7c070c4c7"
+      "id": "b79516ab-2227-4c2b-ac31-48e0c82793f3"
     },
     {
       "parameters": {
@@ -1984,20 +1984,20 @@
         6040,
         -1800
       ],
-      "webhookId": "876cef24-4ab2-4efd-9c6b-4aea7e0ff2e1",
+      "webhookId": "54f9ab13-73f3-4503-a96f-8d4fc0db0192",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "858bda90-e311-46fb-9fda-894f9b5852e7"
+      "id": "41426790-f207-48d5-be9e-8640786109e5"
     },
     {
       "parameters": {
         "jsCode": "// Style guide первым, затем референсы и (если в задании названо место) картинки\n// места — список уже собран и уложен в 16 картинок в «Разбираем ответ редактора»\n// / «Задание художнику напрямую» (tbPickRefs). Сколько ссылок — столько картинок.\nconst j = $('Парсим ответ редактора').first().json;\nconst urls = (j.drawRefUrls || [j.styleGuideUrl, ...(j.referenceUrls || [])]).filter(Boolean).slice(0, 16);\n\nreturn urls.map((url, i) => ({\n  json: { ...j, refUrl: url, refIndex: i }\n}));\n"
       },
-      "id": "0e1ce0a0-a124-4ad3-97f2-4aaf46d4bc25",
+      "id": "78eaaf74-40ac-4fd5-80ae-ac92a9835c1b",
       "name": "Готовим список: style guide + референсы",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2017,7 +2017,7 @@
           }
         }
       },
-      "id": "5566f079-d0d0-4514-bcd4-e3626f34b063",
+      "id": "09fac966-6229-4e29-b902-13840d6f88d2",
       "name": "Скачиваем референс (B)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -2030,7 +2030,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    dallePrompt: first.dallePrompt,\n    action: first.action,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    imageCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "1b7c0cf0-2d55-466c-a494-7593042bdc5a",
+      "id": "c22b94db-69b7-432b-825c-6d139cfae1ef",
       "name": "Собираем референсы в один item (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2349,7 +2349,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "4182c269-c5d3-413b-ba36-fa5f38e9b287",
+      "id": "4de6583a-ea85-4047-9267-098ff5545406",
       "name": "Сколько картинок? (B)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -2395,7 +2395,7 @@
         },
         "options": {}
       },
-      "id": "294f6d0d-af6c-4c63-82af-c019f9b3f531",
+      "id": "6fa90d02-2b62-4c2d-ba48-bb4344ef57fe",
       "name": "gpt-image-2: рисуем (B, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2450,7 +2450,7 @@
         },
         "options": {}
       },
-      "id": "c6ccdee8-5b03-45c5-9f26-635ee846b92f",
+      "id": "48d70337-fce1-4e8d-bdae-1c06a845c45e",
       "name": "gpt-image-2: рисуем (B, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2510,7 +2510,7 @@
         },
         "options": {}
       },
-      "id": "2b885425-938f-4ae6-8e8c-047f2f5bc89e",
+      "id": "e75af22c-49e3-49c4-8b73-1731ace88ce3",
       "name": "gpt-image-2: рисуем (B, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2575,7 +2575,7 @@
         },
         "options": {}
       },
-      "id": "90e9baaa-2c77-40b3-9c3a-8fcb9e8b03be",
+      "id": "40e85075-5d88-4017-bdbe-9ab8802aef41",
       "name": "gpt-image-2: рисуем (B, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2645,7 +2645,7 @@
         },
         "options": {}
       },
-      "id": "058b6b06-508c-4840-8b9b-6c1200baf8b4",
+      "id": "fcb6e815-db4b-48a7-9efc-07dc3105aee5",
       "name": "gpt-image-2: рисуем (B, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2720,7 +2720,7 @@
         },
         "options": {}
       },
-      "id": "d58c42c8-3cca-4757-9c32-3cb16b8dc67f",
+      "id": "04cdff54-e36c-46fa-ae1a-018646f68950",
       "name": "gpt-image-2: рисуем (B, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2800,7 +2800,7 @@
         },
         "options": {}
       },
-      "id": "e346fc84-6c6e-4477-b198-406519f2901e",
+      "id": "c488633f-f6f0-4aff-8e6c-56383342998a",
       "name": "gpt-image-2: рисуем (B, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2885,7 +2885,7 @@
         },
         "options": {}
       },
-      "id": "d669ea95-5aca-427a-9fb6-a242898b362a",
+      "id": "c7b24554-21f1-43b6-87b0-ef168a9dddfb",
       "name": "gpt-image-2: рисуем (B, 8 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2975,7 +2975,7 @@
         },
         "options": {}
       },
-      "id": "ab92066c-5b61-41b5-b72c-ed92266f27a1",
+      "id": "3dc9a8ca-0f00-4708-aa03-0259991191c0",
       "name": "gpt-image-2: рисуем (B, 9 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3070,7 +3070,7 @@
         },
         "options": {}
       },
-      "id": "dbcaf7af-818a-4ed7-8851-d42ce8c319d8",
+      "id": "15daa0ed-edea-477e-9f3a-f2a8e2b819a6",
       "name": "gpt-image-2: рисуем (B, 10 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3170,7 +3170,7 @@
         },
         "options": {}
       },
-      "id": "e2422b99-af69-4b5e-9e05-7cea765da755",
+      "id": "443b3294-8ce2-4d0a-9f44-edbd93a31f40",
       "name": "gpt-image-2: рисуем (B, 11 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3275,7 +3275,7 @@
         },
         "options": {}
       },
-      "id": "0fdea784-8845-451d-8c1a-c2f946845970",
+      "id": "601d75b3-7c1a-4a24-9626-93398293f296",
       "name": "gpt-image-2: рисуем (B, 12 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3385,7 +3385,7 @@
         },
         "options": {}
       },
-      "id": "8d6484ac-1099-4ca9-af2a-1231f95685cc",
+      "id": "3ed08270-2c68-4d49-8768-6fd9e1ea3f08",
       "name": "gpt-image-2: рисуем (B, 13 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3500,7 +3500,7 @@
         },
         "options": {}
       },
-      "id": "2778f0ae-c530-49e6-bff7-6c7d82c51d9d",
+      "id": "9b2b67ea-0eff-448e-bd3c-24f644cf46ae",
       "name": "gpt-image-2: рисуем (B, 14 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3620,7 +3620,7 @@
         },
         "options": {}
       },
-      "id": "eab1e825-0aa0-4dea-9b93-528e54acd101",
+      "id": "5fdc666d-c88b-4d5f-bd82-b32572006b84",
       "name": "gpt-image-2: рисуем (B, 15 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3745,7 +3745,7 @@
         },
         "options": {}
       },
-      "id": "c281a6a8-61f8-44ee-a02c-74b4b5c0e67f",
+      "id": "ecef86c6-010a-48ec-9a5b-feddf8aa8960",
       "name": "gpt-image-2: рисуем (B, 16 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3764,7 +3764,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    dallePrompt: $('Собираем референсы в один item (B)').first().json.dallePrompt,\n    projectId: $('Собираем референсы в один item (B)').first().json.projectId,\n    sheetName: $('Собираем референсы в один item (B)').first().json.sheetName,\n    chatId: $('Собираем референсы в один item (B)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "30a4c476-af7e-4d42-9bfe-e907b3520749",
+      "id": "197c2184-9086-488f-bed9-038b4276c405",
       "name": "Извлекаем картинку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3788,7 +3788,7 @@
         },
         "options": {}
       },
-      "id": "3d0ed21f-85ba-41c4-b5b0-b6cfacd0c957",
+      "id": "cda4b425-d2fa-4e8c-806c-9f528c2a8296",
       "name": "Загружаем на Диск (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3819,7 +3819,7 @@
         },
         "options": {}
       },
-      "id": "ff4435e2-d5b3-4bb8-94e1-edce0119424a",
+      "id": "4f26c949-a7bb-40bb-a821-dde50a3ee16b",
       "name": "Открываем доступ (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3838,7 +3838,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (B)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (B)').first().json;\n\n// Каждый успешный рисунок через start_drawing — это НОВЫЙ вариант сцены,\n// добавляем его в конец списка вариантов, а не перезаписываем единственную\n// ячейку (иначе предыдущие варианты терялись бы при каждом новом рисунке).\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst variantNumber = variants.length + 1;\nvariants.push({ n: variantNumber, url: newUrl, dallePrompt: draft.dallePrompt });\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: newUrl,\n    ai_DallePromptDraft: draft.dallePrompt,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "7243146f-a8bd-458f-98d6-415a20932c42",
+      "id": "4a81bdd5-139d-4908-b1d0-1a96c9e82930",
       "name": "Собираем ссылку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3875,7 +3875,7 @@
         },
         "options": {}
       },
-      "id": "02b7fe65-14c6-4eee-92ba-d27cb3c71ea8",
+      "id": "fe24a6c9-2a73-471b-95e4-9a1a9f311ec8",
       "name": "Сохраняем картинку и промпт (B)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -3924,7 +3924,7 @@
         8460,
         -1800
       ],
-      "webhookId": "da775dbb-caf9-45ac-8e38-27807a6cfa73",
+      "webhookId": "6ecc9b17-27c3-4e51-81b6-173528586c13",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -3934,7 +3934,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "4e9e1f44-1c21-4a1a-b7cb-a2c3b49097ad"
+      "id": "5f3cbdc9-9760-43a4-b5ed-1ce22bedd45a"
     },
     {
       "parameters": {
@@ -3947,7 +3947,7 @@
         5820,
         -900
       ],
-      "id": "ef7a9ad7-ab8b-48b3-96cf-590f066e035e"
+      "id": "befa3bfe-12ef-4e6b-8528-6676a93883bf"
     },
     {
       "parameters": {
@@ -3967,14 +3967,14 @@
         6040,
         -900
       ],
-      "webhookId": "1400f7a4-a1a5-4820-a528-df09c3fe7f7c",
+      "webhookId": "f5c8b2b5-f7fa-4ce7-a904-1bb27395a774",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "8b8b4633-fc33-464d-a222-24f3afc68f52"
+      "id": "fb79fe6e-12b4-4e72-8517-b506190fb83a"
     },
     {
       "parameters": {
@@ -3988,7 +3988,7 @@
           }
         }
       },
-      "id": "c604eb3b-f2ab-4b6c-8165-a653d49029ae",
+      "id": "53b400c8-9e6e-4234-a559-72d2ea28aa78",
       "name": "Скачиваем текущую картинку (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -4001,7 +4001,7 @@
       "parameters": {
         "jsCode": "// Правка: первая картинка — сама правка (image_0), за ней style guide, референсы\n// и картинки места — до 15, чтобы вместе с правкой было не больше 16.\nconst parsed = $('Парсим ответ редактора').first().json;\nconst urls = (parsed.editRefUrls || [parsed.styleGuideUrl, ...(parsed.referenceUrls || [])]).filter(Boolean).slice(0, 15);\n\nreturn urls.map((url, i) => ({\n  json: {\n    refUrl: url,\n    refIndex: i + 1,\n    revisionInstruction: parsed.revisionInstruction,\n    projectId: parsed.projectId,\n    chatId: parsed.chatId,\n    sheetName: parsed.sheetName,\n  }\n}));\n"
       },
-      "id": "e5841797-bfee-4248-86a9-7ba8b0b66822",
+      "id": "893c99af-4c29-4f23-9e37-a1f92c9facae",
       "name": "Готовим список: доп. референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4021,7 +4021,7 @@
           }
         }
       },
-      "id": "0b79be35-18a8-4248-9f8e-6f83efd7d72e",
+      "id": "5ece085a-b990-4d57-8ce1-c62dd5a08a95",
       "name": "Скачиваем референс (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -4034,7 +4034,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    revisionInstruction: first.revisionInstruction,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    extraCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "dc97406c-e6fa-4136-b8ae-e6f047d8abfa",
+      "id": "78958c78-8b8b-4a79-aa34-f06e631b4305",
       "name": "Собираем доп. референсы в один item (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4047,7 +4047,7 @@
       "parameters": {
         "jsCode": "// Текущая картинка (image_0) скачана отдельной веткой ещё раньше; здесь\n// подмешиваем к ней style guide + референсы (image_1, image_2, ...), собранные\n// в предыдущем узле — и считаем итоговое число картинок для правильного\n// маршрута на шаге ниже (\"Сколько картинок? (C)\").\nconst curItem = $('Скачиваем текущую картинку (C)').first();\nconst extra = $input.first();\n\nconst binary = { image_0: curItem.binary.image_0 };\nObject.assign(binary, extra.binary || {});\n\nconst imageCount = 1 + (extra.json.extraCount || 0);\n\nreturn [{\n  json: {\n    revisionInstruction: extra.json.revisionInstruction,\n    projectId: extra.json.projectId,\n    chatId: extra.json.chatId,\n    sheetName: extra.json.sheetName,\n    imageCount,\n  },\n  binary\n}];"
       },
-      "id": "53130d01-e696-4abc-8571-e1399ae22638",
+      "id": "e2943c4e-4dae-4d3b-b5fc-c6d27c1a3577",
       "name": "Собираем все референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4368,7 +4368,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "f444b927-f134-4485-a12d-89a209726c0a",
+      "id": "64942f37-d215-4d4c-b3d7-4e158c2e6026",
       "name": "Сколько картинок? (C)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -4414,7 +4414,7 @@
         },
         "options": {}
       },
-      "id": "9faa7487-55bf-4c71-b301-dccc48d7d2fd",
+      "id": "a25ad728-c555-403c-90c9-3d2670fcd86a",
       "name": "gpt-image-2: точечная правка (C, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4469,7 +4469,7 @@
         },
         "options": {}
       },
-      "id": "9509ce4a-7b7f-4ffa-9374-45a7b08bc4dd",
+      "id": "6e74c772-9093-425d-8a15-e8ea72f6434f",
       "name": "gpt-image-2: точечная правка (C, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4529,7 +4529,7 @@
         },
         "options": {}
       },
-      "id": "94c21e50-4862-4193-b6ee-84e4949a078a",
+      "id": "2a37b4de-4f4f-42ee-9ef0-36865bef36fe",
       "name": "gpt-image-2: точечная правка (C, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4594,7 +4594,7 @@
         },
         "options": {}
       },
-      "id": "1b07830b-d0fe-4884-83a8-b595e7f431ed",
+      "id": "d727eafa-78c1-4dd6-9269-63bd0314486a",
       "name": "gpt-image-2: точечная правка (C, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4664,7 +4664,7 @@
         },
         "options": {}
       },
-      "id": "f0d651fc-764a-40d1-bbb5-f93a5f2723be",
+      "id": "06bfdbff-518d-4cc1-9e6d-fe5e891cf56c",
       "name": "gpt-image-2: точечная правка (C, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4739,7 +4739,7 @@
         },
         "options": {}
       },
-      "id": "2040e174-4322-4b88-a043-85d4a9a0e674",
+      "id": "a21fe058-5cf8-494a-9ad0-18d9ff87e24f",
       "name": "gpt-image-2: точечная правка (C, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4819,7 +4819,7 @@
         },
         "options": {}
       },
-      "id": "180f5371-0d58-4175-875c-fd79d61147fd",
+      "id": "1c655ef0-923d-401a-80a0-85fbc2c6a992",
       "name": "gpt-image-2: точечная правка (C, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4904,7 +4904,7 @@
         },
         "options": {}
       },
-      "id": "7175764d-e3c5-4520-a949-ca47fe557416",
+      "id": "79999e27-3301-4cf3-b85a-a34981a602aa",
       "name": "gpt-image-2: точечная правка (C, 8 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4994,7 +4994,7 @@
         },
         "options": {}
       },
-      "id": "0cc46ead-fcc6-41ab-b6e8-19a5e9fe39ab",
+      "id": "285e871e-fd37-4ff1-8b3c-01c656749132",
       "name": "gpt-image-2: точечная правка (C, 9 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5089,7 +5089,7 @@
         },
         "options": {}
       },
-      "id": "c4e6f6ea-427b-45ec-b73e-d139cfa130fb",
+      "id": "bb01d6ab-ac16-4f7c-9e0b-2e6f2c09ff79",
       "name": "gpt-image-2: точечная правка (C, 10 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5189,7 +5189,7 @@
         },
         "options": {}
       },
-      "id": "bb096092-cf35-4021-a5dc-068067cba60e",
+      "id": "1981d11c-b6b1-418a-8eff-5eaf16959bca",
       "name": "gpt-image-2: точечная правка (C, 11 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5294,7 +5294,7 @@
         },
         "options": {}
       },
-      "id": "bd7bdd71-f270-4ea8-aa2f-9dae1b814e88",
+      "id": "2a70711b-117a-452e-8d3b-8e556c5afcb4",
       "name": "gpt-image-2: точечная правка (C, 12 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5404,7 +5404,7 @@
         },
         "options": {}
       },
-      "id": "47501e23-0054-4b65-9be2-ec35a4b0757d",
+      "id": "d8f2ccca-6369-42ec-9fb5-06fea682ddf0",
       "name": "gpt-image-2: точечная правка (C, 13 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5519,7 +5519,7 @@
         },
         "options": {}
       },
-      "id": "8cdda50d-6034-494b-a0b9-6ab65273e362",
+      "id": "40a54306-91f9-4751-a317-ca3ef9abdbf1",
       "name": "gpt-image-2: точечная правка (C, 14 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5639,7 +5639,7 @@
         },
         "options": {}
       },
-      "id": "42a0d5b6-3430-437b-82af-4e4697a51433",
+      "id": "400dfacb-6462-4e8f-8a56-645a284d874d",
       "name": "gpt-image-2: точечная правка (C, 15 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5764,7 +5764,7 @@
         },
         "options": {}
       },
-      "id": "1b8ee504-7869-4238-a1ef-d911fa9befb4",
+      "id": "504786fe-d797-4ef2-8301-ae95f5f381d3",
       "name": "gpt-image-2: точечная правка (C, 16 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5783,7 +5783,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    projectId: $('Собираем все референсы (C)').first().json.projectId,\n    sheetName: $('Собираем все референсы (C)').first().json.sheetName,\n    chatId: $('Собираем все референсы (C)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "74fb32ed-9fae-4f77-848f-5e5e2a60369f",
+      "id": "53d810cc-cfaa-4c06-9e67-b5ec0879778f",
       "name": "Извлекаем картинку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -5807,7 +5807,7 @@
         },
         "options": {}
       },
-      "id": "713489ea-ded2-4d27-9d06-32d0eda79f3c",
+      "id": "ee480ff8-0406-4595-8ec5-69d035457d26",
       "name": "Загружаем на Диск (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -5838,7 +5838,7 @@
         },
         "options": {}
       },
-      "id": "8efc70c5-8892-46a8-a0c2-5e5bce9da296",
+      "id": "2dcf5c6e-8d2c-41e2-85e7-5e9cb4b665d4",
       "name": "Открываем доступ (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -5857,7 +5857,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (C)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (C)').first().json;\nconst parsed = $('Парсим ответ редактора').first().json;\n\n// Точечная правка (revisionIsNewVariant=false) меняет ссылку у ИМЕННО ТОГО\n// варианта, который был назван (revisionTargetVariantNumber) — номер не\n// меняется. Структурная правка (revisionIsNewVariant=true) — это по сути\n// другая сценка, поэтому сохраняется как СЛЕДУЮЩИЙ отдельный вариант, а\n// прежний остаётся нетронутым для сравнения.\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\n\nlet entry;\nif (parsed.revisionIsNewVariant) {\n  const variantNumber = variants.length + 1;\n  entry = { n: variantNumber, url: newUrl, dallePrompt: parsed.revisionInstruction || '' };\n  variants.push(entry);\n} else {\n  const targetNumber = parsed.revisionTargetVariantNumber || (variants.length ? variants[variants.length - 1].n : 1);\n  entry = variants.find(v => Number(v.n) === Number(targetNumber));\n  if (entry) {\n    entry.url = newUrl;\n  } else {\n    entry = { n: targetNumber, url: newUrl, dallePrompt: '' };\n    variants.push(entry);\n  }\n}\n\n// ai_ImageUrl/ai_DallePromptDraft остаются \"последним по списку\" вариантом —\n// как и раньше, это удобный алиас для тех мест кода, которым нужен просто\n// один текущий URL (например, форс-согласование или \"текущая картинка\" для\n// свежей правки без явного номера).\nconst lastVariant = variants[variants.length - 1];\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: lastVariant.url,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber: entry.n,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "a4dea067-5c69-4c8e-94b1-e7e049f6ed08",
+      "id": "7d602c06-40bd-47e3-bce6-4f8bbfa675e8",
       "name": "Собираем ссылку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -5893,7 +5893,7 @@
         },
         "options": {}
       },
-      "id": "020773ac-19fd-4c46-95c8-0546e4778688",
+      "id": "08184255-7c65-457b-9c23-0716928e9985",
       "name": "Сохраняем картинку (C)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -5942,7 +5942,7 @@
         8900,
         -900
       ],
-      "webhookId": "cc8fe094-6f7c-4909-b1fe-ef0640727427",
+      "webhookId": "7564ab97-26d7-4d88-8c3a-54a0ae000836",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -5952,7 +5952,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "f3ca4523-44b3-4f47-b2db-11830f5db6df"
+      "id": "9574273b-44c6-487b-a064-ef78ef8cd5df"
     },
     {
       "parameters": {
@@ -5965,7 +5965,7 @@
         2700,
         1300
       ],
-      "id": "1e554f79-33c9-44f2-8291-d67fb7a1c22a"
+      "id": "f6a8a5ab-a891-41ab-a85f-84a637be20d9"
     },
     {
       "parameters": {
@@ -5977,7 +5977,7 @@
           },
           "conditions": [
             {
-              "id": "6b684e5a-426e-43e1-a48f-7dbf02c930ec",
+              "id": "49ba135a-af68-4828-81a0-d5db2e521791",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -5998,7 +5998,7 @@
         2920,
         1300
       ],
-      "id": "ed996d55-5b67-4e8b-bdb0-ec5583b88d8c"
+      "id": "a7b6f571-1e6a-42e2-9878-6506de9b01b5"
     },
     {
       "parameters": {
@@ -6048,7 +6048,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "9808a241-6605-4c80-a731-e819c7286d39"
+      "id": "07c51fef-359c-47d0-99e7-a3f81f64b025"
     },
     {
       "parameters": {
@@ -6087,7 +6087,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "e0cfc3c9-4a43-4e52-85ed-0ace81005c53"
+      "id": "2dc82844-26d8-4762-a579-7cf30e4ffe40"
     },
     {
       "parameters": {
@@ -6100,7 +6100,7 @@
         3580,
         1300
       ],
-      "id": "ed0b6924-093a-4868-900e-6620ac43d810"
+      "id": "6af251ba-6f60-4eec-94ca-8ad7d8a4ff88"
     },
     {
       "parameters": {
@@ -6112,7 +6112,7 @@
           },
           "conditions": [
             {
-              "id": "dc2856cb-1ea5-45c6-9be9-e746c3824c95",
+              "id": "030c627c-f5e7-4ff8-bd7a-cee55e036f5f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -6133,7 +6133,7 @@
         3800,
         1300
       ],
-      "id": "117d23d0-2d60-4665-a756-1c9a8dd58fa6"
+      "id": "bfdca629-948c-42f3-b2ed-a7a7ef97c803"
     },
     {
       "parameters": {
@@ -6174,7 +6174,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "a7d413d8-5658-4768-a8f3-0fba9eb13529"
+      "id": "e4d9682a-f138-409e-ad86-87893ca57c16"
     },
     {
       "parameters": {
@@ -6187,7 +6187,7 @@
         4020,
         1560
       ],
-      "id": "9ae66d93-fdc8-4f85-bb43-f2f70a6c5ca1"
+      "id": "af504e66-8704-45c8-8838-a9723b3a4af4"
     },
     {
       "parameters": {
@@ -6213,7 +6213,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "6a77fc33-5e20-44d4-ace4-5a897d10d24f",
+      "id": "d74a9755-a4e6-48b5-ac59-4e4bf6fa1472",
       "onError": "continueRegularOutput"
     },
     {
@@ -6227,7 +6227,7 @@
         4460,
         1560
       ],
-      "id": "87639e1b-0069-409c-ba91-9e4d9bfab0bc"
+      "id": "154cae1b-7e23-46b8-83e6-7c533db1cf00"
     },
     {
       "parameters": {
@@ -6239,7 +6239,7 @@
           },
           "conditions": [
             {
-              "id": "ebb30a00-0518-49e2-8d7a-9e662cebe354",
+              "id": "f8767f31-27e7-4649-92ec-ec664a2f6876",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -6260,7 +6260,7 @@
         4680,
         1560
       ],
-      "id": "ba51e349-1b00-47dd-ab8d-e785b865b53c"
+      "id": "2bb1896d-87c1-4d8f-9795-d431c9ae6fd8"
     },
     {
       "parameters": {
@@ -6301,7 +6301,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "8ca04123-7a16-4aa1-a5b0-b919a2b19334",
+      "id": "6b7a5c46-dca7-4817-9a64-4dbd60e53373",
       "onError": "continueRegularOutput"
     },
     {
@@ -6315,7 +6315,7 @@
         4240,
         1300
       ],
-      "id": "03e338b0-5a25-4bea-97c0-a112aa5a1f55"
+      "id": "c27ff3c7-cb03-4428-9d4c-b7ec22f8930a"
     },
     {
       "parameters": {
@@ -6335,14 +6335,14 @@
         4460,
         1300
       ],
-      "webhookId": "bacc44bb-75ad-4da2-9822-45b47e6f3c3f",
+      "webhookId": "4b08d777-11de-48ba-a68f-88a45fd117ab",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "09a4bb15-08b6-4308-a571-2c85e1ebfd22"
+      "id": "ad6d3696-6243-4d9f-8aae-1a4b78b0338d"
     },
     {
       "parameters": {
@@ -6379,14 +6379,14 @@
         5560,
         1180
       ],
-      "webhookId": "f30e5502-34dd-4d12-ab1b-39304636ad59",
+      "webhookId": "5076d3a9-ba7b-488f-8430-8bf7f7620807",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "03fcbb88-2b9a-4f58-900a-3dd7f64b1f58"
+      "id": "c28e4b7b-04b0-4996-ade3-ff16c4c28ded"
     },
     {
       "parameters": {
@@ -6398,7 +6398,7 @@
           },
           "conditions": [
             {
-              "id": "3db4962b-feb7-4608-a133-21f0c9647930",
+              "id": "3700ed62-dcf4-4371-931e-94d0b7a7dded",
               "leftValue": "={{ $('Сообщение: утверждено').first().json.hasTracks }}",
               "rightValue": true,
               "operator": {
@@ -6419,7 +6419,7 @@
         5340,
         1300
       ],
-      "id": "bec94e53-1eec-438a-b6e1-e5b49747b2f3"
+      "id": "4704577a-385d-44f5-a657-3144383f84dd"
     },
     {
       "parameters": {
@@ -6439,14 +6439,14 @@
         3140,
         1520
       ],
-      "webhookId": "444f023f-d701-4dc0-a4b2-d5226d6baa57",
+      "webhookId": "3f046e89-04e2-46dc-8c8d-e45b81d32dd3",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "f306f256-fea1-4acc-a1ab-a5c7d18c5b11"
+      "id": "7735086d-5ac7-40ba-b55c-c5850799fa7f"
     },
     {
       "parameters": {
@@ -6459,7 +6459,7 @@
         2700,
         1900
       ],
-      "id": "9810128e-fbff-42e0-886e-c24af15f2f67"
+      "id": "9e929d8d-6481-4484-b8cb-b2deb677f569"
     },
     {
       "parameters": {
@@ -6471,7 +6471,7 @@
           },
           "conditions": [
             {
-              "id": "5dfd0cab-708e-4c6c-9ec9-62e3b628ffd8",
+              "id": "65f05aba-7b26-45fc-8305-ea30f93b4725",
               "leftValue": "={{ $json.published }}",
               "rightValue": true,
               "operator": {
@@ -6492,7 +6492,7 @@
         2920,
         1900
       ],
-      "id": "3d87b9f3-624f-475e-93a3-b552dc810ed8"
+      "id": "8868aec6-c89a-40f5-bb21-8f50a6e79d5d"
     },
     {
       "parameters": {
@@ -6512,14 +6512,14 @@
         3140,
         1700
       ],
-      "webhookId": "98703f44-2363-48fa-8049-29b57bfc5c95",
+      "webhookId": "0776dc0c-e0ec-4195-8eea-e87c50a12bbb",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "d0d3492f-2571-4529-a216-3966b1e716cc"
+      "id": "6c0c34e7-6931-4cdf-870b-1b1a903591cb"
     },
     {
       "parameters": {
@@ -6560,7 +6560,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "5503f086-0ba9-4f3d-a530-b732d69a40b9"
+      "id": "b0050c2a-8e59-4367-9e64-42977f0011c4"
     },
     {
       "parameters": {
@@ -6572,7 +6572,7 @@
           },
           "conditions": [
             {
-              "id": "a47b5306-f0f8-423a-a9b9-f5e714e7ee2a",
+              "id": "faf52d28-252e-4c25-b6b1-0db43770bec4",
               "leftValue": "={{ $('Разбираем ссылку на треки').first().json.approved }}",
               "rightValue": true,
               "operator": {
@@ -6593,7 +6593,7 @@
         3360,
         1900
       ],
-      "id": "7e78024f-aff9-4753-ab1a-b09592d7a096"
+      "id": "dc3f3806-2a17-4755-a4f8-10328a9f849d"
     },
     {
       "parameters": {
@@ -6613,14 +6613,14 @@
         3580,
         2100
       ],
-      "webhookId": "5a95da2b-ca37-4e6f-b369-575b784d82e3",
+      "webhookId": "097ab7a8-922d-42bf-8e22-ea01945c7c85",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "ca4569f9-0cf8-4130-8a3e-264afc08c4a6"
+      "id": "08c8d968-9b4d-45f7-b590-75d578589c6c"
     },
     {
       "parameters": {
@@ -6633,7 +6633,7 @@
         3360,
         2500
       ],
-      "id": "e3f2e68b-8326-4144-8a99-da738b329e6f"
+      "id": "8a72876a-7bc1-41e3-a92f-53f691bd876e"
     },
     {
       "parameters": {
@@ -6645,7 +6645,7 @@
           },
           "conditions": [
             {
-              "id": "bc017599-cb15-41a3-9245-28b85abd7443",
+              "id": "9d40fc21-f516-4cfa-9ecc-3a923b6c3f23",
               "leftValue": "={{ $('Чистка: нужна?').first().json.need }}",
               "rightValue": true,
               "operator": {
@@ -6666,7 +6666,7 @@
         3580,
         2500
       ],
-      "id": "934150c4-078b-4a38-b762-aacb156d00a4"
+      "id": "90cf70ef-5b69-4e4b-9e35-c7a0d877689f"
     },
     {
       "parameters": {
@@ -6687,7 +6687,7 @@
         2500
       ],
       "onError": "continueRegularOutput",
-      "id": "1ce83463-cc4f-4145-bb5e-bca129f505a7"
+      "id": "56c007c1-5023-464f-a3a1-b96e67958963"
     },
     {
       "parameters": {
@@ -6700,7 +6700,7 @@
         4020,
         2500
       ],
-      "id": "a8ae3d53-8228-4416-a255-6093d8687a1e"
+      "id": "c4dbcbcd-dee1-41a7-901f-26e1a3680eb3"
     },
     {
       "parameters": {
@@ -6744,7 +6744,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "acb83596-7edf-4cc3-9303-099d1649deb7"
+      "id": "02781ee9-a755-4e23-a21b-5291703da87e"
     },
     {
       "parameters": {
@@ -6764,14 +6764,14 @@
         4460,
         2500
       ],
-      "webhookId": "bf21cfae-c53c-4fd2-a1f4-3a9346b0b533",
+      "webhookId": "6daaef9a-e879-4957-bb5f-558995e13451",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "56260e03-d2db-4a2b-9f13-2e0367c974b2"
+      "id": "57a96958-576e-4d91-b9fa-bc5bc1268828"
     },
     {
       "parameters": {
@@ -6783,7 +6783,7 @@
           },
           "conditions": [
             {
-              "id": "716ae821-6a2b-4bb0-a8f5-e8954cd24094",
+              "id": "fff1264f-6e25-40d9-9dee-c7cb4141c85f",
               "leftValue": "={{ $('Чистка: запущена?').first().json.ok }}",
               "rightValue": true,
               "operator": {
@@ -6804,7 +6804,7 @@
         4680,
         2500
       ],
-      "id": "8900c302-2183-4af6-a73d-6b644d7d79ae"
+      "id": "df9e50a6-5766-49df-8a70-78651651ad70"
     },
     {
       "parameters": {
@@ -6823,8 +6823,8 @@
         4900,
         2500
       ],
-      "webhookId": "d5fdacd0-7051-4320-8e49-2ce6d5d14418",
-      "id": "475af074-70ce-46ef-a14b-89afa7cecf44"
+      "webhookId": "fcb33a4d-8e4c-4003-aa04-1f01ba67c824",
+      "id": "e46ee7ff-f950-4fd6-8093-21e90bded359"
     },
     {
       "parameters": {
@@ -6863,7 +6863,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "f314bae2-2ac9-486d-a019-fcd2e7e9f5c5"
+      "id": "8ab650cf-3302-4189-870b-292c6b3d7edb"
     },
     {
       "parameters": {
@@ -6876,7 +6876,7 @@
         5340,
         2500
       ],
-      "id": "49881093-eaf3-4456-8f52-c7af90f7f378"
+      "id": "2a733f70-52b8-4ca1-a0d7-ec927cfca153"
     },
     {
       "parameters": {
@@ -6955,7 +6955,7 @@
         5560,
         2500
       ],
-      "id": "885448a6-86ef-479a-a059-466a0c2a60f8"
+      "id": "0e2059e7-f30d-47c2-82a9-4245aaf07909"
     },
     {
       "parameters": {
@@ -6976,7 +6976,7 @@
         2400
       ],
       "onError": "continueRegularOutput",
-      "id": "f1065fd5-73cd-4b3a-a759-43710215c7d8"
+      "id": "5960672a-3c3b-42f7-bc1b-94875f8c0f6a"
     },
     {
       "parameters": {
@@ -6989,7 +6989,7 @@
         6000,
         2500
       ],
-      "id": "27c3bdc1-8fea-4f41-8611-7619c9e7bd91"
+      "id": "a8ca032a-4bb3-4cdd-a871-39638cfc78ba"
     },
     {
       "parameters": {
@@ -7088,7 +7088,7 @@
         6220,
         2500
       ],
-      "id": "7a13d649-b958-4cf1-92a3-cd0bdbbffdf8"
+      "id": "aff75cbb-9a79-4513-9b3f-27cd699b5fc1"
     },
     {
       "parameters": {
@@ -7130,7 +7130,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "3df1d035-1605-4a26-aca5-118005d367a0"
+      "id": "0a853b1e-53d9-4702-af85-43283f2d11c0"
     },
     {
       "parameters": {
@@ -7150,14 +7150,14 @@
         6660,
         2400
       ],
-      "webhookId": "52257935-d3a8-43ba-a536-1c807d090183",
+      "webhookId": "5bca413c-3bcf-4e2c-b94b-491cb94cfeec",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "7ef9e07c-0432-43de-bcc7-90e7c75d4c7f"
+      "id": "15a1dc14-4b31-4ab4-b6fc-d028bcd7d456"
     },
     {
       "parameters": {
@@ -7169,7 +7169,7 @@
           },
           "conditions": [
             {
-              "id": "6deca32f-f902-430c-8dd1-a131b5338bd0",
+              "id": "a835dde4-4495-4c68-a301-51244e35a2d9",
               "leftValue": "={{ $('Чистка: итог').first().json.action === 'done' && $('Чистка: итог').first().json.approved }}",
               "rightValue": true,
               "operator": {
@@ -7190,7 +7190,7 @@
         6880,
         2400
       ],
-      "id": "fd25d871-8445-46ab-9ac4-bd9a5e4a6b7f"
+      "id": "4a15d6d7-b344-4f2e-9088-100c5dd84c16"
     },
     {
       "parameters": {
@@ -7210,14 +7210,14 @@
         6440,
         2650
       ],
-      "webhookId": "e1ae16e7-def9-451a-8ba5-54c2c6ed65f3",
+      "webhookId": "6c1fbb46-481d-457c-b99f-544ff7d7e8e7",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "f85c415b-3266-42fa-ad20-8e7f20a39da7"
+      "id": "fb6a4954-0f50-45f6-9512-72c34e01be9d"
     },
     {
       "parameters": {
@@ -7230,7 +7230,7 @@
         2700,
         3200
       ],
-      "id": "0f141502-1790-4527-b9f4-069152564189"
+      "id": "05101efb-fae4-4165-bf92-ac82192ba693"
     },
     {
       "parameters": {
@@ -7242,7 +7242,7 @@
           },
           "conditions": [
             {
-              "id": "c42649a8-2e92-446d-a802-c29df646207f",
+              "id": "d64ade8c-7caf-4a3a-bd16-a85862b027e2",
               "leftValue": "={{ $json.ask }}",
               "rightValue": true,
               "operator": {
@@ -7263,7 +7263,7 @@
         2920,
         3200
       ],
-      "id": "2d76b7e5-90fb-4b91-a6a2-205ae8cc0fa6"
+      "id": "8bf50135-9e49-4829-877b-d8691695ebb8"
     },
     {
       "parameters": {
@@ -7284,7 +7284,7 @@
         3100
       ],
       "onError": "continueRegularOutput",
-      "id": "c34c63fd-b904-4344-9c11-ab3616fb4016"
+      "id": "29fd1a5b-07c5-45fb-863f-476f513d5504"
     },
     {
       "parameters": {
@@ -7297,7 +7297,7 @@
         3360,
         3100
       ],
-      "id": "b3465160-a424-4765-8294-cff6139a620d"
+      "id": "50733f47-d039-4d28-b77d-c4c90e7e5e36"
     },
     {
       "parameters": {
@@ -7309,7 +7309,7 @@
           },
           "conditions": [
             {
-              "id": "48195e67-0201-4698-83cd-949d60f8b58b",
+              "id": "faf32b4f-7153-4177-8ea9-46308e878bab",
               "leftValue": "={{ $json.update }}",
               "rightValue": true,
               "operator": {
@@ -7330,7 +7330,7 @@
         3580,
         3200
       ],
-      "id": "35bc9187-c734-4d49-9c99-2adcf74f243a"
+      "id": "9225bbfe-5228-440b-b9ee-30a80fee603a"
     },
     {
       "parameters": {
@@ -7372,7 +7372,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "4017f610-9b6d-4ba8-9361-2474074cbd85"
+      "id": "ae19fb25-4497-442f-b365-efa6aaf3f3b5"
     },
     {
       "parameters": {
@@ -7385,7 +7385,7 @@
         4020,
         3200
       ],
-      "id": "3ca35df1-1ef6-40d1-9ebe-1cf0310c68db"
+      "id": "9a3e8a16-5f16-4c05-8d63-45bf2ef961da"
     },
     {
       "parameters": {
@@ -7397,7 +7397,7 @@
           },
           "conditions": [
             {
-              "id": "93f74ea7-9d28-4789-bb1b-76453eb6769c",
+              "id": "945013f0-83ea-415e-a535-3909b8e7aa31",
               "leftValue": "={{ $json.button }}",
               "rightValue": true,
               "operator": {
@@ -7418,7 +7418,7 @@
         4240,
         3200
       ],
-      "id": "c69487a4-45a3-41ad-8640-fcb37945dcd0"
+      "id": "fc1d029e-296c-41f2-a30d-9f3f016d2284"
     },
     {
       "parameters": {
@@ -7455,14 +7455,14 @@
         4460,
         3100
       ],
-      "webhookId": "eece99f5-895d-4d44-9313-722a84f21f70",
+      "webhookId": "3f3f55e4-dda5-4692-abf5-b6853dc6dbb1",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "4b19ab56-01a7-4e59-bb6f-e08c64c5a930"
+      "id": "8e26ee2e-a4b7-4039-85e1-bb0e53e97cc4"
     },
     {
       "parameters": {
@@ -7482,14 +7482,14 @@
         4460,
         3300
       ],
-      "webhookId": "19bb26d4-f942-4f96-8ef3-88e548882b2f",
+      "webhookId": "23d58dc4-ff70-446e-ace6-a8f468e2d358",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "93552058-9e29-4a47-9779-39d576a5d4c7"
+      "id": "8763ac2d-fec6-4e28-95e3-52f4107a59ce"
     },
     {
       "parameters": {
@@ -7528,7 +7528,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "aded3714-aab4-46b7-ab0a-7d85c96cb23d"
+      "id": "d63b4a15-10ac-4c4a-860f-03d697f51133"
     },
     {
       "parameters": {
@@ -7541,7 +7541,7 @@
         5120,
         1600
       ],
-      "id": "08808123-8c0e-45f2-865e-8b62b32585e4"
+      "id": "12dd66f5-2295-4847-957f-c962a37d4a6b"
     },
     {
       "parameters": {
@@ -7553,7 +7553,7 @@
           },
           "conditions": [
             {
-              "id": "132a93f8-996e-4273-b0b3-6d8e9f8cf388",
+              "id": "a62a5edd-ba91-4779-88d8-85898f47edf7",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -7574,7 +7574,7 @@
         5340,
         1600
       ],
-      "id": "de2d8776-d059-4388-9937-80a2052bca59"
+      "id": "e15ce52b-045d-479d-8195-4b0daec79ff5"
     },
     {
       "parameters": {
@@ -7594,14 +7594,14 @@
         5560,
         1500
       ],
-      "webhookId": "952283ee-6fa6-4256-9a75-4d4695114e6e",
+      "webhookId": "11e37e54-c44c-4364-9619-c462ca69d830",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "43a21347-50fc-43b9-9595-6aadd078939b"
+      "id": "8cb3690d-ede4-4f99-b821-5e53fbe6062a"
     },
     {
       "parameters": {
@@ -7633,7 +7633,7 @@
         5780,
         1500
       ],
-      "id": "31047969-d235-49fd-bd65-121ae03070f7"
+      "id": "bc3a2cc3-3886-4f89-be30-96809244fceb"
     },
     {
       "parameters": {
@@ -7653,14 +7653,14 @@
         5560,
         1750
       ],
-      "webhookId": "cada504c-0b1a-4dd7-8dfe-f4cf418f8450",
+      "webhookId": "ea0c6f81-85ab-46a2-af9b-f80ec91ae11f",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "c0e0b240-2f51-4415-af85-7cb659320c11"
+      "id": "e896b3a6-4d84-4863-9427-b96a3a2a94d0"
     },
     {
       "parameters": {
@@ -7676,7 +7676,7 @@
         -40,
         -360
       ],
-      "id": "59d63309-3aaa-4097-8131-c8632d67df7b"
+      "id": "7a4dc13f-c93d-419f-ada9-d158b26fbed9"
     },
     {
       "parameters": {
@@ -7692,7 +7692,7 @@
         2660,
         -1820
       ],
-      "id": "491cf090-721a-402d-9b25-9f70f87e3b8c"
+      "id": "8b182412-9302-4fb5-b833-adbe9cc18bc9"
     },
     {
       "parameters": {
@@ -7708,7 +7708,7 @@
         5780,
         -2360
       ],
-      "id": "b8823595-dae9-4947-8ec3-b6d515a360b3"
+      "id": "01e40bc9-a63b-449d-ae08-9ed2d4d0d57a"
     },
     {
       "parameters": {
@@ -7724,7 +7724,7 @@
         5780,
         160
       ],
-      "id": "c370b7b4-8acb-4c42-acdc-09e98873ba91"
+      "id": "91b68820-fe7e-43f8-ad5c-41bff3874197"
     },
     {
       "parameters": {
@@ -7740,7 +7740,7 @@
         2660,
         1040
       ],
-      "id": "b9bf586f-bffc-4664-9bc3-0bff69b66e5d"
+      "id": "554ab262-2e65-44ad-ad48-c3744ce91bb2"
     },
     {
       "parameters": {
@@ -7756,7 +7756,7 @@
         4860,
         1240
       ],
-      "id": "e3c43ac7-1701-4bdb-8bbb-db8a3d13a74f"
+      "id": "17b9338f-65b4-43e1-bb88-bbaa1d71bb34"
     }
   ],
   "connections": {
