@@ -301,5 +301,18 @@ async function parseEd(c, story) {
     x = await go('Художнику правкой займёмся потом'); assert.equal(x.d.action, 'ready_to_draw', '«правкой» — не команда правки');
   }
   console.log('10 художнику напрямую OK');
+  // ── 11. Утвердить ≠ собрать: кнопка «🎬 Собрать с этими треками»
+  {
+    const rb = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { callback_query: { id: 'q', data: 'build|20260924_101010_pengui', message: { chat: { id: 1 } } } } } }))[0];
+    assert.equal(rb.kind, 'build'); assert.equal(rb.projectId, '20260924_101010_pengui');
+    const ctxV = { projectId: 'P', chatId: 1 };
+    const u = (await run('Сообщение: утверждено', { nodes: { 'Контекст проекта': ctxV, 'Проверяем таблицу (финал)': { hasTracks: true }, 'Перечитываем строку (финал)': { sys_AudioZipUrl: 'https://www.kaggle.com/code/td1976/suno-clean' } } }))[0];
+    assert.ok(u.text.includes('Собрать с ними — кнопка ниже')); assert.ok(u.text.includes('последний готовый результат'));
+    assert.ok(!u.text.includes('передаю сборщику'), 'утверждение само не собирает');
+    assert.equal(u.callbackData, 'build|P'); assert.equal(u.hasTracks, true);
+    const u2 = (await run('Сообщение: утверждено', { nodes: { 'Контекст проекта': ctxV, 'Проверяем таблицу (финал)': { hasTracks: false }, 'Перечитываем строку (финал)': {} } }))[0];
+    assert.ok(u2.text.includes('Жду ссылку на треки'));
+  }
+  console.log('11 утвердить ≠ собрать OK');
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

@@ -171,7 +171,7 @@ sheets_read('Читаем шаблоны канала', 'Templates', [('tmpl_Cha
 code('Контекст проекта', 'kontekst.js', [X + 2000, Y])
 if_node('Проект найден?', '$json.found', [X + 2220, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2440, Y + 200])
-switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton'], [X + 2440, Y])
+switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build'], [X + 2440, Y])
 tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопка из старой схемы — в новом канвасе она ничего не делает.\n\nID: {{ $json.projectId }}', [X + 2700, Y + 1500])
 link('Что пришло?', 'Это кнопка?', 3)  # 2 = unknown → никуда
 link('Это кнопка?', 'Отвечаем на кнопку', 0)
@@ -409,8 +409,11 @@ sheets_update('Сохраняем летопись', 'Templates', {
     '🖋_tmpl_Chronicle': "={{ $('Дописываем летопись').first().json.chronicle }}",
 }, [X + 4900, FY + 160], match='tmpl_Channel')
 nodes[-1]['onError'] = 'continueRegularOutput'
-code('Сообщение: утверждено', 'utverzhdeno.js', [X + 4240, FY])
+code('Сообщение: утверждено', 'utverzhdeno.js', [X + 4240, FY], lib=True)
 tg_send('Отправляем: утверждено', '={{ $json.chatId }}', '={{ $json.text }}', [X + 4460, FY])
+tg_send('Кнопка: собрать с этими треками', "={{ $('Сообщение: утверждено').first().json.chatId }}",
+        "={{ $('Сообщение: утверждено').first().json.buttonText }}", [X + 5560, FY - 120],
+        button=('🎬 Собрать с этими треками', "={{ $('Сообщение: утверждено').first().json.callbackData }}"))
 if_node('Треки уже есть?', "$('Сообщение: утверждено').first().json.hasTracks", [X + 5340, FY])
 tg_send('Не могу утвердить', '={{ ' + CTX + '.chatId }}', '={{ $json.problemsText }}', [X + 3140, FY + 220])
 link('Куда дальше?', 'Собираем пакет для таблицы', 2)
@@ -456,7 +459,8 @@ add({'parameters': {'workflowId': {'__rl': True, 'value': VIDEO_WF_ID, 'mode': '
                     'options': {'waitForSubWorkflow': False}},
      'name': '04_Video', 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.2, 'position': [WX + 880, WY - 100]})
 tg_send('Сборку не запускаю', '={{ $json.chatId }}', '={{ $json.problemsText }}', [WX + 660, WY + 150])
-link('Треки уже есть?', 'Перечитываем строку (стена)', 0)
+link('Треки уже есть?', 'Кнопка: собрать с этими треками', 0)
+link('Куда дальше?', 'Перечитываем строку (стена)', 5)
 link('Уже утверждено?', 'Перечитываем строку (стена)', 0)
 chain('Перечитываем строку (стена)', 'Стена: проверяем таблицу', 'Всё на месте?')
 link('Всё на месте?', 'Треки получены, приступаю к сборке', 0)

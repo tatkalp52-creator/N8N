@@ -5,6 +5,7 @@
 //   channelPick  — нажата кнопка выбора канала → создаём проект
 //   imgApprove   — кнопка "✅" под конкретным вариантом картинки (img|ID|N)
 //   finalApprove — финальная кнопка "✅ Согласовано" под сводкой (final|ID)
+//   build        — кнопка "🎬 Собрать с этими треками" (build|ID)
 //   oldButton    — кнопка из старой схемы (approve|ID)
 //   tracks       — сообщение по проекту со ссылкой (ссылка на треки)
 //   message      — обычная реплика по проекту → Редактору
@@ -36,6 +37,9 @@ if (t.callback_query) {
   }
   if (parts[0] === 'final' && idMatch) {
     return [{ json: { ...base, ...fromId(idMatch), kind: 'finalApprove' } }];
+  }
+  if (parts[0] === 'build' && idMatch) {
+    return [{ json: { ...base, ...fromId(idMatch), kind: 'build' } }];
   }
   if (parts[0] === 'approve' && idMatch) {
     return [{ json: { ...base, ...fromId(idMatch), kind: 'oldButton' } }];
