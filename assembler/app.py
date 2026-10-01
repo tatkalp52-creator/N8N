@@ -1,6 +1,7 @@
 import os
 import re
 import random
+import time
 import json
 import subprocess
 import tempfile
@@ -21,7 +22,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-01-pieces"
+ASSEMBLER_VERSION = "2026-10-01-pieces-autoclean"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -237,7 +238,7 @@ def kaggle_token():
     return token
 
 
-def download_kaggle_output_file(url, dest_path, ext=".zip", prefer=None):
+def download_kaggle_output_file(url, dest_path, ext=".zip", prefer=None, must_contain=None):
     m = re.search(r"kaggle\.com/code/([^/?#]+)/([^/?#]+)", url)
     if not m:
         raise RuntimeError(f"Не понимаю ссылку на Kaggle: {url}")
@@ -260,6 +261,10 @@ def download_kaggle_output_file(url, dest_path, ext=".zip", prefer=None):
     zips = [f for f in files if str(f.get("fileName", "")).lower().endswith(ext) and f.get("url")]
     if prefer:
         zips.sort(key=lambda f: os.path.basename(str(f.get("fileName", ""))) != prefer)
+    if must_contain:
+        zips = [f for f in zips if must_contain in str(f.get("fileName", ""))]
+        if not zips:
+            raise RuntimeError(f"В результате Kaggle нет архива с меткой {must_contain} — это чужие треки")
     if not zips:
         raise RuntimeError(f"В результате блокнота Kaggle нет {ext} — запуск ещё идёт или упал")
     with requests.get(zips[0]["url"], stream=True, timeout=300) as r:
@@ -274,9 +279,103 @@ def download_kaggle_output_zip(url, dest_path):
     return download_kaggle_output_file(url, dest_path)
 
 
+
+# НОВОЕ (01.10): АВТОЧИСТКА в Kaggle. Если в таблице задан способ чистки
+# (🎬tmpl_CleanMode) и треки пришли ссылкой на Диск, сервер сам: берёт код
+# чистки из /app/suno_clean_kaggle.py, подставляет в него ссылку, способ и
+# метку запуска, запускает блокнот (🎬tmpl_CleanNotebook — ссылка на него),
+# раз в N минут спрашивает статус и, когда готово, забирает архив ИМЕННО с
+# этой меткой. Сбои связи при опросе терпим (до 5 подряд). Одна чистка за раз.
+KAGGLE_API = "https://api.kaggle.com/v1/kernels.KernelsApiService/"
+CLEAN_CODE_PATH = "/app/suno_clean_kaggle.py"
+CLEAN_LOCK_PATH = "/tmp/kaggle_clean.lock"
+
+
+def kaggle_call(method, body, timeout=60):
+    token = kaggle_token()
+    if not token:
+        raise RuntimeError("Нет ключа Kaggle: положите его в /app/kaggle_token.txt")
+    r = requests.post(KAGGLE_API + method, json=body,
+                      headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
+    if r.status_code in (401, 403):
+        raise RuntimeError("Ключ Kaggle не принят (истёк или удалён?)")
+    r.raise_for_status()
+    return r.json()
+
+
+def set_setting_line(code, name, value_repr):
+    new, n = re.subn(rf"^{name}\s*=.*$", lambda m: f"{name} = {value_repr}", code, count=1, flags=re.M)
+    if not n:
+        raise RuntimeError(f"В коде чистки нет строки настройки {name}")
+    return new
+
+
+def run_kaggle_clean(tracks_url, data, project_id):
+    m = re.search(r"kaggle\.com/code/([^/?#]+)/([^/?#]+)", str(data.get("cleanNotebook") or ""))
+    if not m:
+        raise RuntimeError("Не задан блокнот чистки (🎬tmpl_CleanNotebook — ссылка на блокнот Kaggle)")
+    user, slug = m.group(1), m.group(2)
+    if not os.path.exists(CLEAN_CODE_PATH):
+        raise RuntimeError(f"Нет кода чистки на сервере: {CLEAN_CODE_PATH}")
+    def _f(key, default):
+        try:
+            v = float(data.get(key) or default)
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+    poll = _f("cleanPollMinutes", 15) * 60
+    max_wait = _f("cleanMaxHours", 4) * 3600
+    tag = f"{project_id}-{int(time.time())}"
+    code = open(CLEAN_CODE_PATH, encoding="utf-8").read()
+    code = set_setting_line(code, "TRACKS_LINK", repr(tracks_url))
+    code = set_setting_line(code, "MODE", repr(str(data.get("cleanMode")).strip()))
+    if data.get("cleanBlend") not in (None, ""):
+        code = set_setting_line(code, "BLEND", str(float(data.get("cleanBlend"))))
+    if data.get("cleanBlendStems") not in (None, ""):
+        code = set_setting_line(code, "BLEND_STEMS", repr(str(data.get("cleanBlendStems"))))
+    code = set_setting_line(code, "RUN_TAG", repr(tag))
+    notebook = {"cells": [{"cell_type": "code", "metadata": {}, "execution_count": None,
+                           "outputs": [], "source": code}],
+                "metadata": {"kernelspec": {"name": "python3", "display_name": "Python 3", "language": "python"}},
+                "nbformat": 4, "nbformat_minor": 4}
+    import fcntl
+    with open(CLEAN_LOCK_PATH, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)  # вторая чистка ждёт, пока закончится первая
+        res = kaggle_call("SaveKernel", {
+            "slug": f"{user}/{slug}", "text": json.dumps(notebook), "language": "python",
+            "kernelType": "notebook", "isPrivate": True, "enableGpu": True, "enableInternet": True,
+            "machineShape": "NvidiaTeslaT4"})
+        if res.get("error"):
+            raise RuntimeError(f"Kaggle не принял запуск чистки: {res['error']}")
+        print(f"[clean] запущена версия {res.get('versionNumber')} ({data.get('cleanMode')}), метка {tag}")
+        started, fails = time.time(), 0
+        while True:
+            time.sleep(poll)
+            try:
+                st = kaggle_call("GetKernelSessionStatus", {"userName": user, "kernelSlug": slug})
+                fails = 0
+            except Exception as e:
+                fails += 1
+                print(f"[clean] опрос не удался ({fails}/5): {e}")
+                if fails >= 5:
+                    raise RuntimeError(f"Kaggle не отвечает 5 раз подряд: {e}")
+                continue
+            status = st.get("status", "")
+            status = {0: "QUEUED", 1: "RUNNING", 2: "COMPLETE", 3: "ERROR"}.get(status, str(status)).upper()
+            print(f"[clean] статус: {status}")
+            if status.endswith("COMPLETE"):
+                break
+            if status.endswith("ERROR") or "CANCEL" in status:
+                raise RuntimeError(f"Чистка в Kaggle упала: {st.get('failureMessage') or status}")
+            if time.time() - started > max_wait:
+                raise RuntimeError(f"Чистка не закончилась за {max_wait / 3600:g} ч")
+    return f"https://www.kaggle.com/code/{user}/{slug}", tag
+
 def download_file(url, dest_path):
     if "kaggle.com/code/" in url:
-        return download_kaggle_output_zip(url, dest_path)
+        # «#run=<метка>» дописывает авточистка: брать только архив этого запуска
+        tag = (re.search(r"#run=([^&]+)", url) or [None, None])[1]
+        return download_kaggle_output_file(url, dest_path, must_contain=tag)
     if "drive.google.com" in url or "drive.usercontent.google.com" in url:
         id_match = re.search(r"[?&/]id[=/]([a-zA-Z0-9_-]+)", url) or re.search(r"/d/([a-zA-Z0-9_-]+)", url)
         if id_match:
@@ -1207,6 +1306,15 @@ def assemble():
         limiter_attack_ms = float(data.get("limiterAttackMs", 5))
         limiter_release_ms = float(data.get("limiterReleaseMs", 50))
         denoise_amount = float(data.get("denoiseAmount", 0))
+        # Авточистка в Kaggle: способ задан в таблице, а треки — не уже готовый результат Kaggle
+        if str(data.get("cleanMode") or "").strip() and "kaggle.com/code/" not in audio_zip_url:
+            try:
+                notebook_url, run_tag = run_kaggle_clean(audio_zip_url, data, project_id)
+                audio_zip_url = f"{notebook_url}#run={run_tag}"
+            except Exception as clean_error:
+                if not str(data.get("cleanFallback") or "").strip():
+                    raise
+                print(f"[clean] {clean_error} — собираю без чистки (🎬tmpl_CleanFallback)")
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir,
             target_lufs=target_lufs,

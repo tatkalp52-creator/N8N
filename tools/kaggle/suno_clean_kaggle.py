@@ -15,6 +15,7 @@ SPEED = "quality"    # "quality" — аккуратнее; "fast" — вдвое
 BLEND = 0            # сколько ИСХОДНОГО звука подмешать обратно после чистки (0.10 = 10%) — «жизнь» инструментам; 0 — не подмешивать
 BLEND_STEMS = "guitar, other, vocals"  # к каким слоям подмешивать; пусто — ко всему треку.
 #   Слои: bass (контрабас), drums (щётки), guitar (гитара), piano (фортепиано), other и vocals (сюда обычно уходит кларнет)
+RUN_TAG = ""           # метка запуска — её ставит сервер при авточистке; руками не трогать
 # =====================
 
 import subprocess, sys, os, glob, shutil, zipfile, re
@@ -184,7 +185,7 @@ for i, name in enumerate(order, 1):
     print(f'{i}/{len(order)} готов: {os.path.basename(name)}')
 
 base = os.path.splitext(os.path.basename(src))[0]
-dst = f'/kaggle/working/{base} (clean).zip'
+dst = f'/kaggle/working/{base} (clean){" [" + RUN_TAG.strip() + "]" if RUN_TAG.strip() else ""}.zip'
 for old in glob.glob('/kaggle/working/*.zip'):
     os.remove(old)
 with zipfile.ZipFile(dst, 'w', zipfile.ZIP_DEFLATED) as z:
