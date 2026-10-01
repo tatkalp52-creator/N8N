@@ -398,7 +398,7 @@ async function parseEd(c, story) {
     let { k, d } = await go('Художнику: Пингви на своей кухне пишет открытки');
     assert.ok(!k.knowledgeText.includes('K1'), 'картинки мест не уходят в общие знания');
     assert.equal(k.baseRefs.length, 18); assert.equal(k.locations.length, 2);
-    assert.equal(d.dallePrompt, "Pengui's place — KITCHEN — Fixed: a stove.\n\nRules. The scene:\n\nПингви на своей кухне пишет открытки", 'паспорт персонажа художнику не идёт');
+    assert.equal(d.dallePrompt, "The place — KITCHEN — Fixed: a stove.\n\nRules. The scene:\n\nПингви на своей кухне пишет открытки", 'паспорт персонажа художнику не идёт');
     assert.equal(d.drawRefUrls.length, 16, 'не больше 16 картинок');
     assert.equal(d.drawRefUrls[0], 'https://lh3.googleusercontent.com/d/R0=s2000', 'style guide первым');
     assert.deepEqual(d.drawRefUrls.slice(-2), ['https://lh3.googleusercontent.com/d/K1=s2000', 'https://lh3.googleusercontent.com/d/K2=s2000'], 'картинки кухни в конце, общие сокращены');
