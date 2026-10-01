@@ -193,6 +193,19 @@ async function parseEd(c, story) {
   let bt = bl.map(x => x.text).join('');
   assert.ok(!bt.includes('✅ Картинка согласована'), 'после кнопки не дублируем ✅');
   assert.ok(bt.includes('ждут согласования: 1, 2, 3, 4, 5, 6, 7, 8'), 'блок пришёл сразу');
+  // кнопка → Редактор только согласует и спрашивает, про что выпуск: без блока и без писателя
+  assert.ok(sb.syntheticText.includes('спроси автора'), 'после ✅ Редактор сначала спрашивает');
+  p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': ctxB2, 'Вход редактора': vB }, input: [call('approve_image', { variantNumber: 1, messageToUser: 'Согласовано! Про что выпуск и какая музыка?' })] }))[0];
+  assert.equal(p.action, 'approved'); assert.equal(p.textBlockTouched, false); assert.equal(p.storyBrief, '');
+  bl = await run('Собираем текстовый блок', { nodes: { ...nodes, 'Парсим ответ редактора': p } });
+  bt = bl.map(x => x.text).join('');
+  assert.ok(bt.includes('Про что выпуск') && !bt.includes('ждут согласования'), 'только вопрос, блока нет');
+  // повторное нажатие ✅ на уже согласованный вариант ничего не запускает
+  {
+    const ctxD = { ...ctxB, row: { ...ctxB.row, ai_ApprovedImageUrl: 'U1', sys_Status: 'Картинка согласована' }, status: 'Картинка согласована' };
+    const sd = (await run('Согласуем вариант', { nodes: { 'Контекст проекта': ctxD } }))[0];
+    assert.equal(sd.ok, false); assert.equal(sd.already, true); assert.ok(sd.notFoundText.includes('уже согласован'));
+  }
   // описание уже согласовано → новая картинка его не переписывает
   {
     const agreedSt = { items: { description: 'OLD' }, set: { 3: true }, agreed: { 3: true } };

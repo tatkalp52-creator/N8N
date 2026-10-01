@@ -9,6 +9,10 @@ if (!Array.isArray(variants)) variants = [];
 const found = variants.find(v => Number(v.n) === Number(n));
 
 const cur = ctx.status;
+// Повторное нажатие на уже согласованный вариант ничего не запускает
+// (кнопку легко нажать дважды — иначе Редактор начинает всё заново).
+const already = !!(found && found.url && found.url === String(row.ai_ApprovedImageUrl || '') &&
+  ['Картинка согласована', 'Утверждено', 'Опубликовано'].includes(cur));
 let statusAfter = cur;
 if (cur !== 'Опубликовано') {
   const same = found && found.url === String(row.ai_ApprovedImageUrl || '');
@@ -18,14 +22,17 @@ const statusReverted = cur === 'Утверждено' && statusAfter !== 'Утв
 
 return [{
   json: {
-    ok: !!(found && found.url),
+    ok: !!(found && found.url) && !already,
+    already,
     variantNumber: n,
     approvedUrl: found ? found.url : '',
     statusAfter,
     confirmText: `✅ Картинка согласована (вариант ${n}).` +
       (statusReverted ? '\n\n⚠️ Статус «Утверждено» снят — после смены картинки пришлю новую сводку на ✅.' : '') +
       `\n\nID: ${ctx.projectId}`,
-    notFoundText: `Не нашла вариант ${n} в этом проекте — ничего не меняла.\n\nID: ${ctx.projectId}`,
-    syntheticText: `[Служебное сообщение, не слова автора] Автор нажала кнопку «✅» под вариантом ${n} — это её согласование этой картинки, в таблицу оно уже записано. Вызови approve_image с variantNumber ${n} и в том же вызове передай в items все пункты текстового блока, кроме описания, и в storyBrief — задание писателю на описание.`,
+    notFoundText: already
+      ? `Вариант ${n} уже согласован — ничего не запускаю заново.\n\nID: ${ctx.projectId}`
+      : `Не нашла вариант ${n} в этом проекте — ничего не меняла.\n\nID: ${ctx.projectId}`,
+    syntheticText: `[Служебное сообщение, не слова автора] Автор нажала кнопку «✅» под вариантом ${n} — это её согласование этой картинки, в таблицу оно уже записано. Вызови approve_image с variantNumber ${n}. Текст пока не предлагай и писателю задание не давай: сначала спроси автора, про что выпуск и какая музыка (как в правилах approve_image).`,
   }
 }];

@@ -165,6 +165,8 @@ chain('Отвечаем на кнопку канала', 'Ищем канал в
 # ── всё, что относится к существующему проекту
 if_node('Это кнопка?', "!!$('Разбираем входящее').first().json.callbackQueryId", [X + 900, Y])
 tg_answer('Отвечаем на кнопку', [X + 1120, Y - 150])
+# Всплывающее «Принято» сразу после нажатия ✅ под картинкой — видно, что тап сработал
+nodes[-1]['parameters']['additionalFields'] = {'text': "={{ $('Разбираем входящее').first().json.kind === 'imgApprove' ? '✅ Принято, вариант ' + $('Разбираем входящее').first().json.variantNumber : '' }}"}
 sheets_read('Находим лист канала', 'Catalog', [('Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1340, Y])
 sheets_read('Читаем строку проекта', '={{ $json.SheetName }}', [('sys_ProjectID', "={{ $('Разбираем входящее').first().json.projectId }}")], [X + 1560, Y])
 sheets_read('Читаем шаблоны канала', 'Templates', [('tmpl_Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1780, Y])
