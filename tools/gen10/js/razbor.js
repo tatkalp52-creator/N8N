@@ -85,7 +85,8 @@ if (urlMatch) {
 
 return [{
   json: {
-    kind: tracksUrl ? 'tracks' : 'message',
+    // «как чистка?» / «статус» — вопрос о чистке звука этого выпуска
+    kind: tracksUrl ? 'tracks' : (/^\s*(как\s+(там\s+)?чистка|статус)(?![а-яё])/iu.test(userText) ? 'cleanStatus' : 'message'),
     chatId,
     ...fromId(m),
     text: userText,

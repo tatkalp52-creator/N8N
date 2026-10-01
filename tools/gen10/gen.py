@@ -171,7 +171,7 @@ sheets_read('Читаем шаблоны канала', 'Templates', [('tmpl_Cha
 code('Контекст проекта', 'kontekst.js', [X + 2000, Y])
 if_node('Проект найден?', '$json.found', [X + 2220, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2440, Y + 200])
-switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build'], [X + 2440, Y])
+switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build', 'cleanStatus'], [X + 2440, Y])
 tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопка из старой схемы — в новом канвасе она ничего не делает.\n\nID: {{ $json.projectId }}', [X + 2700, Y + 1500])
 link('Что пришло?', 'Это кнопка?', 3)  # 2 = unknown → никуда
 link('Это кнопка?', 'Отвечаем на кнопку', 0)
@@ -442,8 +442,104 @@ link('Куда дальше?', 'Разбираем ссылку на треки'
 link('Разбираем ссылку на треки', 'Уже опубликован?')
 link('Уже опубликован?', 'Сообщаем: уже опубликован', 0)
 link('Уже опубликован?', 'Сохраняем ссылку на треки', 1)
-link('Сохраняем ссылку на треки', 'Уже утверждено?')
 link('Уже утверждено?', 'Ссылка сохранена, ждём ✅', 1)
+
+# ═════════════ ЧИСТКА ЗВУКА В KAGGLE «ПО СОБЫТИЮ» ═════════════
+# Ссылка сохранена → (если в таблице задан способ чистки) сервер запускает
+# блокнот и сразу отвечает → ждём: блокнот сам «постучится» в это ожидание,
+# а если нет — через N ч сработает будильник. Состояние — в строке выпуска.
+_w04 = json.load(open(os.path.join(REPO, 'workflows/04_Video.json')))
+ASSEMBLER = [n for n in _w04['nodes'] if n['name'] == 'Собираем видео (POST)'][0]['parameters']['url'].rsplit('/', 1)[0]
+
+def http_post(name, url, body_expr, pos):
+    return add({'parameters': {'method': 'POST', 'url': url, 'sendBody': True, 'specifyBody': 'json',
+                               'jsonBody': body_expr, 'options': {'timeout': 600000}},
+                'name': name, 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': pos,
+                'onError': 'continueRegularOutput'})
+
+KY = TY + 600
+code('Чистка: нужна?', 'chistka_nuzhna.js', [X + 3360, KY], lib=True)
+if_node('Нужна чистка?', "$('Чистка: нужна?').first().json.need", [X + 3580, KY])
+http_post('Сервер: запусти чистку', ASSEMBLER + '/clean_start', "={{ JSON.stringify($('Чистка: нужна?').first().json.body) }}", [X + 3800, KY])
+code('Чистка: запущена?', 'chistka_zapushena.js', [X + 4020, KY], lib=True)
+sheets_update('Записываем чистку', SHEET, {
+    'sys_ProjectID': '={{ ' + CTX + '.projectId }}',
+    'sys_CleanTag': "={{ $('Чистка: запущена?').first().json.tag }}",
+    'sys_CleanState': "={{ $('Чистка: запущена?').first().json.state }}",
+    'sys_CleanStarted': "={{ $('Чистка: запущена?').first().json.started }}",
+    'sys_CleanSource': "={{ $('Чистка: запущена?').first().json.source }}",
+}, [X + 4240, KY])
+tg_send('Сообщаем о чистке', "={{ $('Чистка: запущена?').first().json.chatId }}", "={{ $('Чистка: запущена?').first().json.text }}", [X + 4460, KY])
+if_node('Чистка пошла?', "$('Чистка: запущена?').first().json.ok", [X + 4680, KY])
+add({'parameters': {'resume': 'webhook', 'httpMethod': 'POST', 'limitWaitTime': True,
+                    'limitType': 'afterTimeInterval',
+                    'resumeAmount': "={{ $runIndex === 0 ? $('Чистка: нужна?').first().json.alarmHours : 1 }}",
+                    'resumeUnit': 'hours', 'options': {}},
+     'name': 'Ждём стук Kaggle', 'type': 'n8n-nodes-base.wait', 'typeVersion': 1.1,
+     'position': [X + 4900, KY], 'webhookId': uid()})
+sheets_read('Перечитываем строку (чистка)', SHEET, [('sys_ProjectID', '={{ ' + CTX + '.projectId }}')], [X + 5120, KY])
+code('Чистка: что дальше', 'chistka_dalshe.js', [X + 5340, KY])
+switch_node('Чистка: куда?', "$('Чистка: что дальше').first().json.action", ['ask', 'failed', 'stop'], [X + 5560, KY])
+http_post('Сервер: как чистка', ASSEMBLER + '/clean_status', "={{ JSON.stringify($('Чистка: что дальше').first().json.statusBody) }}", [X + 5780, KY - 100])
+code('Чистка: итог', 'chistka_itog.js', [X + 6000, KY], lib=True)
+switch_node('Чистка: итог куда?', "$('Чистка: итог').first().json.action", ['done', 'failed', 'wait_more', 'gave_up'], [X + 6220, KY])
+sheets_update('Записываем итог чистки', SHEET, {
+    'sys_ProjectID': '={{ ' + CTX + '.projectId }}',
+    'sys_CleanState': "={{ $('Чистка: итог').first().json.state }}",
+    'sys_AudioZipUrl': "={{ $('Чистка: итог').first().json.audioUrl || $('Перечитываем строку (чистка)').first().json.sys_AudioZipUrl }}",
+}, [X + 6440, KY - 100])
+tg_send('Сообщаем итог чистки', "={{ $('Чистка: итог').first().json.chatId }}", "={{ $('Чистка: итог').first().json.text }}", [X + 6660, KY - 100])
+if_node('Собирать после чистки?', "$('Чистка: итог').first().json.action === 'done' && $('Чистка: итог').first().json.approved", [X + 6880, KY - 100])
+tg_send('Чистка ещё идёт', "={{ $('Чистка: итог').first().json.chatId }}", "={{ $('Чистка: итог').first().json.text }}", [X + 6440, KY + 150])
+
+link('Сохраняем ссылку на треки', 'Чистка: нужна?')
+link('Чистка: нужна?', 'Нужна чистка?')
+link('Нужна чистка?', 'Сервер: запусти чистку', 0)
+link('Нужна чистка?', 'Уже утверждено?', 1)
+chain('Сервер: запусти чистку', 'Чистка: запущена?', 'Записываем чистку', 'Сообщаем о чистке', 'Чистка пошла?')
+link('Чистка пошла?', 'Ждём стук Kaggle', 0)
+chain('Ждём стук Kaggle', 'Перечитываем строку (чистка)', 'Чистка: что дальше', 'Чистка: куда?')
+link('Чистка: куда?', 'Сервер: как чистка', 0)
+link('Чистка: куда?', 'Чистка: итог', 1)
+link('Сервер: как чистка', 'Чистка: итог')
+link('Чистка: итог', 'Чистка: итог куда?')
+link('Чистка: итог куда?', 'Записываем итог чистки', 0)
+link('Чистка: итог куда?', 'Записываем итог чистки', 1)
+link('Чистка: итог куда?', 'Чистка ещё идёт', 2)
+link('Чистка: итог куда?', 'Чистка ещё идёт', 3)
+link('Записываем итог чистки', 'Сообщаем итог чистки')
+link('Сообщаем итог чистки', 'Собирать после чистки?')
+link('Собирать после чистки?', 'Перечитываем строку (стена)', 0)
+# «ещё идёт» → снова ждём (будильник через час, стук по тому же адресу)
+
+# ═════════════ «как чистка?» / «статус» ═════════════
+SY = KY + 700
+code('Статус чистки', 'status_chistki.js', [X + 2700, SY], lib=True)
+if_node('Спросить сервер?', '$json.ask', [X + 2920, SY])
+http_post('Сервер: как чистка (статус)', ASSEMBLER + '/clean_status', '={{ JSON.stringify($json.statusBody) }}', [X + 3140, SY - 100])
+code('Статус чистки: ответ', 'status_chistki.js', [X + 3360, SY - 100], lib=True)
+if_node('Обновить строку (статус)?', '$json.update', [X + 3580, SY])
+sheets_update('Записываем статус чистки', SHEET, {
+    'sys_ProjectID': '={{ ' + CTX + '.projectId }}',
+    'sys_CleanState': '={{ $json.state }}',
+    'sys_AudioZipUrl': "={{ $json.audioUrl || " + CTX + ".row.sys_AudioZipUrl }}",
+}, [X + 3800, SY - 100])
+code('Статус чистки: текст', 'status_tekst.js', [X + 4020, SY])
+if_node('С кнопкой?', '$json.button', [X + 4240, SY])
+tg_send('Статус с кнопкой', '={{ $json.chatId }}', '={{ $json.text }}', [X + 4460, SY - 100],
+        button=('🎬 Собрать с этими треками', '={{ $json.callbackData }}'))
+tg_send('Статус без кнопки', '={{ $json.chatId }}', '={{ $json.text }}', [X + 4460, SY + 100])
+link('Куда дальше?', 'Статус чистки', 6)
+link('Статус чистки', 'Спросить сервер?')
+link('Спросить сервер?', 'Сервер: как чистка (статус)', 0)
+link('Спросить сервер?', 'Обновить строку (статус)?', 1)
+chain('Сервер: как чистка (статус)', 'Статус чистки: ответ', 'Обновить строку (статус)?')
+link('Обновить строку (статус)?', 'Записываем статус чистки', 0)
+link('Обновить строку (статус)?', 'Статус чистки: текст', 1)
+link('Записываем статус чистки', 'Статус чистки: текст')
+link('Статус чистки: текст', 'С кнопкой?')
+link('С кнопкой?', 'Статус с кнопкой', 0)
+link('С кнопкой?', 'Статус без кнопки', 1)
 
 # ═════════════ СТЕНА ПЕРЕД СБОРЩИКОМ ═════════════
 WX = X + 4900; WY = Y + 1600
@@ -462,6 +558,7 @@ tg_send('Сборку не запускаю', '={{ $json.chatId }}', '={{ $json.
 link('Треки уже есть?', 'Кнопка: собрать с этими треками', 0)
 link('Куда дальше?', 'Перечитываем строку (стена)', 5)
 link('Уже утверждено?', 'Перечитываем строку (стена)', 0)
+link('Чистка ещё идёт', 'Ждём стук Kaggle')
 chain('Перечитываем строку (стена)', 'Стена: проверяем таблицу', 'Всё на месте?')
 link('Всё на месте?', 'Треки получены, приступаю к сборке', 0)
 link('Всё на месте?', 'Сборку не запускаю', 1)

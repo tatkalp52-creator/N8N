@@ -314,5 +314,52 @@ async function parseEd(c, story) {
     assert.ok(u2.text.includes('Жду ссылку на треки'));
   }
   console.log('11 утвердить ≠ собрать OK');
+  // ── 12. Чистка «по событию»
+  {
+    const NB = 'https://www.kaggle.com/code/td1976/suno-clean';
+    const tm = { '🎬tmpl_CleanMode': 'knobs', '🎬tmpl_CleanNotebook': NB, '🎬tmpl_CleanAlarmHours': '4', '🎬tmpl_CleanRecheckTimes': '3' };
+    const ctxC = { projectId: 'P', chatId: 1, tmpl: tm, tracksUrl: 'https://drive.google.com/uc?export=download&id=Z', row: {} };
+    let n = (await run('Чистка: нужна?', { nodes: { 'Контекст проекта': ctxC } }))[0];
+    assert.equal(n.need, true); assert.equal(n.body.cleanMode, 'knobs'); assert.equal(n.body.cleanNotebook, NB); assert.equal(n.alarmHours, 4);
+    assert.equal((await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctxC, tracksUrl: NB } } }))[0].need, false, 'Kaggle-ссылка — без чистки');
+    assert.equal((await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctxC, tmpl: {} } } }))[0].need, false, 'способ не задан — без чистки');
+    const nz = { 'Контекст проекта': ctxC, 'Чистка: нужна?': n };
+    let z = (await run('Чистка: запущена?', { nodes: nz, input: [{ ok: true, tag: 'P-1', notebookUrl: NB }] }))[0];
+    assert.equal(z.ok, true); assert.equal(z.state, 'идёт'); assert.ok(z.text.includes('Чистка звука запущена (knobs)')); assert.ok(z.text.includes('за 4 ч'));
+    let zb = (await run('Чистка: запущена?', { nodes: nz, input: [{ ok: false, busy: true, error: 'Блокнот занят' }] }))[0];
+    assert.equal(zb.ok, false); assert.ok(zb.text.startsWith('⏳'));
+    let zf = (await run('Чистка: запущена?', { nodes: nz, input: [{ ok: false, error: 'квота' }] }))[0];
+    assert.ok(zf.text.includes('Не смогла запустить чистку: квота')); assert.ok(zf.state.startsWith('ошибка'));
+    const freshOk = { sys_CleanTag: 'P-1', sys_CleanState: 'идёт', sys_Status: 'Утверждено', sys_AudioZipUrl: 'drive' };
+    const dal = (w, fresh) => run('Чистка: что дальше', { nodes: { 'Чистка: запущена?': z, 'Перечитываем строку (чистка)': fresh || freshOk, 'Ждём стук Kaggle': w } });
+    assert.equal((await dal({ body: { tag: 'P-1', ok: true } }))[0].action, 'ask', 'стук «готово» → забрать архив');
+    let df = (await dal({ body: { tag: 'P-1', ok: false, error: 'OOM' } }))[0]; assert.equal(df.action, 'failed'); assert.equal(df.failure, 'OOM');
+    assert.equal((await dal({ ok: true, tag: 'P-1' }))[0].action, 'ask', 'будильник → спросить');
+    assert.equal((await dal({}, { ...freshOk, sys_CleanState: 'готово' }))[0].action, 'stop', 'уже обработано');
+    assert.equal((await dal({}, { ...freshOk, sys_CleanTag: 'P-2' }))[0].action, 'stop', 'запущена новая чистка');
+    const d = (await dal({ body: { tag: 'P-1', ok: true } }))[0];
+    const it = (srv, fresh, extra) => run('Чистка: итог', { nodes: { 'Контекст проекта': ctxC, 'Чистка: что дальше': extra || d, 'Перечитываем строку (чистка)': fresh || freshOk, ...(srv ? { 'Сервер: как чистка': srv } : {}) } });
+    let i1 = (await it({ state: 'complete', cached: true }))[0];
+    assert.equal(i1.action, 'done'); assert.equal(i1.audioUrl, NB + '#run=P-1'); assert.equal(i1.approved, true); assert.ok(i1.text.includes('Собираю видео'));
+    let i2 = (await it({ state: 'complete' }, { ...freshOk, sys_Status: 'Картинка согласована' }))[0];
+    assert.equal(i2.approved, false); assert.ok(i2.text.includes('после финальной ✅'));
+    let i3 = (await it({ state: 'error', message: 'quota' }))[0]; assert.equal(i3.action, 'failed'); assert.ok(i3.text.includes('quota'));
+    let i4 = (await it({ state: 'running' }))[0]; assert.equal(i4.action, 'wait_more');
+    let i5 = (await it(null, null, df))[0]; assert.equal(i5.action, 'failed'); assert.ok(i5.text.includes('OOM'));
+    // «как чистка?»
+    const rz = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { message: { chat: { id: 1 }, text: 'Как там чистка?', reply_to_message: { text: 'ID: 20260924_101010_pengui' } } } } }))[0];
+    assert.equal(rz.kind, 'cleanStatus');
+    assert.equal((await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { message: { chat: { id: 1 }, text: 'статусная вещь', reply_to_message: { text: 'ID: 20260924_101010_pengui' } } } } }))[0].kind, 'message');
+    const ctxS = row => ({ projectId: 'P', chatId: 1, tmpl: tm, row });
+    let s0 = (await run('Статус чистки', { nodes: { 'Контекст проекта': ctxS({}) } }))[0];
+    assert.equal(s0.ask, false); assert.ok(s0.text.includes('не запускалась'));
+    let s1 = (await run('Статус чистки', { nodes: { 'Контекст проекта': ctxS({ sys_CleanState: 'идёт', sys_CleanTag: 'P-1' }) } }))[0];
+    assert.equal(s1.ask, true); assert.equal(s1.statusBody.tag, 'P-1');
+    let s2 = (await run('Статус чистки: ответ', { nodes: { 'Контекст проекта': ctxS({ sys_CleanState: 'идёт', sys_CleanTag: 'P-1' }), 'Сервер: как чистка (статус)': { state: 'complete' } } }))[0];
+    assert.equal(s2.button, true); assert.equal(s2.update, true); assert.equal(s2.audioUrl, NB + '#run=P-1'); assert.equal(s2.state, 'готово');
+    let s3 = (await run('Статус чистки: ответ', { nodes: { 'Контекст проекта': ctxS({ sys_CleanState: 'идёт', sys_CleanTag: 'P-1', sys_CleanStarted: new Date(Date.now() - 30*60000).toISOString() }), 'Сервер: как чистка (статус)': { state: 'running' } } }))[0];
+    assert.ok(s3.text.includes('Чистка идёт (30 мин)'), s3.text); assert.equal(s3.button, false);
+  }
+  console.log('12 чистка по событию OK');
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
