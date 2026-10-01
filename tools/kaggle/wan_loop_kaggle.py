@@ -105,8 +105,10 @@ for k, v in vals.items():
     else: missing.append(k)
 if missing:
     print('⚠️ не нашла в скрипте:', missing, '— пришли это Клоду')
-open('/tmp/predict_loop.py', 'w').write(s)
-sh('cd /tmp/VideoX-Fun && python /tmp/predict_loop.py')
+# Скрипт кладём рядом с оригиналом: он ищет свои модули относительно своей папки
+loop_script = os.path.join(os.path.dirname(script), 'predict_loop.py')
+open(loop_script, 'w').write(s)
+sh(f'cd /tmp/VideoX-Fun && PYTHONPATH=/tmp/VideoX-Fun python {loop_script}')
 vids = sorted(glob.glob('/tmp/out/**/*.mp4', recursive=True), key=os.path.getmtime)
 assert vids, 'Видео не появилось — пришли Клоду последние строки лога'
 raw = vids[-1]
