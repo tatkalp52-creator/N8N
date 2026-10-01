@@ -22,7 +22,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-01-clean-events"
+ASSEMBLER_VERSION = "2026-10-01-effects"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1108,7 +1108,7 @@ def collect_fx_filters(data, registry, *args):
 #   оба                                    -> петля + события поверх неё
 # Петля и события должны начинаться и заканчиваться исходной картинкой
 # (так их делает блокнот Wan: первый кадр = последний = картинка).
-MEDIA_FX_KEYS = ("fx_LoopUrl", "fx_EventUrls")
+MEDIA_FX_KEYS = ("fx_LoopUrl", "fx_EventUrls", "fx_Effects")
 
 
 def piece_codec_args(fps):
@@ -1224,6 +1224,196 @@ def plan_body(duration, intro, loop_len, event_lens, gap_min, gap_max, seed):
     return parts, big
 
 
+# ЭФФЕКТЫ (01.10): нарисованная поверх картинки анимация без нейросетей — пар над
+# чашкой, пузыри у рыбки, моргание. Строка проекта fx_Effects, по строчке на эффект,
+# числа — проценты кадра:
+#   пар: 68.4, 58.4             (точка поверхности напитка или край кружки)
+#   пузыри: 86.9, 73.6, 67.0    (рот рыбки; высота поверхности воды)
+#   моргание: 74.0, 63.0        (глаз; точный центр сборщик находит сам рядом)
+# Из этого рисуется бесшовная петля EFFECTS_LOOP_SECONDS и идёт как обычная петля.
+# Вид — 🎬-настройки (steamOpacity, steamHeight); пусто — как в утверждённой пробе.
+EFFECTS_LOOP_SECONDS = 6.0
+EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", "bubbles": "bubbles",
+                "моргание": "blink", "blink": "blink", "глаз": "blink"}
+
+
+def parse_effects(text):
+    out = []
+    for line in str(text or "").splitlines():
+        m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", line)
+        if not m:
+            continue
+        kind = EFFECT_NAMES.get(m.group(1).strip().lower())
+        nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2))]
+        if kind and len(nums) >= 2:
+            out.append((kind, nums))
+        else:
+            print(f"[effects] не поняла строку: {line!r}")
+    return out
+
+
+def render_effects_loop(image_path, spec, data, fps, out_path):
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:  # numpy и pillow ставятся сюда (переживают Deploy)
+        _sys.path.insert(0, "/app/pylibs")
+    import math
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter
+
+    def _num(key, default):
+        try:
+            v = float(data.get(key))
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+    steam_opacity = _num("steamOpacity", 0.62)
+    steam_height = _num("steamHeight", 1.0)
+
+    src = Image.open(image_path).convert("RGB")
+    W, H = src.size
+    base = np.asarray(src, np.float32)
+    k = H / 864.0  # пробу рисовали на кадре 1536x864
+    SS = 4
+    rng = np.random.default_rng(3)
+    n_frames = int(round(EFFECTS_LOOP_SECONDS * fps))
+    layers = []
+
+    for kind, nums in spec:
+        px, py = nums[0] / 100 * W, nums[1] / 100 * H
+        if kind == "steam":
+            bw, bh = int(150 * k), int(165 * k * steam_height)
+            x0, y0 = int(px - bw / 2), int(py - bh)
+            grain = np.asarray(Image.fromarray(rng.uniform(0, 255, (bh, bw)).astype(np.uint8))
+                               .filter(ImageFilter.GaussianBlur(0.6 * k)), np.float32) / 255
+            grain = 0.6 + 0.4 * grain
+            wisps = [dict(bx=-10, A=15, f=1.6, ph=0.0, m=2.0, mp=0.1, w=1.1),
+                     dict(bx=1, A=19, f=1.4, ph=2.3, m=2.4, mp=0.55, w=1.3),
+                     dict(bx=11, A=13, f=1.8, ph=4.1, m=1.8, mp=0.85, w=1.0)]
+
+            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps):
+                t = (t % 3.0) / 3.0  # своя петля 3 с, в 6-секундной — дважды
+                can = Image.new("L", (bw * SS, bh * SS), 0)
+                d = ImageDraw.Draw(can)
+                for w in wisps:
+                    S = 140
+                    pts = []
+                    for i in range(S + 1):
+                        s = i / S
+                        x = bw / 2 + k * (w["bx"] * (1 - 0.5 * s) + w["A"] * s ** 0.9 *
+                                          math.sin(2 * math.pi * (w["f"] * s - t) + w["ph"]))
+                        pts.append((x, bh - 1 - s * (bh - 6), s))
+                    for i in range(S):
+                        xa, ya, s = pts[i]
+                        xb, yb, _ = pts[i + 1]
+                        fade = min(1, s / 0.04) * max(0, min(1, (0.95 - s) / 0.45))
+                        dash = 0.5 + 0.5 * math.sin(2 * math.pi * (w["m"] * s - 2 * t) + w["mp"] * 6.28)
+                        a = fade * (0.3 + 0.7 * dash ** 1.3)
+                        if a > 0.01:
+                            d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
+                                   width=max(1, int((2.0 + 3.8 * s) * w["w"] * k * SS)))
+                al = np.asarray(can.resize((bw, bh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.9 * k)),
+                                np.float32) / 255 * grain * steam_opacity
+                return x0, y0, al, np.array([246, 241, 231], np.float32)
+            layers.append(steam)
+
+        elif kind == "bubbles":
+            surf = (nums[2] / 100 * H) if len(nums) > 2 else py - 0.07 * H
+            bw, bh = int(70 * k), int(py - surf + 20 * k)
+            x0, y0 = int(px - 35 * k), int(surf - 10 * k)
+
+            def bubbles(t, px=px, py=py, surf=surf, bw=bw, bh=bh, x0=x0, y0=y0):
+                items = []
+                for start in (0.6, 3.6):
+                    for j in range(3):
+                        age = t - (start + j * 0.28)
+                        life = 1.45
+                        if 0 <= age <= life:
+                            p = age / life
+                            y = py - p * (py - surf)
+                            x = px + k * (-2 - j * 1.2 + 2.2 * math.sin(2 * math.pi * (p * 1.6 + j * 0.3)))
+                            a = min(1, age / 0.12) * (1 if p < 0.85 else max(0, (1 - p) / 0.15))
+                            items.append((x, y, k * (1.5 + 1.3 * p), a))
+                if not items:
+                    return None
+                ring = Image.new("L", (bw * SS, bh * SS), 0)
+                fill = Image.new("L", (bw * SS, bh * SS), 0)
+                dr, df = ImageDraw.Draw(ring), ImageDraw.Draw(fill)
+                for x, y, r, a in items:
+                    X, Y, R = (x - x0) * SS, (y - y0) * SS, r * SS
+                    dr.ellipse([X - R, Y - R, X + R, Y + R], outline=int(255 * a), width=max(1, int(0.8 * k * SS)))
+                    df.ellipse([X - R, Y - R, X + R, Y + R], fill=int(255 * a * 0.15))
+                    hr = R * 0.3
+                    df.ellipse([X - R * 0.45 - hr, Y - R * 0.45 - hr, X - R * 0.45 + hr, Y - R * 0.45 + hr],
+                               fill=int(255 * a * 0.8))
+                al = np.maximum(np.asarray(ring.resize((bw, bh), Image.LANCZOS), np.float32),
+                                np.asarray(fill.resize((bw, bh), Image.LANCZOS), np.float32)) / 255 * 0.8
+                return x0, y0, al, np.array([236, 240, 236], np.float32)
+            layers.append(bubbles)
+
+        elif kind == "blink":
+            # точный центр глаза — самая тёмная точка рядом с указанной
+            # (тёмное рядом бывает и клювом — поэтому дальние точки «дороже»)
+            rad = int(7 * k)
+            gx0, gy0 = max(0, int(px) - rad), max(0, int(py) - rad)
+            lum = np.asarray(src.convert("L").crop((gx0, gy0, gx0 + 2 * rad, gy0 + 2 * rad))
+                             .filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32)
+            gy_, gx_ = np.mgrid[0:lum.shape[0], 0:lum.shape[1]].astype(np.float32)
+            cost = lum + 6.0 / k * np.hypot(gx_ + gx0 - px, gy_ + gy0 - py)
+            iy, ix = np.unravel_index(np.argmin(cost), cost.shape)
+            ex, ey = gx0 + ix + 0.5, gy0 + iy + 0.5
+            r = 5 * k
+            pad = int(r * 2.2)
+            bx0, by0, bw, bh = int(ex) - pad, int(ey) - pad, 2 * pad, 2 * pad
+            patch = base[by0:by0 + bh, bx0:bx0 + bw].copy()
+            yy, xx = np.mgrid[0:bh, 0:bw].astype(np.float32)
+            dist = np.hypot(xx + bx0 - ex, yy + by0 - ey)
+            ring = (dist > r * 1.3) & (dist < r * 2.0)
+            feather = patch[ring].mean(axis=0)  # цвет пёрышек вокруг глаза
+            cover = np.clip((r * 1.25 - dist) / (0.5 * k + 1e-6), 0, 1)[..., None]
+            closed = patch * (1 - cover) + feather * cover
+            lid = Image.new("L", (bw * SS, bh * SS), 0)
+            dl = ImageDraw.Draw(lid)
+            dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.4 * k + 1.8 * k * (1 - (dx / (4.2 * k)) ** 2)) * SS)
+                     for dx in np.linspace(-4.2 * k, 4.2 * k, 20)],
+                    fill=255, width=max(1, int(1.3 * k * SS)), joint="curve")
+            la = np.asarray(lid.resize((bw, bh), Image.LANCZOS), np.float32)[..., None] / 255 * 0.85
+            closed = closed * (1 - la) + np.array([78, 56, 34], np.float32) * la
+            soft = np.clip((pad - np.maximum(abs(xx - pad), abs(yy - pad))) / (0.3 * pad), 0, 1)
+
+            def blink(t, closed=closed, soft=soft, bx0=bx0, by0=by0):
+                c = 0.0
+                for at in (1.75, 4.40, 4.62):
+                    if abs(t - at) < 0.09:
+                        c = 1.0 if abs(t - at) < 0.045 else 0.5
+                if not c:
+                    return None
+                return bx0, by0, soft * c, closed
+            layers.append(blink)
+
+    frames_dir = out_path + "_frames"
+    os.makedirs(frames_dir, exist_ok=True)
+    for f in range(n_frames):
+        t = f / fps
+        out = base.copy()
+        for layer in layers:
+            res = layer(t)
+            if res is None:
+                continue
+            x0, y0, al, color = res
+            h, w = al.shape[:2]
+            ya, yb, xa, xb = max(0, y0), min(H, y0 + h), max(0, x0), min(W, x0 + w)
+            a = al[ya - y0:yb - y0, xa - x0:xb - x0]
+            a = a[..., None] if a.ndim == 2 else a
+            col = color[ya - y0:yb - y0, xa - x0:xb - x0] if color.ndim == 3 else color
+            out[ya:yb, xa:xb] = out[ya:yb, xa:xb] * (1 - a) + col * a
+        Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(os.path.join(frames_dir, f"{f:04d}.png"))
+    run_ffmpeg(["-framerate", str(fps), "-i", os.path.join(frames_dir, "%04d.png"),
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-pix_fmt", "yuv420p", out_path])
+    shutil.rmtree(frames_dir, ignore_errors=True)
+    print(f"[effects] петля {EFFECTS_LOOP_SECONDS:g} с: " + ", ".join(k_ for k_, _ in spec))
+    return out_path
+
+
 def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, base_chain,
                             shadow_layers, main_layers, shadow_blur, overlay_visible_until,
                             audio_chain, output_path, project_id):
@@ -1243,6 +1433,13 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
     loop_path, loop_len = None, 0.0
     if loop_url:
         raw = download_media(loop_url, os.path.join(pdir, "loop_src.mp4"))
+        loop_path = normalize_clip(raw, os.path.join(pdir, "loop_norm.mp4"), fps)
+        loop_len = media_duration(loop_path)
+    effects = parse_effects(data.get("fx_Effects"))
+    if effects and loop_path:
+        print("[effects] есть fx_LoopUrl — эффекты пропускаю (одна петля на видео)")
+    elif effects:
+        raw = render_effects_loop(image_path, effects, data, fps, os.path.join(pdir, "effects_src.mp4"))
         loop_path = normalize_clip(raw, os.path.join(pdir, "loop_norm.mp4"), fps)
         loop_len = media_duration(loop_path)
     events = []
