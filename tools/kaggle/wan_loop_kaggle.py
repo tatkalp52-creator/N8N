@@ -43,7 +43,7 @@ shutil.rmtree('/tmp/img', ignore_errors=True); os.makedirs('/tmp/img')
 src = gdown.download(IMAGE_LINK.strip(), output='/tmp/img/', fuzzy=True, quiet=False)
 orig = Image.open(src).convert('RGB')
 W, H = orig.size
-scale = 832 / max(W, H)
+scale = 640 / max(W, H)  # T4 (15 ГБ): 832 не помещается в память; двигается только область, так что хватает
 mw, mh = int(W * scale) // 16 * 16, int(H * scale) // 16 * 16
 orig.resize((mw, mh), Image.LANCZOS).save('/tmp/start.png')
 print('Картинка:', (W, H), '→ модель', (mw, mh))
@@ -85,7 +85,7 @@ script = '/tmp/VideoX-Fun/examples/wan2.1_fun/predict_i2v.py'
 s = open(script).read()
 fps = 16
 vals = {
-    'GPU_memory_mode': '"model_cpu_offload"',
+    'GPU_memory_mode': '"sequential_cpu_offload"',  # T4: модель в видеокарту по частям, иначе не хватает памяти
     'model_name': repr(MODEL),
     'sample_size': f'[{mh}, {mw}]',
     'video_length': str(SECONDS * fps + 1),
@@ -108,7 +108,7 @@ if missing:
 # Скрипт кладём рядом с оригиналом: он ищет свои модули относительно своей папки
 loop_script = os.path.join(os.path.dirname(script), 'predict_loop.py')
 open(loop_script, 'w').write(s)
-sh(f'cd /tmp/VideoX-Fun && PYTHONPATH=/tmp/VideoX-Fun python {loop_script}')
+sh(f'cd /tmp/VideoX-Fun && PYTORCH_ALLOC_CONF=expandable_segments:True PYTHONPATH=/tmp/VideoX-Fun python {loop_script}')
 vids = sorted(glob.glob('/tmp/out/**/*.mp4', recursive=True), key=os.path.getmtime)
 assert vids, 'Видео не появилось — пришли Клоду последние строки лога'
 raw = vids[-1]
