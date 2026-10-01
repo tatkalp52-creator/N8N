@@ -30,6 +30,13 @@ sh(f'{sys.executable} -m pip -q install -r /tmp/diffusers/examples/dreambooth/re
 sh(f'{sys.executable} -m pip -q install -U peft bitsandbytes gdown datasets')
 # старый torchao из образа Kaggle ломает свежий diffusers; нам он не нужен
 sh(f'{sys.executable} -m pip -q uninstall -y torchao')
+# свежий peft — в свою папку, и обучение смотрит туда первым (в образе Kaggle
+# старый peft лежит так, что обычное обновление его не перекрывает)
+sh(f'{sys.executable} -m pip -q install --no-deps --upgrade --target /tmp/pylibs peft')
+os.environ['PYTHONPATH'] = '/tmp/pylibs' + (':' + os.environ['PYTHONPATH'] if os.environ.get('PYTHONPATH') else '')
+sys.path.insert(0, '/tmp/pylibs')
+sh(f'cd /tmp/diffusers/examples/dreambooth && {sys.executable} -c "import peft; print(\'peft\', peft.__version__, peft.__file__); '
+   f'from diffusers import AutoencoderKL, StableDiffusionXLPipeline; import diffusers.loaders.peft; print(\'ПРОВЕРКА ПРОШЛА\')"')
 import torch
 assert torch.cuda.is_available(), 'Нет видеокарты: Settings → Accelerator → GPU T4 x2'
 print('Видеокарта:', torch.cuda.get_device_name(0))
