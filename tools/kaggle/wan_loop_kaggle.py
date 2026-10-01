@@ -57,7 +57,9 @@ if AREA.strip().lower() in ('auto', 'авто', ''):
     with torch.no_grad():
         o = det(**inp)
     side = max(W, H)  # OWLv2 дополняет картинку до квадрата
-    res = proc.post_process_object_detection(o, threshold=0.05, target_sizes=torch.tensor([[side, side]]))[0]
+    # В новых transformers эта функция переехала из процессора в image_processor
+    post = getattr(proc, 'post_process_object_detection', None) or proc.image_processor.post_process_object_detection
+    res = post(o, threshold=0.05, target_sizes=torch.tensor([[side, side]]))[0]
     assert len(res['scores']), f'Не нашла «{WHAT}» — поменяй WHAT или задай AREA числами'
     i = int(res['scores'].argmax())
     x1, y1, x2, y2 = [float(v) for v in res['boxes'][i]]
