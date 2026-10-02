@@ -16,6 +16,11 @@ return [{
       projectId: ctx.projectId, tracksUrl: url, cleanMode: mode,
       cleanNotebook: val('tmpl_CleanNotebook'),
       cleanBlend: val('tmpl_CleanBlend'), cleanBlendStems: val('tmpl_CleanBlendStems'),
+      // все ручки чистки из таблицы: 🎬tmpl_CleanXxx → { Xxx: значение }
+      cleanSettings: Object.fromEntries(Object.keys(tmpl)
+        .map(k => [k, (String(k).match(/tmpl_Clean(\w+)$/) || [])[1]])
+        .filter(([k, name]) => name && String(tmpl[k] ?? '').trim() !== '')
+        .map(([k, name]) => [name, String(tmpl[k]).trim()])),
       callbackUrl,
     },
     mode,

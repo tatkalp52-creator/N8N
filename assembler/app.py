@@ -22,7 +22,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-02-grade"
+ASSEMBLER_VERSION = "2026-10-02-loudreport"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -351,6 +351,22 @@ def clean_start(data):
         code = set_setting_line(code, "BLEND", str(float(data.get("cleanBlend"))))
     if data.get("cleanBlendStems") not in (None, ""):
         code = set_setting_line(code, "BLEND_STEMS", repr(str(data.get("cleanBlendStems"))))
+    # НОВОЕ (02.10): любые прочие ручки чистки из таблицы (🎬tmpl_CleanXxx →
+    # cleanSettings {"Xxx": ...}) — в строку XXX блокнота, если такая строка есть.
+    # Новая ручка = новая строка в блокноте + столбец в таблице, без правки сервера и бота.
+    for key, value in (data.get("cleanSettings") or {}).items():
+        name = re.sub(r"(?<!^)(?=[A-Z])", "_", str(key)).upper()
+        if name in ("MODE", "TRACKS_LINK", "RUN_TAG", "CALLBACK_URL") or str(value).strip() == "":
+            continue
+        if not re.search(rf"^{name}\s*=", code, flags=re.M):
+            continue
+        text = str(value).strip()
+        try:
+            float(text)
+            value_repr = text
+        except ValueError:
+            value_repr = repr(text)
+        code = set_setting_line(code, name, value_repr)
     code = set_setting_line(code, "RUN_TAG", repr(tag))
     code = set_setting_line(code, "CALLBACK_URL", repr(str(data.get("callbackUrl") or "")))
     notebook = {"cells": [{"cell_type": "code", "metadata": {}, "execution_count": None,
@@ -693,6 +709,58 @@ def gain_to_target(input_path, target_lufs):
     return f"volume={target_lufs - float(measured['input_i']):.4f}dB"
 
 
+# НОВОЕ (02.10): отчёт о громкости по трекам — только замер, звук не меняет.
+# Автор слышит, что на стыке некоторые треки «выстреливают» громче соседей,
+# хотя каждый выровнен по средней громкости. Отчёт показывает по каждому
+# треку: среднюю громкость до выравнивания, разброс (LRA), пик, поправку и
+# громкость первых и последних 15 секунд уже готового трека; ниже — стыки,
+# где конец одного и начало следующего расходятся на 3 дБ и больше.
+def segment_loudness(path, start, length):
+    result = subprocess.run(
+        [FFMPEG_BIN, "-ss", f"{max(0.0, start):.2f}", "-t", f"{length:.2f}", "-i", path,
+         "-af", "ebur128", "-f", "null", "-"],
+        capture_output=True, text=True
+    )
+    found = re.findall(r"I:\s*(-?[\d.]+)\s*LUFS", result.stderr)
+    return float(found[-1]) if found else None
+
+
+def track_loudness_entry(n, raw_path, source_path, faded_path, duration, target_lufs, fade_in, fade_out):
+    m = measure_loudnorm(source_path, target_lufs) or {}
+    num = lambda k: float(m[k]) if k in m else None
+    src_i = num("input_i")
+    window = min(15.0, max(1.0, duration / 3))
+    return {
+        "n": n, "name": os.path.basename(raw_path), "duration": round(duration, 1),
+        "sourceLufs": src_i, "lra": num("input_lra"), "peak": num("input_tp"),
+        "gainDb": round(target_lufs - src_i, 2) if src_i is not None else None,
+        "headLufs": segment_loudness(faded_path, fade_in, window),
+        "tailLufs": segment_loudness(faded_path, duration - fade_out - window, window),
+    }
+
+
+def format_loudness_report(entries, target_lufs):
+    f = lambda v: "—" if v is None else f"{v:g}"
+    lines = [f"Громкость по трекам (цель {target_lufs} LUFS)",
+             "№ | длит, с | было LUFS | разброс LRA | пик | поправка дБ | начало | конец | файл"]
+    for e in entries:
+        lines.append(" | ".join([str(e["n"]), f(e["duration"]), f(e["sourceLufs"]), f(e["lra"]), f(e["peak"]),
+                                 f(e["gainDb"]), f(e["headLufs"]), f(e["tailLufs"]), e["name"]]))
+    lines.append("")
+    lines.append("Стыки (конец трека → начало следующего, разница 3 дБ и больше):")
+    jumps = 0
+    for a, b in zip(entries, entries[1:]):
+        if a["tailLufs"] is None or b["headLufs"] is None:
+            continue
+        diff = b["headLufs"] - a["tailLufs"]
+        if abs(diff) >= 3:
+            jumps += 1
+            lines.append(f"{a['n']} → {b['n']}: {a['tailLufs']:g} → {b['headLufs']:g} ({diff:+.1f} дБ)")
+    if not jumps:
+        lines.append("нет")
+    return "\n".join(lines)
+
+
 # Потолок лимитера на отдельном треке: -1.5 dBFS — тот же запас по пику,
 # что и в linear_gain_filter выше.
 TRACK_PEAK_LIMIT = 10 ** (-1.5 / 20)
@@ -703,7 +771,7 @@ def build_audio_track(
     gap_seconds=0, loop_count=None, mix_seconds=None,
     compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
-    denoise_amount=0,
+    denoise_amount=0, loudness_report=None,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -803,6 +871,13 @@ def build_audio_track(
         faded_path = os.path.join(faded_dir, f"faded_{i}.wav")
         run_ffmpeg(["-i", leveled_path, "-af", ",".join(af_parts), faded_path])
         faded_tracks.append(faded_path)
+        if loudness_report is not None:
+            try:
+                loudness_report.append(track_loudness_entry(
+                    i + 1, tracks_raw[i], source_path, faded_path, duration,
+                    target_lufs, fade_in_seconds, fade_out_seconds))
+            except Exception as report_error:
+                print(f"[громкость] трек {i + 1}: замер не удался: {report_error}")
 
     # НОВОЕ (09.09): два взаимоисключающих режима склейки, оба на уже
     # готовых (сглаженных) треках — MIX (mix_seconds задан) просто честно
@@ -1597,8 +1672,9 @@ def assemble():
         limiter_attack_ms = float(data.get("limiterAttackMs", 5))
         limiter_release_ms = float(data.get("limiterReleaseMs", 50))
         denoise_amount = float(data.get("denoiseAmount", 0))
+        loudness_report = []
         audio_path, duration = build_audio_track(
-            audio_zip_url, work_dir,
+            audio_zip_url, work_dir, loudness_report=loudness_report,
             target_lufs=target_lufs,
             fade_in_seconds=fade_in_seconds,
             fade_out_seconds=fade_out_seconds,
@@ -1617,6 +1693,15 @@ def assemble():
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
         # просто пишет в лог сервера, если что-то разъехалось с целью.
         check_loudness(audio_path, target_lufs)
+        if loudness_report:
+            report_text = format_loudness_report(loudness_report, target_lufs)
+            print(report_text)
+            try:
+                os.makedirs(THUMBNAIL_DIR, exist_ok=True)
+                with open(os.path.join(THUMBNAIL_DIR, f"{project_id}_loudness.txt"), "w", encoding="utf-8") as fh:
+                    fh.write(report_text + "\n")
+            except Exception as report_error:
+                print(f"[громкость] отчёт не записан: {report_error}")
 
         fps = 5
         duration_frames = int(duration * fps)
@@ -1793,6 +1878,15 @@ def get_thumbnail(project_id):
     if not os.path.exists(thumbnail_path):
         return jsonify({"error": "thumbnail not found, may not have been generated yet"}), 404
     return send_file(thumbnail_path, mimetype="image/jpeg")
+
+
+# НОВОЕ (02.10): отчёт о громкости последней сборки выпуска (текст).
+@app.route("/loudness/<project_id>", methods=["GET"])
+def get_loudness_report(project_id):
+    report_path = os.path.join(THUMBNAIL_DIR, f"{project_id}_loudness.txt")
+    if not os.path.exists(report_path):
+        return "отчёта нет: выпуск ещё не собирался этой версией сборщика\n", 404
+    return send_file(report_path, mimetype="text/plain; charset=utf-8")
 
 
 @app.route("/clean_start", methods=["POST"])

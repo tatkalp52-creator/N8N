@@ -9,9 +9,13 @@ MODE = "aggressive"  # способ чистки — то, что победил
 #   "normal"      — aufr33 normal (бережнее)
 #   "gabox"       — gabox denoise-debleed
 #   "uvr"         — UVR-DeNoise
-#   "layers"      — по слоям: разложить на инструменты, почистить каждый, вернуть громкость
+#   "layers"      — по слоям: разложить на инструменты, почистить каждый (LAYERS_MODEL), вернуть громкость;
+#                   щётки/тарелки (drums) — своей моделью DRUMS_MODEL и своей громкостью DRUMS_DB
 #   "knobs"       — шум отдельно → удалить → ручки по инструментам (EQ до/после, только подъём ≤ +6 дБ)
 SPEED = "quality"    # "quality" — аккуратнее; "fast" — вдвое быстрее
+LAYERS_MODEL = "aggressive"  # режим layers: чем чистить инструменты (aggressive / normal / gabox / uvr)
+DRUMS_MODEL = "aggressive"   # режим layers: чем чистить щётки и тарелки; "нет" — не чистить совсем
+DRUMS_DB = 0                 # режим layers: громкость щёток после чистки, дБ (-2 = чуть тише; 0 — как были)
 BLEND = 0            # сколько ИСХОДНОГО звука подмешать обратно после чистки (0.10 = 10%) — «жизнь» инструментам; 0 — не подмешивать
 BLEND_STEMS = "guitar, other, vocals"  # к каким слоям подмешивать; пусто — ко всему треку.
 #   Слои: bass (контрабас), drums (щётки), guitar (гитара), piano (фортепиано), other и vocals (сюда обычно уходит кларнет)
@@ -42,7 +46,8 @@ def main():
     import torch, gdown, numpy as np, soundfile as sf
     from scipy.signal import stft, istft
     assert torch.cuda.is_available(), 'Нет видеокарты: Settings → Accelerator → GPU T4 x2'
-    print('Видеокарта:', torch.cuda.get_device_name(0), '| способ:', MODE)
+    print('Видеокарта:', torch.cuda.get_device_name(0), '| способ:', MODE,
+          f'| слои: {LAYERS_MODEL}, щётки: {DRUMS_MODEL or "без чистки"} {DRUMS_DB:+g} дБ' if MODE == 'layers' else '')
 
     assert TRACKS_LINK.strip(), 'Вставь ссылку на архив в TRACKS_LINK'
     shutil.rmtree('/tmp/src', ignore_errors=True); os.makedirs('/tmp/src')
@@ -152,9 +157,18 @@ def main():
                 r0 = np.sqrt(np.mean(x ** 2)) + 1e-9
                 if r0 < 1e-4:
                     continue
-                y, _ = sf.read(denoise(st, MODELS['aggressive'], f'{d}/dn_{label}'))
-                y = y[:len(x)]
-                y = y * min(r0 / (np.sqrt(np.mean(y ** 2)) + 1e-9), 10 ** (3 / 20))
+                model = str(DRUMS_MODEL if label == 'drums' else LAYERS_MODEL).strip().lower()
+                if model in ('нет', 'none', 'no', '0', '-'):
+                    model = ''
+                assert not model or model in MODELS, f'Неизвестная модель чистки: {model} (есть: {", ".join(MODELS)})'
+                if model:
+                    y, _ = sf.read(denoise(st, MODELS[model], f'{d}/dn_{label}'))
+                    y = y[:len(x)]
+                    y = y * min(r0 / (np.sqrt(np.mean(y ** 2)) + 1e-9), 10 ** (3 / 20))
+                else:
+                    y = x
+                if label == 'drums' and float(DRUMS_DB):
+                    y = y * 10 ** (float(DRUMS_DB) / 20)
                 parts.append(y)
             return mix(parts, wav, f'{d}/clean.wav')
         if MODE == 'knobs':
