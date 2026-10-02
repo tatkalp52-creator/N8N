@@ -146,6 +146,9 @@ train(f'cd /tmp/diffusers/examples/dreambooth && accelerate launch --mixed_preci
 shutil.copy('/tmp/lora_out/pytorch_lora_weights.safetensors', f'{OUT}/pengui_lora.safetensors')
 
 # 4. Пробные сцены
+# diffusers поставлен в этой же сессии (-e), ядро его само не видит — показываем путь
+sys.path.insert(0, '/tmp/diffusers/src')
+import importlib; importlib.invalidate_caches()
 from diffusers import StableDiffusionXLPipeline, AutoencoderKL
 vae = AutoencoderKL.from_pretrained('madebyollin/sdxl-vae-fp16-fix', torch_dtype=torch.float16)
 pipe = StableDiffusionXLPipeline.from_pretrained('stabilityai/stable-diffusion-xl-base-1.0', vae=vae,
