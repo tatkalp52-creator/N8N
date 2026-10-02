@@ -433,7 +433,8 @@
       },
       "retryOnFail": true,
       "maxTries": 5,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -1297,6 +1298,35 @@
           "name": "Google Sheets account 2"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Загрузка на YouTube не прошла. Сетевая заминка (сервер не дозвонился до Google) —\n// ждём 10 минут и пробуем снова, до трёх раз. Любая другая ошибка (ключи, лимиты,\n// «доступ запрещён») или три неудачи подряд — сразу останавливаемся, и автору\n// приходит обычное сообщение о сбое.\nconst err = $json.error || {};\nconst msg = String(err.message || err.description || err || '');\nconst network = /ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH|socket hang up|timed? ?out/i.test(msg);\nconst attempt = $runIndex + 1;\nif (!network || attempt > 3) {\n  throw new Error((network ? 'YouTube недоступен уже ~30 минут (3 попытки). ' : '') + 'Загрузка на YouTube: ' + msg);\n}\nconst src = $('Какой канал?').first();\nreturn [{ json: { ...src.json, uploadRetry: attempt, uploadRetryReason: msg }, binary: src.binary }];\n"
+      },
+      "id": "0b07b28a-9b64-42ff-8dc2-a7f1a3304557",
+      "name": "Сеть подвела? Повторим",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7808,
+        2944
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 10,
+        "unit": "minutes"
+      },
+      "id": "5dc5932a-907c-4cc5-8955-6281d792f51b",
+      "name": "Ждём 10 минут перед повтором",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        8032,
+        2944
+      ],
+      "webhookId": "9b8374e1-0a1d-4f67-89a7-82941068e924"
     }
   ],
   "pinData": {},
@@ -1558,6 +1588,13 @@
           },
           {
             "node": "Ставим статус Опубликовано",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Сеть подвела? Повторим",
             "type": "main",
             "index": 0
           }
@@ -1886,6 +1923,28 @@
         [
           {
             "node": "Готовим запрос на названия треков",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сеть подвела? Повторим": {
+      "main": [
+        [
+          {
+            "node": "Ждём 10 минут перед повтором",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ждём 10 минут перед повтором": {
+      "main": [
+        [
+          {
+            "node": "Загружаем на YouTube",
             "type": "main",
             "index": 0
           }
