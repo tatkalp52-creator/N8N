@@ -104,14 +104,42 @@ with open(f'{DS}/metadata.jsonl', 'w') as f:
 print('Картинок в наборе:', len(meta))
 
 # 3. Обучение
-sh(f'cd /tmp/diffusers/examples/dreambooth && accelerate launch --mixed_precision=fp16 --num_processes=1 '
+# Полоска прогресса пишется через \r, и в логе Kaggle её не видно часами.
+# Поэтому вывод режем по \r и печатаем отдельной строкой каждые 50 шагов.
+import re, time
+def train(cmd):
+    print('>', cmd, flush=True)
+    t0 = time.time(); last = -1; tail = []
+    pr = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    buf = b''
+    while True:
+        ch = pr.stdout.read(4096)
+        if not ch:
+            break
+        buf += ch
+        parts = re.split(rb'[\r\n]', buf); buf = parts.pop()
+        for ln in parts:
+            t = ln.decode('utf-8', 'replace').strip()
+            if not t:
+                continue
+            tail = (tail + [t])[-40:]
+            m = re.search(r'Steps:\s*\d+%.*?(\d+)/(\d+)', t)
+            if m:
+                n = int(m.group(1))
+                if n // 50 != last // 50 or (n == int(m.group(2)) and n != last):
+                    last = n
+                    print(f'ШАГ {n}/{m.group(2)} · {int((time.time() - t0) // 60)} мин', flush=True)
+    if pr.wait() != 0:
+        print('\n'.join(tail))
+        raise SystemExit('Обучение упало — пришли этот лог')
+train(f'cd /tmp/diffusers/examples/dreambooth && accelerate launch --mixed_precision=fp16 --num_processes=1 '
    f'train_dreambooth_lora_sdxl.py '
    f'--pretrained_model_name_or_path=stabilityai/stable-diffusion-xl-base-1.0 '
    f'--pretrained_vae_model_name_or_path=madebyollin/sdxl-vae-fp16-fix '
    f'--dataset_name={DS} --image_column=image --caption_column=text '
    f'--instance_prompt="pengui" '
    f'--output_dir=/tmp/lora_out --resolution={RES} --random_flip '
-   f'--train_batch_size=1 --gradient_accumulation_steps=2 --gradient_checkpointing '
+   f'--train_batch_size=1 --gradient_accumulation_steps=1 --gradient_checkpointing '
    f'--use_8bit_adam --learning_rate={LR} --lr_scheduler=constant --lr_warmup_steps=0 '
    f'--rank={RANK} --max_train_steps={STEPS} --checkpointing_steps=100000 '
    f'--mixed_precision=fp16 --seed=42')
