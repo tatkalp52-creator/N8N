@@ -430,7 +430,10 @@
           "id": "qfSSe0BXXUuYCU11",
           "name": "YouTube account 3"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
