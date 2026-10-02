@@ -22,7 +22,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-01-effects"
+ASSEMBLER_VERSION = "2026-10-02-grade"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1224,6 +1224,68 @@ def plan_body(duration, intro, loop_len, event_lens, gap_min, gap_max, seed):
     return parts, big
 
 
+# ЦВЕТ (02.10): один общий фильтр на картинку выпуска — чтобы лента канала была
+# одним целым. Три ручки из таблицы (🎬tmpl_ColorMute / ColorCool / ColorHaze),
+# пусто или 0 — картинка не трогается:
+#   colorMute — насколько приглушить цвет (0.3 = на 30 % меньше насыщенности)
+#   colorCool — насколько снять желтизну (единицы Lab b*, 5 — заметно, но мягко)
+#   colorHaze — «сфумато»: мягче контраст, немного воздуха и лёгкая дымка (1 — как в пробе)
+# Рисунок и линии не меняются. Делается до всего остального: и видео, и эффекты,
+# и обложка берут уже отфильтрованную картинку.
+def _srgb_to_lab(rgb):
+    import numpy as np
+    c = np.where(rgb > 0.04045, ((rgb + 0.055) / 1.055) ** 2.4, rgb / 12.92)
+    m = np.array([[0.4124564, 0.3575761, 0.1804375],
+                  [0.2126729, 0.7151522, 0.0721750],
+                  [0.0193339, 0.1191920, 0.9503041]])
+    xyz = c @ m.T / np.array([0.95047, 1.0, 1.08883])
+    f = np.where(xyz > (6 / 29) ** 3, np.cbrt(xyz), xyz / (3 * (6 / 29) ** 2) + 4 / 29)
+    return np.stack([116 * f[..., 1] - 16, 500 * (f[..., 0] - f[..., 1]), 200 * (f[..., 1] - f[..., 2])], -1)
+
+
+def _lab_to_srgb(lab):
+    import numpy as np
+    fy = (lab[..., 0] + 16) / 116
+    f = np.stack([fy + lab[..., 1] / 500, fy, fy - lab[..., 2] / 200], -1)
+    xyz = np.where(f > 6 / 29, f ** 3, 3 * (6 / 29) ** 2 * (f - 4 / 29)) * np.array([0.95047, 1.0, 1.08883])
+    m = np.array([[3.2404542, -1.5371385, -0.4985314],
+                  [-0.9692660, 1.8760108, 0.0415560],
+                  [0.0556434, -0.2040259, 1.0572252]])
+    c = np.clip(xyz @ m.T, 0, 1)
+    return np.where(c > 0.0031308, 1.055 * c ** (1 / 2.4) - 0.055, 12.92 * c)
+
+
+def grade_image(image_path, data):
+    def _num(key):
+        try:
+            return float(str(data.get(key, "") or 0).replace(",", "."))
+        except ValueError:
+            return 0.0
+    mute, cool, haze = _num("colorMute"), _num("colorCool"), _num("colorHaze")
+    if not (mute or cool or haze):
+        return
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:  # numpy и pillow — там же, где у эффектов
+        _sys.path.insert(0, "/app/pylibs")
+    import numpy as np
+    from PIL import Image, ImageFilter
+    src = Image.open(image_path).convert("RGB")
+    lab = _srgb_to_lab(np.asarray(src, np.float64) / 255.0)
+    lab[..., 2] -= cool
+    lab[..., 1:] *= max(0.0, 1.0 - mute)
+    if haze:
+        mean = lab[..., 0].mean()
+        lab[..., 0] = (lab[..., 0] - mean) * (1 - 0.12 * haze) + mean
+        lift = 0.07 * haze
+        lab[..., 0] = lab[..., 0] * (1 - lift) + 92 * lift
+    out = Image.fromarray((_lab_to_srgb(lab) * 255 + 0.5).astype(np.uint8))
+    if haze:
+        soft = out.filter(ImageFilter.GaussianBlur(4 * haze * src.width / 1536))
+        out = Image.blend(out, soft, min(1.0, 0.35 * haze))
+    out.save(image_path, format="JPEG", quality=95)
+    print(f"[grade] цвет: приглушить {mute}, холоднее {cool}, дымка {haze}")
+
+
 # ЭФФЕКТЫ (01.10): нарисованная поверх картинки анимация без нейросетей — пар над
 # чашкой, пузыри у рыбки, моргание. Строка проекта fx_Effects, по строчке на эффект,
 # числа — проценты кадра:
@@ -1516,6 +1578,10 @@ def assemble():
         target_lufs = int(data.get("targetLUFS", -16))
         target_brightness = float(data.get("targetBrightness", 64))
         check_brightness(image_path, target_brightness)
+        try:
+            grade_image(image_path, data)
+        except Exception as grade_error:  # фильтр — украшение, сборку не роняем
+            print(f"[grade] не удалось: {grade_error}")
         fade_in_seconds = float(data.get("fadeInSeconds", 1.5))
         fade_out_seconds = float(data.get("fadeOutSeconds", 3))
         gap_seconds = float(data.get("gapSeconds", 0))
