@@ -162,6 +162,8 @@ vae = AutoencoderKL.from_pretrained('madebyollin/sdxl-vae-fp16-fix', torch_dtype
 pipe = StableDiffusionXLPipeline.from_pretrained('stabilityai/stable-diffusion-xl-base-1.0', vae=vae,
                                                  torch_dtype=torch.float16, variant='fp16').to('cuda')
 pipe.load_lora_weights(f'{OUT}/pengui_lora.safetensors')
+# Подписи при обучении описывали героя этой фразой — без неё модель рисует просто пингвина
+HERO = "pengui, a small penguin with a red knitted scarf, eyes closed, rosy cheeks"
 STYLE = "soft colored pencil storybook illustration, aged cream paper texture, muted palette, light and airy, no headphones"
 SCENES = [
     "pengui sitting in a cozy armchair by a window reading a book, a mug of coffee on a small side table, autumn New York brownstones outside, small in the left third of the frame",
@@ -169,9 +171,9 @@ SCENES = [
     "pengui walking in an autumn park with fallen leaves, carrying a paper bag, small figure in a wide scene",
     "pengui sitting on a little bridge over a pond with a fishing rod, quiet morning, small in the frame",
 ]
-NEG = "photo, 3d render, text, letters, watermark, deformed, extra limbs, big eyes, open eyes, headphones"
+NEG = "two penguins, realistic bird, photo, 3d render, text, letters, watermark, deformed, extra limbs, big eyes, open eyes, headphones"
 for k, sc in enumerate(SCENES, 1):
-    img = pipe(prompt=f"{sc}, {STYLE}", negative_prompt=NEG, width=1344, height=768,
+    img = pipe(prompt=f"{HERO}, {sc}, {STYLE}", negative_prompt=NEG, width=1344, height=768,
                num_inference_steps=30, guidance_scale=6.0,
                generator=torch.Generator('cuda').manual_seed(100 + k)).images[0]
     img.save(f'{OUT}/проба_{k}.png')
