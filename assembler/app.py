@@ -1268,7 +1268,7 @@ def grade_image(image_path, data):
     if "/app/pylibs" not in _sys.path:  # numpy и pillow — там же, где у эффектов
         _sys.path.insert(0, "/app/pylibs")
     import numpy as np
-    from PIL import Image, ImageFilter
+    from PIL import Image, ImageChops, ImageFilter
     src = Image.open(image_path).convert("RGB")
     lab = _srgb_to_lab(np.asarray(src, np.float64) / 255.0)
     lab[..., 2] -= cool
@@ -1280,9 +1280,11 @@ def grade_image(image_path, data):
         lab[..., 0] = lab[..., 0] * (1 - lift) + 92 * lift
     out = Image.fromarray((_lab_to_srgb(lab) * 255 + 0.5).astype(np.uint8))
     if haze:
+        # дымка только «светится» поверх: светлое чуть расплывается, а тёмные линии
+        # карандаша остаются чёткими (смешение «светлее», а не простое размытие)
         soft = out.filter(ImageFilter.GaussianBlur(4 * haze * src.width / 1536))
-        out = Image.blend(out, soft, min(1.0, 0.35 * haze))
-    out.save(image_path, format="JPEG", quality=95)
+        out = ImageChops.lighter(out, Image.blend(out, soft, min(1.0, 0.35 * haze)))
+    out.save(image_path, format="JPEG", quality=97, subsampling=0)  # без потерь цвета
     print(f"[grade] цвет: приглушить {mute}, холоднее {cool}, дымка {haze}")
 
 
