@@ -22,6 +22,8 @@ Production pipeline for a solo lofi-jazz YouTube channel (first channel: "Jazzt 
 
 Everything creative or channel-specific (tone, style, prompts, character, reference images and their roles, image model, sound/overlay numbers) lives in the Sheet, never in code. No channel names or content ("Pengui" etc.) in code. Code changes to workflows or the assembler only after the author's explicit "да"; show a summary/diff first.
 
+**Author's requirement: the column icon is the recipient.** In Templates, 🖋 = Editor, 🎨 = artist, 🎬 = assembler (and the Writer gets its own icon). A column reaches a recipient if and only if it carries that recipient's icon; code never picks columns by name on its own. Removing an icon must stop that recipient from seeing the column. (As of 03.10 the code does not yet fully honour this — see PROJECT_NOTES.)
+
 ## Generator for workflow 10
 
 `tools/gen10/gen.py` builds `workflows/10_Единый_редактор.json` from `tools/gen10/js/*.js` (each JS file is the body of one n8n Code node; `lib_state.js` is prepended to some). Drawing nodes are copied from `workflows/01_Художник.json`. Workflow: edit JS/gen.py → regenerate → check → test.
