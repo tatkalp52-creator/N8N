@@ -129,7 +129,7 @@ if (functionName === 'start_drawing') {
   const found = approveVariantNumber ? variants.find(v => Number(v.n) === Number(approveVariantNumber)) : null;
   resolvedApprovedImageUrl = (found && found.url) || (variants.length === 1 ? variants[0].url : '') || String(row.ai_ImageUrl || '');
   if (!resolvedApprovedImageUrl) action = 'chat';
-  // Текст после согласования Редактор предлагает, когда автор рассказала, про что выпуск;
+  // Текст после согласования Редактор предлагает по правилам канала (раздел КАРТИНКА);
   // если items всё же пришли — принимаем.
   if (action === 'approved' && args.items && Object.keys(args.items).length) {
     textBlockTouched = true;

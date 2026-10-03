@@ -193,8 +193,8 @@ async function parseEd(c, story) {
   let bt = bl.map(x => x.text).join('');
   assert.ok(!bt.includes('✅ Картинка согласована'), 'после кнопки не дублируем ✅');
   assert.ok(bt.includes('ждут согласования: 1, 2, 3, 4, 5, 6, 7, 8'), 'блок пришёл сразу');
-  // кнопка → Редактор только согласует и спрашивает, про что выпуск: без блока и без писателя
-  assert.ok(sb.syntheticText.includes('спроси автора'), 'после ✅ Редактор сначала спрашивает');
+  // кнопка → что говорить дальше, решают правила канала (раздел КАРТИНКА), а не код
+  assert.ok(sb.syntheticText.includes('раздел КАРТИНКА'), 'после ✅ поведение — по правилам канала');
   p = (await parseEd({ nodes: { ...nU, 'Контекст проекта': ctxB2, 'Вход редактора': vB }, input: [call('approve_image', { variantNumber: 1, messageToUser: 'Согласовано! Про что выпуск и какая музыка?' })] }))[0];
   assert.equal(p.action, 'approved'); assert.equal(p.textBlockTouched, false); assert.equal(p.storyBrief, '');
   bl = await run('Собираем текстовый блок', { nodes: { ...nodes, 'Парсим ответ редактора': p } });
