@@ -25,7 +25,7 @@ async function parseEd(c, story) {
   console.log('1 разбор OK');
 
   // ── 2. Ход редактора: предлагает все 8 пунктов
-  const tmpl = { tmpl_Channel: 'pengui', '🖋_tmpl_SystemPrompt': '###КАРТИНКА###рисуй мило###/КАРТИНКА### ###ОПИСАНИЕ###тепло###/ОПИСАНИЕ###', '🎨_tmpl_StyleRefs': 'https://drive.google.com/file/d/STYLE/view\nhttps://drive.google.com/file/d/REF1/view\nпастель', '🖋🎨_tmpl_CharacterPassport': 'Pengui — пингвин', tmpl_TimecodeCount: '20' };
+  const tmpl = { tmpl_Channel: 'pengui', '🖋_tmpl_SystemPrompt': '###КАРТИНКА###рисуй мило###/КАРТИНКА### ###ОПИСАНИЕ###тепло###/ОПИСАНИЕ###', '🎨_tmpl_StyleRefs': 'https://drive.google.com/file/d/STYLE/view\nhttps://drive.google.com/file/d/REF1/view\nпастель', '🖋✍️🎨_tmpl_CharacterPassport': 'Pengui — пингвин', '🖋_tmpl_ProjectContext': 'CTR и монетизация', '✍️_tmpl_WriterExamples': 'Образец: Made soup.', tmpl_TimecodeCount: '20' };
   const variants = [{ n: 1, url: 'U1', dallePrompt: 'p1' }, { n: 2, url: 'U2', dallePrompt: 'p2' }];
   let row = { sys_ProjectID: 'P', sys_Status: 'Картинка согласована', sys_ConversationId: 'conv_1', sys_PendingToolCallId: 'call_0', ai_ImageVariants: JSON.stringify(variants), ai_ApprovedImageUrl: 'U2', ai_ImageUrl: 'U2', sys_EditorState: '' };
   const ctx = { kind: 'message', projectId: 'P', chatId: 1, sheetName: 'Pengui', channelKey: 'pengui', row, tmpl, status: row.sys_Status, text: 'давай текст', photo: null };
@@ -84,6 +84,9 @@ async function parseEd(c, story) {
   assert.equal(wr.reasoning.effort, 'high');
   assert.ok(wr.instructions.includes('ПРАВИЛА ОПИСАНИЯ:\nтепло'));
   assert.ok(wr.instructions.includes('Pengui — пингвин'));
+  assert.ok(wr.instructions.includes('WriterExamples:\nОбразец: Made soup.'), 'колонка ✍️ доходит до писателя');
+  assert.ok(!wr.instructions.includes('CTR и монетизация'), 'колонка без ✍️ писателю не идёт');
+  assert.ok(!wr.instructions.includes('ПРОШЛЫЕ ГЛАВЫ'), 'прошлые главы писателю не идут');
   assert.ok(!wr.instructions.includes('рисуй мило'), 'правила картинки писателю не нужны');
   assert.ok(wr.input[0].content[0].text.includes('Пингви пишет записку соседу'));
   assert.ok(!wr.input[0].content[0].text.includes('Прежний текст'), 'без похвалы прежний текст писатель не видит');
