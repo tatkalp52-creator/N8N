@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-edit-mask"
+ASSEMBLER_VERSION = "2026-10-04-candle-rain"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1392,7 +1392,9 @@ def grade_image(image_path, data):
 EFFECTS_LOOP_SECONDS = 6.0
 EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", "bubbles": "bubbles",
                 "моргание": "blink", "blink": "blink", "глаз": "blink",
-                "дымок": "smoke", "дым": "smoke", "smoke": "smoke"}
+                "дымок": "smoke", "дым": "smoke", "smoke": "smoke",
+                "свеча": "candle", "свечи": "candle", "candle": "candle",
+                "дождь": "rain", "rain": "rain"}
 # Строки листьев и края — не петля, а события (см. ЛИСТЬЯ ниже)
 EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge")
 
@@ -1557,6 +1559,76 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                                 np.float32) / 255 * sgrain * s_op
                 return sx0, sy0, al, np.array([248, 246, 240], np.float32)
             layers.append(smoke)
+
+        elif kind == "candle":
+            # СВЕЧА (04.10): точка — середина пламени. Пламя подрагивает и дышит яркостью,
+            # вокруг — тёплый ореол. Все частоты кратны петле — шва нет. Вид — 🎬 candleGlow.
+            glow = _num("candleGlow", 1.0)
+            ph = rng.uniform(0, 2 * math.pi, 4)
+            R = int(60 * k)
+            gx0, gy0 = int(px - R), int(py - R)
+            yy, xx = np.mgrid[0:2 * R, 0:2 * R].astype(np.float32)
+            halo = np.exp(-((xx - R) ** 2 + (yy - R) ** 2) / (2 * (R * 0.42) ** 2))
+            fw, fh = 3.2 * k, 8.5 * k
+
+            def candle(t, gx0=gx0, gy0=gy0, halo=halo, R=R, ph=ph, glow=glow, fw=fw, fh=fh, px=px, py=py):
+                L = EFFECTS_LOOP_SECONDS
+                f = (0.55 * math.sin(2 * math.pi * 7 * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * 13 * t / L + ph[1])
+                     + 0.15 * math.sin(2 * math.pi * 29 * t / L + ph[2]))
+                sway = 0.9 * k * math.sin(2 * math.pi * 5 * t / L + ph[3])
+                a = halo * (0.13 + 0.05 * f) * glow
+                can = Image.new("L", (2 * R * SS, 2 * R * SS), 0)
+                d = ImageDraw.Draw(can)
+                cx, cy = (px - gx0 + sway) * SS, (py - gy0) * SS
+                h_ = fh * (1 + 0.12 * f) * SS
+                d.ellipse([cx - fw * SS, cy - h_ * 0.75, cx + fw * SS, cy + h_ * 0.35], fill=255)
+                core = np.asarray(can.resize((2 * R, 2 * R), Image.LANCZOS)
+                                  .filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32) / 255
+                a = np.maximum(a, core * (0.28 + 0.12 * f))
+                col = np.empty((2 * R, 2 * R, 3), np.float32)
+                col[...] = (255, 196, 120)
+                col[core > 0.05] = (255, 238, 190)
+                return gx0, gy0, np.clip(a, 0, 1), col
+            layers.append(candle)
+
+        elif kind == "rain" and len(nums) >= 4:
+            # ДОЖДЬ ЗА ОКНОМ (04.10): прямоугольник стекла (левый верх → правый низ). За стеклом
+            # тонкие струи, по стеклу изредка сползают капли. Видно только на тёмном стекле
+            # (рама, цветок на подоконнике не трогаются). Петля бесшовная. Вид — 🎬 rainOpacity.
+            r_op = _num("rainOpacity", 1.0)
+            rx0, ry0 = int(min(nums[0], nums[2]) / 100 * W), int(min(nums[1], nums[3]) / 100 * H)
+            rx1, ry1 = int(max(nums[0], nums[2]) / 100 * W), int(max(nums[1], nums[3]) / 100 * H)
+            rw, rh = max(4, rx1 - rx0), max(4, ry1 - ry0)
+            lum = base[ry0:ry0 + rh, rx0:rx0 + rw].mean(axis=2)
+            dark = np.clip((175 - lum) / 90, 0, 1)            # стекло тёмное — там видно дождь
+            n_st = max(12, int(rw * rh / (900 * k * k)))
+            streaks = [dict(x=rng.uniform(0, rw), y=rng.uniform(0, rh), L=rng.uniform(10, 24) * k,
+                            m=int(rng.integers(3, 6)), a=rng.uniform(0.35, 0.8)) for _ in range(n_st)]
+            n_dr = max(2, int(rw / (90 * k)))
+            drops = [dict(x=rng.uniform(0.08, 0.92) * rw, ph=rng.uniform(0, 1), wob=rng.uniform(0, 6.28))
+                     for _ in range(n_dr)]
+            slant = 0.12
+
+            def rain(t, rx0=rx0, ry0=ry0, rw=rw, rh=rh, dark=dark, streaks=streaks, drops=drops, r_op=r_op):
+                L = EFFECTS_LOOP_SECONDS
+                can = Image.new("L", (rw * SS, rh * SS), 0)
+                d = ImageDraw.Draw(can)
+                for st in streaks:
+                    span = rh + st["L"]
+                    y = (st["y"] + st["m"] * span * t / L) % span - st["L"]
+                    x = st["x"] + slant * y
+                    d.line([(x * SS, y * SS), ((x + slant * st["L"]) * SS, (y + st["L"]) * SS)],
+                           fill=int(255 * st["a"]), width=max(1, int(0.9 * k * SS)))
+                for dr in drops:
+                    u = (dr["ph"] + t / L) % 1.0                  # одна капля проходит стекло за петлю
+                    y = u * (rh + 20 * k) - 10 * k
+                    x = dr["x"] + 2.0 * k * math.sin(2 * math.pi * 2 * t / L + dr["wob"])
+                    r = 2.4 * k
+                    d.line([(x * SS, (y - 26 * k) * SS), (x * SS, y * SS)], fill=70, width=max(1, int(1.2 * k * SS)))
+                    d.ellipse([(x - r) * SS, (y - r) * SS, (x + r) * SS, (y + r * 1.3) * SS], fill=230)
+                al = np.asarray(can.resize((rw, rh), Image.LANCZOS), np.float32) / 255 * 0.32 * r_op * dark
+                return rx0, ry0, np.clip(al, 0, 1), np.array([214, 224, 236], np.float32)
+            layers.append(rain)
 
         elif kind == "blink":
             # точный центр глаза — самая тёмная точка рядом с указанной
