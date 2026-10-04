@@ -312,7 +312,9 @@ chain('Сервер: превью', 'Отправляем превью', 'Куд
 
 # ── переход к следующему этапу: канвас вызывает сам себя ──
 code('Передаём дальше', 'dalshe.js', [EX + 5100, EY + 300])
-add({'parameters': {'workflowId': '={{ $workflow.id }}', 'options': {'waitForSubWorkflow': False}},
+# workflowId в версии 1.1 — «указатель ресурса» (объект), а не строка: строку n8n не видит
+add({'parameters': {'source': 'database', 'workflowId': {'__rl': True, 'value': '={{ $workflow.id }}', 'mode': 'id'},
+                    'options': {'waitForSubWorkflow': False}},
      'name': 'Следующий этап', 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.1, 'position': [EX + 5320, EY + 300]})
 link('Куда после хода?', 'Передаём дальше', 2)
 link('Передаём дальше', 'Следующий этап')
