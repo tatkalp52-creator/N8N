@@ -104,6 +104,19 @@ if (action === 'text_block' && stage) {
 }
 if (action === 'approved') text += `\n\n✅ Картинка согласована${approveVariant ? ' (вариант ' + approveVariant + ')' : ''}.`;
 text += `\n\nID: ${ctx.projectId}`;
+// Превью: изменился пункт, которому в листе «Пункты» положено превью, — сборщик нарисует картинку.
+let previewBody = null;
+const pvItem = items.find(it => it.preview && changed.includes(it.n) && (state.items[it.n] || {}).text);
+if (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {
+  const fx = {};
+  for (const key of Object.keys(ctx.tmpl || {})) {        // вид эффектов — колонки 🎬 (как у сборки)
+    if (!key.includes('🎬')) continue;
+    const label = key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, '');
+    const v = String((ctx.tmpl || {})[key] == null ? '' : ctx.tmpl[key]).trim();
+    if (label && v) fx[label.charAt(0).toLowerCase() + label.slice(1)] = v;
+  }
+  previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId };
+}
 const chunks = action === 'done' || (!message && action !== 'text_block') ? [] : splitForTelegram(text);
 
 return [{ json: {
@@ -119,6 +132,8 @@ return [{ json: {
   userBrief: String(row.ai_UserBrief || '').trim() || (plan.fromAuthor ? String(ctx.text || '').trim() : ''),
   transition,
   nextIcon,
+  previewBody,
+  previewCaption: previewBody ? `${stage ? stage.icon + ' ' : ''}Превью: так это будет выглядеть\n\nID: ${ctx.projectId}` : '',
   autoApprove,
   event,
   // для веток рисования (узлы перенесены из 01_Художник)

@@ -133,6 +133,9 @@ def sheets_automap(name, sheet_expr, pos, match):
                 'name': name, 'type': 'n8n-nodes-base.googleSheets', 'typeVersion': 4, 'position': pos,
                 'credentials': copy.deepcopy(CRED_SHEETS)})
 
+_w04e = json.load(open(os.path.join(REPO, 'workflows/04_Video.json')))
+ASM = [n for n in _w04e['nodes'] if n['name'] == 'Собираем видео (POST)'][0]['parameters']['url'].rsplit('/', 1)[0]
+
 CTX = "$('Контекст проекта').first().json"
 R = "$('Итог хода').first().json"
 SHEET = '={{ ' + CTX + '.sheetName }}'
@@ -218,6 +221,11 @@ add({'parameters': {'resource': 'file', 'operation': 'get', 'fileId': "={{ (func
      'name': 'Скачиваем фото', 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2,
      'position': [EX + 1100, EY - 60], 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG)})
 code('Фото в base64', 'foto.js', [EX + 1320, EY - 60])
+if_node('Нужна сетка?', "$('Кто отвечает').first().json.needGrid", [EX + 1430, EY - 300])
+add({'parameters': {'method': 'POST', 'url': ASM + '/fx_grid', 'sendBody': True, 'specifyBody': 'json',
+                    'jsonBody': "={{ JSON.stringify({ imageUrl: " + CTX + ".row.ai_ApprovedImageUrl }) }}", 'options': {'timeout': 120000}},
+     'name': 'Сервер: сетка', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [EX + 1430, EY - 460],
+     'onError': 'continueRegularOutput'})
 code('Готовим запрос этапу', 'zapros.js', [EX + 1540, EY - 180], lib=True)
 openai_http('OpenAI: этап', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 1760, EY - 180])
 nodes[-1]['parameters']['options'] = {'timeout': 600000}
@@ -243,7 +251,18 @@ code('Сообщения хода', 'soobshcheniya.js', [EX + 3960, EY])
 if_node('Есть что сказать?', '!$json.skip', [EX + 4180, EY])
 tg_send('Отправляем ответ', '={{ $json.chatId }}', '={{ $json.text }}', [EX + 4400, EY - 120])
 code('Что дальше?', 'chto_dalshe.js', [EX + 4620, EY])
-switch_node('Куда после хода?', '$json.next', ['draw', 'edit', 'next', 'summary', 'package'], [EX + 4840, EY])
+if_node('Нужно превью?', "$('Что дальше?').first().json.preview", [EX + 4730, EY + 200])
+add({'parameters': {'method': 'POST', 'url': ASM + '/fx_preview', 'sendBody': True, 'specifyBody': 'json',
+                    'jsonBody': "={{ JSON.stringify(" + R + ".previewBody) }}",
+                    'options': {'timeout': 180000, 'response': {'response': {'responseFormat': 'file', 'outputPropertyName': 'data'}}}},
+     'name': 'Сервер: превью', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [EX + 4730, EY + 380],
+     'onError': 'continueRegularOutput'})
+add({'parameters': {'resource': 'message', 'operation': 'sendPhoto', 'chatId': '={{ ' + R + '.chatId }}',
+                    'binaryData': True, 'binaryPropertyName': 'data',
+                    'additionalFields': {'caption': '={{ ' + R + '.previewCaption }}'}},
+     'name': 'Отправляем превью', 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2, 'position': [EX + 4950, EY + 380],
+     'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG), 'onError': 'continueRegularOutput'})
+switch_node('Куда после хода?', "$('Что дальше?').first().json.next", ['draw', 'edit', 'next', 'summary', 'package'], [EX + 4840, EY])
 
 link('Куда дальше?', 'Кто отвечает', 0)
 link('Куда дальше?', 'Кто отвечает', 7)
@@ -254,8 +273,11 @@ link('Нужен разговор?', 'OpenAI: создаём разговор', 
 link('Нужен разговор?', 'Есть фото?', 1)
 link('OpenAI: создаём разговор', 'Есть фото?')
 link('Есть фото?', 'Скачиваем фото', 0)
-link('Есть фото?', 'Готовим запрос этапу', 1)
-chain('Скачиваем фото', 'Фото в base64', 'Готовим запрос этапу')
+link('Есть фото?', 'Нужна сетка?', 1)
+chain('Скачиваем фото', 'Фото в base64', 'Нужна сетка?')
+link('Нужна сетка?', 'Сервер: сетка', 0)
+link('Нужна сетка?', 'Готовим запрос этапу', 1)
+link('Сервер: сетка', 'Готовим запрос этапу')
 chain('Готовим запрос этапу', 'OpenAI: этап', 'Разбираем ответ этапа', 'Поручение?')
 link('Поручение?', 'Готовим поручение', 0)
 link('Поручение?', 'Итог хода', 1)
@@ -268,7 +290,10 @@ link('Сообщения хода', 'Есть что сказать?')
 link('Есть что сказать?', 'Отправляем ответ', 0)
 link('Есть что сказать?', 'Что дальше?', 1)
 link('Отправляем ответ', 'Что дальше?')
-link('Что дальше?', 'Куда после хода?')
+link('Что дальше?', 'Нужно превью?')
+link('Нужно превью?', 'Сервер: превью', 0)
+link('Нужно превью?', 'Куда после хода?', 1)
+chain('Сервер: превью', 'Отправляем превью', 'Куда после хода?')
 
 # ── переход к следующему этапу: канвас вызывает сам себя ──
 code('Передаём дальше', 'dalshe.js', [EX + 5100, EY + 300])

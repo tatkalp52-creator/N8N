@@ -36,8 +36,12 @@ try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variant
 if (!Array.isArray(variants)) variants = [];
 const seen = new Set(plan.silent ? [] : st.seen);
 const images = [];
-const addImage = (url, label) => { if (url && !seen.has(url)) { images.push({ url, label }); seen.add(url); } };
-if (approvedUrl) addImage(approvedUrl, 'согласованная картинка выпуска');
+// key — что помнить в состоянии (картинку с сеткой помним по метке, а не по её огромным данным)
+const addImage = (url, label, key) => { const k = key || url; if (url && !seen.has(k)) { images.push({ url, label }); seen.add(k); } };
+let gridUrl = '';
+try { gridUrl = ($('Сервер: сетка').first().json || {}).dataUrl || ''; } catch (e) {}
+if (gridUrl && approvedUrl) addImage(gridUrl, 'согласованная картинка выпуска с сеткой процентов: синие подписи — проценты слева направо, красные — сверху вниз', 'grid:' + approvedUrl);
+else if (approvedUrl) addImage(approvedUrl, 'согласованная картинка выпуска');
 if (sc.picture) variants.forEach(v => addImage(v.url, 'вариант ' + v.n + ' этого выпуска'));
 
 // ── Карточка выпуска ──

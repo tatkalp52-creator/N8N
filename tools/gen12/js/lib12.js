@@ -74,6 +74,8 @@ function stParseStages(rows) {
       items: parseNumbers(does.replace(/картин\S*/gi, '')),
       model: cell(r, 'Модель'),
       effort: cell(r, 'Усилие').toLowerCase(),
+      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)
+      grid: /сетк/i.test(cell(r, 'Картинка')),
     };
   }).filter(s => s.icon && s.name);
   for (const s of list) {
@@ -108,6 +110,8 @@ function itParseItems(rows) {
     cols: cell(r, 'Колонки'),
     hint: cell(r, 'Подсказка'),
     canEmpty: /^да/i.test(cell(r, 'Можно пусто')),
+    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика
+    preview: cell(r, 'Превью').toLowerCase(),
   })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);
 }
 

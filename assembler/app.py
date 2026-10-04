@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-smoke-leaves"
+ASSEMBLER_VERSION = "2026-10-04-fx-preview"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1414,7 +1414,7 @@ def parse_effects(text):
     return out
 
 
-def render_effects_loop(image_path, spec, data, fps, out_path):
+def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
     import sys as _sys
     if "/app/pylibs" not in _sys.path:  # numpy и pillow ставятся сюда (переживают Deploy)
         _sys.path.insert(0, "/app/pylibs")
@@ -1587,6 +1587,23 @@ def render_effects_loop(image_path, spec, data, fps, out_path):
                 return bx0, by0, soft * c, closed
             layers.append(blink)
 
+    def compose(t):
+        out = base.copy()
+        for layer in layers:
+            res = layer(t)
+            if res is None:
+                continue
+            x0, y0, al, color = res
+            h, w = al.shape[:2]
+            ya, yb, xa, xb = max(0, y0), min(H, y0 + h), max(0, x0), min(W, x0 + w)
+            a = al[ya - y0:yb - y0, xa - x0:xb - x0]
+            a = a[..., None] if a.ndim == 2 else a
+            col = color[ya - y0:yb - y0, xa - x0:xb - x0] if color.ndim == 3 else color
+            out[ya:yb, xa:xb] = out[ya:yb, xa:xb] * (1 - a) + col * a
+        return out
+
+    if still_at is not None:   # превью: один кадр петли
+        return compose(still_at)
     frames_dir = out_path + "_frames"
     os.makedirs(frames_dir, exist_ok=True)
     for f in range(n_frames):
@@ -2302,6 +2319,132 @@ def clean_status_route():
         return jsonify(clean_status(request.json or {}))
     except Exception as e:
         return jsonify({"state": "unknown", "message": str(e)}), 200
+
+
+
+# ПРЕВЬЮ ОЖИВЛЕНИЯ (04.10). /fx_grid — картинка выпуска с сеткой процентов: её видит
+# тот, кто предлагает места оживления, и читает координаты с сетки, а не на глаз.
+# /fx_preview — картинка для автора: дымок/пар/пузыри нарисованы как в ролике, полёт
+# каждого листа — его положениями через доли секунды, край — пунктиром.
+def _fx_image(url, work_dir):
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:
+        _sys.path.insert(0, "/app/pylibs")
+    return download_file(url, os.path.join(work_dir, "image.jpg"))
+
+
+def draw_percent_grid(image_path, out_path):
+    from PIL import Image, ImageDraw
+    im = Image.open(image_path).convert("RGB")
+    W, H = im.size
+    over = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(over)
+    lw = max(1, H // 600)
+    for p in range(5, 100, 5):
+        x, y = W * p / 100, H * p / 100
+        strong = p % 10 == 0
+        col = (20, 40, 160, 150 if strong else 80)
+        d.line([(x, 0), (x, H)], fill=col, width=lw)
+        col = (170, 20, 20, 150 if strong else 80)
+        d.line([(0, y), (W, y)], fill=col, width=lw)
+    fs = max(10, H // 45)
+    for p in range(10, 100, 10):
+        x, y = W * p / 100, H * p / 100
+        for (tx, ty, txt, c) in ((x + 3, 2, str(p), (20, 40, 160)), (x + 3, H - fs - 4, str(p), (20, 40, 160)),
+                                 (3, y + 2, str(p), (170, 20, 20)), (W - 2.2 * fs, y + 2, str(p), (170, 20, 20))):
+            d.rectangle([tx - 2, ty - 1, tx + len(txt) * fs * 0.62 + 2, ty + fs + 2], fill=(255, 255, 255, 190))
+            d.text((tx, ty), txt, fill=c + (255,))
+    Image.alpha_composite(im.convert("RGBA"), over).convert("RGB").save(out_path, quality=88)
+    return out_path
+
+
+def draw_fx_preview(image_path, fx_text, data, out_path):
+    import numpy as np
+    from PIL import Image, ImageDraw
+    effects = parse_effects(fx_text)
+    if effects:
+        frame = render_effects_loop(image_path, effects, data, 24, out_path + ".mp4", still_at=2.0)
+    else:
+        frame = np.asarray(Image.open(image_path).convert("RGB"), np.float32)
+    H, W = frame.shape[:2]
+    k = H / 864.0
+    leaves, edge = parse_leaves(fx_text, data)
+    for j, leaf in enumerate(leaves):
+        seed = 1.3 + 2.9 * j
+        rng = np.random.default_rng(int(seed * 1000) + 7)
+        color = np.array(leaf["colors"][0] if leaf["colors"] else LEAF_COLORS["оранж"], np.float32)
+        P = lambda xy: (xy[0] / 100 * W, xy[1] / 100 * H)
+        (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
+        L0 = leaf["size"] * k
+        path = leaf_path(x0, y0, x1, y1, leaf["fall"], 24, seed, L0 * 1.1)
+        ex = [e[0] / 100 * W for e in edge] if (leaf["behind"] and edge) else None
+        ey = [e[1] / 100 * H for e in edge] if ex else None
+        step = 8   # положение через треть секунды
+        # тонкая линия пути — чтобы маленький лист было видно на превью
+        trail = Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8))
+        dtr = ImageDraw.Draw(trail)
+        pts = [(q[0], q[1]) for q in path]
+        if ex:
+            pts = [(x, y) for x, y in pts if y < float(np.interp(x, ex, ey))]
+        for i in range(0, len(pts) - 1, 2):
+            dtr.line([pts[i], pts[i + 1]], fill=(200, 90, 30), width=max(1, int(1.5 * k)))
+        frame = np.asarray(trail, np.float32).copy()
+        for i in range(0, len(path), step):
+            x, y, ang, flip = path[i]
+            L = L0 * (1 + (leaf["shrink"] - 1) * i / max(1, len(path) - 1))
+            spr = leaf_sprite(leaf["shape"], color, ang, flip, L)
+            al = spr[..., 3] / 255 * (0.55 + 0.45 * i / max(1, len(path) - 1))
+            h, w = al.shape
+            lx0, ly0 = int(x - w / 2), int(y - h / 2)
+            if ex:
+                fy = np.interp(np.arange(w) + lx0, ex, ey)
+                al = al * ((np.arange(h) + ly0)[:, None] < fy[None, :])
+            ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
+            if ya < yb and xa < xb:
+                a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
+                frame[ya:yb, xa:xb] = frame[ya:yb, xa:xb] * (1 - a) + spr[ya - ly0:yb - ly0, xa - lx0:xb - lx0, :3] * a
+    im = Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8))
+    if edge:
+        d = ImageDraw.Draw(im)
+        pts = [(e[0] / 100 * W, e[1] / 100 * H) for e in edge]
+        for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+            n = max(1, int(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5 / (12 * k)))
+            for i in range(0, n, 2):   # пунктир
+                t0, t1 = i / n, min(1, (i + 1) / n)
+                d.line([(ax + (bx - ax) * t0, ay + (by - ay) * t0), (ax + (bx - ax) * t1, ay + (by - ay) * t1)],
+                       fill=(30, 110, 200), width=max(2, int(2 * k)))
+    im.save(out_path, quality=90)
+    return out_path
+
+
+@app.route("/fx_grid", methods=["POST"])
+def fx_grid():
+    import base64
+    data = request.json or {}
+    work_dir = tempfile.mkdtemp(prefix="fxgrid_")
+    try:
+        img = _fx_image(data["imageUrl"], work_dir)
+        out = draw_percent_grid(img, os.path.join(work_dir, "grid.jpg"))
+        b64 = base64.b64encode(open(out, "rb").read()).decode()
+        return jsonify({"ok": True, "dataUrl": "data:image/jpeg;base64," + b64})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+@app.route("/fx_preview", methods=["POST"])
+def fx_preview():
+    data = request.json or {}
+    work_dir = tempfile.mkdtemp(prefix="fxprev_")
+
+    @after_this_request
+    def cleanup(response):
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return response
+    img = _fx_image(data["imageUrl"], work_dir)
+    out = draw_fx_preview(img, data.get("fx_Effects") or "", data, os.path.join(work_dir, "preview.jpg"))
+    return send_file(out, mimetype="image/jpeg")
 
 
 @app.route("/health", methods=["GET"])

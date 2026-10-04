@@ -212,6 +212,36 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('9b всё готово → отвечает пишущий этап, художник не рисует приветствие OK');
 
+  // ── 9c. Аниматор: видит картинку с сеткой (метка в памяти, не данные), его пункт — с превью ──
+  {
+    const ANIM = [DIRECT[0], { ...st('🎞️', 'Аниматор', 'автор', 'да', '9'), 'Картинка': 'с сеткой' }];
+    const IT9 = [...ITEMS, { 'Канал': 'demo', '№': '9', 'Пункт': 'Оживление', 'Колонки': 'fx_Effects', 'Можно пусто': 'да', 'Превью': 'оживление' }];
+    const ctxA = await (async () => {
+      const nodes = { 'Разбираем входящее': { kind: 'stageStart', chatId: 1, projectId: 'P1', channelKey: 'demo', text: '', event: 'Картинка согласована.' },
+        'Находим лист канала': { SheetName: 'demo' }, 'Читаем строку проекта': { sys_ProjectID: 'P1', ai_ApprovedImageUrl: 'U2', ai_ImageVariants: V },
+        'Читаем шаблоны канала': { ...TMPL, '🎞️_tmpl_AnimatorRules': 'дымок: x, y' }, 'Читаем этапы': ANIM, 'Читаем пункты': IT9 };
+      return (await run('Контекст проекта', { nodes }))[0];
+    })();
+    const n = { 'Контекст проекта': ctxA };
+    n['Кто отвечает'] = (await run('Кто отвечает', { nodes: n }))[0];
+    assert.equal(n['Кто отвечает'].stageName, 'Аниматор'); assert.equal(n['Кто отвечает'].needGrid, true);
+    n['OpenAI: создаём разговор'] = { id: 'cA' };
+    n['Сервер: сетка'] = { ok: true, dataUrl: 'data:image/jpeg;base64,GRID' };
+    const req = (await run('Готовим запрос этапу', { nodes: n }))[0];
+    const imgs = req.requestBody.input[0].content.filter(c => c.type === 'input_image').map(c => c.image_url);
+    assert.deepEqual(imgs, ['data:image/jpeg;base64,GRID'], 'аниматор видит картинку с сеткой');
+    assert.ok(req.seen.includes('grid:U2') && !req.seen.some(x => x.startsWith('data:')), 'в памяти — метка, не данные');
+    n['Готовим запрос этапу'] = req;
+    n['Разбираем ответ этапа'] = (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'Вот.' })] }))[0];
+    const r = (await run('Итог хода', { nodes: n }))[0];
+    assert.equal(r.previewBody.fx_Effects, 'дымок: 44, 37'); assert.equal(r.previewBody.imageUrl, 'U2');
+    assert.equal(r.previewBody.targetLUFS, '-14', 'вид эффектов — колонки 🎬');
+    assert.ok(r.previewCaption.includes('ID: P1'));
+    const nx = (await run('Что дальше?', { nodes: { 'Итог хода': r } }))[0];
+    assert.equal(nx.preview, true);
+  }
+  console.log('9c аниматор: сетка для него, превью для автора OK');
+
   // ── 10. Нет строк в «Этапах» — честно говорим ──
   t = await turn([], {}, { text: 'привет' });
   assert.ok(t.r.chunks[0].includes('В листе «Этапы» нет строк'));
