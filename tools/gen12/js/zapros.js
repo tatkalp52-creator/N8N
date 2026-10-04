@@ -167,7 +167,8 @@ const requestBody = {
   instructions,
   input,
   tools,
-  tool_choice: plan.silent && myItems.length ? { type: 'function', name: 'propose_items' } : 'auto',
+  // молчаливый этап и разметка автора — это всегда работа над пунктами: ответ инструментом, тогда придёт и превью
+  tool_choice: (plan.silent || marksText) && myItems.length ? { type: 'function', name: 'propose_items' } : 'auto',
   parallel_tool_calls: false,
   truncation: 'auto',
 };

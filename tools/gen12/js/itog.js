@@ -86,6 +86,14 @@ if (action === 'done') {
 // ── Что показать автору ──
 const prefix = speaker ? `${speaker.icon} <b>${escapeHtml(speaker.name)}</b>: ` : '';
 let text = prefix + escapeHtml(message || '');
+// Разметка: автор видит, дошли ли её штрихи (иначе не понять, почему этап их не учёл)
+if (plan.needMarks) {
+  let mk = null;
+  try { mk = $('Сервер: разметка').first().json || null; } catch (e) {}
+  const n = mk && Array.isArray(mk.marks) ? mk.marks.length : 0;
+  text += n ? `\n\n🖍 Разметка прочитана: штрихов — ${n}.`
+    : `\n\n⚠️ Разметку прочитать не удалось${mk && mk.error ? ' (' + escapeHtml(String(mk.error)) + ')' : (mk ? ' — красных штрихов не нашлось' : ' — сборщик не ответил')}.`;
+}
 if (statusReverted) text += '\n\n⚠️ Статус «Утверждено» снят — после изменений пришлю новую сводку на ✅.';
 if (action === 'text_block' && stage) {
   const sc = stScope(stages, stage);
@@ -95,7 +103,8 @@ if (action === 'text_block' && stage) {
   if (pending.length) {
     text += `\n\n<b>Ждут согласования:</b> ${pending.map(it => it.n).join(', ')}`;
     for (const it of pending) {
-      const body = itShow(state, it);
+      // пункт с превью автор проверяет глазами — строки для сборщика ей не показываем
+      const body = it.preview && (state.items[it.n] || {}).text ? 'смотрите картинку-превью ниже' : itShow(state, it);
       text += `\n\n<b>${it.n}. ${escapeHtml(it.name)}</b>` + (body ? '\n' + escapeHtml(body) : ' — ещё не предложено');
     }
     text += '\n\nОтвечайте по номеру или по названию пункта.';
