@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-fx-preview"
+ASSEMBLER_VERSION = "2026-10-04-fx-marks"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1517,13 +1517,22 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # Точка — верх трубы. Вид — 🎬 smokeOpacity / smokeSize.
             s_op = _num("smokeOpacity", 0.8)
             s_sz = _num("smokeSize", 1.0)
-            sbw, sbh = int(90 * k * s_sz), int(150 * k * s_sz)
-            sx0, sy0 = int(px - sbw * 0.3), int(py - sbh + 3 * k)
+            thick = nums[4] if len(nums) >= 5 and nums[4] > 0 else 1.0
+            lean_px = 0.6 * 38 * k * s_sz                 # снос ветром по умолчанию
+            if len(nums) >= 4:   # верхний конец струйки задан: высота и снос — как нарисовано
+                top_y = nums[3] / 100 * H
+                s_sz = max(0.3, (py - top_y) / (150 * k))
+                lean_px = (nums[2] / 100 * W) - px
+            sbw = int(max(90 * k * s_sz, abs(lean_px) + 60 * k * s_sz))
+            sbh = int(150 * k * s_sz)
+            anchor = 0.3 if lean_px >= 0 else 0.7
+            sx0, sy0 = int(px - sbw * anchor), int(py - sbh + 3 * k)
             sgrain = np.asarray(Image.fromarray(rng.uniform(0, 255, (sbh, sbw)).astype(np.uint8))
                                 .filter(ImageFilter.GaussianBlur(0.6 * k)), np.float32) / 255
             sgrain = 0.55 + 0.45 * sgrain
 
-            def smoke(t, sbw=sbw, sbh=sbh, sx0=sx0, sy0=sy0, sgrain=sgrain, s_op=s_op, s_sz=s_sz):
+            def smoke(t, sbw=sbw, sbh=sbh, sx0=sx0, sy0=sy0, sgrain=sgrain, s_op=s_op, s_sz=s_sz,
+                      lean_px=lean_px, anchor=anchor, thick=thick):
                 t = (t % EFFECTS_LOOP_SECONDS) / EFFECTS_LOOP_SECONDS
                 can = Image.new("L", (sbw * SS, sbh * SS), 0)
                 d = ImageDraw.Draw(can)
@@ -1531,7 +1540,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 pts = []
                 for i in range(S + 1):
                     s_ = i / S
-                    x = sbw * 0.3 + k * s_sz * (0.6 * 38 * s_ ** 1.4 + 9 * s_ ** 0.8 * math.sin(2 * math.pi * (1.3 * s_ - t)))
+                    x = sbw * anchor + lean_px * s_ ** 1.4 + k * s_sz * 9 * s_ ** 0.8 * math.sin(2 * math.pi * (1.3 * s_ - t))
                     pts.append((x, sbh - 1 - s_ * (sbh - 4), s_))
                 for i in range(S):
                     xa, ya, s_ = pts[i]
@@ -1541,7 +1550,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                     a = fade * ((0.95 - 0.35 * s_) * (0.65 + 0.35 * puff ** 1.5))
                     if a > 0.01:
                         d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
-                               width=max(1, int((4.0 + 6.0 * s_) * k * s_sz * SS)))
+                               width=max(1, int((4.0 + 6.0 * s_) * k * min(s_sz, 1.6) * thick * SS)))
                 al = np.asarray(can.resize((sbw, sbh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(1.8 * k)),
                                 np.float32) / 255 * sgrain * s_op
                 return sx0, sy0, al, np.array([248, 246, 240], np.float32)
@@ -1632,6 +1641,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
 # (забор, скамейку) или ложится на землю переднего плана и растворяется в листве.
 # Рисуется формулами, без нейросетей. Строки в fx_Effects строки выпуска:
 #   листья: 46, 14 → 47, 88; продолговатый; раз в 240
+#   листья: 46, 14 → 43, 45 → 47, 88   (путь через точки — как нарисовано)
 #   листья: 23.5, 41 → 25, 63.5; круглый; маленький; вглубь; за край; раз в 120
 #   край: 0 60.5, 16 61, 24 61.5, 40 64.5, 100 65
 # Координаты — проценты кадра (откуда → куда). Слова: форма (продолговатый / круглый /
@@ -1675,7 +1685,8 @@ def parse_leaves(text, data):
         if len(nums) < 4:
             print(f"[leaves] не поняла строку (нужно «x, y → x, y»): {line!r}")
             continue
-        leaf = dict(frm=(nums[0], nums[1]), to=(nums[2], nums[3]), shape="long", colors=[],
+        pairs = [(nums[i], nums[i + 1]) for i in range(0, len(nums) - 1, 2)]
+        leaf = dict(frm=pairs[0], to=pairs[-1], via=pairs if len(pairs) > 2 else None, shape="long", colors=[],
                     size=size0, fall=fall0, shrink=1.0, behind=False, period=None)
         for w in parts[1:]:
             if "кругл" in w or "round" in w:
@@ -1796,7 +1807,7 @@ def leaf_sprite(shape, color, ang, flip, L):
     return np.asarray(can.resize((2 * R, 2 * R), Image.LANCZOS), np.float32)
 
 
-def leaf_path(x0, y0, x1, y1, seconds, fps, seed, swing, half=1.15):
+def leaf_path(x0, y0, x1, y1, seconds, fps, seed, swing, half=1.15, via=None):
     """Полёт по физике падающей пластинки (Andersen, Pesavento, Wang, 2005) и правилу дуг:
     лист скользит дугой вбок — в середине быстрее и ниже, носом по ходу; у края дуги
     замедляется, чуть приподнимается, на миг встаёт ребром и скользит обратно.
@@ -1825,7 +1836,13 @@ def leaf_path(x0, y0, x1, y1, seconds, fps, seed, swing, half=1.15):
         dirn = d0 * (1 if i % 2 == 0 else -1)
         A, d = amps[i], drops[i]
         p = (y_acc + d * s_) / (y1 - y0)
-        x = x0 + (x1 - x0) * p + dirn * A * -math.cos(math.pi * s_)
+        if via:   # путь, нарисованный автором: середина качания идёт по её линии
+            vy = [q[1] for q in via]
+            order = np.argsort(vy)
+            cx = float(np.interp(y0 + y_acc + d * s_, np.array(vy)[order], np.array([q[0] for q in via])[order]))
+        else:
+            cx = x0 + (x1 - x0) * p
+        x = cx + dirn * A * -math.cos(math.pi * s_)
         y = y0 + y_acc + d * s_ - 0.36 * d * (1 - math.sin(math.pi * s_))
         ang = dirn * 0.55 * math.sin(math.pi * s_) + 0.15
         flip = side * (0.3 + 0.7 * math.sin(math.pi * s_) ** 0.6)
@@ -1863,7 +1880,8 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
     fall = leaf["fall"]
     rest = 0.0 if leaf["behind"] else 4.0      # на переднем плане — лежит и растворяется в листве
     (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
-    path = leaf_path(x0, y0, x1, y1, fall, fps, seed, L0 * 1.1)
+    via = [P(q) for q in leaf["via"]] if leaf.get("via") else None
+    path = leaf_path(x0, y0, x1, y1, fall, fps, seed, L0 * 1.1, via=via)
     ex = [e[0] / 100 * W for e in edge] if (leaf["behind"] and edge) else None
     ey = [e[1] / 100 * H for e in edge] if ex else None
     frames_dir = out_path + "_frames"
@@ -2372,11 +2390,12 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
     for j, leaf in enumerate(leaves):
         seed = 1.3 + 2.9 * j
         rng = np.random.default_rng(int(seed * 1000) + 7)
-        color = np.array(leaf["colors"][0] if leaf["colors"] else LEAF_COLORS["оранж"], np.float32)
+        color = np.array(LEAF_COLORS["оранж"], np.float32)   # на превью — всегда оранжевый, не красный
         P = lambda xy: (xy[0] / 100 * W, xy[1] / 100 * H)
         (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
         L0 = leaf["size"] * k
-        path = leaf_path(x0, y0, x1, y1, leaf["fall"], 24, seed, L0 * 1.1)
+        via = [P(q) for q in leaf["via"]] if leaf.get("via") else None
+        path = leaf_path(x0, y0, x1, y1, leaf["fall"], 24, seed, L0 * 1.1, via=via)
         ex = [e[0] / 100 * W for e in edge] if (leaf["behind"] and edge) else None
         ey = [e[1] / 100 * H for e in edge] if ex else None
         step = 8   # положение через треть секунды
@@ -2445,6 +2464,107 @@ def fx_preview():
     img = _fx_image(data["imageUrl"], work_dir)
     out = draw_fx_preview(img, data.get("fx_Effects") or "", data, os.path.join(work_dir, "preview.jpg"))
     return send_file(out, mimetype="image/jpeg")
+
+
+
+# РАЗМЕТКА АВТОРА (04.10): автор рисует красным маркером поверх превью или картинки —
+# откуда идёт дымок и докуда, откуда срывается лист и куда падает. /fx_marks сравнивает её
+# картинку с исходной и возвращает каждый штрих: верхний и нижний конец, путь, толщину —
+# в процентах кадра. Штрихи — слева направо.
+def find_red_marks(orig_path, marked_path):
+    import numpy as np
+    from PIL import Image
+    orig = Image.open(orig_path).convert("RGB")
+    W, H = orig.size
+    marked = Image.open(marked_path).convert("RGB").resize((W, H), Image.LANCZOS)
+    S = 4                                           # ищем на уменьшенной картинке — быстро и без шума
+    w, h = W // S, H // S
+    a = np.asarray(marked.resize((w, h), Image.BILINEAR), np.float32)
+    b = np.asarray(orig.resize((w, h), Image.BILINEAR), np.float32)
+    r, g, bl = a[..., 0], a[..., 1], a[..., 2]
+    # красный маркер: ярко-красный (оранжевые листики самого превью сюда не попадают)
+    red = (r > 140) & (g < 100) & (bl < 100) & (r - g > 90) & (np.abs(a - b).max(axis=2) > 50)
+    # склеиваем разрывы штриха
+    m = red.copy()
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            m |= np.roll(np.roll(red, dy, 0), dx, 1)
+    seen = np.zeros_like(m)
+    marks = []
+    for y0 in range(h):
+        for x0 in range(w):
+            if not m[y0, x0] or seen[y0, x0]:
+                continue
+            comp, stack = [], [(y0, x0)]
+            seen[y0, x0] = True
+            while stack:
+                y, x = stack.pop()
+                comp.append((y, x))
+                for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                    if 0 <= ny < h and 0 <= nx < w and m[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True
+                        stack.append((ny, nx))
+            if len(comp) < 12:
+                continue
+            pts = np.array(comp)
+            # концы: самая дальняя от центра точка и самая дальняя от неё
+            c = pts.mean(axis=0)
+            A = pts[np.argmax(((pts - c) ** 2).sum(1))]
+            B = pts[np.argmax(((pts - A) ** 2).sum(1))]
+            # путь от A к B внутри штриха (поиск в ширину)
+            idx = {tuple(p): i for i, p in enumerate(pts)}
+            prev = {tuple(A): None}
+            q = [tuple(A)]
+            for cur in q:
+                if cur == tuple(B):
+                    break
+                for d in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                    nb = (cur[0] + d[0], cur[1] + d[1])
+                    if nb in idx and nb not in prev:
+                        prev[nb] = cur
+                        q.append(nb)
+            path, cur = [], tuple(B)
+            while cur is not None:
+                path.append(cur); cur = prev.get(cur)
+            path = path[::-1]
+            length = max(1.0, sum(((path[i][0] - path[i + 1][0]) ** 2 + (path[i][1] - path[i + 1][1]) ** 2) ** 0.5
+                                  for i in range(len(path) - 1)))
+            step = max(1, len(path) // 8)
+            poly = [path[i] for i in range(0, len(path), step)] + [path[-1]]
+            P = lambda yx: [round(yx[1] * S / W * 100, 1), round(yx[0] * S / H * 100, 1)]
+            poly_pct = [P(p) for p in poly]
+            top, bottom = (poly_pct[0], poly_pct[-1]) if poly_pct[0][1] <= poly_pct[-1][1] else (poly_pct[-1], poly_pct[0])
+            width_px = int(red[pts[:, 0], pts[:, 1]].sum()) * S * S / (length * S)
+            marks.append({"top": top, "bottom": bottom,
+                          "path": poly_pct if poly_pct[0][1] <= poly_pct[-1][1] else poly_pct[::-1],
+                          "width_pct": round(width_px / H * 100, 2), "left": float(pts[:, 1].min())})
+    marks.sort(key=lambda m_: m_["left"])
+    for m_ in marks:
+        m_.pop("left")
+    return marks
+
+
+@app.route("/fx_marks", methods=["POST"])
+def fx_marks():
+    import base64
+    data = request.json or {}
+    work_dir = tempfile.mkdtemp(prefix="fxmarks_")
+    try:
+        orig = _fx_image(data["imageUrl"], work_dir)
+        raw = str(data.get("markedDataUrl") or "")
+        marked = os.path.join(work_dir, "marked.jpg")
+        open(marked, "wb").write(base64.b64decode(raw.split(",", 1)[-1]))
+        marks = find_red_marks(orig, marked)
+        lines = []
+        for i, m_ in enumerate(marks, 1):
+            lines.append(f"{i}) верхний конец {m_['top'][0]}, {m_['top'][1]}; нижний конец {m_['bottom'][0]}, "
+                         f"{m_['bottom'][1]}; путь сверху вниз: " + " → ".join(f"{p[0]}, {p[1]}" for p in m_["path"]) +
+                         f"; толщина штриха {m_['width_pct']} % высоты кадра")
+        return jsonify({"ok": True, "marks": marks, "text": "\n".join(lines)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "marks": [], "text": ""}), 200
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 @app.route("/health", methods=["GET"])

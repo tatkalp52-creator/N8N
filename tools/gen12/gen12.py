@@ -274,7 +274,16 @@ link('Нужен разговор?', 'Есть фото?', 1)
 link('OpenAI: создаём разговор', 'Есть фото?')
 link('Есть фото?', 'Скачиваем фото', 0)
 link('Есть фото?', 'Нужна сетка?', 1)
-chain('Скачиваем фото', 'Фото в base64', 'Нужна сетка?')
+if_node('Нужна разметка?', "$('Кто отвечает').first().json.needMarks", [EX + 1320, EY - 300])
+add({'parameters': {'method': 'POST', 'url': ASM + '/fx_marks', 'sendBody': True, 'specifyBody': 'json',
+                    'jsonBody': "={{ JSON.stringify({ imageUrl: " + CTX + ".row.ai_ApprovedImageUrl, markedDataUrl: $('Фото в base64').first().json.userImageUrl }) }}",
+                    'options': {'timeout': 120000}},
+     'name': 'Сервер: разметка', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [EX + 1320, EY - 460],
+     'onError': 'continueRegularOutput'})
+chain('Скачиваем фото', 'Фото в base64', 'Нужна разметка?')
+link('Нужна разметка?', 'Сервер: разметка', 0)
+link('Нужна разметка?', 'Нужна сетка?', 1)
+link('Сервер: разметка', 'Нужна сетка?')
 link('Нужна сетка?', 'Сервер: сетка', 0)
 link('Нужна сетка?', 'Готовим запрос этапу', 1)
 link('Сервер: сетка', 'Готовим запрос этапу')

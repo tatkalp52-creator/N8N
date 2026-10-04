@@ -67,6 +67,9 @@ return [{
     sayText,
     editVariant,
     fromAuthor: !isStart,
+    // фото этапу, чей пункт показывается превью «оживление», — это разметка: её читает сборщик
+    needMarks: mode === 'model' && !!photo && !!approvedUrl && !!stage &&
+      items.some(it => stScope(stages, stage).items.includes(it.n) && /оживл/.test(it.preview || '')),
     needGrid: mode === 'model' && !!(stage && stage.grid) && !!approvedUrl,
     needConv: mode === 'model' && !silent && !String((state.stages[bareIcon(stage ? stage.icon : '')] || {}).conv || '').trim(),
   }

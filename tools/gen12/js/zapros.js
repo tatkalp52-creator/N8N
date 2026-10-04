@@ -145,7 +145,11 @@ ${card}`;
 const text = plan.isStart
   ? `[Служебное сообщение] ${plan.event || 'Предыдущий этап завершён.'} Сейчас твой этап — начни по своим правилам.`
   : (plan.userText || '(пустое сообщение)');
-const content = [{ type: 'input_text', text }];
+let marksText = '';
+try { marksText = ($('Сервер: разметка').first().json || {}).text || ''; } catch (e) {}
+const content = [{ type: 'input_text', text: text + (marksText
+  ? '\n\n[Разметка автора — красные штрихи на её картинке, слева направо; числа — проценты кадра, прочитаны точно]\n' + marksText
+  : '') }];
 if (userImageUrl) {
   content.push({ type: 'input_text', text: '(Фото, которое автор прислала в этом сообщении:)' });
   content.push({ type: 'input_image', image_url: userImageUrl });

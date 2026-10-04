@@ -239,6 +239,16 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.ok(r.previewCaption.includes('ID: P1'));
     const nx = (await run('Что дальше?', { nodes: { 'Итог хода': r } }))[0];
     assert.equal(nx.preview, true);
+    // автор прислала фото с красной разметкой — сборщик прочитал, Аниматор получил точные числа
+    const ctxM = { ...ctxA, kind: 'message', text: 'вот так', photo: [{ file_id: 'F' }] };
+    const nm = { 'Контекст проекта': ctxM };
+    nm['Кто отвечает'] = (await run('Кто отвечает', { nodes: nm }))[0];
+    assert.equal(nm['Кто отвечает'].needMarks, true);
+    nm['Фото в base64'] = { userImageUrl: 'data:image/jpeg;base64,MARKED' };
+    nm['Сервер: разметка'] = { ok: true, text: '1) верхний конец 47, 19; нижний конец 44, 37' };
+    nm['OpenAI: создаём разговор'] = { id: 'cM' };
+    const rq = (await run('Готовим запрос этапу', { nodes: nm }))[0];
+    assert.ok(rq.requestBody.input[0].content[0].text.includes('Разметка автора') && rq.requestBody.input[0].content[0].text.includes('нижний конец 44, 37'));
   }
   console.log('9c аниматор: сетка для него, превью для автора OK');
 
