@@ -116,6 +116,11 @@ async function turn(stages, row, inc, response, subResponse) {
     const r = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': tg } }))[0];
     assert.deepEqual(r.photo, [{ file_id: 'D' }], 'картинка файлом — тоже картинка');
     assert.equal(r.replyVariant, 2);
+    // новый формат Telegram: rich_message с блоками «абзац» и «фото»
+    const tg2 = { message: { chat: { id: 1 }, from: { id: 1 }, reply_to_message: { caption: 'Вариант 14\nID: 20261004_192748_pengui' },
+      rich_message: { blocks: [{ type: 'paragraph', text: '1) смеситель' }, { type: 'photo', photo: [{ file_id: 'small' }, { file_id: 'big' }] }] } } };
+    const r2 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': tg2 } }))[0];
+    assert.equal(r2.text, '1) смеситель'); assert.equal(r2.photo[1].file_id, 'big'); assert.equal(r2.replyVariant, 14);
   }
   console.log('2 художник: задание, место по слову, правка, правка по обводке OK');
 

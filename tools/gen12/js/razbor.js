@@ -42,7 +42,15 @@ if (t.callback_query) {
   return [{ json: { ...base, kind: 'unknown' } }];
 }
 
-const msg = t.message || {};
+const msg = { ...(t.message || {}) };
+// Новый формат Telegram (rich_message): текст и фото лежат в блоках — разворачиваем в обычные поля
+if (msg.rich_message && Array.isArray(msg.rich_message.blocks)) {
+  const blocks = msg.rich_message.blocks;
+  const txt = blocks.filter(b => b && typeof b.text === 'string').map(b => b.text).join('\n\n').trim();
+  const ph = blocks.find(b => b && Array.isArray(b.photo) && b.photo.length);
+  if (!msg.text && !msg.caption && txt) msg.caption = txt;
+  if (!msg.photo && ph) msg.photo = ph.photo;
+}
 const ownText = msg.text || msg.caption || '';
 let search = ownText;
 if (msg.reply_to_message) search += ' ' + (msg.reply_to_message.text || msg.reply_to_message.caption || '');
