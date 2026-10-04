@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-candle-rain"
+ASSEMBLER_VERSION = "2026-10-04-candle-rain2"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1444,7 +1444,44 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
 
     for kind, nums in spec:
         px, py = nums[0] / 100 * W, nums[1] / 100 * H
-        if kind == "steam":
+        if kind == "steam" and len(nums) >= 3 and nums[2] > 0:
+            # ПАР НАД ВАННОЙ (04.10): третья цифра — ширина водной глади (% кадра). Три широкие,
+            # сильно размытые, еле заметные струи по всей ширине; петля — вся 6-секундная.
+            span = nums[2] / 100 * W
+            bw, bh = int(span + 90 * k), int(200 * k * steam_height)
+            x0, y0 = int(px - bw / 2), int(py - bh)
+            grain = np.asarray(Image.fromarray(rng.uniform(0, 255, (bh, bw)).astype(np.uint8))
+                               .filter(ImageFilter.GaussianBlur(2.0 * k)), np.float32) / 255
+            grain = 0.7 + 0.3 * grain
+            wide = [dict(bx=(f - 0.5) * span, A=26, f=1.0, ph=p_, mp=m_)
+                    for f, p_, m_ in ((0.2, 0.0, 0.15), (0.52, 2.2, 0.6), (0.82, 4.3, 0.35))]
+
+            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wide=wide):
+                t = (t % EFFECTS_LOOP_SECONDS) / EFFECTS_LOOP_SECONDS
+                can = Image.new("L", (bw * SS, bh * SS), 0)
+                d = ImageDraw.Draw(can)
+                for w in wide:
+                    S = 120
+                    pts = []
+                    for i in range(S + 1):
+                        s_ = i / S
+                        x = bw / 2 + w["bx"] + k * w["A"] * s_ ** 0.9 * math.sin(2 * math.pi * (w["f"] * s_ - t) + w["ph"])
+                        pts.append((x, bh - 1 - s_ * (bh - 6), s_))
+                    for i in range(S):
+                        xa, ya, s_ = pts[i]
+                        xb, yb, _ = pts[i + 1]
+                        fade = min(1, s_ / 0.08) * max(0, min(1, (0.95 - s_) / 0.5))
+                        dash = 0.5 + 0.5 * math.sin(2 * math.pi * (1.5 * s_ - t) + w["mp"] * 6.28)
+                        a = fade * (0.4 + 0.6 * dash)
+                        if a > 0.01:
+                            d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
+                                   width=max(1, int((9 + 16 * s_) * k * SS)))
+                al = np.asarray(can.resize((bw, bh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(7 * k)),
+                                np.float32) / 255 * grain * steam_opacity * 0.42
+                return x0, y0, al, np.array([246, 241, 231], np.float32)
+            layers.append(steam)
+
+        elif kind == "steam":
             bw, bh = int(150 * k), int(165 * k * steam_height)
             x0, y0 = int(px - bw / 2), int(py - bh)
             grain = np.asarray(Image.fromarray(rng.uniform(0, 255, (bh, bw)).astype(np.uint8))
@@ -1575,16 +1612,16 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 L = EFFECTS_LOOP_SECONDS
                 f = (0.55 * math.sin(2 * math.pi * 7 * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * 13 * t / L + ph[1])
                      + 0.15 * math.sin(2 * math.pi * 29 * t / L + ph[2]))
-                sway = 0.9 * k * math.sin(2 * math.pi * 5 * t / L + ph[3])
-                a = halo * (0.13 + 0.05 * f) * glow
+                sway = 1.6 * k * math.sin(2 * math.pi * 5 * t / L + ph[3])
+                a = halo * (0.2 + 0.09 * f) * glow
                 can = Image.new("L", (2 * R * SS, 2 * R * SS), 0)
                 d = ImageDraw.Draw(can)
                 cx, cy = (px - gx0 + sway) * SS, (py - gy0) * SS
-                h_ = fh * (1 + 0.12 * f) * SS
+                h_ = fh * (1 + 0.22 * f) * SS
                 d.ellipse([cx - fw * SS, cy - h_ * 0.75, cx + fw * SS, cy + h_ * 0.35], fill=255)
                 core = np.asarray(can.resize((2 * R, 2 * R), Image.LANCZOS)
                                   .filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32) / 255
-                a = np.maximum(a, core * (0.28 + 0.12 * f))
+                a = np.maximum(a, core * (0.36 + 0.2 * f))
                 col = np.empty((2 * R, 2 * R, 3), np.float32)
                 col[...] = (255, 196, 120)
                 col[core > 0.05] = (255, 238, 190)
@@ -1641,7 +1678,11 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             cost = lum + 6.0 / k * np.hypot(gx_ + gx0 - px, gy_ + gy0 - py)
             iy, ix = np.unravel_index(np.argmin(cost), cost.shape)
             ex, ey = gx0 + ix + 0.5, gy0 + iy + 0.5
-            r = 5 * k
+            # размер глаза меряем: тёмное пятно вокруг найденной точки (у канарейки глаз крошечный)
+            ring_l = float(np.median(lum))
+            dark_ = lum < (lum[iy, ix] + ring_l) / 2
+            near = np.hypot(gx_ - ix, gy_ - iy) <= 6 * k
+            r = float(np.clip(math.sqrt(max(1.0, float((dark_ & near).sum())) / math.pi) + 0.8 * k, 1.6 * k, 5 * k))
             pad = int(r * 2.2)
             bx0, by0, bw, bh = int(ex) - pad, int(ey) - pad, 2 * pad, 2 * pad
             patch = base[by0:by0 + bh, bx0:bx0 + bw].copy()
@@ -1653,9 +1694,10 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             closed = patch * (1 - cover) + feather * cover
             lid = Image.new("L", (bw * SS, bh * SS), 0)
             dl = ImageDraw.Draw(lid)
-            dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.4 * k + 1.8 * k * (1 - (dx / (4.2 * k)) ** 2)) * SS)
-                     for dx in np.linspace(-4.2 * k, 4.2 * k, 20)],
-                    fill=255, width=max(1, int(1.3 * k * SS)), joint="curve")
+            q = r / (5 * k)   # веко — по размеру глаза
+            dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.4 * k * q + 1.8 * k * q * (1 - (dx / (4.2 * k * q)) ** 2)) * SS)
+                     for dx in np.linspace(-4.2 * k * q, 4.2 * k * q, 20)],
+                    fill=255, width=max(1, int(1.3 * k * max(q, 0.6) * SS)), joint="curve")
             la = np.asarray(lid.resize((bw, bh), Image.LANCZOS), np.float32)[..., None] / 255 * 0.85
             closed = closed * (1 - la) + np.array([78, 56, 34], np.float32) * la
             soft = np.clip((pad - np.maximum(abs(xx - pad), abs(yy - pad))) / (0.3 * pad), 0, 1)
