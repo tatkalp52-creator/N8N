@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-fx-marks2"
+ASSEMBLER_VERSION = "2026-10-04-fx-marks3"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2478,7 +2478,9 @@ def find_red_marks(orig_path, marked_path):
     from PIL import Image
     orig = Image.open(orig_path).convert("RGB")
     W, H = orig.size
-    marked = Image.open(marked_path).convert("RGB").resize((W, H), Image.LANCZOS)
+    marked = Image.open(marked_path).convert("RGB")
+    marked_size = marked.size
+    marked = marked.resize((W, H), Image.LANCZOS)
     S = 2                                           # ищем на уменьшенной картинке — быстро и без шума
     w, h = W // S, H // S
     # красное ищем на полном размере (тонкий штрих при уменьшении бледнеет и рвётся),
@@ -2546,6 +2548,10 @@ def find_red_marks(orig_path, marked_path):
     marks.sort(key=lambda m_: m_["left"])
     for m_ in marks:
         m_.pop("left")
+    if not marks:   # объясняем, почему пусто: размеры и сколько красного вообще нашлось
+        rr = (r > 140) & (g < 100) & (bl < 100) & (r - g > 90)
+        raise ValueError(f"штрихов нет: картинка {W}x{H}, разметка {marked_size[0]}x{marked_size[1]}, "
+                         f"красных пикселей {int(rr.sum())}, из них отличных от исходной {int(red_full.sum())}")
     return marks
 
 
