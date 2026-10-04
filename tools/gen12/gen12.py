@@ -188,8 +188,10 @@ sheets_read('Читаем шаблоны канала', 'Templates', [('tmpl_Cha
 # Сценарий канала: кто работает и в каком порядке; какие пункты и куда они пишутся
 sheets_read('Читаем этапы', 'Этапы', [('Канал', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 2000, Y])
 nodes[-1]['executeOnce'] = True
+nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}  # по умолчанию узел отдаёт только первую строку
 sheets_read('Читаем пункты', 'Пункты', [('Канал', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 2220, Y])
 nodes[-1]['executeOnce'] = True
+nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
 code('Контекст проекта', 'kontekst.js', [X + 2440, Y], lib=True)
 if_node('Проект найден?', '$json.found', [X + 2660, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2880, Y + 200])

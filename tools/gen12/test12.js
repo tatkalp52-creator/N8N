@@ -202,6 +202,16 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.equal(t.next, 'package', 'никто не согласует — сразу запись в таблицу');
   console.log('9 завод: бриф → картинка → тексты → запись, без согласований OK');
 
+  // ── 9b. Всё готово, автор пишет без обращения — отвечает последний пишущий, не художник ──
+  {
+    const all = JSON.stringify({ v: 2, items: { 1: { text: 'a' }, 2: { text: 'b' }, 3: { text: 'c' }, 4: { text: 'd' } }, agreed: { 1: true, 2: true, 3: true, 4: true }, stages: {} });
+    t = await turn(DIRECT, { ...APPROVED, sys_EditorState: all }, { text: 'Привет' }, { output: [{ type: 'message', content: [{ type: 'output_text', text: 'Привет!' }] }] });
+    assert.equal(t.plan.stageName, 'Технический писатель');
+    t = await turn([DIRECT[0]], APPROVED, { text: 'Привет' });
+    assert.notEqual(t.next, 'draw', 'художник без обращения не рисует «Привет»');
+  }
+  console.log('9b всё готово → отвечает пишущий этап, художник не рисует приветствие OK');
+
   // ── 10. Нет строк в «Этапах» — честно говорим ──
   t = await turn([], {}, { text: 'привет' });
   assert.ok(t.r.chunks[0].includes('В листе «Этапы» нет строк'));

@@ -11,8 +11,9 @@ const isStart = ctx.kind === 'stageStart';
 
 const addressed = isStart ? null : stAddressed(stages, ctx.text);
 const current = stCurrent(stages, items, state, approvedUrl);
-// Всё готово, а автор пишет без обращения — отвечает последний этап, который говорит с автором.
-const lastAuthor = [...stages].reverse().find(s => s.talks === 'author') || null;
+// Всё готово, а автор пишет без обращения — отвечает последний этап, который говорит с автором
+// словами (у кого есть пункты): художнику без обращения сообщение не уходит — он бы его нарисовал.
+const lastAuthor = [...stages].reverse().find(s => s.talks === 'author' && s.items.length) || null;
 const stage = addressed ? addressed.stage : (current || (isStart ? null : lastAuthor));
 let userText = addressed ? addressed.rest : String(ctx.text || '');
 const photo = ctx.photo && ctx.photo.length ? ctx.photo : null;
