@@ -420,12 +420,45 @@ for i, nm in enumerate(C2):
     take(nm, [AX + 1980 + i * 220, CY])
 tg_photo('Отправляем картинку (C)', "={{ $('Собираем ссылку (C)').first().json.chatId }}",
          "={{ $('Собираем ссылку (C)').first().json.ai_ImageUrl }}",
-         "=Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено)\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}",
+         "=Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено{{ $('Собираем все референсы (C)').first().json.hasMask ? ' по обводке' : ($('Кто отвечает').first().json.needMask ? '; обводка не прочиталась — правка всей картинки' : '') }})\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}",
          "=✅ Согласовать вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }}",
          "=img|{{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}|{{ $('Собираем ссылку (C)').first().json.variantNumber }}",
          [AX + 3080, CY])
-link('Куда после хода?', C[0], 1)
-chain(*C)
+# Правка по обводке: фото автора с красной обводкой → сборщик делает маску (прозрачное = можно менять).
+if_node('Правка по обводке?', "$('Кто отвечает').first().json.needMask", [AX, CY + 300])
+add({'parameters': {'resource': 'file', 'operation': 'get', 'fileId': "={{ (function(){ const p = $('Кто отвечает').first().json.maskPhoto; return p[p.length - 1].file_id; })() }}",
+                    'download': True, 'additionalFields': {}},
+     'name': 'Скачиваем фото обводки', 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2,
+     'position': [AX + 110, CY + 460], 'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG)})
+code('Фото обводки в base64', 'foto.js', [AX + 220, CY + 620])
+add({'parameters': {'method': 'POST', 'url': ASM + '/edit_mask', 'sendBody': True, 'specifyBody': 'json',
+                    'jsonBody': "={{ JSON.stringify({ imageUrl: $('Итог хода').first().json.revisionTargetImageUrl, markedDataUrl: $('Фото обводки в base64').first().json.userImageUrl }) }}",
+                    'options': {'timeout': 120000, 'response': {'response': {'responseFormat': 'file', 'outputPropertyName': 'mask'}}}},
+     'name': 'Сервер: маска', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [AX + 330, CY + 460],
+     'onError': 'continueRegularOutput'})
+link('Куда после хода?', 'Правка по обводке?', 1)
+link('Правка по обводке?', 'Скачиваем фото обводки', 0)
+link('Правка по обводке?', C[0], 1)
+chain('Скачиваем фото обводки', 'Фото обводки в base64', 'Сервер: маска', C[0])
+nodes_by('Собираем все референсы (C)')['parameters']['jsCode'] = open(os.path.join(JS, 'sobiraem_c.js')).read()
+chain(*C[:-1])
+# с маской — те же узлы правки, плюс поле mask (маска относится к первой картинке)
+if_node('С маской? (C)', "$json.hasMask", [AX + 1430, CY + 300])
+sw = copy.deepcopy(nodes_by('Сколько картинок? (C)'))
+sw['id'] = uid(); sw['name'] = 'Сколько картинок? (C, маска)'; sw['position'] = [AX + 1540, CY + 460]
+add(sw)
+CM = [f'gpt-image-2: правка по обводке (C, {c} img)' for c in C_COUNTS]
+for i, (nm, c) in enumerate(zip(CM, C_COUNTS)):
+    image_call('gpt-image-2: точечная правка (C)', nm, c,
+                   "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}",
+                   [AX + 1760, CY + 1300 + i * 160])
+    nodes_by(nm)['parameters']['bodyParameters']['parameters'].append({'parameterType': 'formBinaryData', 'name': 'mask', 'inputDataFieldName': 'mask'})
+link(C[-2], 'С маской? (C)')
+link('С маской? (C)', 'Сколько картинок? (C, маска)', 0)
+link('С маской? (C)', C[-1], 1)
+for i, nm in enumerate(CM):
+    link('Сколько картинок? (C, маска)', nm, i)
+    link(nm, 'Извлекаем картинку (C)')
 for i, nm in enumerate(CG):
     link('Сколько картинок? (C)', nm, i)
     link(nm, 'Извлекаем картинку (C)')

@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-fx-marks3"
+ASSEMBLER_VERSION = "2026-10-04-edit-mask"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2553,6 +2553,66 @@ def find_red_marks(orig_path, marked_path):
         raise ValueError(f"штрихов нет: картинка {W}x{H}, разметка {marked_size[0]}x{marked_size[1]}, "
                          f"красных пикселей {int(rr.sum())}, из них отличных от исходной {int(red_full.sum())}")
     return marks
+
+
+# ── Маска для правки картинки по обводке автора ──
+# Автор обводит красным маркером, что поправить. Внутри обводки (и сам штрих) — можно
+# рисовать заново, снаружи — картинка остаётся как была. Маска — PNG размера исходной
+# картинки: прозрачное = можно менять, непрозрачное = сохранить.
+def make_edit_mask(orig_path, marked_path, out_path, margin_pct=2.0):
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter
+    orig = Image.open(orig_path).convert("RGB")
+    W, H = orig.size
+    marked = Image.open(marked_path).convert("RGB").resize((W, H), Image.LANCZOS)
+    a = np.asarray(marked, np.float32)
+    b = np.asarray(orig, np.float32)
+    r, g, bl = a[..., 0], a[..., 1], a[..., 2]
+    red = (r > 140) & (g < 100) & (bl < 100) & (r - g > 90) & (np.abs(a - b).max(axis=2) > 50)
+    if int(red.sum()) < 30:
+        raise ValueError("красной обводки не нашлось")
+    # считаем на уменьшенной копии: заливаем то, что внутри замкнутой обводки
+    S = max(1, W // 512)
+    w, h = W // S, H // S
+    small = Image.fromarray((red * 255).astype(np.uint8)).resize((w, h), Image.BOX).point(lambda v: 255 if v > 0 else 0)
+    small = small.filter(ImageFilter.MaxFilter(5))          # закрываем мелкие разрывы штриха
+    canvas = Image.new("L", (w + 2, h + 2), 0)
+    canvas.paste(small, (1, 1))
+    ImageDraw.floodfill(canvas, (0, 0), 128)                 # всё, до чего можно дойти снаружи
+    c = np.asarray(canvas)[1:-1, 1:-1]
+    area = (c != 128)                                        # штрих + то, что внутри него
+    m = Image.fromarray((area * 255).astype(np.uint8))
+    pad = max(1, int(round(margin_pct / 100.0 * h)))
+    m = m.filter(ImageFilter.MaxFilter(2 * pad + 1)).resize((W, H), Image.BILINEAR)
+    edit = np.asarray(m) > 127
+    rgba = np.zeros((H, W, 4), np.uint8)
+    rgba[..., 3] = np.where(edit, 0, 255)
+    Image.fromarray(rgba, "RGBA").save(out_path)
+    return float(edit.mean())
+
+
+@app.route("/edit_mask", methods=["POST"])
+def edit_mask():
+    import base64
+    data = request.json or {}
+    work_dir = tempfile.mkdtemp(prefix="editmask_")
+    try:
+        orig = _fx_image(data["imageUrl"], work_dir)
+        marked = os.path.join(work_dir, "marked.jpg")
+        open(marked, "wb").write(base64.b64decode(str(data.get("markedDataUrl") or "").split(",", 1)[-1]))
+        out = os.path.join(work_dir, "mask.png")
+        share = make_edit_mask(orig, marked, out, float(data.get("marginPct") or 2.0))
+        if share > 0.6:
+            raise ValueError("обведено больше половины картинки — это уже не правка, а новый рисунок")
+        resp = send_file(out, mimetype="image/png")
+        return resp
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 422
+    finally:
+        @after_this_request
+        def _cleanup(response):
+            shutil.rmtree(work_dir, ignore_errors=True)
+            return response
 
 
 @app.route("/fx_marks", methods=["POST"])

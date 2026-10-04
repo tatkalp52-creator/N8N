@@ -16,14 +16,14 @@
         0,
         0
       ],
-      "webhookId": "5a97d27a-40b4-4abf-a590-2f6d34e302ab",
+      "webhookId": "700578a2-31c3-4003-925b-ed329c9476c9",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "9d5eb086-2e76-47f8-ac87-a6794d0c5fe9"
+      "id": "3ff6581c-bcb0-4b12-b994-cc9db3dbfdba"
     },
     {
       "parameters": {
@@ -54,7 +54,7 @@
         220,
         0
       ],
-      "id": "409ea701-f885-4e22-a9c0-ba01f3f9f92d"
+      "id": "83a89899-9670-44fa-956d-1059a4b04176"
     },
     {
       "parameters": {},
@@ -65,7 +65,7 @@
         0,
         200
       ],
-      "id": "8bfd069f-b1c6-4b77-a57f-48198c7f584c"
+      "id": "15b34de6-6171-4a29-b8f2-87adc9e05f1e"
     },
     {
       "parameters": {
@@ -78,7 +78,7 @@
         440,
         0
       ],
-      "id": "1559ccb0-cd4e-4fd8-86c8-f4256878d619"
+      "id": "d94e03c3-926f-4ea9-aca0-a2e48ccbca80"
     },
     {
       "parameters": {
@@ -157,7 +157,7 @@
         660,
         0
       ],
-      "id": "8a088576-1ed2-4243-89d7-15d1ac68ee57"
+      "id": "12f4e149-90aa-4769-96c5-16ecb33c8c90"
     },
     {
       "parameters": {
@@ -190,7 +190,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "42e6242a-f52e-4cb9-9a9d-6eae1649b6a1"
+      "id": "c48e9b61-dead-4341-b218-9881bfc8bbac"
     },
     {
       "parameters": {
@@ -203,7 +203,7 @@
         1120,
         -700
       ],
-      "id": "2e611c7d-0df9-43fe-8428-36a2cab79662"
+      "id": "9618b915-3d47-49f1-b746-d1d66718f4ed"
     },
     {
       "parameters": {
@@ -240,14 +240,14 @@
         1340,
         -700
       ],
-      "webhookId": "94dc84e2-63f9-4060-a6b7-bc0cc3389cff",
+      "webhookId": "cacf8292-eb2d-446c-bc1f-1dc14be74ef4",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "edb02944-00e1-42ad-afbe-2e2e8e43805a"
+      "id": "fdaf54ff-d059-4181-b3ad-1687e5658fe7"
     },
     {
       "parameters": {
@@ -263,7 +263,7 @@
         900,
         -450
       ],
-      "webhookId": "2e600383-4406-4c23-a5a3-5e8c44d71a1e",
+      "webhookId": "6ae02353-7678-4811-bf7d-e299f878c409",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -271,7 +271,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "df87afd9-c06d-4331-b8ff-c0238d36643b"
+      "id": "c4762f65-930c-4adf-9d5a-7626cc39a5a8"
     },
     {
       "parameters": {
@@ -309,7 +309,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "3fcd1224-136e-4950-ad09-fbe27f083116"
+      "id": "3d9bfc3a-7462-470e-b893-afb81c07a289"
     },
     {
       "parameters": {
@@ -322,7 +322,7 @@
         1340,
         -450
       ],
-      "id": "24a2a351-dbc2-4a52-b870-8a4ae25ae771"
+      "id": "44dddd24-0c05-42b0-9a12-36bdba8baa1c"
     },
     {
       "parameters": {
@@ -360,7 +360,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "5d5a7c67-4722-4a91-a2a1-11f8016b7982"
+      "id": "38e82f43-fafb-485f-8db7-354f094d4740"
     },
     {
       "parameters": {
@@ -380,14 +380,14 @@
         1780,
         -450
       ],
-      "webhookId": "b9a2d000-ff54-4217-b8d5-43b323f96786",
+      "webhookId": "eaf0262d-0758-4e37-b9a0-42bd07fd177c",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "c25f75f3-ddea-4c6b-98b0-40e5716f60a4"
+      "id": "4792986e-d401-479e-a821-1758a13aff80"
     },
     {
       "parameters": {
@@ -399,7 +399,7 @@
           },
           "conditions": [
             {
-              "id": "66812a25-20b4-41ba-8e54-c6fd5c94ca04",
+              "id": "f894d787-0007-400c-babd-9e9f14b85f97",
               "leftValue": "={{ !!$('Разбираем входящее').first().json.callbackQueryId }}",
               "rightValue": true,
               "operator": {
@@ -420,7 +420,7 @@
         900,
         0
       ],
-      "id": "d8b75e43-771c-4edb-b8eb-45443bba2caf"
+      "id": "b7a170f0-2b94-447a-8dea-720642a9eb54"
     },
     {
       "parameters": {
@@ -438,7 +438,7 @@
         1120,
         -150
       ],
-      "webhookId": "a035f6ce-9a8e-4201-912d-dbceacf9303f",
+      "webhookId": "d2ad0d9f-766b-422c-831f-5e7bfd1a8907",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -446,7 +446,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "f4acbefd-f47b-48c8-9374-da66fd3cb823"
+      "id": "692d06cd-a031-4593-b2cd-81b70d59fa1b"
     },
     {
       "parameters": {
@@ -485,7 +485,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "3738260c-93fc-4850-a65e-d2ceb92ae746"
+      "id": "98494458-865d-454b-8d4f-bff21be9eeef"
     },
     {
       "parameters": {
@@ -524,7 +524,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "5b5a9566-8ba8-4215-be66-890ead10dba9"
+      "id": "24421d86-e144-4f39-969f-4991c8133308"
     },
     {
       "parameters": {
@@ -563,7 +563,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "448f16de-8d09-4d30-9010-a1141914b478"
+      "id": "2d9bf83c-b4a7-49b3-9e46-e7e1b2b3c379"
     },
     {
       "parameters": {
@@ -604,7 +604,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "4307e56f-ac5b-4c0e-b9a6-7de8e52b910e",
+      "id": "1a7b27ac-d8d7-45c6-8bfa-47d34bb107d5",
       "executeOnce": true
     },
     {
@@ -646,7 +646,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "27b3412e-ac02-4e7b-ac1a-305cffb6c3c8",
+      "id": "7b2308df-e183-473b-a50d-0e2688dcc458",
       "executeOnce": true
     },
     {
@@ -660,7 +660,7 @@
         2440,
         0
       ],
-      "id": "be1e4834-fff0-4315-ab60-8c5a79a47d4a"
+      "id": "a3a28f05-9d61-4d54-bf73-5af4394e06d4"
     },
     {
       "parameters": {
@@ -672,7 +672,7 @@
           },
           "conditions": [
             {
-              "id": "4f79e2e5-e397-4caa-a540-d5e7be317e44",
+              "id": "1d888da9-d1b9-459b-b2dd-35ab228fc760",
               "leftValue": "={{ $json.found }}",
               "rightValue": true,
               "operator": {
@@ -693,7 +693,7 @@
         2660,
         0
       ],
-      "id": "70e2599a-3a4e-47be-b7ce-d1bae7220124"
+      "id": "f5459cd9-f9ff-4eae-95be-71594e782ba6"
     },
     {
       "parameters": {
@@ -713,14 +713,14 @@
         2880,
         200
       ],
-      "webhookId": "dc954bc2-b96c-4084-ad0d-279fc5f5cb97",
+      "webhookId": "3b98c3c2-0d18-4a70-80ea-5d0d76c102ab",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "92d5759f-2509-48bf-af4b-e3e646b68777"
+      "id": "9d8b9cab-f308-4a79-8e91-89a6fd2317b8"
     },
     {
       "parameters": {
@@ -899,7 +899,7 @@
         2880,
         0
       ],
-      "id": "95920465-76eb-4fb2-a9e9-9f22f7a8d944"
+      "id": "efd82bb8-79c8-4a53-91ac-22b95ecaee1d"
     },
     {
       "parameters": {
@@ -919,18 +919,18 @@
         3140,
         1500
       ],
-      "webhookId": "a2295440-493c-435b-b1d7-4dd3f728c9ba",
+      "webhookId": "10abe1a7-d056-4b9a-ad11-afe8fbd54ec9",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "d4e8b882-864a-41a8-8487-b0e5ed9fcc4b"
+      "id": "e8cec856-11f4-462e-b348-ebcdaaa263b9"
     },
     {
       "parameters": {
-        "jsCode": "// ── Общий кусок движка этапов (одинаковый в нескольких узлах) ─────────────\n// Движок не знает ни ролей, ни пунктов, ни имён колонок с содержанием.\n// Сценарий — лист «Этапы», пункты — лист «Пункты», знания — колонки Templates\n// со значком этапа. Служебные колонки (⚙️ или без значка) — механика.\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\n// Служебная колонка по имени (только для ⚙️ / колонок без значка — это кнопки механики).\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Значение строки служебного листа по заголовку (заголовки листов «Этапы»/«Пункты»).\nfunction cell(row, ...names) {\n  const norm = s => String(s).toLowerCase().replace(/[^a-zа-яё0-9№]+/giu, '');\n  for (const nm of names) {\n    const key = Object.keys(row || {}).find(k => norm(k) === norm(nm));\n    if (key !== undefined && row[key] != null && String(row[key]).trim() !== '') return String(row[key]).trim();\n  }\n  return '';\n}\n\n// «1, 2, 4-8» / «1,2,4–8» → [1,2,4,5,6,7,8]\nfunction parseNumbers(text) {\n  const out = [];\n  for (const part of String(text || '').split(/[,;\\s]+/)) {\n    const m = part.match(/^(\\d+)\\s*[-–—]\\s*(\\d+)$/);\n    if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); continue; }\n    if (/^\\d+$/.test(part)) out.push(+part);\n  }\n  return [...new Set(out)];\n}\n\nfunction isEmojiStart(s) { return /^\\p{Extended_Pictographic}/u.test(String(s || '').trim()); }\n// Значок для сравнения — без вариационного селектора (✍️ и ✍ — один значок).\nfunction bareIcon(s) { return String(s || '').replace(/️/g, '').trim(); }\n\n// ── Этапы ──\n// Строка листа «Этапы»: Значок | Кто | С кем говорит | Согласование | Делает | Модель | Усилие\nfunction stParseStages(rows) {\n  const list = (rows || []).map(r => {\n    const does = cell(r, 'Делает');\n    const talksRaw = cell(r, 'С кем говорит').toLowerCase();\n    return {\n      icon: cell(r, 'Значок'),\n      name: cell(r, 'Кто'),\n      talksRaw,\n      approve: !/авто/i.test(cell(r, 'Согласование')),\n      picture: /картин/i.test(does),\n      items: parseNumbers(does.replace(/картин\\S*/gi, '')),\n      model: cell(r, 'Модель'),\n      effort: cell(r, 'Усилие').toLowerCase(),\n      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)\n      grid: /сетк/i.test(cell(r, 'Картинка')),\n    };\n  }).filter(s => s.icon && s.name);\n  for (const s of list) {\n    if (/^автор/.test(s.talksRaw)) s.talks = 'author';\n    else if (!s.talksRaw || /^[-—–]$/.test(s.talksRaw) || /^(никто|сам)/.test(s.talksRaw)) s.talks = 'none';\n    else {\n      const boss = list.find(b => b !== s && (b.name.toLowerCase() === s.talksRaw || bareIcon(b.icon) === bareIcon(s.talksRaw)));\n      s.talks = boss ? 'boss' : 'none';\n      s.boss = boss ? boss.icon : '';\n    }\n  }\n  return list;\n}\n\nfunction stSubordinates(stages, stage) {\n  return stages.filter(s => s.talks === 'boss' && bareIcon(s.boss) === bareIcon(stage.icon));\n}\n\n// Что этап отвечает: свои пункты + пункты подчинённых; картинка — своя или подчинённого.\nfunction stScope(stages, stage) {\n  const subs = stSubordinates(stages, stage);\n  const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);\n  return { items, picture: stage.picture || subs.some(s => s.picture), subs };\n}\n\n// ── Пункты ──\n// Строка листа «Пункты»: № | Пункт | Колонки | Подсказка | Можно пусто\nfunction itParseItems(rows) {\n  return (rows || []).map(r => ({\n    n: parseInt(cell(r, '№', 'Номер'), 10),\n    name: cell(r, 'Пункт'),\n    cols: cell(r, 'Колонки'),\n    hint: cell(r, 'Подсказка'),\n    canEmpty: /^да/i.test(cell(r, 'Можно пусто')),\n    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика\n    preview: cell(r, 'Превью').toLowerCase(),\n  })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);\n}\n\n// ── Состояние выпуска (sys_EditorState) ──\nfunction stEmptyState() {\n  return { v: 2, items: {}, agreed: {}, stages: {} };\n}\nfunction stParseState(raw) {\n  let p = null;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }\n  if (!p || typeof p !== 'object' || p.v !== 2) return stEmptyState();\n  const s = stEmptyState();\n  s.items = p.items && typeof p.items === 'object' ? p.items : {};\n  s.agreed = p.agreed && typeof p.agreed === 'object' ? p.agreed : {};\n  s.stages = p.stages && typeof p.stages === 'object' ? p.stages : {};\n  return s;\n}\nfunction stStage(state, icon) {\n  const k = bareIcon(icon);\n  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };\n  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];\n  return state.stages[k];\n}\n\nfunction stItemDone(state, item) {\n  return state.agreed[item.n] === true;\n}\n\n// Этап готов: картинка согласована (если он за неё отвечает) и все его пункты согласованы.\nfunction stComplete(stages, items, state, approvedUrl, stage) {\n  const sc = stScope(stages, stage);\n  if (sc.picture && !approvedUrl) return false;\n  return sc.items.every(n => { const it = items.find(i => i.n === n); return !it || stItemDone(state, it); });\n}\n\n// Текущий этап: первый по порядку незавершённый, который сам ведёт работу (не подчинённый).\nfunction stCurrent(stages, items, state, approvedUrl) {\n  return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;\n}\n\n// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает\n// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.\n// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).\nconst ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',\n  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];\nconst ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];\nfunction stApproval(text, scopeItems, state) {\n  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');\n  if (!t.trim() || t.length > 60) return [];\n  const nums = (t.match(/\\d+/g) || []).map(Number);\n  const hasEmoji = /[👍✅👌]/u.test(t);\n  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);\n  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));\n  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));\n  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];\n  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];\n  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);\n  return nums.length ? pending.filter(n => nums.includes(n)) : pending;\n}\nfunction stApplyApproval(state, nums) {\n  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;\n}\n\n// Обращение по значку («✍️ …») или по имени («Писателю: …»).\nfunction stAddressed(stages, text) {\n  const t = String(text || '').trim();\n  for (const s of stages) {\n    const ic = bareIcon(s.icon);\n    if (ic && bareIcon(t).startsWith(ic)) return { stage: s, rest: bareIcon(t).slice(ic.length).replace(/^[\\s:,.!—–-]+/, '') };\n  }\n  const first = (t.match(/^[\\p{L}-]+/u) || [''])[0].toLowerCase();\n  if (first.length >= 4) {\n    // сначала по первому слову имени («Писателю»), потом по любому («Техническому»)\n    for (const pass of [0, 1]) {\n      for (const s of stages) {\n        const words = s.name.toLowerCase().split(/\\s+/);\n        for (const word of pass === 0 ? words.slice(0, 1) : words.slice(1)) {\n          if (word.length < 5) continue;\n          const stem = word.slice(0, word.length - 2);\n          if (first.startsWith(stem) && first.length <= word.length + 2) {\n            // остальные слова имени («Техническому писателю: …») тоже убираем\n            let rest = t.slice(first.length).replace(/^[\\s:,.!—–-]+/, '');\n            for (const w of words.slice(words.indexOf(word) + 1)) {\n              const next = (rest.match(/^[\\p{L}-]+/u) || [''])[0];\n              if (w.length >= 5 && next.toLowerCase().startsWith(w.slice(0, w.length - 2))) rest = rest.slice(next.length).replace(/^[\\s:,.!—–-]+/, '');\n            }\n            return { stage: s, rest };\n          }\n        }\n      }\n    }\n  }\n  return null;\n}\n\n// ── Знания этапа из Templates: все колонки со значком этапа ──\n// 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);\n// блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).\n// Строка-ссылка — картинка; строка сразу под ссылкой — её роль.\nfunction kbIsService(key) { return !isEmojiStart(key) || key.includes('⚙'); }\nfunction kbLabel(key) { return key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, ''); }\nconst URL_LINE = /^https?:\\/\\/\\S+$/;\nfunction toDirectImageUrl(url) {\n  const m = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=s2000' : url;\n}\nfunction triggered(words, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return words.some(w => w && new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low));\n}\n// Текст и картинки одного куска колонки.\nfunction kbSplit(text) {\n  const lines = String(text || '').split('\\n');\n  const keep = [];\n  const images = [];\n  let last = null;\n  for (const line of lines) {\n    const t = line.trim();\n    if (URL_LINE.test(t)) { last = { url: toDirectImageUrl(t), role: '' }; images.push(last); continue; }\n    if (t && last && !last.role) { last.role = t; continue; }\n    if (t) last = null;\n    keep.push(line);\n  }\n  return { text: keep.join('\\n').trim(), images };\n}\nfunction kbForStage(tmpl, icon, taskText, opts) {\n  const o = opts || {};\n  const ic = bareIcon(icon);\n  const parts = [];\n  const images = [];\n  const notesKey = Object.keys(tmpl || {}).find(k => !kbIsService(k) && bareIcon(k).includes(ic) && k.includes('📝')) || '';\n  for (const key of Object.keys(tmpl || {})) {\n    if (kbIsService(key)) continue;\n    if (!bareIcon(key.match(/^[^a-zA-Z]*/)[0]).includes(ic)) continue;\n    const raw = String(tmpl[key] == null ? '' : tmpl[key]);\n    if (!raw.trim()) continue;\n    let chunks = [raw];\n    if (key.includes('📍')) {\n      chunks = raw.split(/\\n\\s*\\n/).filter(b => {\n        const head = b.trim().split('\\n')[0] || '';\n        const i = head.indexOf(':');\n        const words = i > 0 ? [head.slice(0, i), ...head.slice(i + 1).split(',')].map(w => w.trim().toLowerCase()) : [];\n        return words.length && triggered(words, taskText);\n      });\n    }\n    const texts = [];\n    for (let c of chunks) {\n      // у 📍-блока первая строка — название и слова-триггеры, это механика, не знание\n      if (key.includes('📍')) c = c.trim().split('\\n').slice(1).join('\\n');\n      const sp = kbSplit(c);\n      if (sp.text) texts.push(sp.text);\n      images.push(...sp.images.map(i => ({ ...i, place: key.includes('📍') })));\n    }\n    if (texts.length) parts.push((o.labels === false ? '' : kbLabel(key) + ':\\n') + texts.join('\\n\\n'));\n  }\n  return { text: parts.join('\\n\\n'), images, notesKey, notes: notesKey ? String(tmpl[notesKey] || '') : '' };\n}\n\n// ── Пункты: показ и запись в таблицу ──\nfunction itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }\nfunction itShow(state, item) {\n  const v = itValue(state, item.n);\n  if (!(item.n in state.items)) return '';\n  if (!v.text) return '— пусто';\n  if (!v.ru) return v.text;\n  return v.text.includes('\\n') || v.text.length > 200 ? `${v.text}\\n\\n— Перевод для автора —\\n${v.ru}` : `${v.text} (${v.ru})`;\n}\n\n// Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;\n// одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.\nfunction itFields(items, state) {\n  const acc = {};\n  const order = [];\n  const put = (col, val) => { if (!(col in acc)) { acc[col] = []; order.push(col); } if (val) acc[col].push(val); };\n  for (const it of items) {\n    const text = itValue(state, it.n).text || '';\n    if (it.cols.includes('|')) {\n      const cols = it.cols.split('|').map(c => c.trim()).filter(Boolean);\n      const vals = text.split('|').map(v => v.trim());\n      cols.forEach((c, i) => put(c, vals[i] || ''));\n    } else {\n      for (const c of it.cols.split(',').map(c => c.trim()).filter(Boolean)) put(c, text);\n    }\n  }\n  const out = {};\n  for (const c of order) out[c] = acc[c].join('\\n\\n');\n  return out;\n}\n\n// Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.\n// Обязательны колонки пунктов, которые нельзя оставить пустыми.\nfunction validateRow(row, items, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n  for (const it of items) {\n    if (it.canEmpty) continue;\n    for (const c of it.cols.split(/[|,]/).map(c => c.trim()).filter(Boolean)) {\n      if (!val(c) && !problems.includes(`${c} пустая`)) problems.push(`${c} пустая (пункт ${it.n}. ${it.name})`);\n    }\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  // Метка [Timecodes] — место, куда сборщик вставит тайм-коды (механика 04_Video).\n  if (val('ai_TimecodeNames') && val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n\n// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).\n// Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.\nfunction artRefs(kbImages, placeImages) {\n  const fit = max => {\n    const room = Math.max(1, max - placeImages.length);\n    return [...kbImages.slice(0, room), ...placeImages].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };\n}\n// Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).\n// Изменённый пункт снова ждёт согласования. Возвращает номера изменённых пунктов.\nfunction itApply(state, items, scope, args, autoAgree) {\n  const changed = [];\n  const inScope = n => scope.includes(n) && items.some(i => i.n === n);\n  for (const p of (Array.isArray(args.items) ? args.items : [])) {\n    const n = parseInt(p && p.n, 10);\n    if (!inScope(n)) continue;\n    let text = String(p.text == null ? '' : p.text).trim();\n    if (text === '-') text = '';\n    const ru = String(p.ru == null ? '' : p.ru).trim();\n    const old = state.items[n];\n    if (!old || old.text !== text || (ru && old.ru !== ru)) {\n      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }\n      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };\n    }\n    if (autoAgree) state.agreed[n] = true;\n  }\n  for (const raw of (args.reopen || [])) {\n    const n = parseInt(raw, 10);\n    if (inScope(n) && state.agreed[n]) { state.agreed[n] = false; if (!changed.includes(n)) changed.push(n); }\n  }\n  for (const raw of (args.agreed || [])) {\n    const n = parseInt(raw, 10);\n    if (!inScope(n)) continue;\n    const it = items.find(i => i.n === n);\n    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };\n    if (n in state.items) state.agreed[n] = true;\n  }\n  return changed;\n}\n\n// Задание художнику: знания колонок его значка (без подписей) + слова задания.\n// Новая картинка — правила и описание мест + сцена; правка — только слова правки.\nfunction artBuild(ctx, stage, task, edit, variantNumber) {\n  const row = ctx.row || {};\n  const tmpl = ctx.tmpl || {};\n  let variants = [];\n  try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\n  if (!Array.isArray(variants)) variants = [];\n  const last = variants.length ? variants[variants.length - 1] : null;\n  const kb = kbForStage(tmpl, stage.icon, task, { labels: false });\n  const refs = artRefs(kb.images.filter(i => !i.place), kb.images.filter(i => i.place));\n  const r = {\n    action: edit ? 'revise_point' : 'ready_to_draw',\n    messageToUser: '',\n    dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,\n    revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,\n    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',\n    ...refs,\n  };\n  if (edit) {\n    const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;\n    if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }\n    else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }\n    r.revisionInstruction = task;\n  } else {\n    r.dallePrompt = [kb.text, task].filter(Boolean).join('\\n\\n');\n  }\n  if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }\n  return r;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Кто отвечает на это сообщение — решает таблица (лист «Этапы»), не код.\n// Текущий этап — первый по порядку незавершённый (не подчинённый).\n// Обращение «✍️ …» / «Писателю: …» — к названному этапу напрямую.\nconst ctx = $('Контекст проекта').first().json;\nconst row = ctx.row || {};\nconst stages = ctx.stages || [];\nconst items = ctx.items || [];\nconst state = stParseState(row.sys_EditorState);\nconst approvedUrl = String(row.ai_ApprovedImageUrl || '').trim();\nconst isStart = ctx.kind === 'stageStart';\n\nconst addressed = isStart ? null : stAddressed(stages, ctx.text);\nconst current = stCurrent(stages, items, state, approvedUrl);\n// Всё готово, а автор пишет без обращения — отвечает последний этап, который говорит с автором\n// словами (у кого есть пункты): художнику без обращения сообщение не уходит — он бы его нарисовал.\nconst lastAuthor = [...stages].reverse().find(s => s.talks === 'author' && s.items.length) || null;\nconst stage = addressed ? addressed.stage : (current || (isStart ? null : lastAuthor));\nlet userText = addressed ? addressed.rest : String(ctx.text || '');\nconst photo = ctx.photo && ctx.photo.length ? ctx.photo : null;\nif (!userText.trim()) userText = photo ? '(фото без подписи)' : '';\n\nlet mode = 'none';\nlet sayText = '';\nlet silent = false;\nif (ctx.setupProblem) {\n  mode = 'say'; sayText = ctx.setupProblem;\n} else if (!stage) {\n  mode = 'done'; // все этапы завершены — дальше сводка / запись\n} else if (stage.picture && !stage.items.length) {\n  // Художник: сообщение автора — это задание. Ответ на картинку или «правка …» — правка.\n  if (isStart) {\n    if (stage.talks === 'author' || !String(row.ai_UserBrief || '').trim()) {\n      mode = 'say';\n      sayText = `${stage.icon} ${stage.name}: жду задание — опишите, что на картинке.`;\n    } else {\n      mode = 'draw'; userText = String(row.ai_UserBrief || ''); silent = true;\n    }\n  } else if (!userText.trim()) {\n    mode = 'say'; sayText = `${stage.icon} ${stage.name}: напишите задание словами.`;\n  } else {\n    const e = userText.match(/^\\s*правк[аиу](?![а-яё])(?:\\s*(?:вариант[а]?|№)?\\s*(\\d+))?[\\s:,.!—–-]*/iu);\n    if (e || ctx.replyVariant) {\n      mode = 'edit';\n      if (e) userText = userText.slice(e[0].length);\n    } else mode = 'draw';\n  }\n} else {\n  mode = 'model';\n  silent = stage.talks !== 'author' && !addressed;\n}\n\nconst editVariant = (() => {\n  const e = String(ctx.text || '').match(/правк[аиу]\\s*(?:вариант[а]?|№)?\\s*(\\d+)/iu);\n  return e ? Number(e[1]) : (ctx.replyVariant || null);\n})();\n\n// диспетчер: чистое одобрение автора отмечаем сами (модель на этом ходу может выбрать другой инструмент)\nconst approveNums = mode === 'model' && !isStart && stage ? stApproval(userText, stScope(stages, stage).items, state) : [];\n\nreturn [{\n  json: {\n    mode,\n    approveNums,\n    stageIcon: stage ? stage.icon : '',\n    stageName: stage ? stage.name : '',\n    userText,\n    photo: mode === 'model' ? photo : null,\n    isStart,\n    event: ctx.event || '',\n    silent,\n    sayText,\n    editVariant,\n    fromAuthor: !isStart,\n    // фото этапу, чей пункт показывается превью «оживление», — это разметка: её читает сборщик\n    needMarks: mode === 'model' && !!photo && !!approvedUrl && !!stage &&\n      items.some(it => stScope(stages, stage).items.includes(it.n) && /оживл/.test(it.preview || '')),\n    needGrid: mode === 'model' && !!(stage && stage.grid) && !!approvedUrl,\n    needConv: mode === 'model' && !silent && !String((state.stages[bareIcon(stage ? stage.icon : '')] || {}).conv || '').trim(),\n  }\n}];\n"
+        "jsCode": "// ── Общий кусок движка этапов (одинаковый в нескольких узлах) ─────────────\n// Движок не знает ни ролей, ни пунктов, ни имён колонок с содержанием.\n// Сценарий — лист «Этапы», пункты — лист «Пункты», знания — колонки Templates\n// со значком этапа. Служебные колонки (⚙️ или без значка) — механика.\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\n// Служебная колонка по имени (только для ⚙️ / колонок без значка — это кнопки механики).\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Значение строки служебного листа по заголовку (заголовки листов «Этапы»/«Пункты»).\nfunction cell(row, ...names) {\n  const norm = s => String(s).toLowerCase().replace(/[^a-zа-яё0-9№]+/giu, '');\n  for (const nm of names) {\n    const key = Object.keys(row || {}).find(k => norm(k) === norm(nm));\n    if (key !== undefined && row[key] != null && String(row[key]).trim() !== '') return String(row[key]).trim();\n  }\n  return '';\n}\n\n// «1, 2, 4-8» / «1,2,4–8» → [1,2,4,5,6,7,8]\nfunction parseNumbers(text) {\n  const out = [];\n  for (const part of String(text || '').split(/[,;\\s]+/)) {\n    const m = part.match(/^(\\d+)\\s*[-–—]\\s*(\\d+)$/);\n    if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); continue; }\n    if (/^\\d+$/.test(part)) out.push(+part);\n  }\n  return [...new Set(out)];\n}\n\nfunction isEmojiStart(s) { return /^\\p{Extended_Pictographic}/u.test(String(s || '').trim()); }\n// Значок для сравнения — без вариационного селектора (✍️ и ✍ — один значок).\nfunction bareIcon(s) { return String(s || '').replace(/️/g, '').trim(); }\n\n// ── Этапы ──\n// Строка листа «Этапы»: Значок | Кто | С кем говорит | Согласование | Делает | Модель | Усилие\nfunction stParseStages(rows) {\n  const list = (rows || []).map(r => {\n    const does = cell(r, 'Делает');\n    const talksRaw = cell(r, 'С кем говорит').toLowerCase();\n    return {\n      icon: cell(r, 'Значок'),\n      name: cell(r, 'Кто'),\n      talksRaw,\n      approve: !/авто/i.test(cell(r, 'Согласование')),\n      picture: /картин/i.test(does),\n      items: parseNumbers(does.replace(/картин\\S*/gi, '')),\n      model: cell(r, 'Модель'),\n      effort: cell(r, 'Усилие').toLowerCase(),\n      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)\n      grid: /сетк/i.test(cell(r, 'Картинка')),\n    };\n  }).filter(s => s.icon && s.name);\n  for (const s of list) {\n    if (/^автор/.test(s.talksRaw)) s.talks = 'author';\n    else if (!s.talksRaw || /^[-—–]$/.test(s.talksRaw) || /^(никто|сам)/.test(s.talksRaw)) s.talks = 'none';\n    else {\n      const boss = list.find(b => b !== s && (b.name.toLowerCase() === s.talksRaw || bareIcon(b.icon) === bareIcon(s.talksRaw)));\n      s.talks = boss ? 'boss' : 'none';\n      s.boss = boss ? boss.icon : '';\n    }\n  }\n  return list;\n}\n\nfunction stSubordinates(stages, stage) {\n  return stages.filter(s => s.talks === 'boss' && bareIcon(s.boss) === bareIcon(stage.icon));\n}\n\n// Что этап отвечает: свои пункты + пункты подчинённых; картинка — своя или подчинённого.\nfunction stScope(stages, stage) {\n  const subs = stSubordinates(stages, stage);\n  const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);\n  return { items, picture: stage.picture || subs.some(s => s.picture), subs };\n}\n\n// ── Пункты ──\n// Строка листа «Пункты»: № | Пункт | Колонки | Подсказка | Можно пусто\nfunction itParseItems(rows) {\n  return (rows || []).map(r => ({\n    n: parseInt(cell(r, '№', 'Номер'), 10),\n    name: cell(r, 'Пункт'),\n    cols: cell(r, 'Колонки'),\n    hint: cell(r, 'Подсказка'),\n    canEmpty: /^да/i.test(cell(r, 'Можно пусто')),\n    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика\n    preview: cell(r, 'Превью').toLowerCase(),\n  })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);\n}\n\n// ── Состояние выпуска (sys_EditorState) ──\nfunction stEmptyState() {\n  return { v: 2, items: {}, agreed: {}, stages: {} };\n}\nfunction stParseState(raw) {\n  let p = null;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }\n  if (!p || typeof p !== 'object' || p.v !== 2) return stEmptyState();\n  const s = stEmptyState();\n  s.items = p.items && typeof p.items === 'object' ? p.items : {};\n  s.agreed = p.agreed && typeof p.agreed === 'object' ? p.agreed : {};\n  s.stages = p.stages && typeof p.stages === 'object' ? p.stages : {};\n  return s;\n}\nfunction stStage(state, icon) {\n  const k = bareIcon(icon);\n  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };\n  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];\n  return state.stages[k];\n}\n\nfunction stItemDone(state, item) {\n  return state.agreed[item.n] === true;\n}\n\n// Этап готов: картинка согласована (если он за неё отвечает) и все его пункты согласованы.\nfunction stComplete(stages, items, state, approvedUrl, stage) {\n  const sc = stScope(stages, stage);\n  if (sc.picture && !approvedUrl) return false;\n  return sc.items.every(n => { const it = items.find(i => i.n === n); return !it || stItemDone(state, it); });\n}\n\n// Текущий этап: первый по порядку незавершённый, который сам ведёт работу (не подчинённый).\nfunction stCurrent(stages, items, state, approvedUrl) {\n  return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;\n}\n\n// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает\n// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.\n// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).\nconst ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',\n  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];\nconst ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];\nfunction stApproval(text, scopeItems, state) {\n  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');\n  if (!t.trim() || t.length > 60) return [];\n  const nums = (t.match(/\\d+/g) || []).map(Number);\n  const hasEmoji = /[👍✅👌]/u.test(t);\n  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);\n  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));\n  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));\n  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];\n  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];\n  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);\n  return nums.length ? pending.filter(n => nums.includes(n)) : pending;\n}\nfunction stApplyApproval(state, nums) {\n  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;\n}\n\n// Обращение по значку («✍️ …») или по имени («Писателю: …»).\nfunction stAddressed(stages, text) {\n  const t = String(text || '').trim();\n  for (const s of stages) {\n    const ic = bareIcon(s.icon);\n    if (ic && bareIcon(t).startsWith(ic)) return { stage: s, rest: bareIcon(t).slice(ic.length).replace(/^[\\s:,.!—–-]+/, '') };\n  }\n  const first = (t.match(/^[\\p{L}-]+/u) || [''])[0].toLowerCase();\n  if (first.length >= 4) {\n    // сначала по первому слову имени («Писателю»), потом по любому («Техническому»)\n    for (const pass of [0, 1]) {\n      for (const s of stages) {\n        const words = s.name.toLowerCase().split(/\\s+/);\n        for (const word of pass === 0 ? words.slice(0, 1) : words.slice(1)) {\n          if (word.length < 5) continue;\n          const stem = word.slice(0, word.length - 2);\n          if (first.startsWith(stem) && first.length <= word.length + 2) {\n            // остальные слова имени («Техническому писателю: …») тоже убираем\n            let rest = t.slice(first.length).replace(/^[\\s:,.!—–-]+/, '');\n            for (const w of words.slice(words.indexOf(word) + 1)) {\n              const next = (rest.match(/^[\\p{L}-]+/u) || [''])[0];\n              if (w.length >= 5 && next.toLowerCase().startsWith(w.slice(0, w.length - 2))) rest = rest.slice(next.length).replace(/^[\\s:,.!—–-]+/, '');\n            }\n            return { stage: s, rest };\n          }\n        }\n      }\n    }\n  }\n  return null;\n}\n\n// ── Знания этапа из Templates: все колонки со значком этапа ──\n// 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);\n// блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).\n// Строка-ссылка — картинка; строка сразу под ссылкой — её роль.\nfunction kbIsService(key) { return !isEmojiStart(key) || key.includes('⚙'); }\nfunction kbLabel(key) { return key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, ''); }\nconst URL_LINE = /^https?:\\/\\/\\S+$/;\nfunction toDirectImageUrl(url) {\n  const m = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=s2000' : url;\n}\nfunction triggered(words, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return words.some(w => w && new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low));\n}\n// Текст и картинки одного куска колонки.\nfunction kbSplit(text) {\n  const lines = String(text || '').split('\\n');\n  const keep = [];\n  const images = [];\n  let last = null;\n  for (const line of lines) {\n    const t = line.trim();\n    if (URL_LINE.test(t)) { last = { url: toDirectImageUrl(t), role: '' }; images.push(last); continue; }\n    if (t && last && !last.role) { last.role = t; continue; }\n    if (t) last = null;\n    keep.push(line);\n  }\n  return { text: keep.join('\\n').trim(), images };\n}\nfunction kbForStage(tmpl, icon, taskText, opts) {\n  const o = opts || {};\n  const ic = bareIcon(icon);\n  const parts = [];\n  const images = [];\n  const notesKey = Object.keys(tmpl || {}).find(k => !kbIsService(k) && bareIcon(k).includes(ic) && k.includes('📝')) || '';\n  for (const key of Object.keys(tmpl || {})) {\n    if (kbIsService(key)) continue;\n    if (!bareIcon(key.match(/^[^a-zA-Z]*/)[0]).includes(ic)) continue;\n    const raw = String(tmpl[key] == null ? '' : tmpl[key]);\n    if (!raw.trim()) continue;\n    let chunks = [raw];\n    if (key.includes('📍')) {\n      chunks = raw.split(/\\n\\s*\\n/).filter(b => {\n        const head = b.trim().split('\\n')[0] || '';\n        const i = head.indexOf(':');\n        const words = i > 0 ? [head.slice(0, i), ...head.slice(i + 1).split(',')].map(w => w.trim().toLowerCase()) : [];\n        return words.length && triggered(words, taskText);\n      });\n    }\n    const texts = [];\n    for (let c of chunks) {\n      // у 📍-блока первая строка — название и слова-триггеры, это механика, не знание\n      if (key.includes('📍')) c = c.trim().split('\\n').slice(1).join('\\n');\n      const sp = kbSplit(c);\n      if (sp.text) texts.push(sp.text);\n      images.push(...sp.images.map(i => ({ ...i, place: key.includes('📍') })));\n    }\n    if (texts.length) parts.push((o.labels === false ? '' : kbLabel(key) + ':\\n') + texts.join('\\n\\n'));\n  }\n  return { text: parts.join('\\n\\n'), images, notesKey, notes: notesKey ? String(tmpl[notesKey] || '') : '' };\n}\n\n// ── Пункты: показ и запись в таблицу ──\nfunction itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }\nfunction itShow(state, item) {\n  const v = itValue(state, item.n);\n  if (!(item.n in state.items)) return '';\n  if (!v.text) return '— пусто';\n  if (!v.ru) return v.text;\n  return v.text.includes('\\n') || v.text.length > 200 ? `${v.text}\\n\\n— Перевод для автора —\\n${v.ru}` : `${v.text} (${v.ru})`;\n}\n\n// Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;\n// одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.\nfunction itFields(items, state) {\n  const acc = {};\n  const order = [];\n  const put = (col, val) => { if (!(col in acc)) { acc[col] = []; order.push(col); } if (val) acc[col].push(val); };\n  for (const it of items) {\n    const text = itValue(state, it.n).text || '';\n    if (it.cols.includes('|')) {\n      const cols = it.cols.split('|').map(c => c.trim()).filter(Boolean);\n      const vals = text.split('|').map(v => v.trim());\n      cols.forEach((c, i) => put(c, vals[i] || ''));\n    } else {\n      for (const c of it.cols.split(',').map(c => c.trim()).filter(Boolean)) put(c, text);\n    }\n  }\n  const out = {};\n  for (const c of order) out[c] = acc[c].join('\\n\\n');\n  return out;\n}\n\n// Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.\n// Обязательны колонки пунктов, которые нельзя оставить пустыми.\nfunction validateRow(row, items, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n  for (const it of items) {\n    if (it.canEmpty) continue;\n    for (const c of it.cols.split(/[|,]/).map(c => c.trim()).filter(Boolean)) {\n      if (!val(c) && !problems.includes(`${c} пустая`)) problems.push(`${c} пустая (пункт ${it.n}. ${it.name})`);\n    }\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  // Метка [Timecodes] — место, куда сборщик вставит тайм-коды (механика 04_Video).\n  if (val('ai_TimecodeNames') && val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n\n// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).\n// Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.\nfunction artRefs(kbImages, placeImages) {\n  const fit = max => {\n    const room = Math.max(1, max - placeImages.length);\n    return [...kbImages.slice(0, room), ...placeImages].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };\n}\n// Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).\n// Изменённый пункт снова ждёт согласования. Возвращает номера изменённых пунктов.\nfunction itApply(state, items, scope, args, autoAgree) {\n  const changed = [];\n  const inScope = n => scope.includes(n) && items.some(i => i.n === n);\n  for (const p of (Array.isArray(args.items) ? args.items : [])) {\n    const n = parseInt(p && p.n, 10);\n    if (!inScope(n)) continue;\n    let text = String(p.text == null ? '' : p.text).trim();\n    if (text === '-') text = '';\n    const ru = String(p.ru == null ? '' : p.ru).trim();\n    const old = state.items[n];\n    if (!old || old.text !== text || (ru && old.ru !== ru)) {\n      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }\n      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };\n    }\n    if (autoAgree) state.agreed[n] = true;\n  }\n  for (const raw of (args.reopen || [])) {\n    const n = parseInt(raw, 10);\n    if (inScope(n) && state.agreed[n]) { state.agreed[n] = false; if (!changed.includes(n)) changed.push(n); }\n  }\n  for (const raw of (args.agreed || [])) {\n    const n = parseInt(raw, 10);\n    if (!inScope(n)) continue;\n    const it = items.find(i => i.n === n);\n    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };\n    if (n in state.items) state.agreed[n] = true;\n  }\n  return changed;\n}\n\n// Задание художнику: знания колонок его значка (без подписей) + слова задания.\n// Новая картинка — правила и описание мест + сцена; правка — только слова правки.\nfunction artBuild(ctx, stage, task, edit, variantNumber) {\n  const row = ctx.row || {};\n  const tmpl = ctx.tmpl || {};\n  let variants = [];\n  try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\n  if (!Array.isArray(variants)) variants = [];\n  const last = variants.length ? variants[variants.length - 1] : null;\n  const kb = kbForStage(tmpl, stage.icon, task, { labels: false });\n  const refs = artRefs(kb.images.filter(i => !i.place), kb.images.filter(i => i.place));\n  const r = {\n    action: edit ? 'revise_point' : 'ready_to_draw',\n    messageToUser: '',\n    dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,\n    revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,\n    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',\n    ...refs,\n  };\n  if (edit) {\n    const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;\n    if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }\n    else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }\n    r.revisionInstruction = task;\n  } else {\n    r.dallePrompt = [kb.text, task].filter(Boolean).join('\\n\\n');\n  }\n  if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }\n  return r;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Кто отвечает на это сообщение — решает таблица (лист «Этапы»), не код.\n// Текущий этап — первый по порядку незавершённый (не подчинённый).\n// Обращение «✍️ …» / «Писателю: …» — к названному этапу напрямую.\nconst ctx = $('Контекст проекта').first().json;\nconst row = ctx.row || {};\nconst stages = ctx.stages || [];\nconst items = ctx.items || [];\nconst state = stParseState(row.sys_EditorState);\nconst approvedUrl = String(row.ai_ApprovedImageUrl || '').trim();\nconst isStart = ctx.kind === 'stageStart';\n\nconst addressed = isStart ? null : stAddressed(stages, ctx.text);\nconst current = stCurrent(stages, items, state, approvedUrl);\n// Всё готово, а автор пишет без обращения — отвечает последний этап, который говорит с автором\n// словами (у кого есть пункты): художнику без обращения сообщение не уходит — он бы его нарисовал.\nconst lastAuthor = [...stages].reverse().find(s => s.talks === 'author' && s.items.length) || null;\nconst stage = addressed ? addressed.stage : (current || (isStart ? null : lastAuthor));\nlet userText = addressed ? addressed.rest : String(ctx.text || '');\nconst photo = ctx.photo && ctx.photo.length ? ctx.photo : null;\nif (!userText.trim()) userText = photo ? '(фото без подписи)' : '';\n\nlet mode = 'none';\nlet sayText = '';\nlet silent = false;\nif (ctx.setupProblem) {\n  mode = 'say'; sayText = ctx.setupProblem;\n} else if (!stage) {\n  mode = 'done'; // все этапы завершены — дальше сводка / запись\n} else if (stage.picture && !stage.items.length) {\n  // Художник: сообщение автора — это задание. Ответ на картинку или «правка …» — правка.\n  if (isStart) {\n    if (stage.talks === 'author' || !String(row.ai_UserBrief || '').trim()) {\n      mode = 'say';\n      sayText = `${stage.icon} ${stage.name}: жду задание — опишите, что на картинке.`;\n    } else {\n      mode = 'draw'; userText = String(row.ai_UserBrief || ''); silent = true;\n    }\n  } else if (!userText.trim()) {\n    mode = 'say'; sayText = `${stage.icon} ${stage.name}: напишите задание словами.`;\n  } else {\n    const e = userText.match(/^\\s*правк[аиу](?![а-яё])(?:\\s*(?:вариант[а]?|№)?\\s*(\\d+))?[\\s:,.!—–-]*/iu);\n    if (e || ctx.replyVariant) {\n      mode = 'edit';\n      if (e) userText = userText.slice(e[0].length);\n    } else mode = 'draw';\n  }\n} else {\n  mode = 'model';\n  silent = stage.talks !== 'author' && !addressed;\n}\n\nconst editVariant = (() => {\n  const e = String(ctx.text || '').match(/правк[аиу]\\s*(?:вариант[а]?|№)?\\s*(\\d+)/iu);\n  return e ? Number(e[1]) : (ctx.replyVariant || null);\n})();\n\n// диспетчер: чистое одобрение автора отмечаем сами (модель на этом ходу может выбрать другой инструмент)\nconst approveNums = mode === 'model' && !isStart && stage ? stApproval(userText, stScope(stages, stage).items, state) : [];\n\nreturn [{\n  json: {\n    mode,\n    approveNums,\n    stageIcon: stage ? stage.icon : '',\n    stageName: stage ? stage.name : '',\n    userText,\n    photo: mode === 'model' ? photo : null,\n    isStart,\n    event: ctx.event || '',\n    silent,\n    sayText,\n    editVariant,\n    fromAuthor: !isStart,\n    // фото этапу, чей пункт показывается превью «оживление», — это разметка: её читает сборщик\n    needMarks: mode === 'model' && !!photo && !!approvedUrl && !!stage &&\n      items.some(it => stScope(stages, stage).items.includes(it.n) && /оживл/.test(it.preview || '')),\n    // правка картинки с фото автора: красная обводка на фото = где можно менять (маска сборщика)\n    needMask: mode === 'edit' && !!photo,\n    maskPhoto: mode === 'edit' ? photo : null,\n    needGrid: mode === 'model' && !!(stage && stage.grid) && !!approvedUrl,\n    needConv: mode === 'model' && !silent && !String((state.stages[bareIcon(stage ? stage.icon : '')] || {}).conv || '').trim(),\n  }\n}];\n"
       },
       "name": "Кто отвечает",
       "type": "n8n-nodes-base.code",
@@ -939,7 +939,7 @@
         3140,
         -1400
       ],
-      "id": "13193694-db28-414b-95ad-7ae8736cab13"
+      "id": "7b2e13ea-70ed-4e7e-a52e-f4ff21a42829"
     },
     {
       "parameters": {
@@ -951,7 +951,7 @@
           },
           "conditions": [
             {
-              "id": "9e58b6d5-1253-4c9b-ac03-802f7409880c",
+              "id": "42aab6e1-1317-4701-bf64-b982ea19c641",
               "leftValue": "={{ $('Кто отвечает').first().json.mode === 'model' }}",
               "rightValue": true,
               "operator": {
@@ -972,7 +972,7 @@
         3360,
         -1400
       ],
-      "id": "a964dd20-f8cd-49e2-a818-6e3b1a786a40"
+      "id": "8f14f578-3c34-4b28-b3e5-7236ba499870"
     },
     {
       "parameters": {
@@ -984,7 +984,7 @@
           },
           "conditions": [
             {
-              "id": "d150cbff-2953-4e46-a823-ed2cc1da5cb5",
+              "id": "4fee0aa9-7b98-4eae-b817-1ca1188a4354",
               "leftValue": "={{ $('Кто отвечает').first().json.needConv }}",
               "rightValue": true,
               "operator": {
@@ -1005,7 +1005,7 @@
         3580,
         -1580
       ],
-      "id": "07a70764-9f34-49a6-b374-0b7cec48ca9f"
+      "id": "a694d352-593b-4ba5-a236-2dbcf8f5e59d"
     },
     {
       "parameters": {
@@ -1031,7 +1031,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "130d954d-5cb5-40b4-a28c-a37a64dcbb96"
+      "id": "9b8ee5f2-0d4e-4b1a-8309-fe16fcdb9ecc"
     },
     {
       "parameters": {
@@ -1043,7 +1043,7 @@
           },
           "conditions": [
             {
-              "id": "80353a08-7fb8-4f4a-9605-3d7462d1c447",
+              "id": "3fc2fbcf-503a-444c-b55c-9900f062a24c",
               "leftValue": "={{ !!$('Кто отвечает').first().json.photo }}",
               "rightValue": true,
               "operator": {
@@ -1064,7 +1064,7 @@
         4020,
         -1580
       ],
-      "id": "cf4403b9-3345-41a8-a0be-16e74c94503e"
+      "id": "61ed798b-9fed-46a4-8525-1934bbe9aad7"
     },
     {
       "parameters": {
@@ -1081,14 +1081,14 @@
         4240,
         -1460
       ],
-      "webhookId": "50bbca8c-dad8-4f20-9f08-e77815171708",
+      "webhookId": "2683b16f-1cf8-44a5-9241-72b8a71c1a48",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "889a5fe8-9ff1-4cbe-9f0e-831332f5d0a9"
+      "id": "fdf16253-8b71-4619-b25c-ce5c1d41a23f"
     },
     {
       "parameters": {
@@ -1101,7 +1101,7 @@
         4460,
         -1460
       ],
-      "id": "c381c9ca-7c17-4118-924a-9cea4e1ecda3"
+      "id": "fa8f39ba-85fa-4f68-bebd-0daf8d051211"
     },
     {
       "parameters": {
@@ -1113,7 +1113,7 @@
           },
           "conditions": [
             {
-              "id": "959bf7ac-d0d7-4249-8f5a-a84e7c3f6a22",
+              "id": "4383fa77-6e26-4052-a6ae-3991ef843a98",
               "leftValue": "={{ $('Кто отвечает').first().json.needGrid }}",
               "rightValue": true,
               "operator": {
@@ -1134,7 +1134,7 @@
         4570,
         -1700
       ],
-      "id": "192f0db1-371c-4cb9-be69-2f715bb9c638"
+      "id": "55d7df64-2be0-4124-9dcf-a19b4b744691"
     },
     {
       "parameters": {
@@ -1155,7 +1155,7 @@
         -1860
       ],
       "onError": "continueRegularOutput",
-      "id": "c739962a-a29b-4d53-b1b2-c2673c58bd3e"
+      "id": "4ba4efb1-a4bf-421c-adc9-76acc4e30a25"
     },
     {
       "parameters": {
@@ -1168,7 +1168,7 @@
         4680,
         -1580
       ],
-      "id": "8882dea1-3778-4569-9a88-84d355ee2ccf"
+      "id": "e0a5afb0-c067-4d22-885d-7c5456a29ec9"
     },
     {
       "parameters": {
@@ -1196,7 +1196,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "0757fa9a-07e8-49a1-ae71-cca866790647",
+      "id": "3b0744a4-6c89-48d7-b901-aaa7033d5c05",
       "onError": "continueRegularOutput"
     },
     {
@@ -1210,7 +1210,7 @@
         5120,
         -1580
       ],
-      "id": "2d156080-9229-43e3-8bb0-e9a957c1e7d6"
+      "id": "6f3abb75-ef04-4329-82a3-c03ce3c1ccf1"
     },
     {
       "parameters": {
@@ -1222,7 +1222,7 @@
           },
           "conditions": [
             {
-              "id": "cf137bc8-7340-4eb9-9105-fa729bae91b2",
+              "id": "7a46f7c2-cdb4-4ddc-97fd-fbfb97c99072",
               "leftValue": "={{ $('Разбираем ответ этапа').first().json.action === 'delegate' }}",
               "rightValue": true,
               "operator": {
@@ -1243,7 +1243,7 @@
         5340,
         -1580
       ],
-      "id": "20b7a38b-9f75-439a-9572-aec4d05a9299"
+      "id": "845944e7-e0d9-4b38-b26f-1a6a635c6767"
     },
     {
       "parameters": {
@@ -1256,7 +1256,7 @@
         5560,
         -1760
       ],
-      "id": "4ee3c625-efe6-48c9-aa13-05aeb5af31c1"
+      "id": "31b25301-fe32-4be5-a6d6-3e62684a74da"
     },
     {
       "parameters": {
@@ -1284,7 +1284,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "426018b9-91e0-44d7-b18d-796b7866a1e4",
+      "id": "3487c2f1-6cb6-49fc-877e-29ee8dc40058",
       "onError": "continueRegularOutput"
     },
     {
@@ -1298,7 +1298,7 @@
         6000,
         -1400
       ],
-      "id": "eef40fcf-8342-4de8-bc1a-e6a47aebd5b8"
+      "id": "ac8d8f7e-a523-4b14-aca2-c790ccd33ac3"
     },
     {
       "parameters": {
@@ -1342,7 +1342,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "d2336e4a-227c-4c6c-9d47-1237b50a2ed0"
+      "id": "25b51fc5-cdeb-4a43-9326-76576530047d"
     },
     {
       "parameters": {
@@ -1354,7 +1354,7 @@
           },
           "conditions": [
             {
-              "id": "feec66ee-3a4f-480a-a041-fd39975cdf20",
+              "id": "1f67952f-ffc2-44bf-b601-680f661d699c",
               "leftValue": "={{ !!$('Итог хода').first().json.agreedFields }}",
               "rightValue": true,
               "operator": {
@@ -1375,7 +1375,7 @@
         6330,
         -1700
       ],
-      "id": "e4b46778-580d-4e9d-bcc9-2dde673710a1"
+      "id": "6293c8d4-1dfc-4f06-bc2b-e1ff2bce9bec"
     },
     {
       "parameters": {
@@ -1388,7 +1388,7 @@
         6440,
         -1860
       ],
-      "id": "914590d4-5759-4225-8c2f-1db215b15057"
+      "id": "899c00f3-e0e2-4480-ac39-8d7c73885e59"
     },
     {
       "parameters": {
@@ -1427,7 +1427,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "565f0cbd-fc8d-48cd-a69c-bb3552ea6fe9"
+      "id": "76c3e996-23d3-481e-865e-cf6cc09d05ab"
     },
     {
       "parameters": {
@@ -1439,7 +1439,7 @@
           },
           "conditions": [
             {
-              "id": "21af14e7-4ad0-4e94-b71f-5c3cb310f861",
+              "id": "30fb7526-ce48-47b3-ba5d-a8903795a191",
               "leftValue": "={{ !!$('Итог хода').first().json.note }}",
               "rightValue": true,
               "operator": {
@@ -1460,7 +1460,7 @@
         6440,
         -1400
       ],
-      "id": "76171bdb-4966-4153-ab5b-d6f24fd7d197"
+      "id": "f9a335d0-52c0-46d2-b1d0-967ba5fceaaf"
     },
     {
       "parameters": {
@@ -1473,7 +1473,7 @@
         6660,
         -1240
       ],
-      "id": "bce94f6f-d174-4ca3-9531-f0132cd5e876"
+      "id": "17a6047a-1ea1-45c8-b877-c5a01cfce147"
     },
     {
       "parameters": {
@@ -1512,7 +1512,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "91db3d04-cf3b-495d-a603-2cf434875c8e"
+      "id": "59d35c68-df0c-4060-b3e4-b379b651c54d"
     },
     {
       "parameters": {
@@ -1525,7 +1525,7 @@
         7100,
         -1400
       ],
-      "id": "591c6fdf-3f7e-4950-ab74-6e0c1ca2cc86"
+      "id": "e3170985-698f-4945-b3f3-9a2e71f6deca"
     },
     {
       "parameters": {
@@ -1537,7 +1537,7 @@
           },
           "conditions": [
             {
-              "id": "415a5b24-655f-4a77-a452-e83a7df87598",
+              "id": "d9a5ae09-081d-4aa7-b93f-c37491f8da9b",
               "leftValue": "={{ !$json.skip }}",
               "rightValue": true,
               "operator": {
@@ -1558,7 +1558,7 @@
         7320,
         -1400
       ],
-      "id": "cdcf0dbe-9501-4f96-b672-bf80387de492"
+      "id": "2b879057-033b-420a-825a-830913adeb12"
     },
     {
       "parameters": {
@@ -1578,14 +1578,14 @@
         7540,
         -1520
       ],
-      "webhookId": "d27c4656-9ed1-4533-a436-1474b6b94820",
+      "webhookId": "7f7d65b5-3e3c-4d8e-807e-39491ac482b8",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "b6d00a96-9137-434a-b74c-60538f5813b1"
+      "id": "b1a54d67-08ad-4908-a017-17b2dfa02696"
     },
     {
       "parameters": {
@@ -1598,7 +1598,7 @@
         7760,
         -1400
       ],
-      "id": "a0e71ff0-8fde-49c2-822a-b0efd918481e"
+      "id": "bcf029a0-4d06-4c0f-bdc6-4cec31aaef32"
     },
     {
       "parameters": {
@@ -1610,7 +1610,7 @@
           },
           "conditions": [
             {
-              "id": "b7ad3df9-bc5d-4002-b927-3ab02d0b6580",
+              "id": "6e6ac3f8-36dd-419c-8824-fb1e872420dc",
               "leftValue": "={{ $('Что дальше?').first().json.preview }}",
               "rightValue": true,
               "operator": {
@@ -1631,7 +1631,7 @@
         7870,
         -1200
       ],
-      "id": "da6cc6a7-fcf8-451e-98f5-df60b57097a4"
+      "id": "5706ec5a-7984-4bf3-9f6b-ba3d99b58df0"
     },
     {
       "parameters": {
@@ -1658,7 +1658,7 @@
         -1020
       ],
       "onError": "continueRegularOutput",
-      "id": "46ee9cff-3a2f-4244-a49d-c0e16fd32328"
+      "id": "69662914-fe40-4f0c-9217-154db41e3ac0"
     },
     {
       "parameters": {
@@ -1678,7 +1678,7 @@
         8090,
         -1020
       ],
-      "webhookId": "a14936c5-c5b9-499f-bac0-bd2651b89bcf",
+      "webhookId": "69dce575-cd28-42b4-93b5-c46a438bbeb8",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -1686,7 +1686,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "c14fefa7-6216-45df-b1ca-77ed5bfebb36"
+      "id": "e4ed8120-4ae7-4138-a1e0-5365b6437bb8"
     },
     {
       "parameters": {
@@ -1805,7 +1805,7 @@
         7980,
         -1400
       ],
-      "id": "1fd3343a-3eed-4eab-88f6-fabd167326f6"
+      "id": "622be854-d8fc-4382-8dc2-740774eceb33"
     },
     {
       "parameters": {
@@ -1817,7 +1817,7 @@
           },
           "conditions": [
             {
-              "id": "ba63c242-7dd4-40fc-9ffa-f84dfb228bfe",
+              "id": "1bb621b9-e35a-4e41-84f0-7d14ee71b216",
               "leftValue": "={{ $('Кто отвечает').first().json.needMarks }}",
               "rightValue": true,
               "operator": {
@@ -1838,7 +1838,7 @@
         4460,
         -1700
       ],
-      "id": "ab2ae85c-8912-4b6f-b99f-b90c172ddc1f"
+      "id": "2b4eb3d2-5e24-422e-a5ab-200de651a361"
     },
     {
       "parameters": {
@@ -1859,7 +1859,7 @@
         -1860
       ],
       "onError": "continueRegularOutput",
-      "id": "3f53847b-e8b0-4f78-9582-fa9a7758faa1"
+      "id": "f4caa003-e17c-4437-bc44-84c277ca1271"
     },
     {
       "parameters": {
@@ -1872,7 +1872,7 @@
         8240,
         -1100
       ],
-      "id": "692fbce6-56ba-4eb1-a241-5e3df82ec5cf"
+      "id": "e01d1d45-de20-4b86-a17e-86943bfabc3a"
     },
     {
       "parameters": {
@@ -1893,7 +1893,7 @@
         8460,
         -1100
       ],
-      "id": "86484c37-3f05-4bee-929e-a463f44e29c9"
+      "id": "c38b0b24-6142-4791-aa85-97faa74c82fa"
     },
     {
       "parameters": {
@@ -1906,7 +1906,7 @@
         8240,
         -800
       ],
-      "id": "da0d335a-6058-4fb2-8d88-3aadddf6b7f4"
+      "id": "d1da8570-9afc-4830-a32b-a82cc47e9627"
     },
     {
       "parameters": {
@@ -1926,14 +1926,14 @@
         8460,
         -800
       ],
-      "webhookId": "adf4b60f-4c12-4278-a63b-5359be026e03",
+      "webhookId": "5eb276ce-e5bc-4cc6-83ce-9f782c2b802f",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "f7dc2949-4449-445c-9c9f-9519af79de59"
+      "id": "5a62b26b-f821-463a-8b21-87abe91b0659"
     },
     {
       "parameters": {
@@ -1946,7 +1946,7 @@
         8680,
         -800
       ],
-      "id": "090ad8df-1db4-4b18-bed4-8e645bf84c72"
+      "id": "ada24633-fc47-4b25-a7f5-54dd23d29f7e"
     },
     {
       "parameters": {
@@ -1983,20 +1983,20 @@
         8900,
         -800
       ],
-      "webhookId": "df858800-ea8c-4641-b1a4-8de22a6849b2",
+      "webhookId": "c33647de-6f6f-468d-a0a6-6aca567be5c4",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "b227f631-afcb-49bd-b5a2-bb22ecbf92df"
+      "id": "5905ae6d-1b37-4c58-b9ae-67ee075a3c8b"
     },
     {
       "parameters": {
         "jsCode": "// Референсы художнику — список уже собран и уложен в 16 картинок в «Итог хода».\nconst j = $('Итог хода').first().json;\nconst urls = (j.drawRefUrls || []).filter(Boolean).slice(0, 16);\nreturn urls.map((url, i) => ({ json: { ...j, refUrl: url, refIndex: i } }));\n"
       },
-      "id": "4be7f022-ac6a-4029-8513-c8307255148e",
+      "id": "cc609bf0-c735-4bf5-a17f-24ba3754ce84",
       "name": "Готовим список: style guide + референсы",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2016,7 +2016,7 @@
           }
         }
       },
-      "id": "51e01901-b8d6-4816-8cb3-580590a0783f",
+      "id": "d6615f3f-41f9-4724-bf50-27084574df1c",
       "name": "Скачиваем референс (B)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -2029,7 +2029,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    dallePrompt: first.dallePrompt,\n    action: first.action,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    imageCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "6d55fedc-1ee7-4954-b874-71b20935a2f7",
+      "id": "8dc8f51f-51cb-469a-a82f-0c7f9204f74d",
       "name": "Собираем референсы в один item (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2348,7 +2348,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "0bb2b4b8-54af-471a-b87e-f8a7f5fbc9ca",
+      "id": "54f57ce2-183f-4020-bd07-508c77e457f1",
       "name": "Сколько картинок? (B)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -2394,7 +2394,7 @@
         },
         "options": {}
       },
-      "id": "b95a5123-6b75-498e-ad69-ba71ba0c069d",
+      "id": "a282849f-cce9-483a-9a93-d58a56601bdc",
       "name": "gpt-image-2: рисуем (B, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2449,7 +2449,7 @@
         },
         "options": {}
       },
-      "id": "1a3c73e1-4394-435a-913f-85ba0ccd582e",
+      "id": "3a34ff38-e345-4f7b-807e-f261b02d989a",
       "name": "gpt-image-2: рисуем (B, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2509,7 +2509,7 @@
         },
         "options": {}
       },
-      "id": "9d93612d-d9a2-4e58-8a54-4e461ec2eb39",
+      "id": "1d7e54e2-de5d-4a94-9f43-018cf7cd1d99",
       "name": "gpt-image-2: рисуем (B, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2574,7 +2574,7 @@
         },
         "options": {}
       },
-      "id": "adacbad7-678a-48b8-9ddf-942896d41e04",
+      "id": "0c3ddecf-82b5-4e1d-af9d-0fb763d84f73",
       "name": "gpt-image-2: рисуем (B, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2644,7 +2644,7 @@
         },
         "options": {}
       },
-      "id": "c9d4a7c4-a5e7-4b21-aeb6-68f88a54a809",
+      "id": "bf9472ea-2f29-4099-ba7d-7f23776808ad",
       "name": "gpt-image-2: рисуем (B, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2719,7 +2719,7 @@
         },
         "options": {}
       },
-      "id": "f620ad32-e16c-40e7-a607-d7e89f833dd4",
+      "id": "103f52d6-f828-46c6-9168-5bf243df554e",
       "name": "gpt-image-2: рисуем (B, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2799,7 +2799,7 @@
         },
         "options": {}
       },
-      "id": "b8667ee8-4dd9-4567-b90b-bddc1cb7eb2d",
+      "id": "f1d75240-0fe1-4aee-b755-89e4c827dcf3",
       "name": "gpt-image-2: рисуем (B, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2884,7 +2884,7 @@
         },
         "options": {}
       },
-      "id": "468cca33-70dc-4183-8c09-a7cb07697a48",
+      "id": "5f8c19ff-5daa-462d-a530-e9da5da509e5",
       "name": "gpt-image-2: рисуем (B, 8 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2974,7 +2974,7 @@
         },
         "options": {}
       },
-      "id": "b0baefce-ea95-49e0-9471-8d8527cf29ba",
+      "id": "f7867102-90cb-4720-96a8-4b6d12ec778a",
       "name": "gpt-image-2: рисуем (B, 9 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3069,7 +3069,7 @@
         },
         "options": {}
       },
-      "id": "39b6d9f9-3c45-4e08-bcc6-60135a948443",
+      "id": "a6a52087-961e-4a7e-acfa-abce8c6c4e86",
       "name": "gpt-image-2: рисуем (B, 10 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3169,7 +3169,7 @@
         },
         "options": {}
       },
-      "id": "d8145e37-bd50-4f1f-abfa-7d7a151b8bb8",
+      "id": "426f1d98-1911-4d24-bfe4-2210b965a547",
       "name": "gpt-image-2: рисуем (B, 11 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3274,7 +3274,7 @@
         },
         "options": {}
       },
-      "id": "c9430ff8-6276-48bb-b7bb-a330a0c73edb",
+      "id": "9f4f8a63-f376-47f8-85f2-1adb1fc7e46b",
       "name": "gpt-image-2: рисуем (B, 12 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3384,7 +3384,7 @@
         },
         "options": {}
       },
-      "id": "ed7f4659-b072-413c-b26c-5ff95a7de975",
+      "id": "e2356f70-be49-4657-a723-6934176a1b3d",
       "name": "gpt-image-2: рисуем (B, 13 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3499,7 +3499,7 @@
         },
         "options": {}
       },
-      "id": "6f1589ee-b324-4a67-a8e0-67c777c1ed91",
+      "id": "182b069f-8697-40f9-8dfe-de2418f7a32a",
       "name": "gpt-image-2: рисуем (B, 14 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3619,7 +3619,7 @@
         },
         "options": {}
       },
-      "id": "7bca20fc-6b8e-4b28-a421-5a6b8e19e9eb",
+      "id": "f7a08611-9f8a-4234-bec7-bb4708a0a769",
       "name": "gpt-image-2: рисуем (B, 15 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3744,7 +3744,7 @@
         },
         "options": {}
       },
-      "id": "107260e0-1fc5-4e98-bc04-6e3e75795860",
+      "id": "e39d8600-d517-4102-9507-e1d7ccc3e964",
       "name": "gpt-image-2: рисуем (B, 16 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3763,7 +3763,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    dallePrompt: $('Собираем референсы в один item (B)').first().json.dallePrompt,\n    projectId: $('Собираем референсы в один item (B)').first().json.projectId,\n    sheetName: $('Собираем референсы в один item (B)').first().json.sheetName,\n    chatId: $('Собираем референсы в один item (B)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "ef01bdea-be08-440b-8e3d-7615c21f8fff",
+      "id": "c6c53993-96be-4565-bf75-15b82d1a4089",
       "name": "Извлекаем картинку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3787,7 +3787,7 @@
         },
         "options": {}
       },
-      "id": "20e5ac50-a783-4de4-aa18-184f08afeaeb",
+      "id": "b4c4da27-aadb-4d45-a530-51a1f3b17c9c",
       "name": "Загружаем на Диск (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3818,7 +3818,7 @@
         },
         "options": {}
       },
-      "id": "82ca8660-aed2-482f-9002-d10e93ad85d5",
+      "id": "7c30a762-bb9e-4d31-bf1e-8ef4b63dc577",
       "name": "Открываем доступ (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3837,7 +3837,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (B)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (B)').first().json;\n\n// Каждый успешный рисунок через start_drawing — это НОВЫЙ вариант сцены,\n// добавляем его в конец списка вариантов, а не перезаписываем единственную\n// ячейку (иначе предыдущие варианты терялись бы при каждом новом рисунке).\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst variantNumber = variants.length + 1;\nvariants.push({ n: variantNumber, url: newUrl, dallePrompt: draft.dallePrompt });\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: newUrl,\n    ai_DallePromptDraft: draft.dallePrompt,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "6f570d3e-b48b-4ca1-870b-7fd5ec85a1ed",
+      "id": "5598273a-1852-484a-a535-2133feaef266",
       "name": "Собираем ссылку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3874,7 +3874,7 @@
         },
         "options": {}
       },
-      "id": "3af12753-6381-4158-b65d-21cd87593e56",
+      "id": "e5b0742f-a3e7-4429-af03-1fd78c5e1fcb",
       "name": "Сохраняем картинку и промпт (B)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -3923,7 +3923,7 @@
         10880,
         -2600
       ],
-      "webhookId": "cda843b9-7e73-4d26-8e79-6039fdc53dc9",
+      "webhookId": "e36125e8-902c-4ea4-987b-35dd4ae4e315",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -3933,7 +3933,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "bb7ad4f0-dd86-481c-8a98-89c40a217b31"
+      "id": "9c054217-21fa-4d62-aca6-458f40d33046"
     },
     {
       "parameters": {
@@ -3947,7 +3947,7 @@
           }
         }
       },
-      "id": "1874c2e0-be34-48a5-b86d-8cd730f8dbe0",
+      "id": "8c4af2df-c7c2-4a7a-82f1-e3e6f9ac77d0",
       "name": "Скачиваем текущую картинку (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -3960,7 +3960,7 @@
       "parameters": {
         "jsCode": "// Правка: первая картинка — сама правка (image_0), за ней референсы — до 15.\nconst parsed = $('Итог хода').first().json;\nconst urls = (parsed.editRefUrls || []).filter(Boolean).slice(0, 15);\nreturn urls.map((url, i) => ({ json: {\n  refUrl: url, refIndex: i + 1, revisionInstruction: parsed.revisionInstruction,\n  projectId: parsed.projectId, chatId: parsed.chatId, sheetName: parsed.sheetName,\n} }));\n"
       },
-      "id": "b56d5c49-4774-435d-a453-476521dc1bff",
+      "id": "a13310ee-91be-4800-91e0-a1abe23ab320",
       "name": "Готовим список: доп. референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3980,7 +3980,7 @@
           }
         }
       },
-      "id": "89fd82e4-9475-4ee8-9989-845f12f89404",
+      "id": "668ea7e1-ecd2-407d-ac1f-855b907f3c49",
       "name": "Скачиваем референс (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -3993,7 +3993,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    revisionInstruction: first.revisionInstruction,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    extraCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "3010b9c8-f52a-4eb9-9519-9f990a7d864b",
+      "id": "96ed7546-7e15-4c1a-a4ed-251acfb8d0a9",
       "name": "Собираем доп. референсы в один item (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4004,9 +4004,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Текущая картинка (image_0) скачана отдельной веткой ещё раньше; здесь\n// подмешиваем к ней style guide + референсы (image_1, image_2, ...), собранные\n// в предыдущем узле — и считаем итоговое число картинок для правильного\n// маршрута на шаге ниже (\"Сколько картинок? (C)\").\nconst curItem = $('Скачиваем текущую картинку (C)').first();\nconst extra = $input.first();\n\nconst binary = { image_0: curItem.binary.image_0 };\nObject.assign(binary, extra.binary || {});\n\nconst imageCount = 1 + (extra.json.extraCount || 0);\n\nreturn [{\n  json: {\n    revisionInstruction: extra.json.revisionInstruction,\n    projectId: extra.json.projectId,\n    chatId: extra.json.chatId,\n    sheetName: extra.json.sheetName,\n    imageCount,\n  },\n  binary\n}];"
+        "jsCode": "// Текущая картинка (image_0) скачана раньше; здесь подмешиваем к ней референсы\n// (image_1, image_2, ...) и, если автор прислала обводку, маску правки (mask).\n// Маска относится к первой картинке: прозрачное — можно менять, остальное — как было.\nconst curItem = $('Скачиваем текущую картинку (C)').first();\nconst extra = $input.first();\n\nconst binary = { image_0: curItem.binary.image_0 };\nObject.assign(binary, extra.binary || {});\n\nlet hasMask = false;\ntry {\n  const m = $('Сервер: маска').first();\n  if (m && m.binary && m.binary.mask) { binary.mask = m.binary.mask; hasMask = true; }\n} catch (e) {}\n\nconst imageCount = 1 + (extra.json.extraCount || 0);\n\nreturn [{\n  json: {\n    revisionInstruction: extra.json.revisionInstruction,\n    projectId: extra.json.projectId,\n    chatId: extra.json.chatId,\n    sheetName: extra.json.sheetName,\n    imageCount,\n    hasMask,\n  },\n  binary\n}];\n"
       },
-      "id": "6cc369ae-32e2-4208-9404-58ec690c6a06",
+      "id": "0f85747a-6728-44f1-9515-ca66c6f789f9",
       "name": "Собираем все референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4327,7 +4327,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "c4d30437-8f8e-4b1e-92ad-d378615757e4",
+      "id": "d85aa105-2bf1-48dd-b319-9b8d56e1b735",
       "name": "Сколько картинок? (C)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -4373,7 +4373,7 @@
         },
         "options": {}
       },
-      "id": "ed162589-738a-46de-b43f-5e839d9bfd8e",
+      "id": "d7eaa9e4-5513-4285-987c-599935da2baa",
       "name": "gpt-image-2: точечная правка (C, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4428,7 +4428,7 @@
         },
         "options": {}
       },
-      "id": "3fb7bc5d-5326-4570-aa21-8a11f44617e7",
+      "id": "aa3ab68e-562d-4012-8e17-87e2b061b738",
       "name": "gpt-image-2: точечная правка (C, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4488,7 +4488,7 @@
         },
         "options": {}
       },
-      "id": "73261ffa-ba07-4cf0-a6bd-d76cba20174a",
+      "id": "04594146-1a78-4eb3-8642-c5a2513af047",
       "name": "gpt-image-2: точечная правка (C, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4553,7 +4553,7 @@
         },
         "options": {}
       },
-      "id": "d729c063-c84d-458c-b6dd-680e886384a4",
+      "id": "38442f7d-bb54-4645-9795-8d01bfa44e61",
       "name": "gpt-image-2: точечная правка (C, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4623,7 +4623,7 @@
         },
         "options": {}
       },
-      "id": "feffa4b6-7353-42af-a00c-66ae4b7381cb",
+      "id": "0c555ca9-2d63-447f-8331-7da3f81b03e7",
       "name": "gpt-image-2: точечная правка (C, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4698,7 +4698,7 @@
         },
         "options": {}
       },
-      "id": "5d8500c8-9cfd-42ff-8a6a-433930f26e29",
+      "id": "b4414d59-228a-4b29-b61d-b93f69ba71b8",
       "name": "gpt-image-2: точечная правка (C, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4778,7 +4778,7 @@
         },
         "options": {}
       },
-      "id": "47dc6a1a-e7b4-4a37-8c7e-eb76ca704a5a",
+      "id": "4b1702bc-184b-41ce-911f-cd4235c4b1e9",
       "name": "gpt-image-2: точечная правка (C, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4863,7 +4863,7 @@
         },
         "options": {}
       },
-      "id": "49a5c40d-353d-4089-95ec-59d3948f2263",
+      "id": "e1da2af9-9497-40fb-8773-d6ebc8173af9",
       "name": "gpt-image-2: точечная правка (C, 8 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4953,7 +4953,7 @@
         },
         "options": {}
       },
-      "id": "cdf6853d-6aec-410b-8886-acad3805175c",
+      "id": "dd347620-e972-4af9-ad0b-7bd119e132a0",
       "name": "gpt-image-2: точечная правка (C, 9 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5048,7 +5048,7 @@
         },
         "options": {}
       },
-      "id": "ca9b3368-21ea-4a9c-9d9c-66c318a0ef01",
+      "id": "907490bb-4834-40e5-b49d-db24d63c0f58",
       "name": "gpt-image-2: точечная правка (C, 10 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5148,7 +5148,7 @@
         },
         "options": {}
       },
-      "id": "0d346545-2330-48d0-aa5f-29df90420072",
+      "id": "e2467044-5fab-44d1-a84c-5df47603acd6",
       "name": "gpt-image-2: точечная правка (C, 11 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5253,7 +5253,7 @@
         },
         "options": {}
       },
-      "id": "e8459ee3-b6c5-46ff-9203-74e14efdb4f1",
+      "id": "a41b4bc2-9b4d-4b0d-9107-24fc0e5b38c1",
       "name": "gpt-image-2: точечная правка (C, 12 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5363,7 +5363,7 @@
         },
         "options": {}
       },
-      "id": "3782fa59-263a-4408-9d19-5a35769edaaf",
+      "id": "38fcb2ff-5dbe-4821-b607-a692129c5f63",
       "name": "gpt-image-2: точечная правка (C, 13 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5478,7 +5478,7 @@
         },
         "options": {}
       },
-      "id": "f6f4332a-fde1-496c-a3cc-40f9f2711dd3",
+      "id": "85fac6b5-8de5-4175-8ab3-b2d08794ca7c",
       "name": "gpt-image-2: точечная правка (C, 14 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5598,7 +5598,7 @@
         },
         "options": {}
       },
-      "id": "85e90a94-2c2c-45de-8ae5-9524a5fe4ddb",
+      "id": "59e20553-6f45-4581-990e-59925eabbd63",
       "name": "gpt-image-2: точечная правка (C, 15 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5723,7 +5723,7 @@
         },
         "options": {}
       },
-      "id": "385ae5e9-4b15-43a1-9860-bcafbf945cbb",
+      "id": "facb3fb3-5a1f-467d-9b62-0aaa7ef219ab",
       "name": "gpt-image-2: точечная правка (C, 16 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5742,7 +5742,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    projectId: $('Собираем все референсы (C)').first().json.projectId,\n    sheetName: $('Собираем все референсы (C)').first().json.sheetName,\n    chatId: $('Собираем все референсы (C)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "1b3e48a9-d90c-4571-879e-3423aaa3f6ba",
+      "id": "189407f4-3154-41d3-986a-d8afc50bf009",
       "name": "Извлекаем картинку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -5766,7 +5766,7 @@
         },
         "options": {}
       },
-      "id": "99ce53cc-920c-4111-ac76-645e8b93e45a",
+      "id": "13ab66d4-3273-481f-987b-859ca72d15b0",
       "name": "Загружаем на Диск (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -5797,7 +5797,7 @@
         },
         "options": {}
       },
-      "id": "9e306a5f-691c-468d-b0b7-42e6feb4794d",
+      "id": "a686e94c-b2d4-4d97-a73c-41404d0a86ec",
       "name": "Открываем доступ (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -5816,7 +5816,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (C)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (C)').first().json;\nconst parsed = $('Итог хода').first().json;\n\n// Точечная правка (revisionIsNewVariant=false) меняет ссылку у ИМЕННО ТОГО\n// варианта, который был назван (revisionTargetVariantNumber) — номер не\n// меняется. Структурная правка (revisionIsNewVariant=true) — это по сути\n// другая сценка, поэтому сохраняется как СЛЕДУЮЩИЙ отдельный вариант, а\n// прежний остаётся нетронутым для сравнения.\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\n\nlet entry;\nif (parsed.revisionIsNewVariant) {\n  const variantNumber = variants.length + 1;\n  entry = { n: variantNumber, url: newUrl, dallePrompt: parsed.revisionInstruction || '' };\n  variants.push(entry);\n} else {\n  const targetNumber = parsed.revisionTargetVariantNumber || (variants.length ? variants[variants.length - 1].n : 1);\n  entry = variants.find(v => Number(v.n) === Number(targetNumber));\n  if (entry) {\n    entry.url = newUrl;\n  } else {\n    entry = { n: targetNumber, url: newUrl, dallePrompt: '' };\n    variants.push(entry);\n  }\n}\n\n// ai_ImageUrl/ai_DallePromptDraft остаются \"последним по списку\" вариантом —\n// как и раньше, это удобный алиас для тех мест кода, которым нужен просто\n// один текущий URL (например, форс-согласование или \"текущая картинка\" для\n// свежей правки без явного номера).\nconst lastVariant = variants[variants.length - 1];\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: lastVariant.url,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber: entry.n,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "ca68e5b6-bb68-4c2a-8222-85fc0a63f6a2",
+      "id": "6e7633e2-c63e-43e2-a172-7490b6423bdb",
       "name": "Собираем ссылку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -5852,7 +5852,7 @@
         },
         "options": {}
       },
-      "id": "678f7b09-7a71-42bb-b16a-01491a6707e1",
+      "id": "e1a6aca8-fdf8-43fe-9c66-75aaa3bf6211",
       "name": "Сохраняем картинку (C)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -5891,7 +5891,7 @@
           ]
         },
         "additionalFields": {
-          "caption": "=Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено)\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}"
+          "caption": "=Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено{{ $('Собираем все референсы (C)').first().json.hasMask ? ' по обводке' : ($('Кто отвечает').first().json.needMask ? '; обводка не прочиталась — правка всей картинки' : '') }})\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}"
         }
       },
       "name": "Отправляем картинку (C)",
@@ -5901,7 +5901,7 @@
         11320,
         -300
       ],
-      "webhookId": "6daaa4f4-29e9-4a70-a2f3-19570362f154",
+      "webhookId": "c4de063a-017d-4446-becb-7d8e0c7acd20",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -5911,7 +5911,1938 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "56344b1e-9e39-4eda-8abf-1d9ac7921d98"
+      "id": "43a24122-0c4c-4f3c-8612-25eab2c67960"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "6d4de657-a615-4a1d-b1a7-99f5c2d0dafb",
+              "leftValue": "={{ $('Кто отвечает').first().json.needMask }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Правка по обводке?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        8240,
+        0
+      ],
+      "id": "e592c9d1-fced-4214-b5b8-ca88043cd826"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ (function(){ const p = $('Кто отвечает').first().json.maskPhoto; return p[p.length - 1].file_id; })() }}",
+        "download": true,
+        "additionalFields": {}
+      },
+      "name": "Скачиваем фото обводки",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        8350,
+        160
+      ],
+      "webhookId": "404c57ef-d804-4c20-85b6-cd58b8de145d",
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      },
+      "id": "2a93ece7-a9e0-4c00-b166-e9ac76276d7c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Фото автора → data URL, чтобы Редактор увидел саму картинку.\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst item = $input.first();\nlet mimeType = (item.binary && item.binary.data && item.binary.data.mimeType) || '';\nif (!mimeType || mimeType === 'application/octet-stream') mimeType = 'image/jpeg';\nreturn [{ json: { userImageUrl: `data:${mimeType};base64,${buffer.toString('base64')}` } }];\n"
+      },
+      "name": "Фото обводки в base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8460,
+        320
+      ],
+      "id": "91fd1ab6-0d51-4b0e-b6e9-f2b40023760a"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/edit_mask",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ imageUrl: $('Итог хода').first().json.revisionTargetImageUrl, markedDataUrl: $('Фото обводки в base64').first().json.userImageUrl }) }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "mask"
+            }
+          }
+        }
+      },
+      "name": "Сервер: маска",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        8570,
+        160
+      ],
+      "onError": "continueRegularOutput",
+      "id": "53db5747-9d1a-4186-8051-e0c43fe3dd94"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "861d87e6-3f37-49b3-b118-cddc4d172683",
+              "leftValue": "={{ $json.hasMask }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "С маской? (C)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        9670,
+        0
+      ],
+      "id": "ec644b9b-e8b9-4518-91c0-7a610a637ff7"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 1,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 2,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 3,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 4,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 6,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 7,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 8,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 9,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 10,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 11,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 12,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 13,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 14,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.imageCount }}",
+                    "rightValue": 15,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                }
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "a1d06d6f-aaf3-4364-9d76-55f8109aa35b",
+      "name": "Сколько картинок? (C, маска)",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        9780,
+        160
+      ],
+      "notesInFlow": true,
+      "notes": "Текущая картинка + style guide + до 5 референсов = от 2 до 7 картинок для точечной правки — маршрутизирует на вариант gpt-image-2 с ровно нужным числом полей image[], без дублирования до фиксированного числа. imageCount==7 (или что-то нештатное) уходит через fallback в 7-местный вариант."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "44a6b088-472b-4589-93de-0e28c5eb9047",
+      "name": "gpt-image-2: правка по обводке (C, 1 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        1000
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3a377300-a63a-407a-91da-07c96f758ef7",
+      "name": "gpt-image-2: правка по обводке (C, 2 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        1160
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4647f1ed-452b-4fd6-8856-afdf188ca2e1",
+      "name": "gpt-image-2: правка по обводке (C, 3 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        1320
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5867eea2-4ec7-402f-a2c9-74542b51d199",
+      "name": "gpt-image-2: правка по обводке (C, 4 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        1480
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f3b3fe67-4b1a-4fc6-b153-76a10bc34cc2",
+      "name": "gpt-image-2: правка по обводке (C, 5 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        1640
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "387380fb-4477-456c-9f52-1a56b18e9aa6",
+      "name": "gpt-image-2: правка по обводке (C, 6 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        1800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "daa24549-8f48-4c40-8f1c-37d732e0d04f",
+      "name": "gpt-image-2: правка по обводке (C, 7 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        1960
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "040a004b-032e-4445-95bd-5a37c9c12b57",
+      "name": "gpt-image-2: правка по обводке (C, 8 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        2120
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "979bd7db-b29f-4215-a79d-3ea63b0f2930",
+      "name": "gpt-image-2: правка по обводке (C, 9 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        2280
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8b02a992-0298-42d6-9211-f2426985c5df",
+      "name": "gpt-image-2: правка по обводке (C, 10 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        2440
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_10"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "592aa487-0515-493e-953e-0b8b9a624ee3",
+      "name": "gpt-image-2: правка по обводке (C, 11 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        2600
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_10"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_11"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "63d07321-3b60-42ee-9d77-448a607056d5",
+      "name": "gpt-image-2: правка по обводке (C, 12 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        2760
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_10"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_11"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_12"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dcbfcf95-4be9-4ad1-b1c7-e6d89fcf3227",
+      "name": "gpt-image-2: правка по обводке (C, 13 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        2920
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_10"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_11"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_12"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_13"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0573eff9-7cac-4ec5-9412-255aaeff551c",
+      "name": "gpt-image-2: правка по обводке (C, 14 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        3080
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_10"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_11"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_12"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_13"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_14"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0ed93a4-040d-4637-a638-6dee743d4210",
+      "name": "gpt-image-2: правка по обводке (C, 15 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        3240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Итог хода').first().json.imageModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}"
+            },
+            {
+              "name": "size",
+              "value": "1536x864"
+            },
+            {
+              "name": "quality",
+              "value": "high"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_0"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_1"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_2"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_3"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_4"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_5"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_6"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_7"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_8"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_9"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_10"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_11"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_12"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_13"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_14"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image[]",
+              "inputDataFieldName": "image_15"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "mask",
+              "inputDataFieldName": "mask"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "23f01a38-0310-4a79-80d5-a798d067297c",
+      "name": "gpt-image-2: правка по обводке (C, 16 img)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        10000,
+        3400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
     },
     {
       "parameters": {
@@ -5924,7 +7855,7 @@
         11540,
         -2300
       ],
-      "id": "f85d27e0-a6ae-47d9-8f57-93656919d657"
+      "id": "1894a1ce-edeb-4bb3-829a-48dfe3db460b"
     },
     {
       "parameters": {
@@ -5936,7 +7867,7 @@
           },
           "conditions": [
             {
-              "id": "656bfc84-0593-4a30-8762-077c790f4287",
+              "id": "d33b5a75-9edb-48dc-b52d-ec1952b56a08",
               "leftValue": "={{ $('Авто: согласуем картинку').first().json.ok }}",
               "rightValue": true,
               "operator": {
@@ -5957,7 +7888,7 @@
         11760,
         -2300
       ],
-      "id": "982df170-1eff-4676-985f-b19329109d3a"
+      "id": "d70f7dfa-252c-4f82-ab5b-4501e4417005"
     },
     {
       "parameters": {
@@ -5999,7 +7930,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "7555282a-0a91-4e8e-824c-e2e7e35163d6"
+      "id": "d145926a-fc7f-4777-bf4a-aa6531f321e6"
     },
     {
       "parameters": {
@@ -6012,7 +7943,7 @@
         3140,
         900
       ],
-      "id": "06dbe9b9-83bb-4cae-82ac-b889dd0c609a"
+      "id": "4ef55258-52e5-4f68-a928-12b11382c3a5"
     },
     {
       "parameters": {
@@ -6024,7 +7955,7 @@
           },
           "conditions": [
             {
-              "id": "235e33a3-93f6-4fa2-a671-58e8dfbed05c",
+              "id": "c94473c7-013a-478b-a506-153a440cadc2",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -6045,7 +7976,7 @@
         3360,
         900
       ],
-      "id": "80bbfb2e-d80d-4984-83cf-dda6501906a8"
+      "id": "d9646f81-b583-49f6-beb0-c6de778b1866"
     },
     {
       "parameters": {
@@ -6087,7 +8018,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "e26cc5fc-f2d8-414b-9151-8e9dd7cdff69"
+      "id": "e6067d74-dc1c-472b-94e5-c803e73a4ec2"
     },
     {
       "parameters": {
@@ -6107,14 +8038,14 @@
         3800,
         900
       ],
-      "webhookId": "bb2310c4-e3f5-4af2-855b-e5520c0bfbd0",
+      "webhookId": "b314259a-096c-4d68-91d7-e920a5219d65",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "b6b20b1d-6491-4d7e-80d6-ed2bb069607f"
+      "id": "68680518-83b7-4e17-8a5b-05bc829bb206"
     },
     {
       "parameters": {
@@ -6134,14 +8065,14 @@
         3580,
         1100
       ],
-      "webhookId": "a6488a91-e9dc-4894-bf49-a92d337130ed",
+      "webhookId": "16d5db18-8cc6-4bf3-8c49-49d48493c081",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "abc9d72c-01fe-4327-8abd-6bc372f008be"
+      "id": "fb85477d-20aa-426a-9bc5-49a531a47245"
     },
     {
       "parameters": {
@@ -6154,7 +8085,7 @@
         3140,
         1300
       ],
-      "id": "46dc156b-28af-4254-abbe-52698e4a6be7"
+      "id": "20949d21-6062-46f1-9f19-dc84b30ff6a7"
     },
     {
       "parameters": {
@@ -6166,7 +8097,7 @@
           },
           "conditions": [
             {
-              "id": "810c522a-0c9b-4a10-8af2-e072ab1b541b",
+              "id": "13f05131-0188-42ff-af78-c53fc588ec7c",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -6187,7 +8118,7 @@
         3360,
         1300
       ],
-      "id": "b2d3a372-4465-4467-9e27-f02829bea8d7"
+      "id": "909437a9-9cc1-4b4a-93bc-3a734dd4cbfb"
     },
     {
       "parameters": {
@@ -6200,7 +8131,7 @@
         3580,
         1300
       ],
-      "id": "4b6ae1c8-49de-49af-b27f-114c21cef86a"
+      "id": "4d6b45d4-1ebb-457e-866e-714db65bd703"
     },
     {
       "parameters": {
@@ -6239,7 +8170,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "41a2926b-9e3e-4de5-b28d-5691963a1aed"
+      "id": "ff74c342-ec92-45f4-a384-c5081097a5b1"
     },
     {
       "parameters": {
@@ -6278,7 +8209,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "1833cfad-32a2-4e22-bcbe-450c6f2f05f4"
+      "id": "2eb44066-548e-4c5a-9292-06df5a87dde1"
     },
     {
       "parameters": {
@@ -6291,7 +8222,7 @@
         4240,
         1300
       ],
-      "id": "90403690-ee7b-4fbb-9334-8a7c7f14b9ed"
+      "id": "93e9106f-40f6-4d0a-baa1-f1f0c61ead4a"
     },
     {
       "parameters": {
@@ -6303,7 +8234,7 @@
           },
           "conditions": [
             {
-              "id": "06845d5b-85df-45f2-9bf8-a969cf0d9db0",
+              "id": "d52bb7ae-1b3f-487c-8b02-ab03c7448435",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -6324,7 +8255,7 @@
         4460,
         1300
       ],
-      "id": "7de41544-759b-4496-9a88-371e4f9374ad"
+      "id": "421fee1d-e8ce-4d94-b2d4-dd1d9604ef1a"
     },
     {
       "parameters": {
@@ -6365,7 +8296,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "c1df3a76-e95c-42db-a8cc-6435c9b92e9f"
+      "id": "32da8c47-59f1-4b16-acaf-04c9d847cfec"
     },
     {
       "parameters": {
@@ -6378,7 +8309,7 @@
         4900,
         1300
       ],
-      "id": "6e516092-0d23-4041-9e77-aa9e892cf904"
+      "id": "855018f5-c197-4abc-af19-ac7f8955c2c3"
     },
     {
       "parameters": {
@@ -6398,14 +8329,14 @@
         5120,
         1300
       ],
-      "webhookId": "a09d1246-9d8c-4d43-9ce9-ccd00c58c2a1",
+      "webhookId": "a8fc497f-3d42-4087-b297-c5e80bc8f873",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "bca78a59-5f15-4327-9729-d4f2246e39b4"
+      "id": "2f12460d-c57a-40bb-b3d1-c24ef53699c3"
     },
     {
       "parameters": {
@@ -6442,14 +8373,14 @@
         5560,
         1180
       ],
-      "webhookId": "03dbf044-d30c-42f8-8a81-4ec179c704fd",
+      "webhookId": "82d8ab13-8460-41e2-85a9-42cd2e005545",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "ea0a4b3b-3003-4c07-85ac-f53a820bffa5"
+      "id": "92d02a74-060a-41bc-a7fe-173026875956"
     },
     {
       "parameters": {
@@ -6461,7 +8392,7 @@
           },
           "conditions": [
             {
-              "id": "9f5ea856-968f-4548-b858-4729ff300244",
+              "id": "c9b3cfa1-2819-4395-b7ad-5859c5b84a9d",
               "leftValue": "={{ $('Сообщение: утверждено').first().json.hasTracks }}",
               "rightValue": true,
               "operator": {
@@ -6482,7 +8413,7 @@
         5340,
         1300
       ],
-      "id": "8a03f806-eda1-4d81-90b3-fdcc69c4de79"
+      "id": "db2a41da-556b-4ed8-9e25-843e24db7354"
     },
     {
       "parameters": {
@@ -6502,14 +8433,14 @@
         3580,
         1520
       ],
-      "webhookId": "45fa3655-8c2d-453c-81fd-3a6331e65d99",
+      "webhookId": "62bb18d5-4d21-42c0-a28a-97fe4b5321e3",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "45219c7d-744b-468d-9756-6ddc8f145804"
+      "id": "2b4165aa-a172-48b7-9c7a-a155c80c997b"
     },
     {
       "parameters": {
@@ -6522,7 +8453,7 @@
         2700,
         1900
       ],
-      "id": "1af3c06d-80b0-40da-84f2-3e07c638bbf8"
+      "id": "adcc8a05-b563-4284-8262-61c0134adcb6"
     },
     {
       "parameters": {
@@ -6534,7 +8465,7 @@
           },
           "conditions": [
             {
-              "id": "7996c413-5a64-408c-ae25-c64b06c30d92",
+              "id": "198691bd-441f-402d-a02c-4e0f270db4b5",
               "leftValue": "={{ $json.published }}",
               "rightValue": true,
               "operator": {
@@ -6555,7 +8486,7 @@
         2920,
         1900
       ],
-      "id": "0392cc05-2b1e-49d9-97e9-8036c0897cb5"
+      "id": "e639bcde-fe97-42d6-8a6e-8cff8f0db588"
     },
     {
       "parameters": {
@@ -6575,14 +8506,14 @@
         3140,
         1700
       ],
-      "webhookId": "7431246c-0077-4d07-b41a-8615a2557d93",
+      "webhookId": "88fa1a88-48f3-4d3f-8a6f-74646264be38",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "f11cfac1-d754-4f7b-a53c-f3b5ace05de3"
+      "id": "bc54ebc4-de49-4624-b2c0-c2f30156e8a7"
     },
     {
       "parameters": {
@@ -6623,7 +8554,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "4482c189-c41a-482d-b2e4-17b0239f18bd"
+      "id": "49f29812-2936-460b-9dd5-5dc658c6ce9e"
     },
     {
       "parameters": {
@@ -6635,7 +8566,7 @@
           },
           "conditions": [
             {
-              "id": "b0ab5999-7bcc-4561-a614-ea336219efee",
+              "id": "9950067c-6d1b-4db7-a0b7-718dea27ae78",
               "leftValue": "={{ $('Разбираем ссылку на треки').first().json.approved }}",
               "rightValue": true,
               "operator": {
@@ -6656,7 +8587,7 @@
         3360,
         1900
       ],
-      "id": "12eaf719-6914-41b5-9749-d51226a0b7d1"
+      "id": "34fbf20b-054f-48b8-91f2-62186eed23e9"
     },
     {
       "parameters": {
@@ -6676,14 +8607,14 @@
         3580,
         2100
       ],
-      "webhookId": "36aefaa8-74eb-452c-8a96-11b57e239247",
+      "webhookId": "67c6516e-2c39-4245-a91e-4f4cbd1973d2",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "aaf083f6-3fbc-49f1-b745-e6fc6363d2ba"
+      "id": "8a833e8d-318e-4051-abd8-b4aed9ec396a"
     },
     {
       "parameters": {
@@ -6696,7 +8627,7 @@
         3360,
         2500
       ],
-      "id": "cec98b50-109c-4507-9e53-e570befaeb03"
+      "id": "f79e26cf-40c5-4d23-9968-f7f9a7dbafcc"
     },
     {
       "parameters": {
@@ -6708,7 +8639,7 @@
           },
           "conditions": [
             {
-              "id": "607cd83e-55a9-4a72-9af6-205f44b8efd7",
+              "id": "965b4cdf-ce2b-4ee1-b54a-ab58d72d4b49",
               "leftValue": "={{ $('Чистка: нужна?').first().json.need }}",
               "rightValue": true,
               "operator": {
@@ -6729,7 +8660,7 @@
         3580,
         2500
       ],
-      "id": "33385bee-799b-4805-b6b0-e4e76a542124"
+      "id": "09f869a1-8535-4fe0-a1cc-66b4167f6240"
     },
     {
       "parameters": {
@@ -6750,7 +8681,7 @@
         2500
       ],
       "onError": "continueRegularOutput",
-      "id": "d8df2085-707f-435f-8eaf-9feac298d5e0"
+      "id": "435ca5bb-c1e2-4fc0-98de-35f102e2a7bb"
     },
     {
       "parameters": {
@@ -6763,7 +8694,7 @@
         4020,
         2500
       ],
-      "id": "17327494-db6f-49c6-b28a-b46634f27f4a"
+      "id": "a13b341e-271b-43e3-9cb3-b5b8b3f6fac1"
     },
     {
       "parameters": {
@@ -6807,7 +8738,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "50b4f022-8164-4afe-8755-49e5fadd98ea"
+      "id": "58908e63-ceb2-4928-afc2-cfdc14d410de"
     },
     {
       "parameters": {
@@ -6827,14 +8758,14 @@
         4460,
         2500
       ],
-      "webhookId": "92a58bf1-443b-49f4-b100-a9f6ade9d89d",
+      "webhookId": "66ce8111-d966-407a-b50d-16d52530c41e",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "2c3d71b2-581f-454f-b531-60003ae4b4a9"
+      "id": "9b4b50d0-3549-4c42-85ff-ff626cdec0db"
     },
     {
       "parameters": {
@@ -6846,7 +8777,7 @@
           },
           "conditions": [
             {
-              "id": "fdeafbf1-011f-467a-8826-976d92189e6b",
+              "id": "78def891-b98f-481b-b694-6af17de8ef28",
               "leftValue": "={{ $('Чистка: запущена?').first().json.ok }}",
               "rightValue": true,
               "operator": {
@@ -6867,7 +8798,7 @@
         4680,
         2500
       ],
-      "id": "1e93323f-0b86-4c97-a95c-8d8f726046f4"
+      "id": "900d9d52-e142-4967-ab27-165f55d7ec45"
     },
     {
       "parameters": {
@@ -6886,8 +8817,8 @@
         4900,
         2500
       ],
-      "webhookId": "b479fe90-2fda-4228-bda6-053904c7d015",
-      "id": "4a52d216-f900-4eb8-a9d0-b2eb8ffedc2c"
+      "webhookId": "b5ac6be9-da90-4a4b-ba0a-474cbf5b6155",
+      "id": "1eaa5189-21c4-4d4a-92c2-59bd1446dcfc"
     },
     {
       "parameters": {
@@ -6926,7 +8857,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "e6b49821-5b1a-46d2-a6cc-9929b16f23a4"
+      "id": "69725eed-aa75-4cbd-9ee9-18ed70c3efb7"
     },
     {
       "parameters": {
@@ -6939,7 +8870,7 @@
         5340,
         2500
       ],
-      "id": "4e048605-80ba-468c-b554-139fbd2c9cd6"
+      "id": "a42b15ca-dd50-44a3-bace-1ac9c0405a72"
     },
     {
       "parameters": {
@@ -7018,7 +8949,7 @@
         5560,
         2500
       ],
-      "id": "531c94ff-0ed7-4b5f-b139-d566e7a32ffc"
+      "id": "0243ed71-7b83-4e02-9f09-14e7ed2db37d"
     },
     {
       "parameters": {
@@ -7039,7 +8970,7 @@
         2400
       ],
       "onError": "continueRegularOutput",
-      "id": "884edf50-b829-4e4e-b074-79148270e79d"
+      "id": "5dec6b53-2f27-463e-a316-f278c2c9992a"
     },
     {
       "parameters": {
@@ -7052,7 +8983,7 @@
         6000,
         2500
       ],
-      "id": "576c8c43-7f12-46f2-8dde-554c30d9d6ff"
+      "id": "29520d3e-4a7b-42d0-ae0d-669ffc02ae70"
     },
     {
       "parameters": {
@@ -7151,7 +9082,7 @@
         6220,
         2500
       ],
-      "id": "92d00797-4be6-42ce-94b4-42b9db5b833e"
+      "id": "0e001e1d-e5fb-45c9-81cd-5d93b263119c"
     },
     {
       "parameters": {
@@ -7193,7 +9124,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "76b05c2c-6e80-46d5-8410-681e8d744038"
+      "id": "ea20cb15-81b9-4ee4-9057-f697a09be32a"
     },
     {
       "parameters": {
@@ -7213,14 +9144,14 @@
         6660,
         2400
       ],
-      "webhookId": "0394f002-8ca7-4ff6-8267-241e258386c7",
+      "webhookId": "1998e17b-c577-4647-8386-bdf9ba9d2583",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "dc427382-1eaa-4302-8280-ba76cbf0a401"
+      "id": "a4a671ff-e13e-4a11-8ed7-966d1f7dd903"
     },
     {
       "parameters": {
@@ -7232,7 +9163,7 @@
           },
           "conditions": [
             {
-              "id": "38e50c62-18b3-4166-b760-06dfb05b0baa",
+              "id": "ccf34fe9-dbc9-4254-8225-f601f6cebfb0",
               "leftValue": "={{ $('Чистка: итог').first().json.action === 'done' && $('Чистка: итог').first().json.approved }}",
               "rightValue": true,
               "operator": {
@@ -7253,7 +9184,7 @@
         6880,
         2400
       ],
-      "id": "df34fd58-3121-43db-bfa7-a41e0baea7ce"
+      "id": "77a0f67e-e060-46c5-88bb-70d44b337f24"
     },
     {
       "parameters": {
@@ -7273,14 +9204,14 @@
         6440,
         2650
       ],
-      "webhookId": "c5d06419-207b-42c5-b54c-8549df0f691d",
+      "webhookId": "22b2148d-f71f-487c-8929-82ceef45aa4c",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "424d30e5-f3d2-4584-afbb-5c551eb0ec72"
+      "id": "5a82f6b6-a5b4-4146-bc32-193a7c83e688"
     },
     {
       "parameters": {
@@ -7293,7 +9224,7 @@
         2700,
         3200
       ],
-      "id": "1bc7ff50-23f3-45e0-86fa-4d986899042b"
+      "id": "52d90a9d-b301-4b88-a124-a02e399c5aa5"
     },
     {
       "parameters": {
@@ -7305,7 +9236,7 @@
           },
           "conditions": [
             {
-              "id": "15e277bf-97bf-4879-9aa7-ef780a813704",
+              "id": "6898fc04-0594-4dd8-800e-a7cd307da33e",
               "leftValue": "={{ $json.ask }}",
               "rightValue": true,
               "operator": {
@@ -7326,7 +9257,7 @@
         2920,
         3200
       ],
-      "id": "2297dab2-b021-4232-8568-8ffbd98ac5d5"
+      "id": "0ef77757-a1af-4228-b535-34f6cf68bd47"
     },
     {
       "parameters": {
@@ -7347,7 +9278,7 @@
         3100
       ],
       "onError": "continueRegularOutput",
-      "id": "95e8f921-5fb3-48dc-a913-3df26453ca42"
+      "id": "98433344-fb91-494d-91f5-7260c8c5d170"
     },
     {
       "parameters": {
@@ -7360,7 +9291,7 @@
         3360,
         3100
       ],
-      "id": "7210f81b-e54f-438e-87ff-18aefccd9314"
+      "id": "772e3dc0-4660-43b8-afd3-a3e08ac125bb"
     },
     {
       "parameters": {
@@ -7372,7 +9303,7 @@
           },
           "conditions": [
             {
-              "id": "6e35e253-e1ae-4fe0-aa3b-154aef920ce8",
+              "id": "e9bc82a6-7f34-479c-ac80-9d520f1b7044",
               "leftValue": "={{ $json.update }}",
               "rightValue": true,
               "operator": {
@@ -7393,7 +9324,7 @@
         3580,
         3200
       ],
-      "id": "86bc595b-6462-41c7-8aa3-92a7f661ff03"
+      "id": "83c9842e-fabf-453e-89b7-fe87571425cc"
     },
     {
       "parameters": {
@@ -7435,7 +9366,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "3646c1ad-6fbf-4c4a-b95d-eeaa8177293b"
+      "id": "34be34d6-f0f8-4e94-9462-1a66a08345f0"
     },
     {
       "parameters": {
@@ -7448,7 +9379,7 @@
         4020,
         3200
       ],
-      "id": "e4f49769-6b7a-4117-9db7-1d445d4a0e3f"
+      "id": "fcd40b82-964d-439e-95f5-e229ffd208c0"
     },
     {
       "parameters": {
@@ -7460,7 +9391,7 @@
           },
           "conditions": [
             {
-              "id": "a8809880-2b8e-4d2d-b323-549d77d3385b",
+              "id": "91733ae4-85be-4d5c-836d-95afd6c23410",
               "leftValue": "={{ $json.button }}",
               "rightValue": true,
               "operator": {
@@ -7481,7 +9412,7 @@
         4240,
         3200
       ],
-      "id": "71a0f7bd-4b6c-4902-9de9-ca1acdb8c1bc"
+      "id": "3a8bc5e4-5045-4466-9f1a-61f131c62c29"
     },
     {
       "parameters": {
@@ -7518,14 +9449,14 @@
         4460,
         3100
       ],
-      "webhookId": "417700a1-d614-4f67-8846-601570ee84f0",
+      "webhookId": "617bd700-0640-493e-925c-0c9b2e9bac58",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "8d1b3fb8-6690-4031-93ae-4a418d46ac14"
+      "id": "bafdf087-7bc1-4856-b36d-b55f0b200517"
     },
     {
       "parameters": {
@@ -7545,14 +9476,14 @@
         4460,
         3300
       ],
-      "webhookId": "cd146271-8b1d-48b7-b4c9-062a14c1d916",
+      "webhookId": "3a5921f5-e988-46b3-9c4c-c2a8e2c354bd",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "15c080d1-2ed7-4ac6-9710-65d344fb90ab"
+      "id": "da6357f4-15c7-44c3-be4a-9032aa38fbcc"
     },
     {
       "parameters": {
@@ -7591,7 +9522,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "14e3e4fb-82b6-4a9c-af2c-430cf2cf744c"
+      "id": "e1718aa3-4061-49bb-9b54-6f86df522d63"
     },
     {
       "parameters": {
@@ -7604,7 +9535,7 @@
         5120,
         1600
       ],
-      "id": "ec3c9cbc-7cb5-48fe-84db-3b18842ec0b0"
+      "id": "1332c470-bbc7-486b-a509-1cccc01f4dda"
     },
     {
       "parameters": {
@@ -7616,7 +9547,7 @@
           },
           "conditions": [
             {
-              "id": "1d9f10e9-3e07-44b7-a4d4-e64d9469bc3d",
+              "id": "761e96b8-5ed3-4ed2-814a-4f4fc7fcedff",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -7637,7 +9568,7 @@
         5340,
         1600
       ],
-      "id": "cbff8b1e-3eca-4911-8965-9dc84246187d"
+      "id": "42647077-66c7-4c57-9ba7-a0f0418368f3"
     },
     {
       "parameters": {
@@ -7657,14 +9588,14 @@
         5560,
         1500
       ],
-      "webhookId": "980634cd-8dda-4ff3-bff2-706cfaf05530",
+      "webhookId": "ae52b39f-7bed-4670-9f1d-9c0e60cf3a16",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "d861834c-144b-47b6-99ed-8fbdbd3972b5"
+      "id": "9c13d51f-5c6e-44af-8e4f-4a1c870e3a3e"
     },
     {
       "parameters": {
@@ -7696,7 +9627,7 @@
         5780,
         1500
       ],
-      "id": "2537b7d0-1474-4b55-919a-99dc5178c2e6"
+      "id": "cba6a9f2-bf62-41ce-a61f-9dfb8f2fdbfa"
     },
     {
       "parameters": {
@@ -7716,14 +9647,14 @@
         5560,
         1750
       ],
-      "webhookId": "66239973-6b0e-4ede-8a98-c12615c9f208",
+      "webhookId": "647ca761-c44c-46cc-b301-d7acfc198f4a",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "0f7f9a07-e2fb-4758-b446-2559d3974c50"
+      "id": "67a683c5-fbb4-47b4-9cd4-5a2bcd09aabc"
     },
     {
       "parameters": {
@@ -7732,14 +9663,14 @@
         "width": 620,
         "color": 4
       },
-      "name": "Заметка 179",
+      "name": "Заметка 201",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         -40,
         -360
       ],
-      "id": "4e7bb39a-0fd7-40d7-a6e4-b7a2a0b63c83"
+      "id": "6abe29e5-c377-4490-becc-5ef5e779c31b"
     },
     {
       "parameters": {
@@ -7748,14 +9679,14 @@
         "width": 1000,
         "color": 5
       },
-      "name": "Заметка 180",
+      "name": "Заметка 202",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         3100,
         -1920
       ],
-      "id": "2c2b2d37-885c-4c8a-a18f-446cd3d854c4"
+      "id": "4844e1af-0b0e-47e0-b99d-99e897e9cd35"
     },
     {
       "parameters": {
@@ -7764,14 +9695,14 @@
         "width": 900,
         "color": 3
       },
-      "name": "Заметка 181",
+      "name": "Заметка 203",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         3100,
         1040
       ],
-      "id": "5fde2f98-6542-406a-ae22-8bb8222652a3"
+      "id": "1a451370-c6b6-4949-90b6-690bed6cf3a9"
     }
   ],
   "connections": {
@@ -8517,7 +10448,7 @@
         ],
         [
           {
-            "node": "Скачиваем текущую картинку (C)",
+            "node": "Правка по обводке?",
             "type": "main",
             "index": 0
           }
@@ -8980,6 +10911,57 @@
         ]
       ]
     },
+    "Правка по обводке?": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем фото обводки",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Скачиваем текущую картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем фото обводки": {
+      "main": [
+        [
+          {
+            "node": "Фото обводки в base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Фото обводки в base64": {
+      "main": [
+        [
+          {
+            "node": "Сервер: маска",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сервер: маска": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем текущую картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Скачиваем текущую картинку (C)": {
       "main": [
         [
@@ -9028,7 +11010,317 @@
       "main": [
         [
           {
+            "node": "С маской? (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "С маской? (C)": {
+      "main": [
+        [
+          {
+            "node": "Сколько картинок? (C, маска)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Сколько картинок? (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сколько картинок? (C, маска)": {
+      "main": [
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 1 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 2 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 3 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 4 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 5 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 6 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 7 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 8 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 9 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 10 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 11 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 12 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 13 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 14 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 15 img)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gpt-image-2: правка по обводке (C, 16 img)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 1 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 2 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 3 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 4 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 5 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 6 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 7 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 8 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 9 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 10 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 11 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 12 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 13 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 14 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 15 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-image-2: правка по обводке (C, 16 img)": {
+      "main": [
+        [
+          {
+            "node": "Извлекаем картинку (C)",
             "type": "main",
             "index": 0
           }

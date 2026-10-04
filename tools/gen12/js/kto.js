@@ -74,6 +74,9 @@ return [{
     // фото этапу, чей пункт показывается превью «оживление», — это разметка: её читает сборщик
     needMarks: mode === 'model' && !!photo && !!approvedUrl && !!stage &&
       items.some(it => stScope(stages, stage).items.includes(it.n) && /оживл/.test(it.preview || '')),
+    // правка картинки с фото автора: красная обводка на фото = где можно менять (маска сборщика)
+    needMask: mode === 'edit' && !!photo,
+    maskPhoto: mode === 'edit' ? photo : null,
     needGrid: mode === 'model' && !!(stage && stage.grid) && !!approvedUrl,
     needConv: mode === 'model' && !silent && !String((state.stages[bareIcon(stage ? stage.icon : '')] || {}).conv || '').trim(),
   }

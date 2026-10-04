@@ -8,13 +8,14 @@ async function run(nodeName, ctx) {
     if (!(n in ctx.nodes)) throw new Error(`Referenced node is unexecuted: ${n}`);
     const v = ctx.nodes[n];
     const arr = Array.isArray(v) ? v : [v];
-    return { first: () => ({ json: arr[0] }), all: () => arr.map(j => ({ json: j })), item: { json: arr[0] } };
+    const it = j => ({ json: j, binary: j && j.__binary });
+    return { first: () => it(arr[0]), all: () => arr.map(it), item: it(arr[0]) };
   };
-  const input = (ctx.input || []).map(j => ({ json: j }));
+  const input = (ctx.input || []).map(j => ({ json: j, binary: j && j.__binary }));
   const $input = { first: () => input[0], all: () => input };
   const DateTime = { now: () => ({ toFormat: () => '20261004_120000' }) };
   const f = new Function('$', '$input', 'items', 'DateTime', `return (async () => {\n${code}\n})();`);
   const out = await f.call({ helpers: {} }, $, $input, input, DateTime);
-  return out.map(o => o.json);
+  return out.map(o => (o.binary ? { ...o.json, __binary: o.binary } : o.json));
 }
 module.exports = { run, wf };

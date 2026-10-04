@@ -90,7 +90,27 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U1'); assert.equal(t.r.revisionInstruction, 'светлее');
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'правка 2: убрать кота' });
   assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U2'); assert.equal(t.r.revisionInstruction, 'убрать кота');
-  console.log('2 художник: задание, место по слову, правка OK');
+  // правка с фото-обводкой: план просит маску; маска — к первой картинке; подпись честно говорит, сработала ли
+  t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'шторка на штанге', replyVariant: 2, photo: [{ file_id: 'S' }, { file_id: 'B' }] });
+  assert.equal(t.plan.mode, 'edit'); assert.equal(t.plan.needMask, true); assert.equal(t.plan.maskPhoto[1].file_id, 'B');
+  {
+    const base = { 'Скачиваем текущую картинку (C)': { __binary: { image_0: 'IMG' } } };
+    const extra = { revisionInstruction: 'шторка', extraCount: 2, __binary: { image_1: 'R1', image_2: 'R2' } };
+    let o = (await run('Собираем все референсы (C)', { nodes: { ...base, 'Сервер: маска': { __binary: { mask: 'M' } } }, input: [extra] }))[0];
+    assert.equal(o.hasMask, true); assert.equal(o.__binary.mask, 'M'); assert.equal(o.imageCount, 3); assert.equal(o.__binary.image_0, 'IMG');
+    o = (await run('Собираем все референсы (C)', { nodes: { ...base, 'Сервер: маска': { ok: false, error: 'нет обводки' } }, input: [extra] }))[0];
+    assert.equal(o.hasMask, false); assert.ok(!o.__binary.mask);
+    o = (await run('Собираем все референсы (C)', { nodes: base, input: [extra] }))[0];
+    assert.equal(o.hasMask, false, 'без фото — обычная правка');
+    const { wf } = require('./harness12.js');
+    const masked = wf.nodes.filter(n => n.name.startsWith('gpt-image-2: правка по обводке'));
+    assert.equal(masked.length, 16);
+    assert.ok(masked.every(n => n.parameters.bodyParameters.parameters.some(p => p.name === 'mask' && p.inputDataFieldName === 'mask')));
+    assert.ok(wf.connections['С маской? (C)'].main[0][0].node === 'Сколько картинок? (C, маска)');
+  }
+  t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'правка 2: убрать кота' });
+  assert.equal(t.plan.needMask, false);
+  console.log('2 художник: задание, место по слову, правка, правка по обводке OK');
 
   // ── 3. Картинка согласована → следующий этап: Писатель, чистая голова ──
   const APPROVED = { ai_ImageVariants: V, ai_ApprovedImageUrl: 'U2', sys_Status: 'Картинка согласована', ai_UserBrief: 'Пингви на кухне' };
