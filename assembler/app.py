@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-fx-marks"
+ASSEMBLER_VERSION = "2026-10-04-fx-marks2"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1525,6 +1525,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 lean_px = (nums[2] / 100 * W) - px
             sbw = int(max(90 * k * s_sz, abs(lean_px) + 60 * k * s_sz))
             sbh = int(150 * k * s_sz)
+            # нарисованный верх — докуда струйку ещё видно: гаснет только в последней трети
+            tail = 0.35 if len(nums) >= 4 else 0.6
             anchor = 0.3 if lean_px >= 0 else 0.7
             sx0, sy0 = int(px - sbw * anchor), int(py - sbh + 3 * k)
             sgrain = np.asarray(Image.fromarray(rng.uniform(0, 255, (sbh, sbw)).astype(np.uint8))
@@ -1532,7 +1534,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             sgrain = 0.55 + 0.45 * sgrain
 
             def smoke(t, sbw=sbw, sbh=sbh, sx0=sx0, sy0=sy0, sgrain=sgrain, s_op=s_op, s_sz=s_sz,
-                      lean_px=lean_px, anchor=anchor, thick=thick):
+                      lean_px=lean_px, anchor=anchor, thick=thick, tail=tail):
                 t = (t % EFFECTS_LOOP_SECONDS) / EFFECTS_LOOP_SECONDS
                 can = Image.new("L", (sbw * SS, sbh * SS), 0)
                 d = ImageDraw.Draw(can)
@@ -1545,7 +1547,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 for i in range(S):
                     xa, ya, s_ = pts[i]
                     xb, yb, _ = pts[i + 1]
-                    fade = (0.9 + 0.1 * min(1, s_ / 0.12)) * max(0, min(1, (1.0 - s_) / 0.6))
+                    fade = (0.9 + 0.1 * min(1, s_ / 0.12)) * max(0, min(1, (1.0 - s_) / tail))
                     puff = 0.5 + 0.5 * math.sin(2 * math.pi * (2.2 * s_ - 2 * t))
                     a = fade * ((0.95 - 0.35 * s_) * (0.65 + 0.35 * puff ** 1.5))
                     if a > 0.01:
@@ -2477,18 +2479,18 @@ def find_red_marks(orig_path, marked_path):
     orig = Image.open(orig_path).convert("RGB")
     W, H = orig.size
     marked = Image.open(marked_path).convert("RGB").resize((W, H), Image.LANCZOS)
-    S = 4                                           # ищем на уменьшенной картинке — быстро и без шума
+    S = 2                                           # ищем на уменьшенной картинке — быстро и без шума
     w, h = W // S, H // S
-    a = np.asarray(marked.resize((w, h), Image.BILINEAR), np.float32)
-    b = np.asarray(orig.resize((w, h), Image.BILINEAR), np.float32)
+    # красное ищем на полном размере (тонкий штрих при уменьшении бледнеет и рвётся),
+    # потом клетка S×S красная, если в ней есть хоть один красный пиксель
+    a = np.asarray(marked, np.float32)
+    b = np.asarray(orig, np.float32)
     r, g, bl = a[..., 0], a[..., 1], a[..., 2]
     # красный маркер: ярко-красный (оранжевые листики самого превью сюда не попадают)
-    red = (r > 140) & (g < 100) & (bl < 100) & (r - g > 90) & (np.abs(a - b).max(axis=2) > 50)
-    # склеиваем разрывы штриха
-    m = red.copy()
-    for dy in (-1, 0, 1):
-        for dx in (-1, 0, 1):
-            m |= np.roll(np.roll(red, dy, 0), dx, 1)
+    red_full = (r > 140) & (g < 100) & (bl < 100) & (r - g > 90) & (np.abs(a - b).max(axis=2) > 50)
+    red = red_full[:h * S, :w * S].reshape(h, S, w, S).any(axis=(1, 3))
+    # без склейки соседей: близкие штрихи (дымок и лист рядом) остаются раздельными
+    m = red
     seen = np.zeros_like(m)
     marks = []
     for y0 in range(h):
@@ -2534,7 +2536,10 @@ def find_red_marks(orig_path, marked_path):
             P = lambda yx: [round(yx[1] * S / W * 100, 1), round(yx[0] * S / H * 100, 1)]
             poly_pct = [P(p) for p in poly]
             top, bottom = (poly_pct[0], poly_pct[-1]) if poly_pct[0][1] <= poly_pct[-1][1] else (poly_pct[-1], poly_pct[0])
-            width_px = int(red[pts[:, 0], pts[:, 1]].sum()) * S * S / (length * S)
+            # толщина — по красным пикселям полного размера внутри клеток штриха
+            cells = np.zeros((h, w), bool); cells[pts[:, 0], pts[:, 1]] = True
+            full = np.repeat(np.repeat(cells, S, 0), S, 1) & red_full[:h * S, :w * S]
+            width_px = int(full.sum()) / (length * S)
             marks.append({"top": top, "bottom": bottom,
                           "path": poly_pct if poly_pct[0][1] <= poly_pct[-1][1] else poly_pct[::-1],
                           "width_pct": round(width_px / H * 100, 2), "left": float(pts[:, 1].min())})
