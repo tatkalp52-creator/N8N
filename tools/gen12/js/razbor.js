@@ -71,7 +71,8 @@ return [{
     chatId,
     ...fromId(m),
     text: userText,
-    photo: msg.photo || null,
+    // картинка, отправленная файлом (без сжатия), — тоже картинка
+    photo: msg.photo || (msg.document && /^image\//.test(msg.document.mime_type || '') ? [{ file_id: msg.document.file_id }] : null),
     callbackQueryId: '',
     variantNumber: null,
     // ответ на картинку «Вариант N» — какой вариант имеется в виду

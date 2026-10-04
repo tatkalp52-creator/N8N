@@ -110,6 +110,13 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'правка 2: убрать кота' });
   assert.equal(t.plan.needMask, false);
+  {
+    const tg = { message: { chat: { id: 1 }, from: { id: 1 }, caption: 'шторка', document: { file_id: 'D', mime_type: 'image/jpeg' },
+      reply_to_message: { caption: 'Вариант 2\nID: 20261004_192748_pengui' } } };
+    const r = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': tg } }))[0];
+    assert.deepEqual(r.photo, [{ file_id: 'D' }], 'картинка файлом — тоже картинка');
+    assert.equal(r.replyVariant, 2);
+  }
   console.log('2 художник: задание, место по слову, правка, правка по обводке OK');
 
   // ── 3. Картинка согласована → следующий этап: Писатель, чистая голова ──
