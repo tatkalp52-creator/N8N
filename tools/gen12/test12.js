@@ -261,6 +261,30 @@ async function turn(stages, row, inc, response, subResponse) {
     nm['Сервер: разметка'] = { ok: false, error: 'boom', marks: [], text: '' };
     const rf = (await run('Итог хода', { nodes: nm }))[0];
     assert.ok(rf.chunks[0].includes('Разметку прочитать не удалось (boom)'));
+    // диспетчер: автор пишет «9 ок», а модель вместо отметки сохраняет памятку — пункт всё равно согласован,
+    // этап завершён, выпуск идёт дальше, согласованное сразу в колонках таблицы
+    const st9 = JSON.stringify({ v: 2, items: { 9: { text: 'дымок: 44, 37', ru: '' } }, agreed: { 9: false }, stages: { '🎞': { conv: 'cA', pending: '', seen: ['grid:U2'] } } });
+    const ctxO = { ...ctxA, kind: 'message', text: '9 ок', row: { ...ctxA.row, sys_EditorState: st9 }, tmpl: { ...ctxA.tmpl, '🎞️📝_tmpl_AnimatorNotes': 'старое' } };
+    const no = { 'Контекст проекта': ctxO };
+    no['Кто отвечает'] = (await run('Кто отвечает', { nodes: no }))[0];
+    assert.deepEqual(no['Кто отвечает'].approveNums, [9]);
+    no['Готовим запрос этапу'] = (await run('Готовим запрос этапу', { nodes: no }))[0];
+    assert.ok(no['Готовим запрос этапу'].requestBody.instructions.includes('9. Оживление [СОГЛАСОВАНО'));
+    no['Разбираем ответ этапа'] = (await run('Разбираем ответ этапа', { nodes: no, input: [call('save_note', { notes: 'дымок из трубы', message: 'Запомнил.' })] }))[0];
+    const ro = (await run('Итог хода', { nodes: no }))[0];
+    assert.equal(JSON.parse(ro.editorState).agreed[9], true);
+    assert.ok(ro.note, 'памятка тоже сохраняется');
+    assert.notEqual(ro.transition, 'none', 'этап завершён — выпуск идёт дальше');
+    assert.equal(ro.agreedFields.fx_Effects, 'дымок: 44, 37');
+    // не чистое одобрение — решает модель
+    for (const t of ['9 ок, но дым правее', 'да', 'это ещё один лист?']) {
+      const c = { ...ctxO, text: t };
+      assert.deepEqual((await run('Кто отвечает', { nodes: { 'Контекст проекта': c } }))[0].approveNums, [], t);
+    }
+    for (const t of ['ок', 'Всё ок!', '👍', 'согласовано', '9 и 3 ок']) {
+      const c = { ...ctxO, text: t };
+      assert.deepEqual((await run('Кто отвечает', { nodes: { 'Контекст проекта': c } }))[0].approveNums, [9], t);
+    }
   }
   console.log('9c аниматор: сетка для него, превью для автора OK');
 

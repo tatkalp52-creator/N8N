@@ -38,6 +38,8 @@ if (plan.mode === 'say') {
   action = r.action; message = r.message; note = r.note; changed = r.changed || [];
   approveUrl = r.approveUrl; approveVariant = r.approveVariant;
   if (r.art) { art = r.art; autoApprove = !stage.approve; }
+  // автор одобрила — показываем пункты и проверяем переход, даже если модель ответила просто текстом
+  if ((plan.approveNums || []).length && action === 'chat') action = 'text_block';
   if (r.action === 'delegate') {
     // Подчинённый этап прислал свои пункты.
     const sub = stages.find(s => bareIcon(s.icon) === bareIcon(r.delegate.stageIcon));
@@ -126,6 +128,14 @@ if (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {
   }
   previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId };
 }
+// Согласованное — сразу в колонки строки выпуска (как в листе «Пункты»); несогласованное там пусто.
+let agreedFields = null;
+const agreedKey = st_ => items.filter(it => st_.agreed[it.n]).map(it => it.n + ':' + ((st_.items[it.n] || {}).text || '')).join('\n');
+if (agreedKey(state) !== agreedKey(before)) {
+  const onlyAgreed = stParseState(JSON.stringify(state));
+  for (const it of items) if (!onlyAgreed.agreed[it.n]) delete onlyAgreed.items[it.n];
+  agreedFields = { sys_ProjectID: ctx.projectId, ...itFields(items, onlyAgreed) };
+}
 const chunks = action === 'done' || (!message && action !== 'text_block') ? [] : splitForTelegram(text);
 
 return [{ json: {
@@ -142,6 +152,7 @@ return [{ json: {
   transition,
   nextIcon,
   previewBody,
+  agreedFields,
   previewCaption: previewBody ? `${stage ? stage.icon + ' ' : ''}Превью: так это будет выглядеть\n\nID: ${ctx.projectId}` : '',
   autoApprove,
   event,

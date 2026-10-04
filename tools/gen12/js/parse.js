@@ -24,6 +24,7 @@ if (response.error || (!callItem && !plainText)) {
 }
 
 const state = stParseState(row.sys_EditorState);
+stApplyApproval(state, plan.approveNums);   // согласование автора — до и независимо от инструмента модели
 const st = stStage(state, stage.icon);
 if (!plan.silent) {
   st.conv = prep.conversationId || st.conv;

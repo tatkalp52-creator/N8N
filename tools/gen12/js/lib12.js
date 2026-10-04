@@ -152,6 +152,29 @@ function stCurrent(stages, items, state, approvedUrl) {
   return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;
 }
 
+// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает
+// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.
+// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).
+const ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',
+  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];
+const ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];
+function stApproval(text, scopeItems, state) {
+  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');
+  if (!t.trim() || t.length > 60) return [];
+  const nums = (t.match(/\d+/g) || []).map(Number);
+  const hasEmoji = /[👍✅👌]/u.test(t);
+  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);
+  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));
+  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));
+  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];
+  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];
+  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);
+  return nums.length ? pending.filter(n => nums.includes(n)) : pending;
+}
+function stApplyApproval(state, nums) {
+  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;
+}
+
 // Обращение по значку («✍️ …») или по имени («Писателю: …»).
 function stAddressed(stages, text) {
   const t = String(text || '').trim();

@@ -8,6 +8,7 @@ const items = ctx.items || [];
 const stage = stages.find(s => bareIcon(s.icon) === bareIcon(plan.stageIcon));
 if (!stage) throw new Error('Этап ' + plan.stageIcon + ' не найден в листе «Этапы»');
 const state = stParseState(row.sys_EditorState);
+stApplyApproval(state, plan.approveNums);   // карточка уже показывает согласование автора
 const sc = stScope(stages, stage);
 const st = stStage(state, stage.icon);
 const approvedUrl = String(row.ai_ApprovedImageUrl || '').trim();
@@ -144,7 +145,9 @@ ${card}`;
 // ── Сообщение ──
 const text = plan.isStart
   ? `[Служебное сообщение] ${plan.event || 'Предыдущий этап завершён.'} Сейчас твой этап — начни по своим правилам.`
-  : (plan.userText || '(пустое сообщение)');
+  : (plan.userText || '(пустое сообщение)') + ((plan.approveNums || []).length
+    ? `\n\n[Система: пункты ${plan.approveNums.join(', ')} уже отмечены согласованными. Если все твои пункты согласованы, этап завершён и выпуск идёт дальше — просто коротко попрощайся или сохрани памятку.]`
+    : '');
 let marksText = '';
 try { marksText = ($('Сервер: разметка').first().json || {}).text || ''; } catch (e) {}
 const content = [{ type: 'input_text', text: text + (marksText

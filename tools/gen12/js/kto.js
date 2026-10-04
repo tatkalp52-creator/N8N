@@ -54,9 +54,13 @@ const editVariant = (() => {
   return e ? Number(e[1]) : (ctx.replyVariant || null);
 })();
 
+// диспетчер: чистое одобрение автора отмечаем сами (модель на этом ходу может выбрать другой инструмент)
+const approveNums = mode === 'model' && !isStart && stage ? stApproval(userText, stScope(stages, stage).items, state) : [];
+
 return [{
   json: {
     mode,
+    approveNums,
     stageIcon: stage ? stage.icon : '',
     stageName: stage ? stage.name : '',
     userText,
