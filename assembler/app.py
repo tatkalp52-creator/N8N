@@ -1,5 +1,6 @@
 import os
 import re
+import math
 import random
 import time
 import json
@@ -22,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-02-loudreport"
+ASSEMBLER_VERSION = "2026-10-04-smoke-leaves"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1251,6 +1252,23 @@ def render_event_piece(event_path, image_path, loop_path, seconds, base_chain, f
     return out
 
 
+def render_masked_event_piece(event_path, mask_path, image_path, loop_path, seconds, base_chain, fps, out):
+    """Событие со своей маской (листья): кладём ровно то, что нарисовано, поверх петли или картинки."""
+    bg = (["-stream_loop", "-1", "-t", f"{seconds:g}", "-i", loop_path] if loop_path
+          else ["-loop", "1", "-framerate", str(fps), "-t", f"{seconds:g}", "-i", image_path])
+    graph = (
+        f"[0:v]tpad=stop_mode=clone:stop_duration={seconds:g},format=yuv420p[ev];"
+        f"[1:v]tpad=stop_mode=clone:stop_duration={seconds:g},format=gray[m];"
+        f"[ev][m]alphamerge[eva];"
+        f"[2:v]scale={VIDEO_WIDTH}:{VIDEO_HEIGHT},setsar=1,format=yuv420p[bg];"
+        f"[bg][eva]overlay=0:0:shortest=1,{base_chain}[v]"
+    )
+    run_ffmpeg(["-i", event_path, "-i", mask_path] + bg +
+               ["-filter_complex", graph, "-map", "[v]", "-t", f"{seconds:g}"]
+               + piece_codec_args(fps) + [out])
+    return out
+
+
 def render_intro_piece(image_path, loop_path, seconds, base_chain, shadow_layers, main_layers,
                        shadow_blur, fps, out):
     src = (["-stream_loop", "-1", "-i", loop_path] if loop_path
@@ -1373,12 +1391,17 @@ def grade_image(image_path, data):
 # Вид — 🎬-настройки (steamOpacity, steamHeight); пусто — как в утверждённой пробе.
 EFFECTS_LOOP_SECONDS = 6.0
 EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", "bubbles": "bubbles",
-                "моргание": "blink", "blink": "blink", "глаз": "blink"}
+                "моргание": "blink", "blink": "blink", "глаз": "blink",
+                "дымок": "smoke", "дым": "smoke", "smoke": "smoke"}
+# Строки листьев и края — не петля, а события (см. ЛИСТЬЯ ниже)
+EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge")
 
 
 def parse_effects(text):
     out = []
     for line in str(text or "").splitlines():
+        if line.strip().lower().startswith(EVENT_EFFECT_WORDS):
+            continue
         m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", line)
         if not m:
             continue
@@ -1489,6 +1512,41 @@ def render_effects_loop(image_path, spec, data, fps, out_path):
                 return x0, y0, al, np.array([236, 240, 236], np.float32)
             layers.append(bubbles)
 
+        elif kind == "smoke":
+            # ДЫМОК (04.10): одна тонкая белая струйка из трубы, чуть сносится ветром.
+            # Точка — верх трубы. Вид — 🎬 smokeOpacity / smokeSize.
+            s_op = _num("smokeOpacity", 0.8)
+            s_sz = _num("smokeSize", 1.0)
+            sbw, sbh = int(90 * k * s_sz), int(150 * k * s_sz)
+            sx0, sy0 = int(px - sbw * 0.3), int(py - sbh + 3 * k)
+            sgrain = np.asarray(Image.fromarray(rng.uniform(0, 255, (sbh, sbw)).astype(np.uint8))
+                                .filter(ImageFilter.GaussianBlur(0.6 * k)), np.float32) / 255
+            sgrain = 0.55 + 0.45 * sgrain
+
+            def smoke(t, sbw=sbw, sbh=sbh, sx0=sx0, sy0=sy0, sgrain=sgrain, s_op=s_op, s_sz=s_sz):
+                t = (t % EFFECTS_LOOP_SECONDS) / EFFECTS_LOOP_SECONDS
+                can = Image.new("L", (sbw * SS, sbh * SS), 0)
+                d = ImageDraw.Draw(can)
+                S = 160
+                pts = []
+                for i in range(S + 1):
+                    s_ = i / S
+                    x = sbw * 0.3 + k * s_sz * (0.6 * 38 * s_ ** 1.4 + 9 * s_ ** 0.8 * math.sin(2 * math.pi * (1.3 * s_ - t)))
+                    pts.append((x, sbh - 1 - s_ * (sbh - 4), s_))
+                for i in range(S):
+                    xa, ya, s_ = pts[i]
+                    xb, yb, _ = pts[i + 1]
+                    fade = (0.9 + 0.1 * min(1, s_ / 0.12)) * max(0, min(1, (1.0 - s_) / 0.6))
+                    puff = 0.5 + 0.5 * math.sin(2 * math.pi * (2.2 * s_ - 2 * t))
+                    a = fade * ((0.95 - 0.35 * s_) * (0.65 + 0.35 * puff ** 1.5))
+                    if a > 0.01:
+                        d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
+                               width=max(1, int((4.0 + 6.0 * s_) * k * s_sz * SS)))
+                al = np.asarray(can.resize((sbw, sbh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(1.8 * k)),
+                                np.float32) / 255 * sgrain * s_op
+                return sx0, sy0, al, np.array([248, 246, 240], np.float32)
+            layers.append(smoke)
+
         elif kind == "blink":
             # точный центр глаза — самая тёмная точка рядом с указанной
             # (тёмное рядом бывает и клювом — поэтому дальние точки «дороже»)
@@ -1553,6 +1611,317 @@ def render_effects_loop(image_path, spec, data, fps, out_path):
     return out_path
 
 
+# ЛИСТЬЯ (04.10): редкие события — лист срывается с ветки, падает и уходит за край
+# (забор, скамейку) или ложится на землю переднего плана и растворяется в листве.
+# Рисуется формулами, без нейросетей. Строки в fx_Effects строки выпуска:
+#   листья: 46, 14 → 47, 88; продолговатый; раз в 240
+#   листья: 23.5, 41 → 25, 63.5; круглый; маленький; вглубь; за край; раз в 120
+#   край: 0 60.5, 16 61, 24 61.5, 40 64.5, 100 65
+# Координаты — проценты кадра (откуда → куда). Слова: форма (продолговатый / круглый /
+# клён), цвет (жёлтый, красный, оранжевый, охра, бурый; без цвета — из самой картинки),
+# маленький / крупный, вглубь (уменьшается по пути), за край (прячется за линию «край»),
+# раз в N (секунд; «раз в 4 мин» — минут), падает N (секунд полёта).
+# Общий вид — 🎬 leafSize (длина листа в пикселях кадра высотой 864) и leafFallSeconds.
+LEAF_COLORS = {
+    "жёлт": (214, 168, 58), "желт": (214, 168, 58), "yellow": (214, 168, 58),
+    "красн": (176, 62, 42), "red": (176, 62, 42),
+    "оранж": (204, 112, 46), "orange": (204, 112, 46),
+    "охр": (178, 128, 66), "ochre": (178, 128, 66),
+    "бур": (128, 82, 48), "brown": (128, 82, 48),
+}
+
+
+def parse_leaves(text, data):
+    """Строки «листья:» и «край:» из fx_Effects → список листьев и линия края."""
+    def _num(key, default):
+        try:
+            v = float(data.get(key))
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+    size0 = _num("leafSize", 30.0)
+    fall0 = _num("leafFallSeconds", 6.0)
+    leaves, edge = [], []
+    for line in str(text or "").splitlines():
+        low = line.strip().lower()
+        if low.startswith(("край", "edge")):
+            body = low.split(":", 1)[-1]
+            for pair in body.split(","):
+                nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", pair)]
+                if len(nums) >= 2:
+                    edge.append((nums[0], nums[1]))
+            continue
+        if not low.startswith(("листья", "лист", "leaves", "leaf")):
+            continue
+        parts = [x.strip() for x in low.split(":", 1)[-1].split(";")]
+        nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", parts[0])]
+        if len(nums) < 4:
+            print(f"[leaves] не поняла строку (нужно «x, y → x, y»): {line!r}")
+            continue
+        leaf = dict(frm=(nums[0], nums[1]), to=(nums[2], nums[3]), shape="long", colors=[],
+                    size=size0, fall=fall0, shrink=1.0, behind=False, period=None)
+        for w in parts[1:]:
+            if "кругл" in w or "round" in w:
+                leaf["shape"] = "round"
+            elif "клён" in w or "клен" in w or "maple" in w:
+                leaf["shape"] = "maple"
+            elif "продолг" in w or "long" in w:
+                leaf["shape"] = "long"
+            if "маленьк" in w or "small" in w:
+                leaf["size"] = size0 * 0.63
+            if "крупн" in w or "больш" in w or "big" in w:
+                leaf["size"] = size0 * 1.3
+            if "вглубь" in w or "deep" in w:
+                leaf["shrink"] = 0.75
+            if "за край" in w or "за забор" in w or "behind" in w:
+                leaf["behind"] = True
+            m = re.search(r"раз в\s*(\d+(?:\.\d+)?)\s*(мин)?", w)
+            if m:
+                leaf["period"] = float(m.group(1)) * (60 if m.group(2) else 1)
+            m = re.search(r"пада\w*\s*(\d+(?:\.\d+)?)", w)
+            if m:
+                leaf["fall"] = float(m.group(1))
+            for name, rgb in LEAF_COLORS.items():
+                if name in w:
+                    leaf["colors"].append(rgb)
+        leaves.append(leaf)
+    return leaves, edge
+
+
+def _leaf_outline_long(L):
+    left, right, mid = [], [], []
+    for i in range(61):
+        u = i / 60
+        w = 0.24 * L * math.sin(math.pi * u ** 0.75) ** 0.85 * (1 - 0.25 * u)
+        teeth = 1 + (0.06 * (1 if math.sin(u * 34 * math.pi) > 0 else -1) if 0.12 < u < 0.92 else 0)
+        bend = 0.05 * L * math.sin(math.pi * u)
+        x = (u - 0.5) * L
+        left.append((x, bend - w * teeth)); right.append((x, bend + 0.88 * w * teeth)); mid.append((x, bend))
+    return left, right, mid
+
+
+def _leaf_outline_round(L):
+    left, right, mid = [], [], []
+    for i in range(61):
+        u = i / 60
+        w = 0.40 * L * math.sin(math.pi * u ** 0.9) ** 0.6 * (1 - 0.15 * u)
+        x = (u - 0.5) * L * 0.85
+        bend = 0.03 * L * math.sin(math.pi * u)
+        left.append((x, bend - w)); right.append((x, bend + 0.92 * w)); mid.append((x, bend))
+    return left, right, mid
+
+
+MAPLE_LOBES = [(-90, 1.0), (-35, 0.9), (35, 0.9), (-140, 0.62), (140, 0.62)]
+
+
+def _leaf_outline_maple(L):
+    pts = []
+    for i in range(240):
+        a = -180 + 360 * i / 240
+        r = 0.34
+        for ang, ln in MAPLE_LOBES:
+            d = abs((a - (ang + 90) + 180) % 360 - 180)
+            r = max(r, ln * (1 - (d / 34) ** 0.9) if d < 34 else 0)
+        db = abs((a - 180 + 180) % 360 - 180)
+        if db < 20:
+            r *= 0.55 + 0.45 * db / 20
+        r *= 0.5 * L * (1 + 0.04 * math.sin(math.radians(a) * 30))
+        t = math.radians(a)
+        pts.append((r * math.cos(t), r * math.sin(t)))
+    return pts
+
+
+def leaf_sprite(shape, color, ang, flip, L):
+    """Непрозрачный рисованный лист: две половинки разного тона, контур и жилки карандашом.
+    flip (−1…1) — поворот вокруг своей оси: сужает лист; при отрицательном видна светлая изнанка."""
+    import numpy as np
+    from PIL import Image, ImageDraw
+    SS = 4
+    R = int(L * 0.8) + 2
+    can = Image.new("RGBA", (2 * R * SS, 2 * R * SS), (0, 0, 0, 0))
+    d = ImageDraw.Draw(can)
+    sq = 0.22 + 0.78 * abs(flip)
+    under = flip < 0
+    base_c = np.array(color, np.float32) * (1.12 if under else 1.0)
+    light = tuple(int(min(255, v)) for v in base_c * 1.08)
+    dark = tuple(int(v) for v in base_c * 0.82)
+    line = tuple(int(v) for v in base_c * 0.42)
+    ca, sa = math.cos(ang), math.sin(ang)
+    T = lambda x, y: (R * SS + (x * ca - y * sq * sa) * SS, R * SS + (x * sa + y * sq * ca) * SS)
+    lw = max(1, int(L / 30 * SS))
+    if shape == "maple":
+        pts = _leaf_outline_maple(L)
+        d.polygon([T(*q) for q in pts], fill=(light if not under else dark) + (255,))
+        half = [q for q in pts if q[1] >= 0] + [(0, 0)]
+        d.polygon([T(*q) for q in half], fill=(dark if not under else light) + (255,))
+        d.line([T(*q) for q in pts + pts[:1]], fill=line + (255,), width=lw)
+        for ang_l, ln in MAPLE_LOBES:
+            t = math.radians(ang_l + 90)
+            d.line([T(0, 0), T(0.425 * L * ln * math.cos(t), 0.425 * L * ln * math.sin(t))],
+                   fill=line + (170,), width=max(1, lw // 2 + 1))
+        d.line([T(-0.08 * L, 0), T(-0.42 * L, 0.03 * L)], fill=line + (255,), width=lw + 1)
+    else:
+        left, right, mid = (_leaf_outline_round if shape == "round" else _leaf_outline_long)(L)
+        d.polygon([T(*q) for q in left + mid[::-1]], fill=(light if not under else dark) + (255,))
+        d.polygon([T(*q) for q in right + mid[::-1]], fill=(dark if not under else light) + (255,))
+        d.line([T(*q) for q in left], fill=line + (255,), width=lw)
+        d.line([T(*q) for q in right], fill=line + (255,), width=lw)
+        d.line([T(*q) for q in mid], fill=line + (230,), width=lw)
+        for j in range(1, 7):
+            i = int(len(mid) * j / 8)
+            for side_pts in (left, right):
+                mx, my = mid[i]
+                ex, ey = side_pts[min(len(side_pts) - 1, i + 6)]
+                d.line([T(mx, my), T(mx + (ex - mx) * 0.85, my + (ey - my) * 0.85)],
+                       fill=line + (150,), width=max(1, lw // 2 + 1))
+        bx = left[0][0]
+        d.line([T(bx, 0), T(bx - 0.18 * L, 0.04 * L)], fill=line + (255,), width=lw + 1)
+    return np.asarray(can.resize((2 * R, 2 * R), Image.LANCZOS), np.float32)
+
+
+def leaf_path(x0, y0, x1, y1, seconds, fps, seed, swing, half=1.15):
+    """Полёт по физике падающей пластинки (Andersen, Pesavento, Wang, 2005) и правилу дуг:
+    лист скользит дугой вбок — в середине быстрее и ниже, носом по ходу; у края дуги
+    замедляется, чуть приподнимается, на миг встаёт ребром и скользит обратно.
+    Первая дуга короче — лист только что сорвался. Дуги немного разные."""
+    import numpy as np
+    r = np.random.default_rng(int(seed * 1000) + 1)
+    n = max(2, int(round(seconds / half)))
+    durs = r.uniform(0.85, 1.15, n)
+    durs = durs / durs.sum() * seconds
+    amps = r.uniform(0.75, 1.2, n) * swing
+    amps[0] *= 0.45
+    drops = r.uniform(0.8, 1.2, n)
+    drops[0] *= 0.5
+    drops = drops / drops.sum() * (y1 - y0)
+    tumble = r.random(n) < 0.25
+    d0 = 1 if r.random() < 0.5 else -1
+    path, t_acc, y_acc, side, i = [], 0.0, 0.0, 1.0, 0
+    for f in range(int(seconds * fps) + 1):
+        t = f / fps
+        while i < n - 1 and t > t_acc + durs[i]:
+            t_acc += durs[i]; y_acc += drops[i]
+            if tumble[i]:
+                side = -side
+            i += 1
+        s_ = min(1.0, (t - t_acc) / durs[i])
+        dirn = d0 * (1 if i % 2 == 0 else -1)
+        A, d = amps[i], drops[i]
+        p = (y_acc + d * s_) / (y1 - y0)
+        x = x0 + (x1 - x0) * p + dirn * A * -math.cos(math.pi * s_)
+        y = y0 + y_acc + d * s_ - 0.36 * d * (1 - math.sin(math.pi * s_))
+        ang = dirn * 0.55 * math.sin(math.pi * s_) + 0.15
+        flip = side * (0.3 + 0.7 * math.sin(math.pi * s_) ** 0.6)
+        path.append((x, y, ang, flip))
+    return path
+
+
+def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
+    """Клип события: картинка + один падающий лист, и рядом маска — где лист и насколько
+    он непрозрачен (поверх петли лист кладётся по этой маске, без догадок по разнице кадров).
+    Начинается и кончается чистой картинкой."""
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:
+        _sys.path.insert(0, "/app/pylibs")
+    import numpy as np
+    from PIL import Image
+    src = Image.open(image_path).convert("RGB")
+    W, H = src.size
+    base = np.asarray(src, np.float32)
+    k = H / 864.0
+    rng = np.random.default_rng(int(seed * 1000) + 7)
+    if leaf["colors"]:
+        color = np.array(leaf["colors"][int(rng.integers(len(leaf["colors"])))], np.float32)
+    else:  # из самой картинки: самые насыщенные тёплые цвета
+        pix = base.reshape(-1, 3)
+        sat = pix[(pix[:, 0] - pix[:, 2] > 75) & (pix[:, 0] > 120)]
+        if len(sat) < 50:
+            color = np.array(LEAF_COLORS["охр"], np.float32)
+        else:
+            sat = sat[np.argsort(sat[:, 0] - sat[:, 2])][-max(50, len(sat) // 5):]
+            pal = [np.median(c, axis=0) * 0.92 for c in np.array_split(sat[np.argsort(sat[:, 1])], 3)]
+            color = pal[int(rng.integers(len(pal)))]
+    P = lambda xy: (xy[0] / 100 * W, xy[1] / 100 * H)
+    L0 = leaf["size"] * k
+    fall = leaf["fall"]
+    rest = 0.0 if leaf["behind"] else 4.0      # на переднем плане — лежит и растворяется в листве
+    (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
+    path = leaf_path(x0, y0, x1, y1, fall, fps, seed, L0 * 1.1)
+    ex = [e[0] / 100 * W for e in edge] if (leaf["behind"] and edge) else None
+    ey = [e[1] / 100 * H for e in edge] if ex else None
+    frames_dir = out_path + "_frames"
+    masks_dir = out_path + "_masks"
+    os.makedirs(frames_dir, exist_ok=True)
+    os.makedirs(masks_dir, exist_ok=True)
+    n = int((fall + rest + 0.5) * fps)
+    for f in range(n):
+        age = f / fps
+        out = base.copy()
+        mask = np.zeros((H, W), np.float32)
+        if age <= fall + rest:
+            x, y, ang, flip = path[min(len(path) - 1, int(age * fps))]
+            lying = age > fall
+            if lying:
+                ang, flip = 0.35, 1.0
+            L = L0 * (1 + (leaf["shrink"] - 1) * min(1.0, age / fall))
+            spr = leaf_sprite(leaf["shape"], color, ang, flip, L)
+            al = spr[..., 3] / 255 * min(1, age / 0.3)
+            if lying:
+                al = al * (1 - (age - fall) / rest) ** 1.6
+            h, w = al.shape
+            lx0, ly0 = int(x - w / 2), int(y - h / 2)
+            if ex:   # ниже края — за краем: не рисуем
+                fy = np.interp(np.arange(w) + lx0, ex, ey)
+                al = al * ((np.arange(h) + ly0)[:, None] < fy[None, :])
+            ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
+            if ya < yb and xa < xb:
+                a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
+                c = spr[ya - ly0:yb - ly0, xa - lx0:xb - lx0, :3]
+                out[ya:yb, xa:xb] = out[ya:yb, xa:xb] * (1 - a) + c * a
+                mask[ya:yb, xa:xb] = a[..., 0]
+        Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(os.path.join(frames_dir, f"{f:04d}.png"))
+        Image.fromarray(np.clip(mask * 255, 0, 255).astype(np.uint8)).save(os.path.join(masks_dir, f"{f:04d}.png"))
+    for d_, o_ in ((frames_dir, out_path), (masks_dir, mask_path)):
+        run_ffmpeg(["-framerate", str(fps), "-i", os.path.join(d_, "%04d.png"),
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p", o_])
+        shutil.rmtree(d_, ignore_errors=True)
+    return out_path
+
+
+def plan_body_periodic(duration, intro, loop_len, events, seed):
+    """Как plan_body, но у каждого события своя частота: events = [(длина, период_сек)].
+    Моменты событий — вокруг кратных периоду, с разбросом ±25 %; совпали — следующее позже."""
+    rnd = random.Random(seed)
+    unit = loop_len if loop_len else 10.0
+    big = unit * max(1, round(60 / unit))
+    base = "loop" if loop_len else "still"
+    times = []
+    for i, (ln, period) in enumerate(events):
+        t = intro + rnd.uniform(0.3, 1.0) * period
+        while t < duration:
+            times.append((t, i))
+            t += period * rnd.uniform(0.75, 1.25)
+    times.sort()
+    parts, cur = [], intro
+
+    def fill(gap):
+        n_big, rest = int(gap // big), gap % big
+        n_small = int(round(rest / unit))
+        parts.extend([(base, big)] * n_big + [(base, unit)] * n_small)
+        return n_big * big + n_small * unit
+
+    for t, i in times:
+        if t > cur:
+            cur += fill(t - cur)
+        if cur >= duration:
+            break
+        parts.append(("event", i)); cur += events[i][0]
+    while cur < duration:
+        parts.append((base, big)); cur += big
+    return parts, big
+
+
+
 def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, base_chain,
                             shadow_layers, main_layers, shadow_blur, overlay_visible_until,
                             audio_chain, output_path, project_id):
@@ -1582,6 +1951,8 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
         loop_path = normalize_clip(raw, os.path.join(pdir, "loop_norm.mp4"), fps)
         loop_len = media_duration(loop_path)
     events = []
+    periods = []
+    masks = {}   # номер события → его маска (у листьев); у остальных маски нет
     for i, u in enumerate(event_urls):
         raw = download_media(u, os.path.join(pdir, f"event{i}_src.mp4"))
         ev = normalize_clip(raw, os.path.join(pdir, f"event{i}_norm.mp4"), fps)
@@ -1589,6 +1960,25 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
         if loop_len:  # событие поверх петли — длина кратна петле
             ln = loop_len * max(1, -(-ln // loop_len))
         events.append((ev, ln))
+        periods.append(None)
+    leaves, edge = parse_leaves(data.get("fx_Effects"), data)
+    for j, leaf in enumerate(leaves):
+        try:
+            raw = render_leaf_event(image_path, leaf, edge, fps, 1.3 + 2.9 * j,
+                                    os.path.join(pdir, f"leaf{j}_src.mp4"), os.path.join(pdir, f"leaf{j}_mask_src.mp4"))
+            mask = normalize_clip(os.path.join(pdir, f"leaf{j}_mask_src.mp4"), os.path.join(pdir, f"leaf{j}_mask.mp4"), fps)
+        except Exception as leaf_error:  # лист — украшение, сборку не роняем
+            print(f"[leaves] лист {j + 1} не получился: {leaf_error}")
+            continue
+        ev = normalize_clip(raw, os.path.join(pdir, f"leaf{j}_norm.mp4"), fps)
+        ln = media_duration(ev)
+        if loop_len:
+            ln = loop_len * max(1, -(-ln // loop_len))
+        events.append((ev, ln))
+        masks[len(events) - 1] = mask
+        periods.append(leaf["period"] or (gap_min + gap_max) / 2)
+    if leaves:
+        print(f"[leaves] листьев: {len(leaves)}, раз в " + ", ".join(f"{p:g} с" for p in periods if p))
     mode = ("петля + события" if loop_path and events else "петля" if loop_path
             else "события" if events else "статика")
     print(f"[video] тело: {mode}, {fps} кадров/с")
@@ -1598,8 +1988,13 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
         intro = loop_len * max(1, -(-intro // loop_len))
     pieces = [render_intro_piece(image_path, loop_path, intro, base_chain, shadow_layers,
                                  main_layers, shadow_blur, fps, os.path.join(pdir, "intro.mp4"))]
-    parts, big = plan_body(duration, intro, loop_len, [e[1] for e in events], gap_min, gap_max,
-                           project_id)
+    if any(p is not None for p in periods):
+        avg = (gap_min + gap_max) / 2
+        parts, big = plan_body_periodic(duration, intro, loop_len,
+                                        [(e[1], p or avg) for e, p in zip(events, periods)], project_id)
+    else:
+        parts, big = plan_body(duration, intro, loop_len, [e[1] for e in events], gap_min, gap_max,
+                               project_id)
     cache = {}
     for kind, val in parts:
         key = (kind, val)
@@ -1611,7 +2006,11 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
                 cache[key] = render_loop_piece(loop_path, val, base_chain, fps, out)
             else:
                 ev, ln = events[val]
-                cache[key] = render_event_piece(ev, image_path, loop_path, ln, base_chain, fps, out)
+                if val in masks:
+                    cache[key] = render_masked_event_piece(ev, masks[val], image_path, loop_path, ln,
+                                                           base_chain, fps, out)
+                else:
+                    cache[key] = render_event_piece(ev, image_path, loop_path, ln, base_chain, fps, out)
         pieces.append(cache[key])
 
     list_path = os.path.join(pdir, "list.txt")
