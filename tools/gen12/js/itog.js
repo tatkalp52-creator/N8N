@@ -21,6 +21,7 @@ let changed = [];
 let speaker = stage;
 // Картинку без согласования автора (этап «авто» или молчаливый) согласуем сами после рисунка.
 let autoApprove = false;
+let lupaMoved = 0;
 
 if (plan.mode === 'say') {
   message = plan.sayText;
@@ -35,6 +36,8 @@ if (plan.mode === 'say') {
 } else if (plan.mode === 'model') {
   const r = $('Разбираем ответ этапа').first().json;
   state = stParseState(r.editorState);
+  // лупа уточнила точки оживления — берём её версию пункта
+  try { const lp = $('Лупа: итог').first().json; if (lp && lp.editorState) { state = stParseState(lp.editorState); lupaMoved = lp.moved || 0; } } catch (e) {}
   action = r.action; message = r.message; note = r.note; changed = r.changed || [];
   approveUrl = r.approveUrl; approveVariant = r.approveVariant;
   if (r.art) { art = r.art; autoApprove = !stage.approve; }
@@ -96,6 +99,7 @@ if (plan.needMarks) {
   text += n ? `\n\n🖍 Разметка прочитана: штрихов — ${n}.`
     : `\n\n⚠️ Разметку прочитать не удалось${mk && mk.error ? ' (' + escapeHtml(String(mk.error)) + ')' : (mk ? ' — красных штрихов не нашлось' : ' — сборщик не ответил')}.`;
 }
+if (lupaMoved) text += `\n\n🔍 Лупа уточнила точек: ${lupaMoved}.`;
 if (statusReverted) text += '\n\n⚠️ Статус «Утверждено» снят — после изменений пришлю новую сводку на ✅.';
 if (action === 'text_block' && stage) {
   const sc = stScope(stages, stage);

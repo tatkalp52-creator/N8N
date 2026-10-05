@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-05-highs"
+ASSEMBLER_VERSION = "2026-10-05-lupa"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2507,6 +2507,64 @@ def draw_percent_grid(image_path, out_path):
     return out_path
 
 
+# ── ЛУПА (05.10): увеличенные кусочки вокруг точек эффектов — чтобы Аниматор уточнил их ──
+# Для каждой точки строки оживления (верх трубы, пламя, глаз, поверхность, углы стекла)
+# вырезается квадрат вокруг неё, увеличивается в 3 раза и размечается сеткой через 1 %
+# с подписями в процентах ВСЕГО кадра. Текущая точка — голубой кружок.
+ZOOM_POINTS = {
+    "smoke": ["верх трубы"], "steam": ["поверхность напитка или воды"], "bubbles": ["рот рыбки"],
+    "blink": ["глаз птицы"], "candle": ["середина пламени свечи"],
+    "rain": ["левый верхний угол стекла", "правый нижний угол стекла"],
+}
+
+
+def zoom_points(image_path, fx_text, half_pct=10.0, scale=3):
+    import base64, io
+    from PIL import Image, ImageDraw, ImageFont
+    im = Image.open(image_path).convert("RGB")
+    W, H = im.size
+    try:
+        font = ImageFont.load_default(size=max(12, int(13 * scale / 3 * 1.2)))
+    except TypeError:
+        font = ImageFont.load_default()
+    out = []
+    for li, line in enumerate(str(fx_text or "").splitlines()):
+        m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", line)
+        if not m or line.strip().lower().startswith(EVENT_EFFECT_WORDS):
+            continue
+        kind = EFFECT_NAMES.get(m.group(1).strip().lower())
+        nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2))]
+        for pi, label in enumerate(ZOOM_POINTS.get(kind, [])):
+            if len(nums) < 2 * pi + 2:
+                continue
+            x, y = nums[2 * pi], nums[2 * pi + 1]
+            hp = half_pct / 100 * W
+            cx, cy = x / 100 * W, y / 100 * H
+            x0, y0 = int(max(0, min(W - 2 * hp, cx - hp))), int(max(0, min(H - 2 * hp, cy - hp)))
+            x1, y1 = int(min(W, x0 + 2 * hp)), int(min(H, y0 + 2 * hp))
+            crop = im.crop((x0, y0, x1, y1)).resize(((x1 - x0) * scale, (y1 - y0) * scale), Image.LANCZOS)
+            d = ImageDraw.Draw(crop, "RGBA")
+            for k in range(int(x0 / W * 100), int(x1 / W * 100) + 2):
+                px = (k / 100 * W - x0) * scale
+                if 0 <= px < crop.width:
+                    d.line([(px, 0), (px, crop.height)], fill=(20, 40, 160, 150 if k % 5 == 0 else 70), width=1)
+                    d.rectangle([px + 1, 1, px + 30, 17], fill=(255, 255, 255, 200))
+                    d.text((px + 3, 2), str(k), fill=(20, 40, 160, 255), font=font)
+            for k in range(int(y0 / H * 100), int(y1 / H * 100) + 2):
+                py = (k / 100 * H - y0) * scale
+                if 0 <= py < crop.height:
+                    d.line([(0, py), (crop.width, py)], fill=(170, 20, 20, 150 if k % 5 == 0 else 70), width=1)
+                    d.rectangle([1, py + 1, 30, py + 17], fill=(255, 255, 255, 200))
+                    d.text((3, py + 2), str(k), fill=(170, 20, 20, 255), font=font)
+            mx, my = (cx - x0) * scale, (cy - y0) * scale
+            d.ellipse([mx - 9, my - 9, mx + 9, my + 9], outline=(0, 190, 220, 255), width=2)
+            buf = io.BytesIO()
+            crop.save(buf, format="JPEG", quality=88)
+            out.append({"id": f"{li}:{pi}", "line": li, "pair": pi, "kind": kind, "label": label,
+                        "x": x, "y": y, "dataUrl": "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()})
+    return out
+
+
 def draw_fx_preview(image_path, fx_text, data, out_path):
     import numpy as np
     from PIL import Image, ImageDraw
@@ -2565,6 +2623,19 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
                        fill=(30, 110, 200), width=max(2, int(2 * k)))
     im.save(out_path, quality=90)
     return out_path
+
+
+@app.route("/fx_zoom", methods=["POST"])
+def fx_zoom():
+    data = request.json or {}
+    work_dir = tempfile.mkdtemp(prefix="fxzoom_")
+    try:
+        img = _fx_image(data["imageUrl"], work_dir)
+        return jsonify({"ok": True, "points": zoom_points(img, data.get("fx_Effects", ""))})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "points": []}), 200
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 @app.route("/fx_grid", methods=["POST"])
@@ -2671,7 +2742,9 @@ def find_red_marks(orig_path, marked_path):
             cells = np.zeros((h, w), bool); cells[pts[:, 0], pts[:, 1]] = True
             full = np.repeat(np.repeat(cells, S, 0), S, 1) & red_full[:h * S, :w * S]
             width_px = int(full.sum()) / (length * S)
-            marks.append({"top": top, "bottom": bottom,
+            box = [round(float(pts[:, 1].min()) * S / W * 100, 1), round(float(pts[:, 0].min()) * S / H * 100, 1),
+                   round(float(pts[:, 1].max() + 1) * S / W * 100, 1), round(float(pts[:, 0].max() + 1) * S / H * 100, 1)]
+            marks.append({"top": top, "bottom": bottom, "box": box,
                           "path": poly_pct if poly_pct[0][1] <= poly_pct[-1][1] else poly_pct[::-1],
                           "width_pct": round(width_px / H * 100, 2), "left": float(pts[:, 1].min())})
     marks.sort(key=lambda m_: m_["left"])
@@ -2759,7 +2832,8 @@ def fx_marks():
         for i, m_ in enumerate(marks, 1):
             lines.append(f"{i}) верхний конец {m_['top'][0]}, {m_['top'][1]}; нижний конец {m_['bottom'][0]}, "
                          f"{m_['bottom'][1]}; путь сверху вниз: " + " → ".join(f"{p[0]}, {p[1]}" for p in m_["path"]) +
-                         f"; толщина штриха {m_['width_pct']} % высоты кадра")
+                         f"; толщина штриха {m_['width_pct']} % высоты кадра"
+                         f"; рамка штриха: левый верх {m_['box'][0]}, {m_['box'][1]} — правый низ {m_['box'][2]}, {m_['box'][3]}")
         return jsonify({"ok": True, "marks": marks, "text": "\n".join(lines)})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e), "marks": [], "text": ""}), 200

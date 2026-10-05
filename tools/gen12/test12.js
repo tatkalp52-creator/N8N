@@ -265,6 +265,36 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.ok(req.seen.includes('grid:U2') && !req.seen.some(x => x.startsWith('data:')), 'в памяти — метка, не данные');
     n['Готовим запрос этапу'] = req;
     n['Разбираем ответ этапа'] = (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'Вот.' })] }))[0];
+    // лупа: точки уточняются по увеличенным кусочкам, меняются только числа этих точек
+    {
+      const ln = { ...n, 'Разбираем ответ этапа': (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'свеча: 62, 49\nдождь: 56, 44, 71, 60\nлистья: 46, 14 → 47, 88; раз в 2 мин' }], message: 'Вот.' })] }))[0] };
+      const lp = (await run('Лупа: план', { nodes: ln }))[0];
+      assert.equal(lp.need, true); assert.equal(lp.n, 9); assert.equal(lp.imageUrl, 'U2');
+      ln['Лупа: план'] = lp;
+      ln['Сервер: лупа'] = { ok: true, points: [
+        { id: '0:0', line: 0, pair: 0, label: 'середина пламени свечи', x: 62, y: 49, dataUrl: 'data:A' },
+        { id: '1:0', line: 1, pair: 0, label: 'левый верхний угол стекла', x: 56, y: 44, dataUrl: 'data:B' },
+        { id: '1:1', line: 1, pair: 1, label: 'правый нижний угол стекла', x: 71, y: 60, dataUrl: 'data:C' }] };
+      const lz = (await run('Готовим уточнение', { nodes: ln }))[0];
+      assert.equal(lz.requestBody.input[0].content.filter(c => c.type === 'input_image').length, 3);
+      assert.deepEqual(lz.requestBody.tool_choice, { type: 'function', name: 'refine_points' });
+      ln['OpenAI: уточнение'] = { output: [{ type: 'function_call', name: 'refine_points', arguments: JSON.stringify({ points: [
+        { id: '0:0', x: 60.6, y: 42.3 }, { id: '1:0', x: 53, y: 37 }, { id: '1:1', x: 65, y: 43 }, { id: '9:9', x: 1, y: 1 }] }) }] };
+      const li = (await run('Лупа: итог', { nodes: ln }))[0];
+      const txt = JSON.parse(li.editorState).items[9].text;
+      assert.equal(txt, 'свеча: 60.6, 42.3\nдождь: 53, 37, 65, 43\nлистья: 46, 14 → 47, 88; раз в 2 мин');
+      assert.equal(li.moved, 3);
+      ln['Лупа: итог'] = li;
+      const rr = (await run('Итог хода', { nodes: ln }))[0];
+      assert.equal(rr.previewBody.fx_Effects, txt, 'превью — уже по уточнённым точкам');
+      assert.ok(rr.chunks[0].includes('Лупа уточнила точек: 3'));
+      // слишком далёкий «уточнённый» ответ не принимаем
+      ln['OpenAI: уточнение'] = { output: [{ type: 'function_call', name: 'refine_points', arguments: JSON.stringify({ points: [{ id: '0:0', x: 20, y: 10 }] }) }] };
+      assert.ok(JSON.parse((await run('Лупа: итог', { nodes: ln }))[0].editorState).items[9].text.startsWith('свеча: 62, 49'));
+      // без пункта оживления лупа не нужна
+      const nn = { ...n, 'Разбираем ответ этапа': { ...ln['Разбираем ответ этапа'], changed: [] } };
+      assert.equal((await run('Лупа: план', { nodes: nn }))[0].need, false);
+    }
     const r = (await run('Итог хода', { nodes: n }))[0];
     assert.equal(r.previewBody.fx_Effects, 'дымок: 44, 37'); assert.equal(r.previewBody.imageUrl, 'U2');
     assert.equal(r.previewBody.targetLUFS, '-14', 'вид эффектов — колонки 🎬');

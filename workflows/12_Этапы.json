@@ -16,14 +16,14 @@
         0,
         0
       ],
-      "webhookId": "f4eab4d1-287f-4abb-b705-344907385b24",
+      "webhookId": "2617beb1-667c-4240-8402-27c360745e4d",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "6a32befa-0f1b-4a02-b1a9-2d4e6afaf016"
+      "id": "5fb93a09-987f-497d-9cad-e215cb2c26c5"
     },
     {
       "parameters": {
@@ -54,7 +54,7 @@
         220,
         0
       ],
-      "id": "01658bf9-e752-4ccb-ae53-b3800a7532c9"
+      "id": "8ae1936b-1472-4015-bf4e-66c5e91a6587"
     },
     {
       "parameters": {},
@@ -65,7 +65,7 @@
         0,
         200
       ],
-      "id": "4c7e384c-c70b-4dee-849c-b0ba061b03d1"
+      "id": "bfee8f46-9897-4107-9ad6-2993fedff7d3"
     },
     {
       "parameters": {
@@ -78,7 +78,7 @@
         440,
         0
       ],
-      "id": "3818a2d4-14e4-4967-beed-a9b7daea6cb5"
+      "id": "062e24f9-64ae-4c3c-989f-68a4705eb76d"
     },
     {
       "parameters": {
@@ -157,7 +157,7 @@
         660,
         0
       ],
-      "id": "742de89a-df82-4788-82be-91cfc3fe365b"
+      "id": "498559ae-a289-449e-ac6c-192455fef8b9"
     },
     {
       "parameters": {
@@ -190,7 +190,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "0a4b893c-d8eb-411a-829e-631c5de2d2a0"
+      "id": "f089331a-c723-4be2-a8c1-7036ba169be0"
     },
     {
       "parameters": {
@@ -203,7 +203,7 @@
         1120,
         -700
       ],
-      "id": "10fb1cbc-d5b4-4ffb-b901-81a1d1d39a6a"
+      "id": "88513e83-d0ce-44f4-9eef-03b2692aaa5a"
     },
     {
       "parameters": {
@@ -240,14 +240,14 @@
         1340,
         -700
       ],
-      "webhookId": "18afc990-7eb1-4e58-a646-bc261ccd7fc3",
+      "webhookId": "52f439ed-ec39-4660-8cd0-3f86edbb03ab",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "6b6f614c-c6cf-4dc7-8e0b-be9250275f34"
+      "id": "4e51ebc7-4d4b-432c-8127-563813ebae7e"
     },
     {
       "parameters": {
@@ -263,7 +263,7 @@
         900,
         -450
       ],
-      "webhookId": "1a6735d4-f3a7-4d37-b7e6-256fe3d67d76",
+      "webhookId": "9d619717-cf24-491a-9289-d7e4a563748f",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -271,7 +271,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "b46f58c9-4c37-4b2c-ae0a-1877798b2e0b"
+      "id": "73278012-658b-4e81-8cbc-a3a30ec38a75"
     },
     {
       "parameters": {
@@ -309,7 +309,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "1e42778b-7d49-4d48-8e7b-ca893a8c53bb"
+      "id": "60965794-6d16-403f-b670-04206a4ddeef"
     },
     {
       "parameters": {
@@ -322,7 +322,7 @@
         1340,
         -450
       ],
-      "id": "10b0fca8-4888-4514-8e92-a159347c8f76"
+      "id": "292c9be7-49ad-4191-b3b5-9a04b204dda9"
     },
     {
       "parameters": {
@@ -360,7 +360,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "9531a298-e4dd-4351-9c47-65b51bc46ca4"
+      "id": "c6f67266-550a-485f-996b-7b025b488449"
     },
     {
       "parameters": {
@@ -380,14 +380,14 @@
         1780,
         -450
       ],
-      "webhookId": "37500e67-bb19-40f2-b293-69832437b616",
+      "webhookId": "0ec46556-2bc7-407d-8233-7c45e9be0752",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "2fe41761-1ce7-4f66-bdf7-903aa845d42b"
+      "id": "151dd19e-8fb1-4daa-b55a-0c158bba0d7f"
     },
     {
       "parameters": {
@@ -399,7 +399,7 @@
           },
           "conditions": [
             {
-              "id": "225455f4-e6fb-4a6b-8e60-3e1c27bfa5d0",
+              "id": "7b6f26f7-8bad-40d1-8769-9b0493bf7f15",
               "leftValue": "={{ !!$('Разбираем входящее').first().json.callbackQueryId }}",
               "rightValue": true,
               "operator": {
@@ -420,7 +420,7 @@
         900,
         0
       ],
-      "id": "5add35b1-2fe3-4404-8ead-ab967370e60e"
+      "id": "75a9e48f-2ab6-4e00-812b-226cc5ae6bc5"
     },
     {
       "parameters": {
@@ -438,7 +438,7 @@
         1120,
         -150
       ],
-      "webhookId": "7fa6671b-738b-49f2-bc70-db22048e96d4",
+      "webhookId": "c0e5d3dc-4ef0-41f1-a67e-21c1dd9c5f3c",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -446,7 +446,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "9a024cd7-ff7a-420c-a7cd-d9d9512cb620"
+      "id": "e0d30047-7fc2-4082-b693-776f1b093292"
     },
     {
       "parameters": {
@@ -485,7 +485,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "cd3799b8-7385-43a3-a0f9-065f8f07ffb5"
+      "id": "ba28ebf1-9ed3-498d-beca-b24bcc275709"
     },
     {
       "parameters": {
@@ -524,7 +524,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "ece28ecd-5c34-488a-b6f7-2a8db88f0020"
+      "id": "25976211-b2f3-4cb2-bee0-c91cf3c04fa8"
     },
     {
       "parameters": {
@@ -563,7 +563,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "7fe0aedb-2c46-4d82-af50-e8b4190e1861"
+      "id": "df95bf86-790e-4aaf-89e4-fdfd1c19ce8d"
     },
     {
       "parameters": {
@@ -604,7 +604,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "0420ca51-8a23-441a-b60e-7fbd1de6ee96",
+      "id": "5e032971-637c-46ff-98a7-d1dafebc5020",
       "executeOnce": true
     },
     {
@@ -646,7 +646,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "a4d3b3f6-acf9-4d43-9ce6-7454f1346c4d",
+      "id": "1db6068b-d1ec-4892-b392-104a09eb8bfa",
       "executeOnce": true
     },
     {
@@ -660,7 +660,7 @@
         2440,
         0
       ],
-      "id": "4844e28c-665b-4505-918f-15526761a9a9"
+      "id": "7957c4c1-bd2a-4c02-8e6b-2ac553ff0d27"
     },
     {
       "parameters": {
@@ -672,7 +672,7 @@
           },
           "conditions": [
             {
-              "id": "9d75c77c-fd03-456a-9ed5-bcd2efc8c1d9",
+              "id": "229f803b-75dc-4c7b-9ce8-29b71738dad3",
               "leftValue": "={{ $json.found }}",
               "rightValue": true,
               "operator": {
@@ -693,7 +693,7 @@
         2660,
         0
       ],
-      "id": "f63917c1-51b2-43f7-915c-d12a72511707"
+      "id": "3114c29e-2b22-4bd3-990d-581315247608"
     },
     {
       "parameters": {
@@ -713,14 +713,14 @@
         2880,
         200
       ],
-      "webhookId": "6878a921-eee8-4cad-8d20-ee8cd4cfa88c",
+      "webhookId": "3330bb21-62a8-402b-85d4-1f367b24adea",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "2f0374e8-7afd-41bc-a91a-7b964d2cfea4"
+      "id": "60c254e2-172c-4403-a6bd-d64a31bf6876"
     },
     {
       "parameters": {
@@ -899,7 +899,7 @@
         2880,
         0
       ],
-      "id": "1d94950a-21de-4397-ad85-4db1a3ed41c3"
+      "id": "765b9b5b-c027-473b-8605-f95991256b04"
     },
     {
       "parameters": {
@@ -919,14 +919,14 @@
         3140,
         1500
       ],
-      "webhookId": "29f9f031-6c91-451b-98d4-6de882b70736",
+      "webhookId": "2b7ddd8a-c14f-4eb5-aa01-b7dbb42acb35",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "068bf692-d4cf-4dca-956a-40232a3d5e72"
+      "id": "cd2ec169-9ef5-459f-bedc-6c757f0ed55b"
     },
     {
       "parameters": {
@@ -939,7 +939,7 @@
         3140,
         -1400
       ],
-      "id": "36f21d9a-fc0b-43aa-9968-343be3c4f706"
+      "id": "9a13fab8-fee0-4ca3-b71f-fda3b72ca023"
     },
     {
       "parameters": {
@@ -951,7 +951,7 @@
           },
           "conditions": [
             {
-              "id": "9e15d47d-8e48-4fef-9424-11528f40992a",
+              "id": "1ca2af86-fda7-4d2b-9cfc-0e3fb8d4a21a",
               "leftValue": "={{ $('Кто отвечает').first().json.mode === 'model' }}",
               "rightValue": true,
               "operator": {
@@ -972,7 +972,7 @@
         3360,
         -1400
       ],
-      "id": "8ecf5777-9479-4af4-8271-33a714dde240"
+      "id": "e75223a2-4898-487a-8ea0-b789cf6a6134"
     },
     {
       "parameters": {
@@ -984,7 +984,7 @@
           },
           "conditions": [
             {
-              "id": "aa7a2422-06f5-496b-93ab-171c4df74180",
+              "id": "933ca440-3f93-4d61-ba31-4f7e4a8f2f53",
               "leftValue": "={{ $('Кто отвечает').first().json.needConv }}",
               "rightValue": true,
               "operator": {
@@ -1005,7 +1005,7 @@
         3580,
         -1580
       ],
-      "id": "99176bfc-b518-49c6-bc63-b83f55223909"
+      "id": "c831fe5c-13ed-45ea-90bf-0b6c7e27c46c"
     },
     {
       "parameters": {
@@ -1031,7 +1031,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "aec5a05e-d4e1-468b-925d-455ad85529ad"
+      "id": "16abad23-1429-4cb4-ad28-da4cc115d119"
     },
     {
       "parameters": {
@@ -1043,7 +1043,7 @@
           },
           "conditions": [
             {
-              "id": "32000cba-6b4c-4ca8-b245-82c0f1bfa462",
+              "id": "47b1e476-35d9-4ca7-b949-aaaa7d9c11c3",
               "leftValue": "={{ !!$('Кто отвечает').first().json.photo }}",
               "rightValue": true,
               "operator": {
@@ -1064,7 +1064,7 @@
         4020,
         -1580
       ],
-      "id": "a1f95cff-cf88-43e0-92c0-b11523e1d4b1"
+      "id": "c1733b85-6789-4b6b-9d4a-779560b8fde3"
     },
     {
       "parameters": {
@@ -1081,14 +1081,14 @@
         4240,
         -1460
       ],
-      "webhookId": "2c0827d4-076f-474c-b8d8-e26124aec2b7",
+      "webhookId": "94f6fdf0-c8a6-429c-9df9-8ad29c126f6f",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "eea61afb-4e13-4b56-bc5f-f724d2600aad"
+      "id": "ada8a83c-18fc-43ff-b8e4-3f45f43bb432"
     },
     {
       "parameters": {
@@ -1101,7 +1101,7 @@
         4460,
         -1460
       ],
-      "id": "76782f8b-476d-40e4-aff4-5bc1289c2a70"
+      "id": "65c1423f-bbf6-4220-870a-206938c59551"
     },
     {
       "parameters": {
@@ -1113,7 +1113,7 @@
           },
           "conditions": [
             {
-              "id": "25e0ff9e-4d31-43f1-af84-641e21f0cf97",
+              "id": "26f9c4a3-4727-4ba2-8319-3b18da79c48a",
               "leftValue": "={{ $('Кто отвечает').first().json.needGrid }}",
               "rightValue": true,
               "operator": {
@@ -1134,7 +1134,7 @@
         4570,
         -1700
       ],
-      "id": "c2c0e249-56f5-4f2f-97a0-27c8488a2ec0"
+      "id": "575eda5a-6cb9-4666-bb51-f2aabd02f67f"
     },
     {
       "parameters": {
@@ -1155,7 +1155,7 @@
         -1860
       ],
       "onError": "continueRegularOutput",
-      "id": "7270bb14-9e23-4d66-a27a-0cc50a6a1764"
+      "id": "d603caec-87d1-48a5-8900-db63bf6c84e9"
     },
     {
       "parameters": {
@@ -1168,7 +1168,7 @@
         4680,
         -1580
       ],
-      "id": "b7cc3db2-04e8-47e8-8b71-56a7c8a3655f"
+      "id": "ac76e375-b951-4576-8b76-c85590a223c0"
     },
     {
       "parameters": {
@@ -1196,7 +1196,7 @@
           "name": "OpenAi account"
         }
       },
-      "id": "7ac0b169-7910-41f9-9ed2-d719822cbaf9",
+      "id": "1910d4f2-f34f-4f4e-af14-c3e12174590c",
       "onError": "continueRegularOutput"
     },
     {
@@ -1210,7 +1210,20 @@
         5120,
         -1580
       ],
-      "id": "45f9d6bd-47cd-4e0a-9a80-b5d4f0f378e3"
+      "id": "21ef4a27-f7a8-45d8-ad0b-60db2ad2f132"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Общий кусок движка этапов (одинаковый в нескольких узлах) ─────────────\n// Движок не знает ни ролей, ни пунктов, ни имён колонок с содержанием.\n// Сценарий — лист «Этапы», пункты — лист «Пункты», знания — колонки Templates\n// со значком этапа. Служебные колонки (⚙️ или без значка) — механика.\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\n// Служебная колонка по имени (только для ⚙️ / колонок без значка — это кнопки механики).\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Значение строки служебного листа по заголовку (заголовки листов «Этапы»/«Пункты»).\nfunction cell(row, ...names) {\n  const norm = s => String(s).toLowerCase().replace(/[^a-zа-яё0-9№]+/giu, '');\n  for (const nm of names) {\n    const key = Object.keys(row || {}).find(k => norm(k) === norm(nm));\n    if (key !== undefined && row[key] != null && String(row[key]).trim() !== '') return String(row[key]).trim();\n  }\n  return '';\n}\n\n// «1, 2, 4-8» / «1,2,4–8» → [1,2,4,5,6,7,8]\nfunction parseNumbers(text) {\n  const out = [];\n  for (const part of String(text || '').split(/[,;\\s]+/)) {\n    const m = part.match(/^(\\d+)\\s*[-–—]\\s*(\\d+)$/);\n    if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); continue; }\n    if (/^\\d+$/.test(part)) out.push(+part);\n  }\n  return [...new Set(out)];\n}\n\nfunction isEmojiStart(s) { return /^\\p{Extended_Pictographic}/u.test(String(s || '').trim()); }\n// Значок для сравнения — без вариационного селектора (✍️ и ✍ — один значок).\nfunction bareIcon(s) { return String(s || '').replace(/️/g, '').trim(); }\n\n// ── Этапы ──\n// Строка листа «Этапы»: Значок | Кто | С кем говорит | Согласование | Делает | Модель | Усилие\nfunction stParseStages(rows) {\n  const list = (rows || []).map(r => {\n    const does = cell(r, 'Делает');\n    const talksRaw = cell(r, 'С кем говорит').toLowerCase();\n    return {\n      icon: cell(r, 'Значок'),\n      name: cell(r, 'Кто'),\n      talksRaw,\n      approve: !/авто/i.test(cell(r, 'Согласование')),\n      picture: /картин/i.test(does),\n      items: parseNumbers(does.replace(/картин\\S*/gi, '')),\n      model: cell(r, 'Модель'),\n      effort: cell(r, 'Усилие').toLowerCase(),\n      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)\n      grid: /сетк/i.test(cell(r, 'Картинка')),\n    };\n  }).filter(s => s.icon && s.name);\n  for (const s of list) {\n    if (/^автор/.test(s.talksRaw)) s.talks = 'author';\n    else if (!s.talksRaw || /^[-—–]$/.test(s.talksRaw) || /^(никто|сам)/.test(s.talksRaw)) s.talks = 'none';\n    else {\n      const boss = list.find(b => b !== s && (b.name.toLowerCase() === s.talksRaw || bareIcon(b.icon) === bareIcon(s.talksRaw)));\n      s.talks = boss ? 'boss' : 'none';\n      s.boss = boss ? boss.icon : '';\n    }\n  }\n  return list;\n}\n\nfunction stSubordinates(stages, stage) {\n  return stages.filter(s => s.talks === 'boss' && bareIcon(s.boss) === bareIcon(stage.icon));\n}\n\n// Что этап отвечает: свои пункты + пункты подчинённых; картинка — своя или подчинённого.\nfunction stScope(stages, stage) {\n  const subs = stSubordinates(stages, stage);\n  const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);\n  return { items, picture: stage.picture || subs.some(s => s.picture), subs };\n}\n\n// ── Пункты ──\n// Строка листа «Пункты»: № | Пункт | Колонки | Подсказка | Можно пусто\nfunction itParseItems(rows) {\n  return (rows || []).map(r => ({\n    n: parseInt(cell(r, '№', 'Номер'), 10),\n    name: cell(r, 'Пункт'),\n    cols: cell(r, 'Колонки'),\n    hint: cell(r, 'Подсказка'),\n    canEmpty: /^да/i.test(cell(r, 'Можно пусто')),\n    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика\n    preview: cell(r, 'Превью').toLowerCase(),\n  })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);\n}\n\n// ── Состояние выпуска (sys_EditorState) ──\nfunction stEmptyState() {\n  return { v: 2, items: {}, agreed: {}, stages: {} };\n}\nfunction stParseState(raw) {\n  let p = null;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }\n  if (!p || typeof p !== 'object' || p.v !== 2) return stEmptyState();\n  const s = stEmptyState();\n  s.items = p.items && typeof p.items === 'object' ? p.items : {};\n  s.agreed = p.agreed && typeof p.agreed === 'object' ? p.agreed : {};\n  s.stages = p.stages && typeof p.stages === 'object' ? p.stages : {};\n  return s;\n}\nfunction stStage(state, icon) {\n  const k = bareIcon(icon);\n  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };\n  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];\n  return state.stages[k];\n}\n\nfunction stItemDone(state, item) {\n  return state.agreed[item.n] === true;\n}\n\n// Этап готов: картинка согласована (если он за неё отвечает) и все его пункты согласованы.\nfunction stComplete(stages, items, state, approvedUrl, stage) {\n  const sc = stScope(stages, stage);\n  if (sc.picture && !approvedUrl) return false;\n  return sc.items.every(n => { const it = items.find(i => i.n === n); return !it || stItemDone(state, it); });\n}\n\n// Текущий этап: первый по порядку незавершённый, который сам ведёт работу (не подчинённый).\nfunction stCurrent(stages, items, state, approvedUrl) {\n  return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;\n}\n\n// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает\n// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.\n// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).\nconst ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',\n  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];\nconst ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];\nfunction stApproval(text, scopeItems, state) {\n  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');\n  if (!t.trim() || t.length > 60) return [];\n  const nums = (t.match(/\\d+/g) || []).map(Number);\n  const hasEmoji = /[👍✅👌]/u.test(t);\n  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);\n  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));\n  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));\n  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];\n  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];\n  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);\n  return nums.length ? pending.filter(n => nums.includes(n)) : pending;\n}\nfunction stApplyApproval(state, nums) {\n  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;\n}\n\n// Обращение по значку («✍️ …») или по имени («Писателю: …»).\nfunction stAddressed(stages, text) {\n  const t = String(text || '').trim();\n  for (const s of stages) {\n    const ic = bareIcon(s.icon);\n    if (ic && bareIcon(t).startsWith(ic)) return { stage: s, rest: bareIcon(t).slice(ic.length).replace(/^[\\s:,.!—–-]+/, '') };\n  }\n  const first = (t.match(/^[\\p{L}-]+/u) || [''])[0].toLowerCase();\n  if (first.length >= 4) {\n    // сначала по первому слову имени («Писателю»), потом по любому («Техническому»)\n    for (const pass of [0, 1]) {\n      for (const s of stages) {\n        const words = s.name.toLowerCase().split(/\\s+/);\n        for (const word of pass === 0 ? words.slice(0, 1) : words.slice(1)) {\n          if (word.length < 5) continue;\n          const stem = word.slice(0, word.length - 2);\n          if (first.startsWith(stem) && first.length <= word.length + 2) {\n            // остальные слова имени («Техническому писателю: …») тоже убираем\n            let rest = t.slice(first.length).replace(/^[\\s:,.!—–-]+/, '');\n            for (const w of words.slice(words.indexOf(word) + 1)) {\n              const next = (rest.match(/^[\\p{L}-]+/u) || [''])[0];\n              if (w.length >= 5 && next.toLowerCase().startsWith(w.slice(0, w.length - 2))) rest = rest.slice(next.length).replace(/^[\\s:,.!—–-]+/, '');\n            }\n            return { stage: s, rest };\n          }\n        }\n      }\n    }\n  }\n  return null;\n}\n\n// ── Знания этапа из Templates: все колонки со значком этапа ──\n// 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);\n// блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).\n// Строка-ссылка — картинка; строка сразу под ссылкой — её роль.\nfunction kbIsService(key) { return !isEmojiStart(key) || key.includes('⚙'); }\nfunction kbLabel(key) { return key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, ''); }\nconst URL_LINE = /^https?:\\/\\/\\S+$/;\nfunction toDirectImageUrl(url) {\n  const m = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=s2000' : url;\n}\nfunction triggered(words, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return words.some(w => w && new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low));\n}\n// Текст и картинки одного куска колонки.\nfunction kbSplit(text) {\n  const lines = String(text || '').split('\\n');\n  const keep = [];\n  const images = [];\n  let last = null;\n  for (const line of lines) {\n    const t = line.trim();\n    if (URL_LINE.test(t)) { last = { url: toDirectImageUrl(t), role: '' }; images.push(last); continue; }\n    if (t && last && !last.role) { last.role = t; continue; }\n    if (t) last = null;\n    keep.push(line);\n  }\n  return { text: keep.join('\\n').trim(), images };\n}\nfunction kbForStage(tmpl, icon, taskText, opts) {\n  const o = opts || {};\n  const ic = bareIcon(icon);\n  const parts = [];\n  const images = [];\n  const notesKey = Object.keys(tmpl || {}).find(k => !kbIsService(k) && bareIcon(k).includes(ic) && k.includes('📝')) || '';\n  for (const key of Object.keys(tmpl || {})) {\n    if (kbIsService(key)) continue;\n    if (!bareIcon(key.match(/^[^a-zA-Z]*/)[0]).includes(ic)) continue;\n    const raw = String(tmpl[key] == null ? '' : tmpl[key]);\n    if (!raw.trim()) continue;\n    let chunks = [raw];\n    if (key.includes('📍')) {\n      chunks = raw.split(/\\n\\s*\\n/).filter(b => {\n        const head = b.trim().split('\\n')[0] || '';\n        const i = head.indexOf(':');\n        const words = i > 0 ? [head.slice(0, i), ...head.slice(i + 1).split(',')].map(w => w.trim().toLowerCase()) : [];\n        return words.length && triggered(words, taskText);\n      });\n    }\n    const texts = [];\n    for (let c of chunks) {\n      // у 📍-блока первая строка — название и слова-триггеры, это механика, не знание\n      if (key.includes('📍')) c = c.trim().split('\\n').slice(1).join('\\n');\n      const sp = kbSplit(c);\n      if (sp.text) texts.push(sp.text);\n      images.push(...sp.images.map(i => ({ ...i, place: key.includes('📍') })));\n    }\n    if (texts.length) parts.push((o.labels === false ? '' : kbLabel(key) + ':\\n') + texts.join('\\n\\n'));\n  }\n  return { text: parts.join('\\n\\n'), images, notesKey, notes: notesKey ? String(tmpl[notesKey] || '') : '' };\n}\n\n// ── Пункты: показ и запись в таблицу ──\nfunction itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }\nfunction itShow(state, item) {\n  const v = itValue(state, item.n);\n  if (!(item.n in state.items)) return '';\n  if (!v.text) return '— пусто';\n  if (!v.ru) return v.text;\n  return v.text.includes('\\n') || v.text.length > 200 ? `${v.text}\\n\\n— Перевод для автора —\\n${v.ru}` : `${v.text} (${v.ru})`;\n}\n\n// Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;\n// одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.\nfunction itFields(items, state) {\n  const acc = {};\n  const order = [];\n  const put = (col, val) => { if (!(col in acc)) { acc[col] = []; order.push(col); } if (val) acc[col].push(val); };\n  for (const it of items) {\n    const text = itValue(state, it.n).text || '';\n    if (it.cols.includes('|')) {\n      const cols = it.cols.split('|').map(c => c.trim()).filter(Boolean);\n      const vals = text.split('|').map(v => v.trim());\n      cols.forEach((c, i) => put(c, vals[i] || ''));\n    } else {\n      for (const c of it.cols.split(',').map(c => c.trim()).filter(Boolean)) put(c, text);\n    }\n  }\n  const out = {};\n  for (const c of order) out[c] = acc[c].join('\\n\\n');\n  return out;\n}\n\n// Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.\n// Обязательны колонки пунктов, которые нельзя оставить пустыми.\nfunction validateRow(row, items, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n  for (const it of items) {\n    if (it.canEmpty) continue;\n    for (const c of it.cols.split(/[|,]/).map(c => c.trim()).filter(Boolean)) {\n      if (!val(c) && !problems.includes(`${c} пустая`)) problems.push(`${c} пустая (пункт ${it.n}. ${it.name})`);\n    }\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  // Метка [Timecodes] — место, куда сборщик вставит тайм-коды (механика 04_Video).\n  if (val('ai_TimecodeNames') && val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n\n// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).\n// Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.\nfunction artRefs(kbImages, placeImages) {\n  const fit = max => {\n    const room = Math.max(1, max - placeImages.length);\n    return [...kbImages.slice(0, room), ...placeImages].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };\n}\n// Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).\n// Изменённый пункт снова ждёт согласования. Возвращает номера изменённых пунктов.\nfunction itApply(state, items, scope, args, autoAgree) {\n  const changed = [];\n  const inScope = n => scope.includes(n) && items.some(i => i.n === n);\n  for (const p of (Array.isArray(args.items) ? args.items : [])) {\n    const n = parseInt(p && p.n, 10);\n    if (!inScope(n)) continue;\n    let text = String(p.text == null ? '' : p.text).trim();\n    if (text === '-') text = '';\n    const ru = String(p.ru == null ? '' : p.ru).trim();\n    const old = state.items[n];\n    if (!old || old.text !== text || (ru && old.ru !== ru)) {\n      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }\n      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };\n    }\n    if (autoAgree) state.agreed[n] = true;\n  }\n  for (const raw of (args.reopen || [])) {\n    const n = parseInt(raw, 10);\n    if (inScope(n) && state.agreed[n]) { state.agreed[n] = false; if (!changed.includes(n)) changed.push(n); }\n  }\n  for (const raw of (args.agreed || [])) {\n    const n = parseInt(raw, 10);\n    if (!inScope(n)) continue;\n    const it = items.find(i => i.n === n);\n    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };\n    if (n in state.items) state.agreed[n] = true;\n  }\n  return changed;\n}\n\n// Задание художнику: знания колонок его значка (без подписей) + слова задания.\n// Новая картинка — правила и описание мест + сцена; правка — только слова правки.\nfunction artBuild(ctx, stage, task, edit, variantNumber) {\n  const row = ctx.row || {};\n  const tmpl = ctx.tmpl || {};\n  let variants = [];\n  try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\n  if (!Array.isArray(variants)) variants = [];\n  const last = variants.length ? variants[variants.length - 1] : null;\n  const kb = kbForStage(tmpl, stage.icon, task, { labels: false });\n  const refs = artRefs(kb.images.filter(i => !i.place), kb.images.filter(i => i.place));\n  const r = {\n    action: edit ? 'revise_point' : 'ready_to_draw',\n    messageToUser: '',\n    dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,\n    revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,\n    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',\n    ...refs,\n  };\n  if (edit) {\n    const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;\n    if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }\n    else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }\n    r.revisionInstruction = task;\n  } else {\n    r.dallePrompt = [kb.text, task].filter(Boolean).join('\\n\\n');\n  }\n  if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }\n  return r;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Лупа: этап только что предложил пункт с превью «оживление» — его точки уточним по увеличенным кусочкам.\nconst ctx = $('Контекст проекта').first().json;\nconst r = $('Разбираем ответ этапа').first().json;\nconst items = ctx.items || [];\nconst state = stParseState(r.editorState);\nconst imageUrl = String((ctx.row || {}).ai_ApprovedImageUrl || '').trim();\nconst it = items.find(i => /оживл/.test(i.preview || '') && (r.changed || []).includes(i.n) && ((state.items[i.n] || {}).text || '').trim());\nreturn [{ json: { need: !!(it && imageUrl), n: it ? it.n : null, fx: it ? state.items[it.n].text : '', imageUrl } }];\n"
+      },
+      "name": "Лупа: план",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5120,
+        -1920
+      ],
+      "id": "7cfc8684-05a4-4601-8d5e-a7a20367d8e9"
     },
     {
       "parameters": {
@@ -1222,7 +1235,149 @@
           },
           "conditions": [
             {
-              "id": "dced8c30-ee00-4b7a-91da-307cf9968303",
+              "id": "4e768f06-dd29-4c4c-90db-5f096f07345d",
+              "leftValue": "={{ $('Лупа: план').first().json.need }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Нужна лупа?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5230,
+        -2080
+      ],
+      "id": "ed2f4f11-5957-4db1-b6b7-258d3c7136c9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/fx_zoom",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ imageUrl: $('Лупа: план').first().json.imageUrl, fx_Effects: $('Лупа: план').first().json.fx }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "name": "Сервер: лупа",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5340,
+        -2240
+      ],
+      "onError": "continueRegularOutput",
+      "id": "d255b675-8f1f-47c9-a728-b4f947ca31f9"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "1462705e-b2c0-4a67-84c6-b8eb19feab2e",
+              "leftValue": "={{ (($('Сервер: лупа').first().json || {}).points || []).length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Есть точки?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5450,
+        -2400
+      ],
+      "id": "38c79f56-0d0c-4298-af70-7040eaedb8d0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Общий кусок движка этапов (одинаковый в нескольких узлах) ─────────────\n// Движок не знает ни ролей, ни пунктов, ни имён колонок с содержанием.\n// Сценарий — лист «Этапы», пункты — лист «Пункты», знания — колонки Templates\n// со значком этапа. Служебные колонки (⚙️ или без значка) — механика.\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\n// Служебная колонка по имени (только для ⚙️ / колонок без значка — это кнопки механики).\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Значение строки служебного листа по заголовку (заголовки листов «Этапы»/«Пункты»).\nfunction cell(row, ...names) {\n  const norm = s => String(s).toLowerCase().replace(/[^a-zа-яё0-9№]+/giu, '');\n  for (const nm of names) {\n    const key = Object.keys(row || {}).find(k => norm(k) === norm(nm));\n    if (key !== undefined && row[key] != null && String(row[key]).trim() !== '') return String(row[key]).trim();\n  }\n  return '';\n}\n\n// «1, 2, 4-8» / «1,2,4–8» → [1,2,4,5,6,7,8]\nfunction parseNumbers(text) {\n  const out = [];\n  for (const part of String(text || '').split(/[,;\\s]+/)) {\n    const m = part.match(/^(\\d+)\\s*[-–—]\\s*(\\d+)$/);\n    if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); continue; }\n    if (/^\\d+$/.test(part)) out.push(+part);\n  }\n  return [...new Set(out)];\n}\n\nfunction isEmojiStart(s) { return /^\\p{Extended_Pictographic}/u.test(String(s || '').trim()); }\n// Значок для сравнения — без вариационного селектора (✍️ и ✍ — один значок).\nfunction bareIcon(s) { return String(s || '').replace(/️/g, '').trim(); }\n\n// ── Этапы ──\n// Строка листа «Этапы»: Значок | Кто | С кем говорит | Согласование | Делает | Модель | Усилие\nfunction stParseStages(rows) {\n  const list = (rows || []).map(r => {\n    const does = cell(r, 'Делает');\n    const talksRaw = cell(r, 'С кем говорит').toLowerCase();\n    return {\n      icon: cell(r, 'Значок'),\n      name: cell(r, 'Кто'),\n      talksRaw,\n      approve: !/авто/i.test(cell(r, 'Согласование')),\n      picture: /картин/i.test(does),\n      items: parseNumbers(does.replace(/картин\\S*/gi, '')),\n      model: cell(r, 'Модель'),\n      effort: cell(r, 'Усилие').toLowerCase(),\n      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)\n      grid: /сетк/i.test(cell(r, 'Картинка')),\n    };\n  }).filter(s => s.icon && s.name);\n  for (const s of list) {\n    if (/^автор/.test(s.talksRaw)) s.talks = 'author';\n    else if (!s.talksRaw || /^[-—–]$/.test(s.talksRaw) || /^(никто|сам)/.test(s.talksRaw)) s.talks = 'none';\n    else {\n      const boss = list.find(b => b !== s && (b.name.toLowerCase() === s.talksRaw || bareIcon(b.icon) === bareIcon(s.talksRaw)));\n      s.talks = boss ? 'boss' : 'none';\n      s.boss = boss ? boss.icon : '';\n    }\n  }\n  return list;\n}\n\nfunction stSubordinates(stages, stage) {\n  return stages.filter(s => s.talks === 'boss' && bareIcon(s.boss) === bareIcon(stage.icon));\n}\n\n// Что этап отвечает: свои пункты + пункты подчинённых; картинка — своя или подчинённого.\nfunction stScope(stages, stage) {\n  const subs = stSubordinates(stages, stage);\n  const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);\n  return { items, picture: stage.picture || subs.some(s => s.picture), subs };\n}\n\n// ── Пункты ──\n// Строка листа «Пункты»: № | Пункт | Колонки | Подсказка | Можно пусто\nfunction itParseItems(rows) {\n  return (rows || []).map(r => ({\n    n: parseInt(cell(r, '№', 'Номер'), 10),\n    name: cell(r, 'Пункт'),\n    cols: cell(r, 'Колонки'),\n    hint: cell(r, 'Подсказка'),\n    canEmpty: /^да/i.test(cell(r, 'Можно пусто')),\n    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика\n    preview: cell(r, 'Превью').toLowerCase(),\n  })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);\n}\n\n// ── Состояние выпуска (sys_EditorState) ──\nfunction stEmptyState() {\n  return { v: 2, items: {}, agreed: {}, stages: {} };\n}\nfunction stParseState(raw) {\n  let p = null;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }\n  if (!p || typeof p !== 'object' || p.v !== 2) return stEmptyState();\n  const s = stEmptyState();\n  s.items = p.items && typeof p.items === 'object' ? p.items : {};\n  s.agreed = p.agreed && typeof p.agreed === 'object' ? p.agreed : {};\n  s.stages = p.stages && typeof p.stages === 'object' ? p.stages : {};\n  return s;\n}\nfunction stStage(state, icon) {\n  const k = bareIcon(icon);\n  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };\n  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];\n  return state.stages[k];\n}\n\nfunction stItemDone(state, item) {\n  return state.agreed[item.n] === true;\n}\n\n// Этап готов: картинка согласована (если он за неё отвечает) и все его пункты согласованы.\nfunction stComplete(stages, items, state, approvedUrl, stage) {\n  const sc = stScope(stages, stage);\n  if (sc.picture && !approvedUrl) return false;\n  return sc.items.every(n => { const it = items.find(i => i.n === n); return !it || stItemDone(state, it); });\n}\n\n// Текущий этап: первый по порядку незавершённый, который сам ведёт работу (не подчинённый).\nfunction stCurrent(stages, items, state, approvedUrl) {\n  return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;\n}\n\n// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает\n// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.\n// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).\nconst ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',\n  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];\nconst ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];\nfunction stApproval(text, scopeItems, state) {\n  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');\n  if (!t.trim() || t.length > 60) return [];\n  const nums = (t.match(/\\d+/g) || []).map(Number);\n  const hasEmoji = /[👍✅👌]/u.test(t);\n  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);\n  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));\n  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));\n  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];\n  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];\n  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);\n  return nums.length ? pending.filter(n => nums.includes(n)) : pending;\n}\nfunction stApplyApproval(state, nums) {\n  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;\n}\n\n// Обращение по значку («✍️ …») или по имени («Писателю: …»).\nfunction stAddressed(stages, text) {\n  const t = String(text || '').trim();\n  for (const s of stages) {\n    const ic = bareIcon(s.icon);\n    if (ic && bareIcon(t).startsWith(ic)) return { stage: s, rest: bareIcon(t).slice(ic.length).replace(/^[\\s:,.!—–-]+/, '') };\n  }\n  const first = (t.match(/^[\\p{L}-]+/u) || [''])[0].toLowerCase();\n  if (first.length >= 4) {\n    // сначала по первому слову имени («Писателю»), потом по любому («Техническому»)\n    for (const pass of [0, 1]) {\n      for (const s of stages) {\n        const words = s.name.toLowerCase().split(/\\s+/);\n        for (const word of pass === 0 ? words.slice(0, 1) : words.slice(1)) {\n          if (word.length < 5) continue;\n          const stem = word.slice(0, word.length - 2);\n          if (first.startsWith(stem) && first.length <= word.length + 2) {\n            // остальные слова имени («Техническому писателю: …») тоже убираем\n            let rest = t.slice(first.length).replace(/^[\\s:,.!—–-]+/, '');\n            for (const w of words.slice(words.indexOf(word) + 1)) {\n              const next = (rest.match(/^[\\p{L}-]+/u) || [''])[0];\n              if (w.length >= 5 && next.toLowerCase().startsWith(w.slice(0, w.length - 2))) rest = rest.slice(next.length).replace(/^[\\s:,.!—–-]+/, '');\n            }\n            return { stage: s, rest };\n          }\n        }\n      }\n    }\n  }\n  return null;\n}\n\n// ── Знания этапа из Templates: все колонки со значком этапа ──\n// 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);\n// блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).\n// Строка-ссылка — картинка; строка сразу под ссылкой — её роль.\nfunction kbIsService(key) { return !isEmojiStart(key) || key.includes('⚙'); }\nfunction kbLabel(key) { return key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, ''); }\nconst URL_LINE = /^https?:\\/\\/\\S+$/;\nfunction toDirectImageUrl(url) {\n  const m = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=s2000' : url;\n}\nfunction triggered(words, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return words.some(w => w && new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low));\n}\n// Текст и картинки одного куска колонки.\nfunction kbSplit(text) {\n  const lines = String(text || '').split('\\n');\n  const keep = [];\n  const images = [];\n  let last = null;\n  for (const line of lines) {\n    const t = line.trim();\n    if (URL_LINE.test(t)) { last = { url: toDirectImageUrl(t), role: '' }; images.push(last); continue; }\n    if (t && last && !last.role) { last.role = t; continue; }\n    if (t) last = null;\n    keep.push(line);\n  }\n  return { text: keep.join('\\n').trim(), images };\n}\nfunction kbForStage(tmpl, icon, taskText, opts) {\n  const o = opts || {};\n  const ic = bareIcon(icon);\n  const parts = [];\n  const images = [];\n  const notesKey = Object.keys(tmpl || {}).find(k => !kbIsService(k) && bareIcon(k).includes(ic) && k.includes('📝')) || '';\n  for (const key of Object.keys(tmpl || {})) {\n    if (kbIsService(key)) continue;\n    if (!bareIcon(key.match(/^[^a-zA-Z]*/)[0]).includes(ic)) continue;\n    const raw = String(tmpl[key] == null ? '' : tmpl[key]);\n    if (!raw.trim()) continue;\n    let chunks = [raw];\n    if (key.includes('📍')) {\n      chunks = raw.split(/\\n\\s*\\n/).filter(b => {\n        const head = b.trim().split('\\n')[0] || '';\n        const i = head.indexOf(':');\n        const words = i > 0 ? [head.slice(0, i), ...head.slice(i + 1).split(',')].map(w => w.trim().toLowerCase()) : [];\n        return words.length && triggered(words, taskText);\n      });\n    }\n    const texts = [];\n    for (let c of chunks) {\n      // у 📍-блока первая строка — название и слова-триггеры, это механика, не знание\n      if (key.includes('📍')) c = c.trim().split('\\n').slice(1).join('\\n');\n      const sp = kbSplit(c);\n      if (sp.text) texts.push(sp.text);\n      images.push(...sp.images.map(i => ({ ...i, place: key.includes('📍') })));\n    }\n    if (texts.length) parts.push((o.labels === false ? '' : kbLabel(key) + ':\\n') + texts.join('\\n\\n'));\n  }\n  return { text: parts.join('\\n\\n'), images, notesKey, notes: notesKey ? String(tmpl[notesKey] || '') : '' };\n}\n\n// ── Пункты: показ и запись в таблицу ──\nfunction itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }\nfunction itShow(state, item) {\n  const v = itValue(state, item.n);\n  if (!(item.n in state.items)) return '';\n  if (!v.text) return '— пусто';\n  if (!v.ru) return v.text;\n  return v.text.includes('\\n') || v.text.length > 200 ? `${v.text}\\n\\n— Перевод для автора —\\n${v.ru}` : `${v.text} (${v.ru})`;\n}\n\n// Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;\n// одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.\nfunction itFields(items, state) {\n  const acc = {};\n  const order = [];\n  const put = (col, val) => { if (!(col in acc)) { acc[col] = []; order.push(col); } if (val) acc[col].push(val); };\n  for (const it of items) {\n    const text = itValue(state, it.n).text || '';\n    if (it.cols.includes('|')) {\n      const cols = it.cols.split('|').map(c => c.trim()).filter(Boolean);\n      const vals = text.split('|').map(v => v.trim());\n      cols.forEach((c, i) => put(c, vals[i] || ''));\n    } else {\n      for (const c of it.cols.split(',').map(c => c.trim()).filter(Boolean)) put(c, text);\n    }\n  }\n  const out = {};\n  for (const c of order) out[c] = acc[c].join('\\n\\n');\n  return out;\n}\n\n// Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.\n// Обязательны колонки пунктов, которые нельзя оставить пустыми.\nfunction validateRow(row, items, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n  for (const it of items) {\n    if (it.canEmpty) continue;\n    for (const c of it.cols.split(/[|,]/).map(c => c.trim()).filter(Boolean)) {\n      if (!val(c) && !problems.includes(`${c} пустая`)) problems.push(`${c} пустая (пункт ${it.n}. ${it.name})`);\n    }\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  // Метка [Timecodes] — место, куда сборщик вставит тайм-коды (механика 04_Video).\n  if (val('ai_TimecodeNames') && val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n\n// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).\n// Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.\nfunction artRefs(kbImages, placeImages) {\n  const fit = max => {\n    const room = Math.max(1, max - placeImages.length);\n    return [...kbImages.slice(0, room), ...placeImages].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };\n}\n// Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).\n// Изменённый пункт снова ждёт согласования. Возвращает номера изменённых пунктов.\nfunction itApply(state, items, scope, args, autoAgree) {\n  const changed = [];\n  const inScope = n => scope.includes(n) && items.some(i => i.n === n);\n  for (const p of (Array.isArray(args.items) ? args.items : [])) {\n    const n = parseInt(p && p.n, 10);\n    if (!inScope(n)) continue;\n    let text = String(p.text == null ? '' : p.text).trim();\n    if (text === '-') text = '';\n    const ru = String(p.ru == null ? '' : p.ru).trim();\n    const old = state.items[n];\n    if (!old || old.text !== text || (ru && old.ru !== ru)) {\n      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }\n      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };\n    }\n    if (autoAgree) state.agreed[n] = true;\n  }\n  for (const raw of (args.reopen || [])) {\n    const n = parseInt(raw, 10);\n    if (inScope(n) && state.agreed[n]) { state.agreed[n] = false; if (!changed.includes(n)) changed.push(n); }\n  }\n  for (const raw of (args.agreed || [])) {\n    const n = parseInt(raw, 10);\n    if (!inScope(n)) continue;\n    const it = items.find(i => i.n === n);\n    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };\n    if (n in state.items) state.agreed[n] = true;\n  }\n  return changed;\n}\n\n// Задание художнику: знания колонок его значка (без подписей) + слова задания.\n// Новая картинка — правила и описание мест + сцена; правка — только слова правки.\nfunction artBuild(ctx, stage, task, edit, variantNumber) {\n  const row = ctx.row || {};\n  const tmpl = ctx.tmpl || {};\n  let variants = [];\n  try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\n  if (!Array.isArray(variants)) variants = [];\n  const last = variants.length ? variants[variants.length - 1] : null;\n  const kb = kbForStage(tmpl, stage.icon, task, { labels: false });\n  const refs = artRefs(kb.images.filter(i => !i.place), kb.images.filter(i => i.place));\n  const r = {\n    action: edit ? 'revise_point' : 'ready_to_draw',\n    messageToUser: '',\n    dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,\n    revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,\n    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',\n    ...refs,\n  };\n  if (edit) {\n    const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;\n    if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }\n    else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }\n    r.revisionInstruction = task;\n  } else {\n    r.dallePrompt = [kb.text, task].filter(Boolean).join('\\n\\n');\n  }\n  if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }\n  return r;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Лупа: просим этап уточнить каждую точку по увеличенному кусочку картинки с мелкой сеткой.\nconst ctx = $('Контекст проекта').first().json;\nconst plan = $('Лупа: план').first().json;\nconst stageIcon = $('Разбираем ответ этапа').first().json.stageIcon;\nconst stage = (ctx.stages || []).find(s => bareIcon(s.icon) === bareIcon(stageIcon)) || {};\nconst points = ($('Сервер: лупа').first().json || {}).points || [];\nconst content = [{ type: 'input_text', text:\n  'Строки оживления:\\n' + plan.fx + '\\n\\nНиже — увеличенные кусочки картинки вокруг каждой точки этих строк.' }];\nfor (const p of points) {\n  content.push({ type: 'input_text', text: `Точка ${p.id} — ${p.label}; сейчас ${p.x}, ${p.y}.` });\n  content.push({ type: 'input_image', image_url: p.dataUrl });\n}\nconst requestBody = {\n  model: stage.model || 'gpt-5',\n  instructions: 'Ты уточняешь точки оживления по увеличенным кусочкам картинки. На каждом кусочке — сетка через 1 % ' +\n    'с подписями в процентах ВСЕГО кадра: синие числа сверху — слева направо, красные слева — сверху вниз. ' +\n    'Голубой кружок — где точка стоит сейчас. Найди на кусочке то, на что точка должна указывать (написано рядом с ней), ' +\n    'и прочитай его координаты по сетке с точностью до десятых. Если этого на кусочке нет — верни прежние числа. ' +\n    'Ответь только вызовом refine_points.',\n  input: [{ role: 'user', content }],\n  tools: [{ type: 'function', name: 'refine_points', description: 'Уточнённые координаты точек',\n    parameters: { type: 'object', properties: { points: { type: 'array', items: { type: 'object', properties: {\n      id: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' } }, required: ['id', 'x', 'y'] } } }, required: ['points'] } }],\n  tool_choice: { type: 'function', name: 'refine_points' },\n  reasoning: { effort: 'medium' },\n};\nreturn [{ json: { requestBody } }];\n"
+      },
+      "name": "Готовим уточнение",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5560,
+        -2560
+      ],
+      "id": "4e36ae2c-b3d0-4e65-9723-1873836ef812"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "name": "OpenAI: уточнение",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5670,
+        -2720
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "id": "5d2eab67-224f-4202-9bd3-6227920338ff",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Общий кусок движка этапов (одинаковый в нескольких узлах) ─────────────\n// Движок не знает ни ролей, ни пунктов, ни имён колонок с содержанием.\n// Сценарий — лист «Этапы», пункты — лист «Пункты», знания — колонки Templates\n// со значком этапа. Служебные колонки (⚙️ или без значка) — механика.\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\n// Служебная колонка по имени (только для ⚙️ / колонок без значка — это кнопки механики).\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Значение строки служебного листа по заголовку (заголовки листов «Этапы»/«Пункты»).\nfunction cell(row, ...names) {\n  const norm = s => String(s).toLowerCase().replace(/[^a-zа-яё0-9№]+/giu, '');\n  for (const nm of names) {\n    const key = Object.keys(row || {}).find(k => norm(k) === norm(nm));\n    if (key !== undefined && row[key] != null && String(row[key]).trim() !== '') return String(row[key]).trim();\n  }\n  return '';\n}\n\n// «1, 2, 4-8» / «1,2,4–8» → [1,2,4,5,6,7,8]\nfunction parseNumbers(text) {\n  const out = [];\n  for (const part of String(text || '').split(/[,;\\s]+/)) {\n    const m = part.match(/^(\\d+)\\s*[-–—]\\s*(\\d+)$/);\n    if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); continue; }\n    if (/^\\d+$/.test(part)) out.push(+part);\n  }\n  return [...new Set(out)];\n}\n\nfunction isEmojiStart(s) { return /^\\p{Extended_Pictographic}/u.test(String(s || '').trim()); }\n// Значок для сравнения — без вариационного селектора (✍️ и ✍ — один значок).\nfunction bareIcon(s) { return String(s || '').replace(/️/g, '').trim(); }\n\n// ── Этапы ──\n// Строка листа «Этапы»: Значок | Кто | С кем говорит | Согласование | Делает | Модель | Усилие\nfunction stParseStages(rows) {\n  const list = (rows || []).map(r => {\n    const does = cell(r, 'Делает');\n    const talksRaw = cell(r, 'С кем говорит').toLowerCase();\n    return {\n      icon: cell(r, 'Значок'),\n      name: cell(r, 'Кто'),\n      talksRaw,\n      approve: !/авто/i.test(cell(r, 'Согласование')),\n      picture: /картин/i.test(does),\n      items: parseNumbers(does.replace(/картин\\S*/gi, '')),\n      model: cell(r, 'Модель'),\n      effort: cell(r, 'Усилие').toLowerCase(),\n      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)\n      grid: /сетк/i.test(cell(r, 'Картинка')),\n    };\n  }).filter(s => s.icon && s.name);\n  for (const s of list) {\n    if (/^автор/.test(s.talksRaw)) s.talks = 'author';\n    else if (!s.talksRaw || /^[-—–]$/.test(s.talksRaw) || /^(никто|сам)/.test(s.talksRaw)) s.talks = 'none';\n    else {\n      const boss = list.find(b => b !== s && (b.name.toLowerCase() === s.talksRaw || bareIcon(b.icon) === bareIcon(s.talksRaw)));\n      s.talks = boss ? 'boss' : 'none';\n      s.boss = boss ? boss.icon : '';\n    }\n  }\n  return list;\n}\n\nfunction stSubordinates(stages, stage) {\n  return stages.filter(s => s.talks === 'boss' && bareIcon(s.boss) === bareIcon(stage.icon));\n}\n\n// Что этап отвечает: свои пункты + пункты подчинённых; картинка — своя или подчинённого.\nfunction stScope(stages, stage) {\n  const subs = stSubordinates(stages, stage);\n  const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);\n  return { items, picture: stage.picture || subs.some(s => s.picture), subs };\n}\n\n// ── Пункты ──\n// Строка листа «Пункты»: № | Пункт | Колонки | Подсказка | Можно пусто\nfunction itParseItems(rows) {\n  return (rows || []).map(r => ({\n    n: parseInt(cell(r, '№', 'Номер'), 10),\n    name: cell(r, 'Пункт'),\n    cols: cell(r, 'Колонки'),\n    hint: cell(r, 'Подсказка'),\n    canEmpty: /^да/i.test(cell(r, 'Можно пусто')),\n    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика\n    preview: cell(r, 'Превью').toLowerCase(),\n  })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);\n}\n\n// ── Состояние выпуска (sys_EditorState) ──\nfunction stEmptyState() {\n  return { v: 2, items: {}, agreed: {}, stages: {} };\n}\nfunction stParseState(raw) {\n  let p = null;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }\n  if (!p || typeof p !== 'object' || p.v !== 2) return stEmptyState();\n  const s = stEmptyState();\n  s.items = p.items && typeof p.items === 'object' ? p.items : {};\n  s.agreed = p.agreed && typeof p.agreed === 'object' ? p.agreed : {};\n  s.stages = p.stages && typeof p.stages === 'object' ? p.stages : {};\n  return s;\n}\nfunction stStage(state, icon) {\n  const k = bareIcon(icon);\n  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };\n  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];\n  return state.stages[k];\n}\n\nfunction stItemDone(state, item) {\n  return state.agreed[item.n] === true;\n}\n\n// Этап готов: картинка согласована (если он за неё отвечает) и все его пункты согласованы.\nfunction stComplete(stages, items, state, approvedUrl, stage) {\n  const sc = stScope(stages, stage);\n  if (sc.picture && !approvedUrl) return false;\n  return sc.items.every(n => { const it = items.find(i => i.n === n); return !it || stItemDone(state, it); });\n}\n\n// Текущий этап: первый по порядку незавершённый, который сам ведёт работу (не подчинённый).\nfunction stCurrent(stages, items, state, approvedUrl) {\n  return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;\n}\n\n// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает\n// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.\n// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).\nconst ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',\n  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];\nconst ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];\nfunction stApproval(text, scopeItems, state) {\n  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');\n  if (!t.trim() || t.length > 60) return [];\n  const nums = (t.match(/\\d+/g) || []).map(Number);\n  const hasEmoji = /[👍✅👌]/u.test(t);\n  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);\n  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));\n  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));\n  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];\n  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];\n  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);\n  return nums.length ? pending.filter(n => nums.includes(n)) : pending;\n}\nfunction stApplyApproval(state, nums) {\n  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;\n}\n\n// Обращение по значку («✍️ …») или по имени («Писателю: …»).\nfunction stAddressed(stages, text) {\n  const t = String(text || '').trim();\n  for (const s of stages) {\n    const ic = bareIcon(s.icon);\n    if (ic && bareIcon(t).startsWith(ic)) return { stage: s, rest: bareIcon(t).slice(ic.length).replace(/^[\\s:,.!—–-]+/, '') };\n  }\n  const first = (t.match(/^[\\p{L}-]+/u) || [''])[0].toLowerCase();\n  if (first.length >= 4) {\n    // сначала по первому слову имени («Писателю»), потом по любому («Техническому»)\n    for (const pass of [0, 1]) {\n      for (const s of stages) {\n        const words = s.name.toLowerCase().split(/\\s+/);\n        for (const word of pass === 0 ? words.slice(0, 1) : words.slice(1)) {\n          if (word.length < 5) continue;\n          const stem = word.slice(0, word.length - 2);\n          if (first.startsWith(stem) && first.length <= word.length + 2) {\n            // остальные слова имени («Техническому писателю: …») тоже убираем\n            let rest = t.slice(first.length).replace(/^[\\s:,.!—–-]+/, '');\n            for (const w of words.slice(words.indexOf(word) + 1)) {\n              const next = (rest.match(/^[\\p{L}-]+/u) || [''])[0];\n              if (w.length >= 5 && next.toLowerCase().startsWith(w.slice(0, w.length - 2))) rest = rest.slice(next.length).replace(/^[\\s:,.!—–-]+/, '');\n            }\n            return { stage: s, rest };\n          }\n        }\n      }\n    }\n  }\n  return null;\n}\n\n// ── Знания этапа из Templates: все колонки со значком этапа ──\n// 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);\n// блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).\n// Строка-ссылка — картинка; строка сразу под ссылкой — её роль.\nfunction kbIsService(key) { return !isEmojiStart(key) || key.includes('⚙'); }\nfunction kbLabel(key) { return key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, ''); }\nconst URL_LINE = /^https?:\\/\\/\\S+$/;\nfunction toDirectImageUrl(url) {\n  const m = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=s2000' : url;\n}\nfunction triggered(words, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return words.some(w => w && new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low));\n}\n// Текст и картинки одного куска колонки.\nfunction kbSplit(text) {\n  const lines = String(text || '').split('\\n');\n  const keep = [];\n  const images = [];\n  let last = null;\n  for (const line of lines) {\n    const t = line.trim();\n    if (URL_LINE.test(t)) { last = { url: toDirectImageUrl(t), role: '' }; images.push(last); continue; }\n    if (t && last && !last.role) { last.role = t; continue; }\n    if (t) last = null;\n    keep.push(line);\n  }\n  return { text: keep.join('\\n').trim(), images };\n}\nfunction kbForStage(tmpl, icon, taskText, opts) {\n  const o = opts || {};\n  const ic = bareIcon(icon);\n  const parts = [];\n  const images = [];\n  const notesKey = Object.keys(tmpl || {}).find(k => !kbIsService(k) && bareIcon(k).includes(ic) && k.includes('📝')) || '';\n  for (const key of Object.keys(tmpl || {})) {\n    if (kbIsService(key)) continue;\n    if (!bareIcon(key.match(/^[^a-zA-Z]*/)[0]).includes(ic)) continue;\n    const raw = String(tmpl[key] == null ? '' : tmpl[key]);\n    if (!raw.trim()) continue;\n    let chunks = [raw];\n    if (key.includes('📍')) {\n      chunks = raw.split(/\\n\\s*\\n/).filter(b => {\n        const head = b.trim().split('\\n')[0] || '';\n        const i = head.indexOf(':');\n        const words = i > 0 ? [head.slice(0, i), ...head.slice(i + 1).split(',')].map(w => w.trim().toLowerCase()) : [];\n        return words.length && triggered(words, taskText);\n      });\n    }\n    const texts = [];\n    for (let c of chunks) {\n      // у 📍-блока первая строка — название и слова-триггеры, это механика, не знание\n      if (key.includes('📍')) c = c.trim().split('\\n').slice(1).join('\\n');\n      const sp = kbSplit(c);\n      if (sp.text) texts.push(sp.text);\n      images.push(...sp.images.map(i => ({ ...i, place: key.includes('📍') })));\n    }\n    if (texts.length) parts.push((o.labels === false ? '' : kbLabel(key) + ':\\n') + texts.join('\\n\\n'));\n  }\n  return { text: parts.join('\\n\\n'), images, notesKey, notes: notesKey ? String(tmpl[notesKey] || '') : '' };\n}\n\n// ── Пункты: показ и запись в таблицу ──\nfunction itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }\nfunction itShow(state, item) {\n  const v = itValue(state, item.n);\n  if (!(item.n in state.items)) return '';\n  if (!v.text) return '— пусто';\n  if (!v.ru) return v.text;\n  return v.text.includes('\\n') || v.text.length > 200 ? `${v.text}\\n\\n— Перевод для автора —\\n${v.ru}` : `${v.text} (${v.ru})`;\n}\n\n// Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;\n// одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.\nfunction itFields(items, state) {\n  const acc = {};\n  const order = [];\n  const put = (col, val) => { if (!(col in acc)) { acc[col] = []; order.push(col); } if (val) acc[col].push(val); };\n  for (const it of items) {\n    const text = itValue(state, it.n).text || '';\n    if (it.cols.includes('|')) {\n      const cols = it.cols.split('|').map(c => c.trim()).filter(Boolean);\n      const vals = text.split('|').map(v => v.trim());\n      cols.forEach((c, i) => put(c, vals[i] || ''));\n    } else {\n      for (const c of it.cols.split(',').map(c => c.trim()).filter(Boolean)) put(c, text);\n    }\n  }\n  const out = {};\n  for (const c of order) out[c] = acc[c].join('\\n\\n');\n  return out;\n}\n\n// Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.\n// Обязательны колонки пунктов, которые нельзя оставить пустыми.\nfunction validateRow(row, items, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n  for (const it of items) {\n    if (it.canEmpty) continue;\n    for (const c of it.cols.split(/[|,]/).map(c => c.trim()).filter(Boolean)) {\n      if (!val(c) && !problems.includes(`${c} пустая`)) problems.push(`${c} пустая (пункт ${it.n}. ${it.name})`);\n    }\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  // Метка [Timecodes] — место, куда сборщик вставит тайм-коды (механика 04_Video).\n  if (val('ai_TimecodeNames') && val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n\n// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).\n// Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.\nfunction artRefs(kbImages, placeImages) {\n  const fit = max => {\n    const room = Math.max(1, max - placeImages.length);\n    return [...kbImages.slice(0, room), ...placeImages].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };\n}\n// Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).\n// Изменённый пункт снова ждёт согласования. Возвращает номера изменённых пунктов.\nfunction itApply(state, items, scope, args, autoAgree) {\n  const changed = [];\n  const inScope = n => scope.includes(n) && items.some(i => i.n === n);\n  for (const p of (Array.isArray(args.items) ? args.items : [])) {\n    const n = parseInt(p && p.n, 10);\n    if (!inScope(n)) continue;\n    let text = String(p.text == null ? '' : p.text).trim();\n    if (text === '-') text = '';\n    const ru = String(p.ru == null ? '' : p.ru).trim();\n    const old = state.items[n];\n    if (!old || old.text !== text || (ru && old.ru !== ru)) {\n      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }\n      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };\n    }\n    if (autoAgree) state.agreed[n] = true;\n  }\n  for (const raw of (args.reopen || [])) {\n    const n = parseInt(raw, 10);\n    if (inScope(n) && state.agreed[n]) { state.agreed[n] = false; if (!changed.includes(n)) changed.push(n); }\n  }\n  for (const raw of (args.agreed || [])) {\n    const n = parseInt(raw, 10);\n    if (!inScope(n)) continue;\n    const it = items.find(i => i.n === n);\n    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };\n    if (n in state.items) state.agreed[n] = true;\n  }\n  return changed;\n}\n\n// Задание художнику: знания колонок его значка (без подписей) + слова задания.\n// Новая картинка — правила и описание мест + сцена; правка — только слова правки.\nfunction artBuild(ctx, stage, task, edit, variantNumber) {\n  const row = ctx.row || {};\n  const tmpl = ctx.tmpl || {};\n  let variants = [];\n  try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\n  if (!Array.isArray(variants)) variants = [];\n  const last = variants.length ? variants[variants.length - 1] : null;\n  const kb = kbForStage(tmpl, stage.icon, task, { labels: false });\n  const refs = artRefs(kb.images.filter(i => !i.place), kb.images.filter(i => i.place));\n  const r = {\n    action: edit ? 'revise_point' : 'ready_to_draw',\n    messageToUser: '',\n    dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,\n    revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,\n    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',\n    ...refs,\n  };\n  if (edit) {\n    const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;\n    if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }\n    else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }\n    r.revisionInstruction = task;\n  } else {\n    r.dallePrompt = [kb.text, task].filter(Boolean).join('\\n\\n');\n  }\n  if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }\n  return r;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Лупа: подставляем уточнённые точки в строки пункта (меняются только числа этих точек).\nconst plan = $('Лупа: план').first().json;\nconst r = $('Разбираем ответ этапа').first().json;\nconst points = ($('Сервер: лупа').first().json || {}).points || [];\nlet resp = {};\ntry { resp = $('OpenAI: уточнение').first().json || {}; } catch (e) {}\nconst call = (resp.output || []).find(i => i.type === 'function_call');\nlet refined = [];\ntry { refined = JSON.parse((call && call.arguments) || '{}').points || []; } catch (e) { refined = []; }\nconst lines = String(plan.fx).split('\\n');\nlet moved = 0;\nfor (const q of refined) {\n  const p = points.find(pp => pp.id === String(q.id));\n  const x = Number(q.x), y = Number(q.y);\n  if (!p || !isFinite(x) || !isFinite(y) || x < 0 || x > 100 || y < 0 || y > 100) continue;\n  if (Math.abs(x - p.x) > 11 || Math.abs(y - p.y) > 19) continue;   // дальше кусочка (±10 % ширины) — не верим\n  const line = lines[p.line] || '';\n  const head = line.indexOf(':') >= 0 ? line.indexOf(':') + 1 : 0;\n  const re = /-?\\d+(?:\\.\\d+)?/g;\n  const nums = [];\n  let m;\n  while ((m = re.exec(line.slice(head)))) nums.push({ at: head + m.index, len: m[0].length });\n  const a = nums[2 * p.pair], b = nums[2 * p.pair + 1];\n  if (!a || !b) continue;\n  const fmt = v => String(Math.round(v * 10) / 10);\n  lines[p.line] = line.slice(0, a.at) + fmt(x) + line.slice(a.at + a.len, b.at) + fmt(y) + line.slice(b.at + b.len);\n  if (Math.abs(x - p.x) >= 0.3 || Math.abs(y - p.y) >= 0.3) moved++;\n}\nconst state = stParseState(r.editorState);\nif (plan.n != null && state.items[plan.n]) state.items[plan.n].text = lines.join('\\n');\nreturn [{ json: { editorState: JSON.stringify(state), moved, refined: refined.length } }];\n"
+      },
+      "name": "Лупа: итог",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5780,
+        -2560
+      ],
+      "id": "293d82d8-5f92-48aa-94fe-cb0e78f59903"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "e2afedc9-9c12-4e77-8aee-f554e8a9237a",
               "leftValue": "={{ $('Разбираем ответ этапа').first().json.action === 'delegate' }}",
               "rightValue": true,
               "operator": {
@@ -1243,7 +1398,7 @@
         5340,
         -1580
       ],
-      "id": "bb0310bc-0886-4b6e-96e2-0f529edcf777"
+      "id": "ef3c5e70-1b7c-48a4-9dac-1ca1175362ea"
     },
     {
       "parameters": {
@@ -1256,7 +1411,7 @@
         5560,
         -1760
       ],
-      "id": "26ef1727-3c0d-4e15-ad34-4b9c88cd4547"
+      "id": "dc79d215-8970-4fa2-bcaa-99f4bbb40bd1"
     },
     {
       "parameters": {
@@ -1284,12 +1439,12 @@
           "name": "OpenAi account"
         }
       },
-      "id": "a377095b-ff66-4b67-8b77-a5b5a3056645",
+      "id": "72021a0a-6fab-4690-8cbf-0f27024180f7",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// ── Общий кусок движка этапов (одинаковый в нескольких узлах) ─────────────\n// Движок не знает ни ролей, ни пунктов, ни имён колонок с содержанием.\n// Сценарий — лист «Этапы», пункты — лист «Пункты», знания — колонки Templates\n// со значком этапа. Служебные колонки (⚙️ или без значка) — механика.\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\n// Служебная колонка по имени (только для ⚙️ / колонок без значка — это кнопки механики).\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Значение строки служебного листа по заголовку (заголовки листов «Этапы»/«Пункты»).\nfunction cell(row, ...names) {\n  const norm = s => String(s).toLowerCase().replace(/[^a-zа-яё0-9№]+/giu, '');\n  for (const nm of names) {\n    const key = Object.keys(row || {}).find(k => norm(k) === norm(nm));\n    if (key !== undefined && row[key] != null && String(row[key]).trim() !== '') return String(row[key]).trim();\n  }\n  return '';\n}\n\n// «1, 2, 4-8» / «1,2,4–8» → [1,2,4,5,6,7,8]\nfunction parseNumbers(text) {\n  const out = [];\n  for (const part of String(text || '').split(/[,;\\s]+/)) {\n    const m = part.match(/^(\\d+)\\s*[-–—]\\s*(\\d+)$/);\n    if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); continue; }\n    if (/^\\d+$/.test(part)) out.push(+part);\n  }\n  return [...new Set(out)];\n}\n\nfunction isEmojiStart(s) { return /^\\p{Extended_Pictographic}/u.test(String(s || '').trim()); }\n// Значок для сравнения — без вариационного селектора (✍️ и ✍ — один значок).\nfunction bareIcon(s) { return String(s || '').replace(/️/g, '').trim(); }\n\n// ── Этапы ──\n// Строка листа «Этапы»: Значок | Кто | С кем говорит | Согласование | Делает | Модель | Усилие\nfunction stParseStages(rows) {\n  const list = (rows || []).map(r => {\n    const does = cell(r, 'Делает');\n    const talksRaw = cell(r, 'С кем говорит').toLowerCase();\n    return {\n      icon: cell(r, 'Значок'),\n      name: cell(r, 'Кто'),\n      talksRaw,\n      approve: !/авто/i.test(cell(r, 'Согласование')),\n      picture: /картин/i.test(does),\n      items: parseNumbers(does.replace(/картин\\S*/gi, '')),\n      model: cell(r, 'Модель'),\n      effort: cell(r, 'Усилие').toLowerCase(),\n      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)\n      grid: /сетк/i.test(cell(r, 'Картинка')),\n    };\n  }).filter(s => s.icon && s.name);\n  for (const s of list) {\n    if (/^автор/.test(s.talksRaw)) s.talks = 'author';\n    else if (!s.talksRaw || /^[-—–]$/.test(s.talksRaw) || /^(никто|сам)/.test(s.talksRaw)) s.talks = 'none';\n    else {\n      const boss = list.find(b => b !== s && (b.name.toLowerCase() === s.talksRaw || bareIcon(b.icon) === bareIcon(s.talksRaw)));\n      s.talks = boss ? 'boss' : 'none';\n      s.boss = boss ? boss.icon : '';\n    }\n  }\n  return list;\n}\n\nfunction stSubordinates(stages, stage) {\n  return stages.filter(s => s.talks === 'boss' && bareIcon(s.boss) === bareIcon(stage.icon));\n}\n\n// Что этап отвечает: свои пункты + пункты подчинённых; картинка — своя или подчинённого.\nfunction stScope(stages, stage) {\n  const subs = stSubordinates(stages, stage);\n  const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);\n  return { items, picture: stage.picture || subs.some(s => s.picture), subs };\n}\n\n// ── Пункты ──\n// Строка листа «Пункты»: № | Пункт | Колонки | Подсказка | Можно пусто\nfunction itParseItems(rows) {\n  return (rows || []).map(r => ({\n    n: parseInt(cell(r, '№', 'Номер'), 10),\n    name: cell(r, 'Пункт'),\n    cols: cell(r, 'Колонки'),\n    hint: cell(r, 'Подсказка'),\n    canEmpty: /^да/i.test(cell(r, 'Можно пусто')),\n    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика\n    preview: cell(r, 'Превью').toLowerCase(),\n  })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);\n}\n\n// ── Состояние выпуска (sys_EditorState) ──\nfunction stEmptyState() {\n  return { v: 2, items: {}, agreed: {}, stages: {} };\n}\nfunction stParseState(raw) {\n  let p = null;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }\n  if (!p || typeof p !== 'object' || p.v !== 2) return stEmptyState();\n  const s = stEmptyState();\n  s.items = p.items && typeof p.items === 'object' ? p.items : {};\n  s.agreed = p.agreed && typeof p.agreed === 'object' ? p.agreed : {};\n  s.stages = p.stages && typeof p.stages === 'object' ? p.stages : {};\n  return s;\n}\nfunction stStage(state, icon) {\n  const k = bareIcon(icon);\n  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };\n  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];\n  return state.stages[k];\n}\n\nfunction stItemDone(state, item) {\n  return state.agreed[item.n] === true;\n}\n\n// Этап готов: картинка согласована (если он за неё отвечает) и все его пункты согласованы.\nfunction stComplete(stages, items, state, approvedUrl, stage) {\n  const sc = stScope(stages, stage);\n  if (sc.picture && !approvedUrl) return false;\n  return sc.items.every(n => { const it = items.find(i => i.n === n); return !it || stItemDone(state, it); });\n}\n\n// Текущий этап: первый по порядку незавершённый, который сам ведёт работу (не подчинённый).\nfunction stCurrent(stages, items, state, approvedUrl) {\n  return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;\n}\n\n// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает\n// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.\n// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).\nconst ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',\n  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];\nconst ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];\nfunction stApproval(text, scopeItems, state) {\n  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');\n  if (!t.trim() || t.length > 60) return [];\n  const nums = (t.match(/\\d+/g) || []).map(Number);\n  const hasEmoji = /[👍✅👌]/u.test(t);\n  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);\n  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));\n  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));\n  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];\n  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];\n  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);\n  return nums.length ? pending.filter(n => nums.includes(n)) : pending;\n}\nfunction stApplyApproval(state, nums) {\n  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;\n}\n\n// Обращение по значку («✍️ …») или по имени («Писателю: …»).\nfunction stAddressed(stages, text) {\n  const t = String(text || '').trim();\n  for (const s of stages) {\n    const ic = bareIcon(s.icon);\n    if (ic && bareIcon(t).startsWith(ic)) return { stage: s, rest: bareIcon(t).slice(ic.length).replace(/^[\\s:,.!—–-]+/, '') };\n  }\n  const first = (t.match(/^[\\p{L}-]+/u) || [''])[0].toLowerCase();\n  if (first.length >= 4) {\n    // сначала по первому слову имени («Писателю»), потом по любому («Техническому»)\n    for (const pass of [0, 1]) {\n      for (const s of stages) {\n        const words = s.name.toLowerCase().split(/\\s+/);\n        for (const word of pass === 0 ? words.slice(0, 1) : words.slice(1)) {\n          if (word.length < 5) continue;\n          const stem = word.slice(0, word.length - 2);\n          if (first.startsWith(stem) && first.length <= word.length + 2) {\n            // остальные слова имени («Техническому писателю: …») тоже убираем\n            let rest = t.slice(first.length).replace(/^[\\s:,.!—–-]+/, '');\n            for (const w of words.slice(words.indexOf(word) + 1)) {\n              const next = (rest.match(/^[\\p{L}-]+/u) || [''])[0];\n              if (w.length >= 5 && next.toLowerCase().startsWith(w.slice(0, w.length - 2))) rest = rest.slice(next.length).replace(/^[\\s:,.!—–-]+/, '');\n            }\n            return { stage: s, rest };\n          }\n        }\n      }\n    }\n  }\n  return null;\n}\n\n// ── Знания этапа из Templates: все колонки со значком этапа ──\n// 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);\n// блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).\n// Строка-ссылка — картинка; строка сразу под ссылкой — её роль.\nfunction kbIsService(key) { return !isEmojiStart(key) || key.includes('⚙'); }\nfunction kbLabel(key) { return key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, ''); }\nconst URL_LINE = /^https?:\\/\\/\\S+$/;\nfunction toDirectImageUrl(url) {\n  const m = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=s2000' : url;\n}\nfunction triggered(words, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return words.some(w => w && new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low));\n}\n// Текст и картинки одного куска колонки.\nfunction kbSplit(text) {\n  const lines = String(text || '').split('\\n');\n  const keep = [];\n  const images = [];\n  let last = null;\n  for (const line of lines) {\n    const t = line.trim();\n    if (URL_LINE.test(t)) { last = { url: toDirectImageUrl(t), role: '' }; images.push(last); continue; }\n    if (t && last && !last.role) { last.role = t; continue; }\n    if (t) last = null;\n    keep.push(line);\n  }\n  return { text: keep.join('\\n').trim(), images };\n}\nfunction kbForStage(tmpl, icon, taskText, opts) {\n  const o = opts || {};\n  const ic = bareIcon(icon);\n  const parts = [];\n  const images = [];\n  const notesKey = Object.keys(tmpl || {}).find(k => !kbIsService(k) && bareIcon(k).includes(ic) && k.includes('📝')) || '';\n  for (const key of Object.keys(tmpl || {})) {\n    if (kbIsService(key)) continue;\n    if (!bareIcon(key.match(/^[^a-zA-Z]*/)[0]).includes(ic)) continue;\n    const raw = String(tmpl[key] == null ? '' : tmpl[key]);\n    if (!raw.trim()) continue;\n    let chunks = [raw];\n    if (key.includes('📍')) {\n      chunks = raw.split(/\\n\\s*\\n/).filter(b => {\n        const head = b.trim().split('\\n')[0] || '';\n        const i = head.indexOf(':');\n        const words = i > 0 ? [head.slice(0, i), ...head.slice(i + 1).split(',')].map(w => w.trim().toLowerCase()) : [];\n        return words.length && triggered(words, taskText);\n      });\n    }\n    const texts = [];\n    for (let c of chunks) {\n      // у 📍-блока первая строка — название и слова-триггеры, это механика, не знание\n      if (key.includes('📍')) c = c.trim().split('\\n').slice(1).join('\\n');\n      const sp = kbSplit(c);\n      if (sp.text) texts.push(sp.text);\n      images.push(...sp.images.map(i => ({ ...i, place: key.includes('📍') })));\n    }\n    if (texts.length) parts.push((o.labels === false ? '' : kbLabel(key) + ':\\n') + texts.join('\\n\\n'));\n  }\n  return { text: parts.join('\\n\\n'), images, notesKey, notes: notesKey ? String(tmpl[notesKey] || '') : '' };\n}\n\n// ── Пункты: показ и запись в таблицу ──\nfunction itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }\nfunction itShow(state, item) {\n  const v = itValue(state, item.n);\n  if (!(item.n in state.items)) return '';\n  if (!v.text) return '— пусто';\n  if (!v.ru) return v.text;\n  return v.text.includes('\\n') || v.text.length > 200 ? `${v.text}\\n\\n— Перевод для автора —\\n${v.ru}` : `${v.text} (${v.ru})`;\n}\n\n// Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;\n// одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.\nfunction itFields(items, state) {\n  const acc = {};\n  const order = [];\n  const put = (col, val) => { if (!(col in acc)) { acc[col] = []; order.push(col); } if (val) acc[col].push(val); };\n  for (const it of items) {\n    const text = itValue(state, it.n).text || '';\n    if (it.cols.includes('|')) {\n      const cols = it.cols.split('|').map(c => c.trim()).filter(Boolean);\n      const vals = text.split('|').map(v => v.trim());\n      cols.forEach((c, i) => put(c, vals[i] || ''));\n    } else {\n      for (const c of it.cols.split(',').map(c => c.trim()).filter(Boolean)) put(c, text);\n    }\n  }\n  const out = {};\n  for (const c of order) out[c] = acc[c].join('\\n\\n');\n  return out;\n}\n\n// Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.\n// Обязательны колонки пунктов, которые нельзя оставить пустыми.\nfunction validateRow(row, items, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n  for (const it of items) {\n    if (it.canEmpty) continue;\n    for (const c of it.cols.split(/[|,]/).map(c => c.trim()).filter(Boolean)) {\n      if (!val(c) && !problems.includes(`${c} пустая`)) problems.push(`${c} пустая (пункт ${it.n}. ${it.name})`);\n    }\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  // Метка [Timecodes] — место, куда сборщик вставит тайм-коды (механика 04_Video).\n  if (val('ai_TimecodeNames') && val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n\n// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).\n// Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.\nfunction artRefs(kbImages, placeImages) {\n  const fit = max => {\n    const room = Math.max(1, max - placeImages.length);\n    return [...kbImages.slice(0, room), ...placeImages].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };\n}\n// Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).\n// Изменённый пункт снова ждёт согласования. Возвращает номера изменённых пунктов.\nfunction itApply(state, items, scope, args, autoAgree) {\n  const changed = [];\n  const inScope = n => scope.includes(n) && items.some(i => i.n === n);\n  for (const p of (Array.isArray(args.items) ? args.items : [])) {\n    const n = parseInt(p && p.n, 10);\n    if (!inScope(n)) continue;\n    let text = String(p.text == null ? '' : p.text).trim();\n    if (text === '-') text = '';\n    const ru = String(p.ru == null ? '' : p.ru).trim();\n    const old = state.items[n];\n    if (!old || old.text !== text || (ru && old.ru !== ru)) {\n      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }\n      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };\n    }\n    if (autoAgree) state.agreed[n] = true;\n  }\n  for (const raw of (args.reopen || [])) {\n    const n = parseInt(raw, 10);\n    if (inScope(n) && state.agreed[n]) { state.agreed[n] = false; if (!changed.includes(n)) changed.push(n); }\n  }\n  for (const raw of (args.agreed || [])) {\n    const n = parseInt(raw, 10);\n    if (!inScope(n)) continue;\n    const it = items.find(i => i.n === n);\n    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };\n    if (n in state.items) state.agreed[n] = true;\n  }\n  return changed;\n}\n\n// Задание художнику: знания колонок его значка (без подписей) + слова задания.\n// Новая картинка — правила и описание мест + сцена; правка — только слова правки.\nfunction artBuild(ctx, stage, task, edit, variantNumber) {\n  const row = ctx.row || {};\n  const tmpl = ctx.tmpl || {};\n  let variants = [];\n  try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\n  if (!Array.isArray(variants)) variants = [];\n  const last = variants.length ? variants[variants.length - 1] : null;\n  const kb = kbForStage(tmpl, stage.icon, task, { labels: false });\n  const refs = artRefs(kb.images.filter(i => !i.place), kb.images.filter(i => i.place));\n  const r = {\n    action: edit ? 'revise_point' : 'ready_to_draw',\n    messageToUser: '',\n    dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,\n    revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,\n    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',\n    ...refs,\n  };\n  if (edit) {\n    const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;\n    if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }\n    else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }\n    r.revisionInstruction = task;\n  } else {\n    r.dallePrompt = [kb.text, task].filter(Boolean).join('\\n\\n');\n  }\n  if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }\n  return r;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Итог хода — все узлы ниже читают только его. Сюда приходят три пути:\n// художник (задание автора), этап-модель (с поручением подчинённому или без),\n// служебная реплика. Здесь же решаем переход к следующему этапу.\nconst ctx = $('Контекст проекта').first().json;\nconst plan = $('Кто отвечает').first().json;\nconst row = ctx.row || {};\nconst stages = ctx.stages || [];\nconst items = ctx.items || [];\nconst stage = stages.find(s => bareIcon(s.icon) === bareIcon(plan.stageIcon)) || null;\nconst before = stParseState(row.sys_EditorState);\nlet state = stParseState(row.sys_EditorState);\nconst approvedBefore = String(row.ai_ApprovedImageUrl || '').trim();\n\nlet action = 'chat';\nlet message = '';\nlet note = null;\nlet art = null;\nlet approveUrl = '';\nlet approveVariant = null;\nlet changed = [];\nlet speaker = stage;\n// Картинку без согласования автора (этап «авто» или молчаливый) согласуем сами после рисунка.\nlet autoApprove = false;\n\nif (plan.mode === 'say') {\n  message = plan.sayText;\n  speaker = null;\n} else if (plan.mode === 'done') {\n  action = 'done';\n} else if (plan.mode === 'draw' || plan.mode === 'edit') {\n  art = artBuild(ctx, stage, plan.userText, plan.mode === 'edit', plan.editVariant);\n  autoApprove = !stage.approve || stage.talks === 'none';\n  action = art.action;\n  message = art.action === 'chat' ? art.messageToUser : (plan.mode === 'edit' ? 'поправляю 🎨' : 'рисую 🎨');\n} else if (plan.mode === 'model') {\n  const r = $('Разбираем ответ этапа').first().json;\n  state = stParseState(r.editorState);\n  action = r.action; message = r.message; note = r.note; changed = r.changed || [];\n  approveUrl = r.approveUrl; approveVariant = r.approveVariant;\n  if (r.art) { art = r.art; autoApprove = !stage.approve; }\n  // автор одобрила — показываем пункты и проверяем переход, даже если модель ответила просто текстом\n  if ((plan.approveNums || []).length && action === 'chat') action = 'text_block';\n  if (r.action === 'delegate') {\n    // Подчинённый этап прислал свои пункты.\n    const sub = stages.find(s => bareIcon(s.icon) === bareIcon(r.delegate.stageIcon));\n    const boss = stage;\n    let resp = {};\n    try { resp = $('OpenAI: поручение').first().json || {}; } catch (e) {}\n    const call = (resp.output || []).find(i => i.type === 'function_call');\n    let a = {};\n    try { a = JSON.parse((call && call.arguments) || '{}'); } catch (e) { a = {}; }\n    const got = itApply(state, items, sub.items, a, !boss.approve);\n    changed = [...new Set([...changed, ...got])];\n    action = 'text_block';\n    if (!call) message = [message, `⚠️ ${sub.icon} ${sub.name} не прислал работу — попросите ещё раз.`].filter(Boolean).join('\\n\\n');\n  }\n}\n\n// ── Картинка согласована словами (через этап, который за неё отвечает) ──\nconst approvedUrl = approveUrl || approvedBefore;\n\n// ── Статус в таблице: только механика для сборщика ──\nconst cur = ctx.status;\nlet statusAfter = cur || 'Картинка в работе';\nlet statusReverted = false;\nif (cur !== 'Опубликовано') {\n  if (action === 'approved' && !(cur === 'Утверждено' && approveUrl === approvedBefore)) statusAfter = 'Картинка согласована';\n  if (cur === 'Утверждено' && changed.length) statusAfter = 'Картинка согласована';\n  statusReverted = cur === 'Утверждено' && statusAfter !== 'Утверждено';\n}\n\n// ── Переход: этап только что завершился → следующий; всё готово → сводка или запись ──\nlet transition = 'none';\nlet event = '';\nlet nextIcon = '';\nif (action === 'done') {\n  transition = stages.some(s => s.approve) ? 'summary' : 'package';\n} else if (stage && ['text_block', 'approved'].includes(action)) {\n  const wasDone = stComplete(stages, items, before, approvedBefore, stage);\n  const nowDone = stComplete(stages, items, state, approvedUrl, stage);\n  if (nowDone && !wasDone) {\n    const next = stCurrent(stages, items, state, approvedUrl);\n    if (next) { transition = 'next'; nextIcon = next.icon; event = `Этап «${stage.name}» завершён.`; }\n    else transition = stages.some(s => s.approve) ? 'summary' : 'package';\n  }\n}\n\n// ── Что показать автору ──\nconst prefix = speaker ? `${speaker.icon} <b>${escapeHtml(speaker.name)}</b>: ` : '';\nlet text = prefix + escapeHtml(message || '');\n// Разметка: автор видит, дошли ли её штрихи (иначе не понять, почему этап их не учёл)\nif (plan.needMarks) {\n  let mk = null;\n  try { mk = $('Сервер: разметка').first().json || null; } catch (e) {}\n  const n = mk && Array.isArray(mk.marks) ? mk.marks.length : 0;\n  text += n ? `\\n\\n🖍 Разметка прочитана: штрихов — ${n}.`\n    : `\\n\\n⚠️ Разметку прочитать не удалось${mk && mk.error ? ' (' + escapeHtml(String(mk.error)) + ')' : (mk ? ' — красных штрихов не нашлось' : ' — сборщик не ответил')}.`;\n}\nif (statusReverted) text += '\\n\\n⚠️ Статус «Утверждено» снят — после изменений пришлю новую сводку на ✅.';\nif (action === 'text_block' && stage) {\n  const sc = stScope(stages, stage);\n  const mine = items.filter(it => sc.items.includes(it.n));\n  const pending = mine.filter(it => !state.agreed[it.n]);\n  const done = mine.filter(it => state.agreed[it.n]);\n  if (pending.length) {\n    text += `\\n\\n<b>Ждут согласования:</b> ${pending.map(it => it.n).join(', ')}`;\n    for (const it of pending) {\n      // пункт с превью автор проверяет глазами — строки для сборщика ей не показываем\n      const body = it.preview && (state.items[it.n] || {}).text ? 'смотрите картинку-превью ниже' : itShow(state, it);\n      text += `\\n\\n<b>${it.n}. ${escapeHtml(it.name)}</b>` + (body ? '\\n' + escapeHtml(body) : ' — ещё не предложено');\n    }\n    text += '\\n\\nОтвечайте по номеру или по названию пункта.';\n  }\n  if (done.length) text += '\\n\\n✔️ Согласовано: ' + done.map(it => `${it.n} ${escapeHtml(it.name)}`).join(', ');\n}\nif (action === 'approved') text += `\\n\\n✅ Картинка согласована${approveVariant ? ' (вариант ' + approveVariant + ')' : ''}.`;\ntext += `\\n\\nID: ${ctx.projectId}`;\n// Превью: изменился пункт, которому в листе «Пункты» положено превью, — сборщик нарисует картинку.\nlet previewBody = null;\nconst pvItem = items.find(it => it.preview && changed.includes(it.n) && (state.items[it.n] || {}).text);\nif (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {\n  const fx = {};\n  for (const key of Object.keys(ctx.tmpl || {})) {        // вид эффектов — колонки 🎬 (как у сборки)\n    if (!key.includes('🎬')) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, '');\n    const v = String((ctx.tmpl || {})[key] == null ? '' : ctx.tmpl[key]).trim();\n    if (label && v) fx[label.charAt(0).toLowerCase() + label.slice(1)] = v;\n  }\n  previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId };\n}\n// Согласованное — сразу в колонки строки выпуска (как в листе «Пункты»); несогласованное там пусто.\nlet agreedFields = null;\nconst agreedKey = st_ => items.filter(it => st_.agreed[it.n]).map(it => it.n + ':' + ((st_.items[it.n] || {}).text || '')).join('\\n');\nif (agreedKey(state) !== agreedKey(before)) {\n  const onlyAgreed = stParseState(JSON.stringify(state));\n  for (const it of items) if (!onlyAgreed.agreed[it.n]) delete onlyAgreed.items[it.n];\n  agreedFields = { sys_ProjectID: ctx.projectId, ...itFields(items, onlyAgreed) };\n}\nconst chunks = action === 'done' || (!message && action !== 'text_block') ? [] : splitForTelegram(text);\n\nreturn [{ json: {\n  action,\n  chunks,\n  silentTurn: !!plan.silent,\n  note,\n  editorState: JSON.stringify(state),\n  statusAfter,\n  statusReverted,\n  approvedUrl: approveUrl,\n  approveVariant,\n  userBrief: String(row.ai_UserBrief || '').trim() || (plan.fromAuthor ? String(ctx.text || '').trim() : ''),\n  transition,\n  nextIcon,\n  previewBody,\n  agreedFields,\n  previewCaption: previewBody ? `${stage ? stage.icon + ' ' : ''}Превью: так это будет выглядеть\\n\\nID: ${ctx.projectId}` : '',\n  autoApprove,\n  event,\n  // для веток рисования (узлы перенесены из 01_Художник)\n  dallePrompt: art ? art.dallePrompt : '',\n  revisionInstruction: art ? art.revisionInstruction : '',\n  revisionIsNewVariant: true,\n  revisionTargetImageUrl: art ? art.revisionTargetImageUrl : '',\n  revisionTargetVariantNumber: art ? art.revisionTargetVariantNumber : 1,\n  drawRefUrls: art ? art.drawRefUrls : [],\n  drawRoles: art ? art.drawRoles : '',\n  editRefUrls: art ? art.editRefUrls : [],\n  editRoles: art ? art.editRoles : '',\n  imageModel: art ? art.imageModel : '',\n  projectId: ctx.projectId,\n  chatId: ctx.chatId,\n  sheetName: ctx.sheetName,\n  channelKey: ctx.channelKey,\n  stageIcon: stage ? stage.icon : '',\n} }];\n"
+        "jsCode": "// ── Общий кусок движка этапов (одинаковый в нескольких узлах) ─────────────\n// Движок не знает ни ролей, ни пунктов, ни имён колонок с содержанием.\n// Сценарий — лист «Этапы», пункты — лист «Пункты», знания — колонки Templates\n// со значком этапа. Служебные колонки (⚙️ или без значка) — механика.\n\nfunction escapeHtml(t) {\n  return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n}\n\n// Режем длинный текст на куски под лимит Телеграма (4096), стараясь по переносу строки.\nfunction splitForTelegram(text, limit) {\n  const LIMIT = limit || 3800;\n  const chunks = [];\n  let rest = String(text || '');\n  while (rest.length > LIMIT) {\n    let cut = rest.lastIndexOf('\\n', LIMIT);\n    if (cut < LIMIT * 0.5) cut = LIMIT;\n    chunks.push(rest.slice(0, cut));\n    rest = rest.slice(cut).replace(/^\\n+/, '');\n  }\n  if (rest.length) chunks.push(rest);\n  if (!chunks.length) return [''];\n  // ID проекта — в КАЖДОЙ части: автор может ответить (reply) на любую.\n  const idm = String(text || '').match(/\\n\\nID: (\\S+)\\s*$/);\n  if (idm && chunks.length > 1) {\n    for (let i = 0; i < chunks.length - 1; i++) chunks[i] += `\\n\\n(продолжение ниже)\\nID: ${idm[1]}`;\n  }\n  return chunks;\n}\n\n// Служебная колонка по имени (только для ⚙️ / колонок без значка — это кнопки механики).\nfunction findByLabel(row, label) {\n  const key = Object.keys(row || {}).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// Значение строки служебного листа по заголовку (заголовки листов «Этапы»/«Пункты»).\nfunction cell(row, ...names) {\n  const norm = s => String(s).toLowerCase().replace(/[^a-zа-яё0-9№]+/giu, '');\n  for (const nm of names) {\n    const key = Object.keys(row || {}).find(k => norm(k) === norm(nm));\n    if (key !== undefined && row[key] != null && String(row[key]).trim() !== '') return String(row[key]).trim();\n  }\n  return '';\n}\n\n// «1, 2, 4-8» / «1,2,4–8» → [1,2,4,5,6,7,8]\nfunction parseNumbers(text) {\n  const out = [];\n  for (const part of String(text || '').split(/[,;\\s]+/)) {\n    const m = part.match(/^(\\d+)\\s*[-–—]\\s*(\\d+)$/);\n    if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); continue; }\n    if (/^\\d+$/.test(part)) out.push(+part);\n  }\n  return [...new Set(out)];\n}\n\nfunction isEmojiStart(s) { return /^\\p{Extended_Pictographic}/u.test(String(s || '').trim()); }\n// Значок для сравнения — без вариационного селектора (✍️ и ✍ — один значок).\nfunction bareIcon(s) { return String(s || '').replace(/️/g, '').trim(); }\n\n// ── Этапы ──\n// Строка листа «Этапы»: Значок | Кто | С кем говорит | Согласование | Делает | Модель | Усилие\nfunction stParseStages(rows) {\n  const list = (rows || []).map(r => {\n    const does = cell(r, 'Делает');\n    const talksRaw = cell(r, 'С кем говорит').toLowerCase();\n    return {\n      icon: cell(r, 'Значок'),\n      name: cell(r, 'Кто'),\n      talksRaw,\n      approve: !/авто/i.test(cell(r, 'Согласование')),\n      picture: /картин/i.test(does),\n      items: parseNumbers(does.replace(/картин\\S*/gi, '')),\n      model: cell(r, 'Модель'),\n      effort: cell(r, 'Усилие').toLowerCase(),\n      // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)\n      grid: /сетк/i.test(cell(r, 'Картинка')),\n    };\n  }).filter(s => s.icon && s.name);\n  for (const s of list) {\n    if (/^автор/.test(s.talksRaw)) s.talks = 'author';\n    else if (!s.talksRaw || /^[-—–]$/.test(s.talksRaw) || /^(никто|сам)/.test(s.talksRaw)) s.talks = 'none';\n    else {\n      const boss = list.find(b => b !== s && (b.name.toLowerCase() === s.talksRaw || bareIcon(b.icon) === bareIcon(s.talksRaw)));\n      s.talks = boss ? 'boss' : 'none';\n      s.boss = boss ? boss.icon : '';\n    }\n  }\n  return list;\n}\n\nfunction stSubordinates(stages, stage) {\n  return stages.filter(s => s.talks === 'boss' && bareIcon(s.boss) === bareIcon(stage.icon));\n}\n\n// Что этап отвечает: свои пункты + пункты подчинённых; картинка — своя или подчинённого.\nfunction stScope(stages, stage) {\n  const subs = stSubordinates(stages, stage);\n  const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);\n  return { items, picture: stage.picture || subs.some(s => s.picture), subs };\n}\n\n// ── Пункты ──\n// Строка листа «Пункты»: № | Пункт | Колонки | Подсказка | Можно пусто\nfunction itParseItems(rows) {\n  return (rows || []).map(r => ({\n    n: parseInt(cell(r, '№', 'Номер'), 10),\n    name: cell(r, 'Пункт'),\n    cols: cell(r, 'Колонки'),\n    hint: cell(r, 'Подсказка'),\n    canEmpty: /^да/i.test(cell(r, 'Можно пусто')),\n    // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика\n    preview: cell(r, 'Превью').toLowerCase(),\n  })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);\n}\n\n// ── Состояние выпуска (sys_EditorState) ──\nfunction stEmptyState() {\n  return { v: 2, items: {}, agreed: {}, stages: {} };\n}\nfunction stParseState(raw) {\n  let p = null;\n  try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }\n  if (!p || typeof p !== 'object' || p.v !== 2) return stEmptyState();\n  const s = stEmptyState();\n  s.items = p.items && typeof p.items === 'object' ? p.items : {};\n  s.agreed = p.agreed && typeof p.agreed === 'object' ? p.agreed : {};\n  s.stages = p.stages && typeof p.stages === 'object' ? p.stages : {};\n  return s;\n}\nfunction stStage(state, icon) {\n  const k = bareIcon(icon);\n  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };\n  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];\n  return state.stages[k];\n}\n\nfunction stItemDone(state, item) {\n  return state.agreed[item.n] === true;\n}\n\n// Этап готов: картинка согласована (если он за неё отвечает) и все его пункты согласованы.\nfunction stComplete(stages, items, state, approvedUrl, stage) {\n  const sc = stScope(stages, stage);\n  if (sc.picture && !approvedUrl) return false;\n  return sc.items.every(n => { const it = items.find(i => i.n === n); return !it || stItemDone(state, it); });\n}\n\n// Текущий этап: первый по порядку незавершённый, который сам ведёт работу (не подчинённый).\nfunction stCurrent(stages, items, state, approvedUrl) {\n  return stages.find(s => s.talks !== 'boss' && !stComplete(stages, items, state, approvedUrl, s)) || null;\n}\n\n// Диспетчер согласования: короткое одобрение автора («ок», «9 ок», «всё ок», «👍») отмечает\n// пункты этапа согласованными сам — не дожидаясь, вызовет ли модель инструмент.\n// Возвращает номера, которые одобрены (пусто — это не чистое одобрение).\nconst ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна', 'согласен', 'согласовано', 'согласован', 'согласованы',\n  'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];\nconst ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так'];\nfunction stApproval(text, scopeItems, state) {\n  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');\n  if (!t.trim() || t.length > 60) return [];\n  const nums = (t.match(/\\d+/g) || []).map(Number);\n  const hasEmoji = /[👍✅👌]/u.test(t);\n  const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);\n  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));\n  const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));\n  if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];\n  if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];\n  const pending = scopeItems.filter(n => n in state.items && !state.agreed[n]);\n  return nums.length ? pending.filter(n => nums.includes(n)) : pending;\n}\nfunction stApplyApproval(state, nums) {\n  for (const n of nums || []) if (n in state.items) state.agreed[n] = true;\n}\n\n// Обращение по значку («✍️ …») или по имени («Писателю: …»).\nfunction stAddressed(stages, text) {\n  const t = String(text || '').trim();\n  for (const s of stages) {\n    const ic = bareIcon(s.icon);\n    if (ic && bareIcon(t).startsWith(ic)) return { stage: s, rest: bareIcon(t).slice(ic.length).replace(/^[\\s:,.!—–-]+/, '') };\n  }\n  const first = (t.match(/^[\\p{L}-]+/u) || [''])[0].toLowerCase();\n  if (first.length >= 4) {\n    // сначала по первому слову имени («Писателю»), потом по любому («Техническому»)\n    for (const pass of [0, 1]) {\n      for (const s of stages) {\n        const words = s.name.toLowerCase().split(/\\s+/);\n        for (const word of pass === 0 ? words.slice(0, 1) : words.slice(1)) {\n          if (word.length < 5) continue;\n          const stem = word.slice(0, word.length - 2);\n          if (first.startsWith(stem) && first.length <= word.length + 2) {\n            // остальные слова имени («Техническому писателю: …») тоже убираем\n            let rest = t.slice(first.length).replace(/^[\\s:,.!—–-]+/, '');\n            for (const w of words.slice(words.indexOf(word) + 1)) {\n              const next = (rest.match(/^[\\p{L}-]+/u) || [''])[0];\n              if (w.length >= 5 && next.toLowerCase().startsWith(w.slice(0, w.length - 2))) rest = rest.slice(next.length).replace(/^[\\s:,.!—–-]+/, '');\n            }\n            return { stage: s, rest };\n          }\n        }\n      }\n    }\n  }\n  return null;\n}\n\n// ── Знания этапа из Templates: все колонки со значком этапа ──\n// 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);\n// блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).\n// Строка-ссылка — картинка; строка сразу под ссылкой — её роль.\nfunction kbIsService(key) { return !isEmojiStart(key) || key.includes('⚙'); }\nfunction kbLabel(key) { return key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, ''); }\nconst URL_LINE = /^https?:\\/\\/\\S+$/;\nfunction toDirectImageUrl(url) {\n  const m = url.match(/\\/d\\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=s2000' : url;\n}\nfunction triggered(words, text) {\n  const low = String(text || '').toLowerCase();\n  const esc = w => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return words.some(w => w && new RegExp('(^|[^\\\\p{L}\\\\p{N}])' + esc(w), 'u').test(low));\n}\n// Текст и картинки одного куска колонки.\nfunction kbSplit(text) {\n  const lines = String(text || '').split('\\n');\n  const keep = [];\n  const images = [];\n  let last = null;\n  for (const line of lines) {\n    const t = line.trim();\n    if (URL_LINE.test(t)) { last = { url: toDirectImageUrl(t), role: '' }; images.push(last); continue; }\n    if (t && last && !last.role) { last.role = t; continue; }\n    if (t) last = null;\n    keep.push(line);\n  }\n  return { text: keep.join('\\n').trim(), images };\n}\nfunction kbForStage(tmpl, icon, taskText, opts) {\n  const o = opts || {};\n  const ic = bareIcon(icon);\n  const parts = [];\n  const images = [];\n  const notesKey = Object.keys(tmpl || {}).find(k => !kbIsService(k) && bareIcon(k).includes(ic) && k.includes('📝')) || '';\n  for (const key of Object.keys(tmpl || {})) {\n    if (kbIsService(key)) continue;\n    if (!bareIcon(key.match(/^[^a-zA-Z]*/)[0]).includes(ic)) continue;\n    const raw = String(tmpl[key] == null ? '' : tmpl[key]);\n    if (!raw.trim()) continue;\n    let chunks = [raw];\n    if (key.includes('📍')) {\n      chunks = raw.split(/\\n\\s*\\n/).filter(b => {\n        const head = b.trim().split('\\n')[0] || '';\n        const i = head.indexOf(':');\n        const words = i > 0 ? [head.slice(0, i), ...head.slice(i + 1).split(',')].map(w => w.trim().toLowerCase()) : [];\n        return words.length && triggered(words, taskText);\n      });\n    }\n    const texts = [];\n    for (let c of chunks) {\n      // у 📍-блока первая строка — название и слова-триггеры, это механика, не знание\n      if (key.includes('📍')) c = c.trim().split('\\n').slice(1).join('\\n');\n      const sp = kbSplit(c);\n      if (sp.text) texts.push(sp.text);\n      images.push(...sp.images.map(i => ({ ...i, place: key.includes('📍') })));\n    }\n    if (texts.length) parts.push((o.labels === false ? '' : kbLabel(key) + ':\\n') + texts.join('\\n\\n'));\n  }\n  return { text: parts.join('\\n\\n'), images, notesKey, notes: notesKey ? String(tmpl[notesKey] || '') : '' };\n}\n\n// ── Пункты: показ и запись в таблицу ──\nfunction itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }\nfunction itShow(state, item) {\n  const v = itValue(state, item.n);\n  if (!(item.n in state.items)) return '';\n  if (!v.text) return '— пусто';\n  if (!v.ru) return v.text;\n  return v.text.includes('\\n') || v.text.length > 200 ? `${v.text}\\n\\n— Перевод для автора —\\n${v.ru}` : `${v.text} (${v.ru})`;\n}\n\n// Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;\n// одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.\nfunction itFields(items, state) {\n  const acc = {};\n  const order = [];\n  const put = (col, val) => { if (!(col in acc)) { acc[col] = []; order.push(col); } if (val) acc[col].push(val); };\n  for (const it of items) {\n    const text = itValue(state, it.n).text || '';\n    if (it.cols.includes('|')) {\n      const cols = it.cols.split('|').map(c => c.trim()).filter(Boolean);\n      const vals = text.split('|').map(v => v.trim());\n      cols.forEach((c, i) => put(c, vals[i] || ''));\n    } else {\n      for (const c of it.cols.split(',').map(c => c.trim()).filter(Boolean)) put(c, text);\n    }\n  }\n  const out = {};\n  for (const c of order) out[c] = acc[c].join('\\n\\n');\n  return out;\n}\n\n// Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.\n// Обязательны колонки пунктов, которые нельзя оставить пустыми.\nfunction validateRow(row, items, opts) {\n  const o = opts || {};\n  const problems = [];\n  const val = k => String(row[k] == null ? '' : row[k]).trim();\n  for (const it of items) {\n    if (it.canEmpty) continue;\n    for (const c of it.cols.split(/[|,]/).map(c => c.trim()).filter(Boolean)) {\n      if (!val(c) && !problems.includes(`${c} пустая`)) problems.push(`${c} пустая (пункт ${it.n}. ${it.name})`);\n    }\n  }\n  if (!val('ai_ApprovedImageUrl')) problems.push('ai_ApprovedImageUrl пустая (нет согласованной картинки)');\n  // Метка [Timecodes] — место, куда сборщик вставит тайм-коды (механика 04_Video).\n  if (val('ai_TimecodeNames') && val('ai_Description') && !/\\[?Timecodes\\]?/i.test(val('ai_Description'))) {\n    problems.push('в ai_Description нет метки [Timecodes]');\n  }\n  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);\n  if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');\n  return problems;\n}\n\n// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).\n// Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.\nfunction artRefs(kbImages, placeImages) {\n  const fit = max => {\n    const room = Math.max(1, max - placeImages.length);\n    return [...kbImages.slice(0, room), ...placeImages].slice(0, max);\n  };\n  const roles = (list, shift) => {\n    const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);\n    return parts.length ? 'Reference images: ' + parts.join(' ') + '\\n\\n' : '';\n  };\n  const draw = fit(16);\n  const edit = fit(15);\n  return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };\n}\n// Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).\n// Изменённый пункт снова ждёт согласования. Возвращает номера изменённых пунктов.\nfunction itApply(state, items, scope, args, autoAgree) {\n  const changed = [];\n  const inScope = n => scope.includes(n) && items.some(i => i.n === n);\n  for (const p of (Array.isArray(args.items) ? args.items : [])) {\n    const n = parseInt(p && p.n, 10);\n    if (!inScope(n)) continue;\n    let text = String(p.text == null ? '' : p.text).trim();\n    if (text === '-') text = '';\n    const ru = String(p.ru == null ? '' : p.ru).trim();\n    const old = state.items[n];\n    if (!old || old.text !== text || (ru && old.ru !== ru)) {\n      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }\n      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };\n    }\n    if (autoAgree) state.agreed[n] = true;\n  }\n  for (const raw of (args.reopen || [])) {\n    const n = parseInt(raw, 10);\n    if (inScope(n) && state.agreed[n]) { state.agreed[n] = false; if (!changed.includes(n)) changed.push(n); }\n  }\n  for (const raw of (args.agreed || [])) {\n    const n = parseInt(raw, 10);\n    if (!inScope(n)) continue;\n    const it = items.find(i => i.n === n);\n    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };\n    if (n in state.items) state.agreed[n] = true;\n  }\n  return changed;\n}\n\n// Задание художнику: знания колонок его значка (без подписей) + слова задания.\n// Новая картинка — правила и описание мест + сцена; правка — только слова правки.\nfunction artBuild(ctx, stage, task, edit, variantNumber) {\n  const row = ctx.row || {};\n  const tmpl = ctx.tmpl || {};\n  let variants = [];\n  try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\n  if (!Array.isArray(variants)) variants = [];\n  const last = variants.length ? variants[variants.length - 1] : null;\n  const kb = kbForStage(tmpl, stage.icon, task, { labels: false });\n  const refs = artRefs(kb.images.filter(i => !i.place), kb.images.filter(i => i.place));\n  const r = {\n    action: edit ? 'revise_point' : 'ready_to_draw',\n    messageToUser: '',\n    dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,\n    revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,\n    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',\n    ...refs,\n  };\n  if (edit) {\n    const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;\n    if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }\n    else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }\n    r.revisionInstruction = task;\n  } else {\n    r.dallePrompt = [kb.text, task].filter(Boolean).join('\\n\\n');\n  }\n  if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }\n  return r;\n}\n// ── конец общего куска ─────────────────────────────────────────────────────\n\n// Итог хода — все узлы ниже читают только его. Сюда приходят три пути:\n// художник (задание автора), этап-модель (с поручением подчинённому или без),\n// служебная реплика. Здесь же решаем переход к следующему этапу.\nconst ctx = $('Контекст проекта').first().json;\nconst plan = $('Кто отвечает').first().json;\nconst row = ctx.row || {};\nconst stages = ctx.stages || [];\nconst items = ctx.items || [];\nconst stage = stages.find(s => bareIcon(s.icon) === bareIcon(plan.stageIcon)) || null;\nconst before = stParseState(row.sys_EditorState);\nlet state = stParseState(row.sys_EditorState);\nconst approvedBefore = String(row.ai_ApprovedImageUrl || '').trim();\n\nlet action = 'chat';\nlet message = '';\nlet note = null;\nlet art = null;\nlet approveUrl = '';\nlet approveVariant = null;\nlet changed = [];\nlet speaker = stage;\n// Картинку без согласования автора (этап «авто» или молчаливый) согласуем сами после рисунка.\nlet autoApprove = false;\nlet lupaMoved = 0;\n\nif (plan.mode === 'say') {\n  message = plan.sayText;\n  speaker = null;\n} else if (plan.mode === 'done') {\n  action = 'done';\n} else if (plan.mode === 'draw' || plan.mode === 'edit') {\n  art = artBuild(ctx, stage, plan.userText, plan.mode === 'edit', plan.editVariant);\n  autoApprove = !stage.approve || stage.talks === 'none';\n  action = art.action;\n  message = art.action === 'chat' ? art.messageToUser : (plan.mode === 'edit' ? 'поправляю 🎨' : 'рисую 🎨');\n} else if (plan.mode === 'model') {\n  const r = $('Разбираем ответ этапа').first().json;\n  state = stParseState(r.editorState);\n  // лупа уточнила точки оживления — берём её версию пункта\n  try { const lp = $('Лупа: итог').first().json; if (lp && lp.editorState) { state = stParseState(lp.editorState); lupaMoved = lp.moved || 0; } } catch (e) {}\n  action = r.action; message = r.message; note = r.note; changed = r.changed || [];\n  approveUrl = r.approveUrl; approveVariant = r.approveVariant;\n  if (r.art) { art = r.art; autoApprove = !stage.approve; }\n  // автор одобрила — показываем пункты и проверяем переход, даже если модель ответила просто текстом\n  if ((plan.approveNums || []).length && action === 'chat') action = 'text_block';\n  if (r.action === 'delegate') {\n    // Подчинённый этап прислал свои пункты.\n    const sub = stages.find(s => bareIcon(s.icon) === bareIcon(r.delegate.stageIcon));\n    const boss = stage;\n    let resp = {};\n    try { resp = $('OpenAI: поручение').first().json || {}; } catch (e) {}\n    const call = (resp.output || []).find(i => i.type === 'function_call');\n    let a = {};\n    try { a = JSON.parse((call && call.arguments) || '{}'); } catch (e) { a = {}; }\n    const got = itApply(state, items, sub.items, a, !boss.approve);\n    changed = [...new Set([...changed, ...got])];\n    action = 'text_block';\n    if (!call) message = [message, `⚠️ ${sub.icon} ${sub.name} не прислал работу — попросите ещё раз.`].filter(Boolean).join('\\n\\n');\n  }\n}\n\n// ── Картинка согласована словами (через этап, который за неё отвечает) ──\nconst approvedUrl = approveUrl || approvedBefore;\n\n// ── Статус в таблице: только механика для сборщика ──\nconst cur = ctx.status;\nlet statusAfter = cur || 'Картинка в работе';\nlet statusReverted = false;\nif (cur !== 'Опубликовано') {\n  if (action === 'approved' && !(cur === 'Утверждено' && approveUrl === approvedBefore)) statusAfter = 'Картинка согласована';\n  if (cur === 'Утверждено' && changed.length) statusAfter = 'Картинка согласована';\n  statusReverted = cur === 'Утверждено' && statusAfter !== 'Утверждено';\n}\n\n// ── Переход: этап только что завершился → следующий; всё готово → сводка или запись ──\nlet transition = 'none';\nlet event = '';\nlet nextIcon = '';\nif (action === 'done') {\n  transition = stages.some(s => s.approve) ? 'summary' : 'package';\n} else if (stage && ['text_block', 'approved'].includes(action)) {\n  const wasDone = stComplete(stages, items, before, approvedBefore, stage);\n  const nowDone = stComplete(stages, items, state, approvedUrl, stage);\n  if (nowDone && !wasDone) {\n    const next = stCurrent(stages, items, state, approvedUrl);\n    if (next) { transition = 'next'; nextIcon = next.icon; event = `Этап «${stage.name}» завершён.`; }\n    else transition = stages.some(s => s.approve) ? 'summary' : 'package';\n  }\n}\n\n// ── Что показать автору ──\nconst prefix = speaker ? `${speaker.icon} <b>${escapeHtml(speaker.name)}</b>: ` : '';\nlet text = prefix + escapeHtml(message || '');\n// Разметка: автор видит, дошли ли её штрихи (иначе не понять, почему этап их не учёл)\nif (plan.needMarks) {\n  let mk = null;\n  try { mk = $('Сервер: разметка').first().json || null; } catch (e) {}\n  const n = mk && Array.isArray(mk.marks) ? mk.marks.length : 0;\n  text += n ? `\\n\\n🖍 Разметка прочитана: штрихов — ${n}.`\n    : `\\n\\n⚠️ Разметку прочитать не удалось${mk && mk.error ? ' (' + escapeHtml(String(mk.error)) + ')' : (mk ? ' — красных штрихов не нашлось' : ' — сборщик не ответил')}.`;\n}\nif (lupaMoved) text += `\\n\\n🔍 Лупа уточнила точек: ${lupaMoved}.`;\nif (statusReverted) text += '\\n\\n⚠️ Статус «Утверждено» снят — после изменений пришлю новую сводку на ✅.';\nif (action === 'text_block' && stage) {\n  const sc = stScope(stages, stage);\n  const mine = items.filter(it => sc.items.includes(it.n));\n  const pending = mine.filter(it => !state.agreed[it.n]);\n  const done = mine.filter(it => state.agreed[it.n]);\n  if (pending.length) {\n    text += `\\n\\n<b>Ждут согласования:</b> ${pending.map(it => it.n).join(', ')}`;\n    for (const it of pending) {\n      // пункт с превью автор проверяет глазами — строки для сборщика ей не показываем\n      const body = it.preview && (state.items[it.n] || {}).text ? 'смотрите картинку-превью ниже' : itShow(state, it);\n      text += `\\n\\n<b>${it.n}. ${escapeHtml(it.name)}</b>` + (body ? '\\n' + escapeHtml(body) : ' — ещё не предложено');\n    }\n    text += '\\n\\nОтвечайте по номеру или по названию пункта.';\n  }\n  if (done.length) text += '\\n\\n✔️ Согласовано: ' + done.map(it => `${it.n} ${escapeHtml(it.name)}`).join(', ');\n}\nif (action === 'approved') text += `\\n\\n✅ Картинка согласована${approveVariant ? ' (вариант ' + approveVariant + ')' : ''}.`;\ntext += `\\n\\nID: ${ctx.projectId}`;\n// Превью: изменился пункт, которому в листе «Пункты» положено превью, — сборщик нарисует картинку.\nlet previewBody = null;\nconst pvItem = items.find(it => it.preview && changed.includes(it.n) && (state.items[it.n] || {}).text);\nif (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {\n  const fx = {};\n  for (const key of Object.keys(ctx.tmpl || {})) {        // вид эффектов — колонки 🎬 (как у сборки)\n    if (!key.includes('🎬')) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '').replace(/^tmpl_/, '');\n    const v = String((ctx.tmpl || {})[key] == null ? '' : ctx.tmpl[key]).trim();\n    if (label && v) fx[label.charAt(0).toLowerCase() + label.slice(1)] = v;\n  }\n  previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId };\n}\n// Согласованное — сразу в колонки строки выпуска (как в листе «Пункты»); несогласованное там пусто.\nlet agreedFields = null;\nconst agreedKey = st_ => items.filter(it => st_.agreed[it.n]).map(it => it.n + ':' + ((st_.items[it.n] || {}).text || '')).join('\\n');\nif (agreedKey(state) !== agreedKey(before)) {\n  const onlyAgreed = stParseState(JSON.stringify(state));\n  for (const it of items) if (!onlyAgreed.agreed[it.n]) delete onlyAgreed.items[it.n];\n  agreedFields = { sys_ProjectID: ctx.projectId, ...itFields(items, onlyAgreed) };\n}\nconst chunks = action === 'done' || (!message && action !== 'text_block') ? [] : splitForTelegram(text);\n\nreturn [{ json: {\n  action,\n  chunks,\n  silentTurn: !!plan.silent,\n  note,\n  editorState: JSON.stringify(state),\n  statusAfter,\n  statusReverted,\n  approvedUrl: approveUrl,\n  approveVariant,\n  userBrief: String(row.ai_UserBrief || '').trim() || (plan.fromAuthor ? String(ctx.text || '').trim() : ''),\n  transition,\n  nextIcon,\n  previewBody,\n  agreedFields,\n  previewCaption: previewBody ? `${stage ? stage.icon + ' ' : ''}Превью: так это будет выглядеть\\n\\nID: ${ctx.projectId}` : '',\n  autoApprove,\n  event,\n  // для веток рисования (узлы перенесены из 01_Художник)\n  dallePrompt: art ? art.dallePrompt : '',\n  revisionInstruction: art ? art.revisionInstruction : '',\n  revisionIsNewVariant: true,\n  revisionTargetImageUrl: art ? art.revisionTargetImageUrl : '',\n  revisionTargetVariantNumber: art ? art.revisionTargetVariantNumber : 1,\n  drawRefUrls: art ? art.drawRefUrls : [],\n  drawRoles: art ? art.drawRoles : '',\n  editRefUrls: art ? art.editRefUrls : [],\n  editRoles: art ? art.editRoles : '',\n  imageModel: art ? art.imageModel : '',\n  projectId: ctx.projectId,\n  chatId: ctx.chatId,\n  sheetName: ctx.sheetName,\n  channelKey: ctx.channelKey,\n  stageIcon: stage ? stage.icon : '',\n} }];\n"
       },
       "name": "Итог хода",
       "type": "n8n-nodes-base.code",
@@ -1298,7 +1453,7 @@
         6000,
         -1400
       ],
-      "id": "3ba3ac81-e117-4d70-bd6c-ab64f69c9e58"
+      "id": "d09fa21f-00db-4a49-88f4-39629fcdf0ff"
     },
     {
       "parameters": {
@@ -1342,7 +1497,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "5ab67a96-6408-4ceb-b65b-ed89e4e71e90"
+      "id": "110b8491-6495-4f3a-b84f-aff63504ddf7"
     },
     {
       "parameters": {
@@ -1354,7 +1509,7 @@
           },
           "conditions": [
             {
-              "id": "3ab14497-36fe-4b82-b8c9-ecead0fec8ba",
+              "id": "e77a4de6-c1a3-4476-bfed-b0382023f0bc",
               "leftValue": "={{ !!$('Итог хода').first().json.agreedFields }}",
               "rightValue": true,
               "operator": {
@@ -1375,7 +1530,7 @@
         6330,
         -1700
       ],
-      "id": "c57b6f7a-0541-4758-a76c-831605b18f37"
+      "id": "5e7c97cd-edee-4863-b698-09f21801cef1"
     },
     {
       "parameters": {
@@ -1388,7 +1543,7 @@
         6440,
         -1860
       ],
-      "id": "97aa0431-4a51-43ef-9a20-e05ac5de59cc"
+      "id": "a51fab07-5908-420a-bd2c-c014b1e21d77"
     },
     {
       "parameters": {
@@ -1427,7 +1582,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "a348510c-f542-4ca4-9039-ea7008871c68"
+      "id": "4d416e2d-bacc-4e39-aa74-08526d45348e"
     },
     {
       "parameters": {
@@ -1439,7 +1594,7 @@
           },
           "conditions": [
             {
-              "id": "5f77819b-479f-488b-b9a8-6e6ebe18557f",
+              "id": "0640af12-cb2b-4c05-b1db-5e253f18f581",
               "leftValue": "={{ !!$('Итог хода').first().json.note }}",
               "rightValue": true,
               "operator": {
@@ -1460,7 +1615,7 @@
         6440,
         -1400
       ],
-      "id": "565b3769-333b-4062-ad5c-d659a3b7ec80"
+      "id": "bacaaf79-2274-4526-b21f-af2087a5326e"
     },
     {
       "parameters": {
@@ -1473,7 +1628,7 @@
         6660,
         -1240
       ],
-      "id": "df7379ce-510c-4b04-90c2-b6e7482313e9"
+      "id": "8667729f-1ac5-4082-b654-0361f9929260"
     },
     {
       "parameters": {
@@ -1512,7 +1667,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "7c042c46-9923-4115-84a9-93c63371eb32"
+      "id": "f2eb9028-874c-4d23-b3e7-10c92c965818"
     },
     {
       "parameters": {
@@ -1525,7 +1680,7 @@
         7100,
         -1400
       ],
-      "id": "047acf80-0154-4620-be0f-c46bf95ee02f"
+      "id": "619c4db0-d2d0-446a-9ab9-90090d1e4253"
     },
     {
       "parameters": {
@@ -1537,7 +1692,7 @@
           },
           "conditions": [
             {
-              "id": "5cfd64a8-0454-4835-9ff8-1b8cc414fffe",
+              "id": "b994c286-2a10-43cf-83ae-731d6e0682ac",
               "leftValue": "={{ !$json.skip }}",
               "rightValue": true,
               "operator": {
@@ -1558,7 +1713,7 @@
         7320,
         -1400
       ],
-      "id": "5a32af1a-60de-4c18-9e21-f390d2888cc2"
+      "id": "bd080c51-40ce-4c5b-a688-747259d2d25d"
     },
     {
       "parameters": {
@@ -1578,14 +1733,14 @@
         7540,
         -1520
       ],
-      "webhookId": "0b10ab2a-e3c7-4274-a66d-4ed18755294e",
+      "webhookId": "0c041e01-fe57-499d-9268-83ca05bc1690",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "314cde16-8518-410d-843b-723caece8a37"
+      "id": "db0ec73b-eca4-42f5-a2ce-1f75cbe86574"
     },
     {
       "parameters": {
@@ -1598,7 +1753,7 @@
         7760,
         -1400
       ],
-      "id": "4932cba8-8ba4-41cf-aa9f-913dd462dc52"
+      "id": "496f05e0-ff13-41c4-942f-b59db7d90385"
     },
     {
       "parameters": {
@@ -1610,7 +1765,7 @@
           },
           "conditions": [
             {
-              "id": "36b20bcb-2613-4278-80ec-a153e30e9edd",
+              "id": "7c2e8664-157a-45eb-8fbc-503d5a7ecaab",
               "leftValue": "={{ $('Что дальше?').first().json.preview }}",
               "rightValue": true,
               "operator": {
@@ -1631,7 +1786,7 @@
         7870,
         -1200
       ],
-      "id": "baaf222b-bcdd-4c54-ba63-8878b05a23f0"
+      "id": "2c932eae-5870-4479-98cf-dd2c9f766371"
     },
     {
       "parameters": {
@@ -1658,7 +1813,7 @@
         -1020
       ],
       "onError": "continueRegularOutput",
-      "id": "6cda5aa2-8213-4d89-baf8-f5a9d9e73767"
+      "id": "3b488b2a-36c6-4565-9e78-0500f8d8e754"
     },
     {
       "parameters": {
@@ -1678,7 +1833,7 @@
         8090,
         -1020
       ],
-      "webhookId": "3257a74a-5f9e-414b-8244-ce8bdd33f7fd",
+      "webhookId": "51306f83-e98c-4551-8a10-da09ab43a906",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -1686,7 +1841,7 @@
         }
       },
       "onError": "continueRegularOutput",
-      "id": "7c22019e-2a53-41df-839f-194796450ace"
+      "id": "71565979-ad54-4e8c-992c-19fb2f23ec53"
     },
     {
       "parameters": {
@@ -1805,7 +1960,7 @@
         7980,
         -1400
       ],
-      "id": "dd053dcc-e914-4737-ae9e-122404098219"
+      "id": "9acf16b1-4058-4f89-91cb-1b6eba2b3cc1"
     },
     {
       "parameters": {
@@ -1817,7 +1972,7 @@
           },
           "conditions": [
             {
-              "id": "e6346a0d-711d-472c-b345-89b366c8a692",
+              "id": "1451fac3-372b-4c13-8e6f-da3b2d04b71d",
               "leftValue": "={{ $('Кто отвечает').first().json.needMarks }}",
               "rightValue": true,
               "operator": {
@@ -1838,7 +1993,7 @@
         4460,
         -1700
       ],
-      "id": "d549b8f0-b88f-4655-96ab-d9bf574e4b3a"
+      "id": "dfcc3338-819f-44c3-b4cf-e44c50113f7a"
     },
     {
       "parameters": {
@@ -1859,7 +2014,7 @@
         -1860
       ],
       "onError": "continueRegularOutput",
-      "id": "529f6712-9aa2-4ae2-9924-68609d8da713"
+      "id": "7b7d5e8e-f6e8-4fb5-8020-864a88eeb6b4"
     },
     {
       "parameters": {
@@ -1872,7 +2027,7 @@
         8240,
         -1100
       ],
-      "id": "0451ce31-ef75-448d-952c-8b68f7dd6c96"
+      "id": "5fddfa2f-0cbc-4c50-940b-a89b6c5ddab4"
     },
     {
       "parameters": {
@@ -1893,7 +2048,7 @@
         8460,
         -1100
       ],
-      "id": "b131ec9f-45e6-4c0d-90f0-eb46c5356ac4"
+      "id": "c2f251ff-ad7e-4a05-995d-1a46457b0683"
     },
     {
       "parameters": {
@@ -1906,7 +2061,7 @@
         8240,
         -800
       ],
-      "id": "67bb2707-f42a-4f32-b81f-930bc4bae5f6"
+      "id": "dffe3428-d182-4efc-bb6b-477e55593a01"
     },
     {
       "parameters": {
@@ -1926,14 +2081,14 @@
         8460,
         -800
       ],
-      "webhookId": "800697e7-978b-4473-8032-b5c813948841",
+      "webhookId": "76eb32f2-651a-479b-895c-957d1f79e8bc",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "580d4e54-d4b9-4444-b158-074d705c67aa"
+      "id": "01449715-4c89-4b59-9039-ab4367fd797f"
     },
     {
       "parameters": {
@@ -1946,7 +2101,7 @@
         8680,
         -800
       ],
-      "id": "b5cf657f-f7f3-4cd5-a7c6-f23abf3ca146"
+      "id": "4521cdaa-cf04-4a34-a1eb-1bdc5ff1c826"
     },
     {
       "parameters": {
@@ -1983,20 +2138,20 @@
         8900,
         -800
       ],
-      "webhookId": "a0323861-a013-4cc3-a115-8779a6454098",
+      "webhookId": "3221a1fe-6254-4211-acf8-eb7a3267c8a9",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "72115d22-d331-4049-8f62-222836594458"
+      "id": "e03b631e-302e-4879-8aa2-a6c82e1800f9"
     },
     {
       "parameters": {
         "jsCode": "// Референсы художнику — список уже собран и уложен в 16 картинок в «Итог хода».\nconst j = $('Итог хода').first().json;\nconst urls = (j.drawRefUrls || []).filter(Boolean).slice(0, 16);\nreturn urls.map((url, i) => ({ json: { ...j, refUrl: url, refIndex: i } }));\n"
       },
-      "id": "28e69187-43ea-41b1-befd-64984da2fab3",
+      "id": "b6ac354e-138d-4fb7-95f3-37dd1d49c3ae",
       "name": "Готовим список: style guide + референсы",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2016,7 +2171,7 @@
           }
         }
       },
-      "id": "fd01297b-f483-444b-a4b6-2f0f159eef20",
+      "id": "add39c4c-29db-4d7f-af28-dae25677516e",
       "name": "Скачиваем референс (B)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -2029,7 +2184,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    dallePrompt: first.dallePrompt,\n    action: first.action,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    imageCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "a94f4edb-82a8-4e59-840d-5bce2efc16be",
+      "id": "60eda52c-3efe-427b-bed6-29ea8a69e3ac",
       "name": "Собираем референсы в один item (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2348,7 +2503,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "5beec0aa-4ec9-435e-963b-046597d3b7a8",
+      "id": "d718ea41-2bce-473f-af0f-94006fe15352",
       "name": "Сколько картинок? (B)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -2394,7 +2549,7 @@
         },
         "options": {}
       },
-      "id": "acbf2026-d1e8-4b54-aa86-1299ea8e93da",
+      "id": "21616c41-cd24-479b-8b4d-353e297476e7",
       "name": "gpt-image-2: рисуем (B, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2449,7 +2604,7 @@
         },
         "options": {}
       },
-      "id": "838ab0a5-7e5a-4a06-b844-c5750b220521",
+      "id": "8316647f-7dfc-452e-833d-4fdf2f6e7943",
       "name": "gpt-image-2: рисуем (B, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2509,7 +2664,7 @@
         },
         "options": {}
       },
-      "id": "17ef3420-21ed-4446-96ff-4119b3e7fa1a",
+      "id": "fe437e19-03fd-4f30-87d3-7b84529e1a26",
       "name": "gpt-image-2: рисуем (B, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2574,7 +2729,7 @@
         },
         "options": {}
       },
-      "id": "647b98fd-3482-45d0-9dd6-f99696350678",
+      "id": "fbecd19c-3012-4090-87ad-0885fb064a39",
       "name": "gpt-image-2: рисуем (B, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2644,7 +2799,7 @@
         },
         "options": {}
       },
-      "id": "cc288622-1517-4bf5-a84f-3a6c751908a1",
+      "id": "91cf90af-98ea-4223-9b0d-e3d57fd75baa",
       "name": "gpt-image-2: рисуем (B, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2719,7 +2874,7 @@
         },
         "options": {}
       },
-      "id": "d7daf61a-cdfa-4de7-a4e1-4f3363166225",
+      "id": "a001b140-476a-4cfb-96ba-e968356abb1e",
       "name": "gpt-image-2: рисуем (B, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2799,7 +2954,7 @@
         },
         "options": {}
       },
-      "id": "cf7d2d5d-c3b6-4b73-ac00-2a167ba8c0cc",
+      "id": "7cb48c25-6e26-45a0-9a25-afaf67ee3d07",
       "name": "gpt-image-2: рисуем (B, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2884,7 +3039,7 @@
         },
         "options": {}
       },
-      "id": "43beb589-4485-496c-bfa4-863ece119b7f",
+      "id": "2faf3240-4ea5-49d9-9a68-f99e00904df9",
       "name": "gpt-image-2: рисуем (B, 8 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -2974,7 +3129,7 @@
         },
         "options": {}
       },
-      "id": "42f0ff94-8c27-4b2f-ae65-b1f840be3409",
+      "id": "d64ad32d-f841-4bc6-be9e-9f7d0e38e464",
       "name": "gpt-image-2: рисуем (B, 9 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3069,7 +3224,7 @@
         },
         "options": {}
       },
-      "id": "d71f9e20-53ed-4fd7-8a1c-2c96a648654f",
+      "id": "03164db3-de50-4ee6-b89d-bc6f1fc10d57",
       "name": "gpt-image-2: рисуем (B, 10 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3169,7 +3324,7 @@
         },
         "options": {}
       },
-      "id": "a495add7-7d30-46b3-8fb3-89f8bf8b070b",
+      "id": "179f18f5-a5f1-478a-8f30-e01ce9eeb83e",
       "name": "gpt-image-2: рисуем (B, 11 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3274,7 +3429,7 @@
         },
         "options": {}
       },
-      "id": "c8ece8bc-3ab1-42ff-bd48-54dec9d4465a",
+      "id": "26225aaa-44f8-4356-a843-90a2794b3ad6",
       "name": "gpt-image-2: рисуем (B, 12 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3384,7 +3539,7 @@
         },
         "options": {}
       },
-      "id": "56d5f578-8835-49e4-adf3-f8bfed529820",
+      "id": "36641827-1874-476d-97b2-31622f25898f",
       "name": "gpt-image-2: рисуем (B, 13 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3499,7 +3654,7 @@
         },
         "options": {}
       },
-      "id": "395c2848-8414-4d39-ae42-fb475d55cfaa",
+      "id": "d814eb19-ac28-41a8-827e-8c8c0afd1317",
       "name": "gpt-image-2: рисуем (B, 14 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3619,7 +3774,7 @@
         },
         "options": {}
       },
-      "id": "31a46d43-0e4d-4f2d-b5c3-0a00f5788d2f",
+      "id": "6becf770-669e-465b-8148-ab304e4e18cc",
       "name": "gpt-image-2: рисуем (B, 15 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3744,7 +3899,7 @@
         },
         "options": {}
       },
-      "id": "70b4697a-db3d-4488-a2cd-5161e240dfe3",
+      "id": "c0cf366e-3641-4211-b510-42a0e9fc208c",
       "name": "gpt-image-2: рисуем (B, 16 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -3763,7 +3918,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    dallePrompt: $('Собираем референсы в один item (B)').first().json.dallePrompt,\n    projectId: $('Собираем референсы в один item (B)').first().json.projectId,\n    sheetName: $('Собираем референсы в один item (B)').first().json.sheetName,\n    chatId: $('Собираем референсы в один item (B)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "d6ca896f-44c6-4b25-8f74-faa79cd87794",
+      "id": "cf74df88-64b1-43f7-a47a-069c2eae9020",
       "name": "Извлекаем картинку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3787,7 +3942,7 @@
         },
         "options": {}
       },
-      "id": "810a1cef-3717-49fe-9048-a4bf68e12254",
+      "id": "dea8091c-3052-49cc-afe2-880532ff5c66",
       "name": "Загружаем на Диск (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3818,7 +3973,7 @@
         },
         "options": {}
       },
-      "id": "e13f75f6-29eb-4041-9293-9bf65d8ca3bf",
+      "id": "79abedc0-6aaf-4078-94ba-a6a5fe097caa",
       "name": "Открываем доступ (B)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -3837,7 +3992,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (B)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (B)').first().json;\n\n// Каждый успешный рисунок через start_drawing — это НОВЫЙ вариант сцены,\n// добавляем его в конец списка вариантов, а не перезаписываем единственную\n// ячейку (иначе предыдущие варианты терялись бы при каждом новом рисунке).\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\nconst variantNumber = variants.length + 1;\nvariants.push({ n: variantNumber, url: newUrl, dallePrompt: draft.dallePrompt });\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: newUrl,\n    ai_DallePromptDraft: draft.dallePrompt,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "257643b5-20bb-4bc1-bf95-7668f5bd4ce0",
+      "id": "987889d4-d93a-4fa7-a42a-edb8bb5afeae",
       "name": "Собираем ссылку (B)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3874,7 +4029,7 @@
         },
         "options": {}
       },
-      "id": "895b0b38-c3a7-4b67-a522-55b956c729a5",
+      "id": "a7f437f9-df31-4aad-9e7c-32a554b8470f",
       "name": "Сохраняем картинку и промпт (B)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -3923,7 +4078,7 @@
         10880,
         -2600
       ],
-      "webhookId": "27f50634-14b7-4e44-b634-cb3652e57db7",
+      "webhookId": "bbabebb2-adb0-485e-93fa-4a1b20282d20",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -3933,7 +4088,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "a3a42927-241a-41e9-8f45-3b353fe835be"
+      "id": "f9224143-eceb-49fb-b0a0-11e98d543f40"
     },
     {
       "parameters": {
@@ -3947,7 +4102,7 @@
           }
         }
       },
-      "id": "adbd71c4-0a2b-482b-a613-eb4077d1d2e1",
+      "id": "3899242d-d22b-4fc9-bcec-105f78fcc52b",
       "name": "Скачиваем текущую картинку (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -3960,7 +4115,7 @@
       "parameters": {
         "jsCode": "// Правка: первая картинка — сама правка (image_0), за ней референсы — до 15.\nconst parsed = $('Итог хода').first().json;\nconst urls = (parsed.editRefUrls || []).filter(Boolean).slice(0, 15);\nreturn urls.map((url, i) => ({ json: {\n  refUrl: url, refIndex: i + 1, revisionInstruction: parsed.revisionInstruction,\n  projectId: parsed.projectId, chatId: parsed.chatId, sheetName: parsed.sheetName,\n} }));\n"
       },
-      "id": "4675c5f4-c655-4706-8c0a-6ffac69500de",
+      "id": "ad3735ab-fa54-4fb2-b907-557b7baaccbd",
       "name": "Готовим список: доп. референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -3980,7 +4135,7 @@
           }
         }
       },
-      "id": "7019d4ee-bf89-488c-ad1f-f7178d97b1cd",
+      "id": "ca61e3b6-1fe6-4d58-aa01-0e7172ae1692",
       "name": "Скачиваем референс (C)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -3993,7 +4148,7 @@
       "parameters": {
         "jsCode": "const binary = {};\nfor (const item of items) {\n  const idx = item.json.refIndex;\n  if (item.binary && item.binary.data) {\n    binary['image_' + idx] = item.binary.data;\n  }\n}\nconst first = items[0] ? items[0].json : {};\nreturn [{\n  json: {\n    revisionInstruction: first.revisionInstruction,\n    projectId: first.projectId,\n    chatId: first.chatId,\n    sheetName: first.sheetName,\n    extraCount: items.length,\n  },\n  binary\n}];"
       },
-      "id": "55316a8d-d712-46fc-ad74-16744378f1e8",
+      "id": "504d659d-0043-47ac-b2ef-8d6e0f288b6d",
       "name": "Собираем доп. референсы в один item (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4006,7 +4161,7 @@
       "parameters": {
         "jsCode": "// Текущая картинка (image_0) скачана раньше; здесь подмешиваем к ней референсы\n// (image_1, image_2, ...) и, если автор прислала обводку, маску правки (mask).\n// Маска относится к первой картинке: прозрачное — можно менять, остальное — как было.\nconst curItem = $('Скачиваем текущую картинку (C)').first();\nconst extra = $input.first();\n\nconst binary = { image_0: curItem.binary.image_0 };\nObject.assign(binary, extra.binary || {});\n\nlet hasMask = false;\ntry {\n  const m = $('Сервер: маска').first();\n  if (m && m.binary && m.binary.mask) { binary.mask = m.binary.mask; hasMask = true; }\n} catch (e) {}\n\nconst imageCount = 1 + (extra.json.extraCount || 0);\n\nreturn [{\n  json: {\n    revisionInstruction: extra.json.revisionInstruction,\n    projectId: extra.json.projectId,\n    chatId: extra.json.chatId,\n    sheetName: extra.json.sheetName,\n    imageCount,\n    hasMask,\n  },\n  binary\n}];\n"
       },
-      "id": "6c7f6e0d-639c-4e46-b378-d12aa7a259b1",
+      "id": "7fa3c5cf-11d3-45a3-916b-d0ead1bb0bd7",
       "name": "Собираем все референсы (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -4327,7 +4482,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "8803945b-cc63-4a73-818a-bf2cbf17ce72",
+      "id": "578b5cb7-5958-4c71-880b-78278e679bd6",
       "name": "Сколько картинок? (C)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -4373,7 +4528,7 @@
         },
         "options": {}
       },
-      "id": "83eccaa0-e958-4e39-8546-516e67d9ab4e",
+      "id": "6d6bd9da-c490-4723-be82-8b32f963fdf2",
       "name": "gpt-image-2: точечная правка (C, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4428,7 +4583,7 @@
         },
         "options": {}
       },
-      "id": "f3ac6f50-0699-4c0e-9e3a-d843aa06b2d1",
+      "id": "3b26d0d0-8ec6-42ea-b2c1-96d694f5eec0",
       "name": "gpt-image-2: точечная правка (C, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4488,7 +4643,7 @@
         },
         "options": {}
       },
-      "id": "e8d488fe-37b2-424a-b3aa-f7c6b9438ef7",
+      "id": "325903db-f1c4-4eed-a34b-8b932cbbbe57",
       "name": "gpt-image-2: точечная правка (C, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4553,7 +4708,7 @@
         },
         "options": {}
       },
-      "id": "d0855147-cf95-4d5c-a958-bad4bbe7772a",
+      "id": "79386a85-6448-4bff-986d-7414790b54b8",
       "name": "gpt-image-2: точечная правка (C, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4623,7 +4778,7 @@
         },
         "options": {}
       },
-      "id": "5b3b3bf1-c32a-4772-bbbe-9c6d86823f5d",
+      "id": "211e12f5-6831-4051-9d74-42362a44d12a",
       "name": "gpt-image-2: точечная правка (C, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4698,7 +4853,7 @@
         },
         "options": {}
       },
-      "id": "50c467ad-c0ec-44da-b2ce-1020a758a06c",
+      "id": "6d030d71-c821-4bfd-9887-3796ce0b22c0",
       "name": "gpt-image-2: точечная правка (C, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4778,7 +4933,7 @@
         },
         "options": {}
       },
-      "id": "a787f74a-da09-4bb5-9ad1-fd229ce6d4af",
+      "id": "c37fd738-2075-4653-b84d-4edc71587423",
       "name": "gpt-image-2: точечная правка (C, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4863,7 +5018,7 @@
         },
         "options": {}
       },
-      "id": "7cb8d6a5-8ed6-4417-a77d-08bf2db54a65",
+      "id": "8544621a-dcdd-463a-a04d-3772eb6a6671",
       "name": "gpt-image-2: точечная правка (C, 8 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -4953,7 +5108,7 @@
         },
         "options": {}
       },
-      "id": "a2c17a81-fc0a-41dd-bf35-7b289f3a3840",
+      "id": "bbf90772-5408-4381-a53a-73f35f4988d8",
       "name": "gpt-image-2: точечная правка (C, 9 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5048,7 +5203,7 @@
         },
         "options": {}
       },
-      "id": "c93ba2bb-312b-4f9c-9ed5-bde297eed555",
+      "id": "2bb1433b-b16b-4fb6-827b-bb52549c7939",
       "name": "gpt-image-2: точечная правка (C, 10 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5148,7 +5303,7 @@
         },
         "options": {}
       },
-      "id": "b15b74ba-cff2-41e6-934b-f22e988109e2",
+      "id": "330d30c9-9f7b-44e3-af97-972495afbe56",
       "name": "gpt-image-2: точечная правка (C, 11 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5253,7 +5408,7 @@
         },
         "options": {}
       },
-      "id": "20e2ad80-b536-4c3c-acb6-37d2d9c5f3c3",
+      "id": "ad01598e-ce9c-4c16-80ae-a9647bfac6a6",
       "name": "gpt-image-2: точечная правка (C, 12 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5363,7 +5518,7 @@
         },
         "options": {}
       },
-      "id": "92afd6f8-c386-403e-994a-6a5201a5151e",
+      "id": "357bf3b6-3a46-42f4-9033-b2a929d5e35b",
       "name": "gpt-image-2: точечная правка (C, 13 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5478,7 +5633,7 @@
         },
         "options": {}
       },
-      "id": "9848cb6b-2dc8-453f-9edb-e865513b0552",
+      "id": "967481c8-43b3-4c5f-8e07-0f358a3d10ee",
       "name": "gpt-image-2: точечная правка (C, 14 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5598,7 +5753,7 @@
         },
         "options": {}
       },
-      "id": "faf14af3-97bf-479d-89ee-0c68d829cf1e",
+      "id": "b20940fe-e7c8-454f-afb0-bc615ecf3452",
       "name": "gpt-image-2: точечная правка (C, 15 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5723,7 +5878,7 @@
         },
         "options": {}
       },
-      "id": "3ebdea97-c76d-4b71-b0e0-abb13cec7a65",
+      "id": "7553156b-5fd9-46d7-adbe-ac99b7e561de",
       "name": "gpt-image-2: точечная правка (C, 16 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -5742,7 +5897,7 @@
       "parameters": {
         "jsCode": "const b64 = items[0].json.data[0].b64_json;\nconst buffer = Buffer.from(b64, 'base64');\nconst binary = await this.helpers.prepareBinaryData(buffer, 'scene.png', 'image/png');\n\nreturn [{\n  json: {\n    projectId: $('Собираем все референсы (C)').first().json.projectId,\n    sheetName: $('Собираем все референсы (C)').first().json.sheetName,\n    chatId: $('Собираем все референсы (C)').first().json.chatId,\n  },\n  binary: { data: binary }\n}];"
       },
-      "id": "84d861bd-a874-4459-bf34-8011fdf474ea",
+      "id": "84b6057c-b776-458c-8a4d-94c8a9b8f825",
       "name": "Извлекаем картинку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -5766,7 +5921,7 @@
         },
         "options": {}
       },
-      "id": "520fa894-2a61-4bfd-bdb3-04e2e3592973",
+      "id": "b9219366-e7e3-48a8-aded-4a2dd4893d61",
       "name": "Загружаем на Диск (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -5797,7 +5952,7 @@
         },
         "options": {}
       },
-      "id": "c8e07f09-6ad2-4abf-b453-26a6fda2c43d",
+      "id": "621ed75c-6a3a-4c17-9dc0-80d96ca3bb2e",
       "name": "Открываем доступ (C)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
@@ -5816,7 +5971,7 @@
       "parameters": {
         "jsCode": "const fileId = $('Загружаем на Диск (C)').first().json.id;\nconst newUrl = 'https://lh3.googleusercontent.com/d/' + fileId + '=s2000';\nconst draft = $('Извлекаем картинку (C)').first().json;\nconst parsed = $('Итог хода').first().json;\n\n// Точечная правка (revisionIsNewVariant=false) меняет ссылку у ИМЕННО ТОГО\n// варианта, который был назван (revisionTargetVariantNumber) — номер не\n// меняется. Структурная правка (revisionIsNewVariant=true) — это по сути\n// другая сценка, поэтому сохраняется как СЛЕДУЮЩИЙ отдельный вариант, а\n// прежний остаётся нетронутым для сравнения.\nlet variants = [];\ntry { variants = JSON.parse($('Читаем строку проекта').first().json.ai_ImageVariants || '[]'); } catch (e) { variants = []; }\nif (!Array.isArray(variants)) variants = [];\n\nlet entry;\nif (parsed.revisionIsNewVariant) {\n  const variantNumber = variants.length + 1;\n  entry = { n: variantNumber, url: newUrl, dallePrompt: parsed.revisionInstruction || '' };\n  variants.push(entry);\n} else {\n  const targetNumber = parsed.revisionTargetVariantNumber || (variants.length ? variants[variants.length - 1].n : 1);\n  entry = variants.find(v => Number(v.n) === Number(targetNumber));\n  if (entry) {\n    entry.url = newUrl;\n  } else {\n    entry = { n: targetNumber, url: newUrl, dallePrompt: '' };\n    variants.push(entry);\n  }\n}\n\n// ai_ImageUrl/ai_DallePromptDraft остаются \"последним по списку\" вариантом —\n// как и раньше, это удобный алиас для тех мест кода, которым нужен просто\n// один текущий URL (например, форс-согласование или \"текущая картинка\" для\n// свежей правки без явного номера).\nconst lastVariant = variants[variants.length - 1];\n\nreturn [{\n  json: {\n    sys_ProjectID: draft.projectId,\n    ai_ImageUrl: lastVariant.url,\n    ai_ImageVariants: JSON.stringify(variants),\n    variantNumber: entry.n,\n    sheetName: draft.sheetName,\n    chatId: draft.chatId,\n  }\n}];\n"
       },
-      "id": "32d857f9-411e-43ec-a04e-add80c8ff7a0",
+      "id": "782c5acf-9f12-42bb-8261-32dd06547dc2",
       "name": "Собираем ссылку (C)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -5852,7 +6007,7 @@
         },
         "options": {}
       },
-      "id": "2e7307e8-6321-4d92-afcd-0f748f16be80",
+      "id": "d83b5afe-7e5a-4ff7-8355-6fd98be26f28",
       "name": "Сохраняем картинку (C)",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
@@ -5901,7 +6056,7 @@
         11320,
         -300
       ],
-      "webhookId": "f30b3ee6-3e50-4dc8-b41e-fce68a65a019",
+      "webhookId": "e093e83b-d09b-415e-ad88-09a5baa53841",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
@@ -5911,7 +6066,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "id": "cc4f6734-81c1-4a3b-ae8a-8aa1e677a0b3"
+      "id": "aea796c1-9ec1-45db-a215-64fd55c84fb6"
     },
     {
       "parameters": {
@@ -5923,7 +6078,7 @@
           },
           "conditions": [
             {
-              "id": "5e285656-0f16-49af-8475-d9b0b3e45486",
+              "id": "1d7dbb7b-1db1-4249-86cc-93338b8f21d5",
               "leftValue": "={{ $('Кто отвечает').first().json.needMask }}",
               "rightValue": true,
               "operator": {
@@ -5944,7 +6099,7 @@
         8240,
         0
       ],
-      "id": "8c4ad311-7c3d-44d8-ac9e-b0a5616cef49"
+      "id": "fde9504d-c79b-4d4d-817c-8969e830992e"
     },
     {
       "parameters": {
@@ -5961,14 +6116,14 @@
         8350,
         160
       ],
-      "webhookId": "43c09413-4be9-4255-aded-c56f6a7d63f6",
+      "webhookId": "a0f8895b-cf41-4aec-9152-fab57468459d",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "40dc21eb-9dd0-41e6-8305-29dc485e1dfd"
+      "id": "8ef77cff-7b3e-4621-94e4-0efe5203a152"
     },
     {
       "parameters": {
@@ -5981,7 +6136,7 @@
         8460,
         320
       ],
-      "id": "e1b3135b-4e7c-4c2c-94b1-5403e62b153f"
+      "id": "71d7cd55-98db-4151-8983-4a04ba4f9b70"
     },
     {
       "parameters": {
@@ -6008,7 +6163,7 @@
         160
       ],
       "onError": "continueRegularOutput",
-      "id": "be2d1166-0c25-4f4f-bde1-4542c54e189c"
+      "id": "d271e2b1-a65e-4708-b9cb-277edd768046"
     },
     {
       "parameters": {
@@ -6020,7 +6175,7 @@
           },
           "conditions": [
             {
-              "id": "37056768-0e37-4218-a189-0b0709c0de7c",
+              "id": "ad02bffa-a737-44ed-b5bd-fa898fdc7b46",
               "leftValue": "={{ $json.hasMask }}",
               "rightValue": true,
               "operator": {
@@ -6041,7 +6196,7 @@
         9670,
         0
       ],
-      "id": "1991eec5-0214-4483-a658-828a2e328a49"
+      "id": "58441d2a-a702-4168-b871-5e71252c3616"
     },
     {
       "parameters": {
@@ -6353,7 +6508,7 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "ab4ae936-5735-48f0-99f7-b20af6377b6f",
+      "id": "16bb4339-539f-4043-821b-2aa19ec31e09",
       "name": "Сколько картинок? (C, маска)",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -6404,7 +6559,7 @@
         },
         "options": {}
       },
-      "id": "f371a42c-2d52-4e85-b433-c3276c25dfa7",
+      "id": "dc4fff76-5c23-45b4-ba30-a98bdb74d11e",
       "name": "gpt-image-2: правка по обводке (C, 1 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -6464,7 +6619,7 @@
         },
         "options": {}
       },
-      "id": "08ac406e-2059-4dbc-bfce-f3dbefacd77e",
+      "id": "338fa60e-49ff-4dfd-a1f2-aa6a03c3ec3d",
       "name": "gpt-image-2: правка по обводке (C, 2 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -6529,7 +6684,7 @@
         },
         "options": {}
       },
-      "id": "f594b9ef-16ae-4ed4-9885-57d89dade7cd",
+      "id": "fb8cc46f-eb30-4003-a4d5-1c235b5ab56a",
       "name": "gpt-image-2: правка по обводке (C, 3 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -6599,7 +6754,7 @@
         },
         "options": {}
       },
-      "id": "10f68b80-0161-4b46-9693-82f7a09eebc0",
+      "id": "a49ceaf0-c12e-42f8-a106-45b17d3ca22f",
       "name": "gpt-image-2: правка по обводке (C, 4 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -6674,7 +6829,7 @@
         },
         "options": {}
       },
-      "id": "2edf6966-0572-4b54-bb3a-31b9d897856b",
+      "id": "d54dd639-1921-4fc2-a978-1a87cefcd301",
       "name": "gpt-image-2: правка по обводке (C, 5 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -6754,7 +6909,7 @@
         },
         "options": {}
       },
-      "id": "675bb17d-4229-4b32-806d-cf0fe8d06433",
+      "id": "970b0b86-9749-49d5-a854-60bb16e4269c",
       "name": "gpt-image-2: правка по обводке (C, 6 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -6839,7 +6994,7 @@
         },
         "options": {}
       },
-      "id": "c7993a6d-4291-4355-8172-00837987ff91",
+      "id": "d555362b-d534-4f1d-b417-8b2ab55e2756",
       "name": "gpt-image-2: правка по обводке (C, 7 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -6929,7 +7084,7 @@
         },
         "options": {}
       },
-      "id": "a8a69fca-a0df-4737-bff9-fdf2504e1e6c",
+      "id": "14a7e66f-9895-4ada-ad45-5851067b9fbd",
       "name": "gpt-image-2: правка по обводке (C, 8 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7024,7 +7179,7 @@
         },
         "options": {}
       },
-      "id": "eb6832b4-6706-40f8-b386-fe7ec810ea16",
+      "id": "dcd9590d-8582-413d-94ee-cb8e1b8b64a9",
       "name": "gpt-image-2: правка по обводке (C, 9 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7124,7 +7279,7 @@
         },
         "options": {}
       },
-      "id": "78d19043-7570-4fbe-adc7-2d4142f238dd",
+      "id": "d69507f1-7167-4769-bf6c-4891f2a714ea",
       "name": "gpt-image-2: правка по обводке (C, 10 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7229,7 +7384,7 @@
         },
         "options": {}
       },
-      "id": "2ff0826c-066f-4b29-bce7-ea6e6d144484",
+      "id": "46d53ea3-7365-4f7a-ae58-5b8ee8db6d35",
       "name": "gpt-image-2: правка по обводке (C, 11 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7339,7 +7494,7 @@
         },
         "options": {}
       },
-      "id": "794b5385-c978-46da-8d68-8d47d3d4c1d8",
+      "id": "a0bf02bb-bd41-4631-8e44-6852274d8b93",
       "name": "gpt-image-2: правка по обводке (C, 12 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7454,7 +7609,7 @@
         },
         "options": {}
       },
-      "id": "77161bf3-9ee1-4e57-a628-f514c0161413",
+      "id": "b4bf4f63-5034-4c71-b90e-75ef5228471e",
       "name": "gpt-image-2: правка по обводке (C, 13 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7574,7 +7729,7 @@
         },
         "options": {}
       },
-      "id": "71796a81-0916-4a2f-9334-260be6a9af20",
+      "id": "2e25a392-a255-430a-8b72-c86199405b93",
       "name": "gpt-image-2: правка по обводке (C, 14 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7699,7 +7854,7 @@
         },
         "options": {}
       },
-      "id": "db7507bd-d1b4-4049-88ce-a3143408b70c",
+      "id": "d14e20d3-34a7-455a-82be-d7b48dde3245",
       "name": "gpt-image-2: правка по обводке (C, 15 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7829,7 +7984,7 @@
         },
         "options": {}
       },
-      "id": "59ce8047-5277-4b8c-bdf8-6a328358791e",
+      "id": "3041b943-f992-45c2-9db4-4a1282be8492",
       "name": "gpt-image-2: правка по обводке (C, 16 img)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
@@ -7855,7 +8010,7 @@
         11540,
         -2300
       ],
-      "id": "e2267e2f-daf0-4f4f-859c-2d10dffa864b"
+      "id": "c389b905-5c1c-49ed-adf1-f1891288a8ec"
     },
     {
       "parameters": {
@@ -7867,7 +8022,7 @@
           },
           "conditions": [
             {
-              "id": "627b2060-1fea-47eb-9195-7f203df0a41c",
+              "id": "8a7aabde-a4eb-432f-8c67-e3f6714c3009",
               "leftValue": "={{ $('Авто: согласуем картинку').first().json.ok }}",
               "rightValue": true,
               "operator": {
@@ -7888,7 +8043,7 @@
         11760,
         -2300
       ],
-      "id": "da277383-9aed-4eda-9f6a-af3bcf67d652"
+      "id": "b77adce4-37be-4ac8-87b4-172ee38fa78d"
     },
     {
       "parameters": {
@@ -7930,7 +8085,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "9d4c8ec5-7f46-4e19-887b-2a9ac32ca47b"
+      "id": "e35faaf5-272b-4aea-a2ce-376f1865d314"
     },
     {
       "parameters": {
@@ -7943,7 +8098,7 @@
         3140,
         900
       ],
-      "id": "1ff7f4e7-6fb9-4fb7-969f-01bfbc40829f"
+      "id": "97bf43fe-b863-479a-83b3-b458e49579e7"
     },
     {
       "parameters": {
@@ -7955,7 +8110,7 @@
           },
           "conditions": [
             {
-              "id": "d84fb6af-133c-4685-9183-6acadc2c041e",
+              "id": "09f16cc7-2c8c-4721-89e6-6671f31fe726",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -7976,7 +8131,7 @@
         3360,
         900
       ],
-      "id": "cb8802d4-309d-4336-83aa-4c6f1a6ec1ae"
+      "id": "ed476f38-750d-4fac-a703-359fc3b174b7"
     },
     {
       "parameters": {
@@ -8018,7 +8173,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "c62337df-5c3b-42b2-89c4-c0b7dc93ae39"
+      "id": "317c0c14-7d0a-4d13-9296-d13860125b66"
     },
     {
       "parameters": {
@@ -8038,14 +8193,14 @@
         3800,
         900
       ],
-      "webhookId": "847c6f96-3c8a-4a70-abc1-bb51db97c144",
+      "webhookId": "35f408d4-985f-4bb1-b60a-48621a241204",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "850783ae-32a5-4fba-bed8-47425a9894a0"
+      "id": "cfb04991-e9b9-495c-b1c0-65c64e8ba074"
     },
     {
       "parameters": {
@@ -8065,14 +8220,14 @@
         3580,
         1100
       ],
-      "webhookId": "577b1649-84c1-4a51-a0d6-230e3d7898b1",
+      "webhookId": "4f6c9cd6-f985-42d4-92c0-0478ae2476f4",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "d44b8813-f0f2-40ec-88c5-36d2622ba2bd"
+      "id": "5d2c67e1-d95b-4127-9910-e17eda3d467b"
     },
     {
       "parameters": {
@@ -8085,7 +8240,7 @@
         3140,
         1300
       ],
-      "id": "c3551436-ebd5-43b7-ae72-32f44a8a4a3e"
+      "id": "ed8a9fd3-3099-4003-be52-9c60398f0a78"
     },
     {
       "parameters": {
@@ -8097,7 +8252,7 @@
           },
           "conditions": [
             {
-              "id": "212121e3-fce4-4ee5-bbcc-8358494ee781",
+              "id": "266b00b3-975a-48c7-8492-6d8b83715b1f",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -8118,7 +8273,7 @@
         3360,
         1300
       ],
-      "id": "2e9b2464-e491-4cfb-aa41-7dc0d4702314"
+      "id": "5072697e-ae11-48ce-86a3-de2ada37dd89"
     },
     {
       "parameters": {
@@ -8131,7 +8286,7 @@
         3580,
         1300
       ],
-      "id": "b6ae7fc3-dbbb-4d14-a1c5-7c1daddf0925"
+      "id": "3cadd9c4-c45b-4001-971c-6b1a9c16ba84"
     },
     {
       "parameters": {
@@ -8170,7 +8325,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "ce1276b8-1408-4d44-bbb0-36c7d32ace6a"
+      "id": "45138b0c-e550-4d38-baf1-85f33984fdde"
     },
     {
       "parameters": {
@@ -8209,7 +8364,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "9209da87-c4a1-4f40-a393-edcd207b0d71"
+      "id": "178f0957-732c-4683-a5c1-9ec6a7877d1a"
     },
     {
       "parameters": {
@@ -8222,7 +8377,7 @@
         4240,
         1300
       ],
-      "id": "40e3296f-f397-45f4-9e8f-d8c445838a34"
+      "id": "589b0981-fa4f-4278-8f73-bb59be0f66d9"
     },
     {
       "parameters": {
@@ -8234,7 +8389,7 @@
           },
           "conditions": [
             {
-              "id": "050b267a-9055-46ea-9bfc-7ed0f15d40a1",
+              "id": "3138e4e1-9367-44bb-89fe-f98e6fd55639",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -8255,7 +8410,7 @@
         4460,
         1300
       ],
-      "id": "56779240-a044-4068-a6fb-61007a64b4a1"
+      "id": "a10aa169-04f4-4808-963a-5c667209e41e"
     },
     {
       "parameters": {
@@ -8296,7 +8451,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "3231a189-13df-4227-8ab0-ce7213de3654"
+      "id": "cdff9087-cec3-48fa-86d2-01f7fc0e3227"
     },
     {
       "parameters": {
@@ -8309,7 +8464,7 @@
         4900,
         1300
       ],
-      "id": "97c88f13-ddbb-46e9-a32d-063d222128be"
+      "id": "1534a61d-2c60-456d-a857-97f9e804b96e"
     },
     {
       "parameters": {
@@ -8329,14 +8484,14 @@
         5120,
         1300
       ],
-      "webhookId": "afd2f173-5c2b-45a5-ae63-818c1317aa20",
+      "webhookId": "f71eb288-8b59-480d-893f-454c96ec54a7",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "4e5245ea-3a2e-4393-be87-011df863941e"
+      "id": "ccfa1794-8a16-4045-bc0f-04eb354ca026"
     },
     {
       "parameters": {
@@ -8373,14 +8528,14 @@
         5560,
         1180
       ],
-      "webhookId": "ca9c205a-9bf1-4f17-a83a-f900898136e6",
+      "webhookId": "c78b6298-0863-4709-8fe5-4f9a466f5e88",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "ca17870c-d5d8-43ad-9168-e0b3b7efc184"
+      "id": "a4eccd59-e6d2-4883-97c9-3ca751b126c0"
     },
     {
       "parameters": {
@@ -8392,7 +8547,7 @@
           },
           "conditions": [
             {
-              "id": "63ca3f36-7690-4110-8307-66bfaa0bf02c",
+              "id": "778977c3-f3ce-45d6-9bb6-80baa298f75b",
               "leftValue": "={{ $('Сообщение: утверждено').first().json.hasTracks }}",
               "rightValue": true,
               "operator": {
@@ -8413,7 +8568,7 @@
         5340,
         1300
       ],
-      "id": "fd32ed6c-7a31-40f9-ae5b-caf7e40c59cd"
+      "id": "66f84f8e-8059-42eb-8633-b57c2ad35258"
     },
     {
       "parameters": {
@@ -8433,14 +8588,14 @@
         3580,
         1520
       ],
-      "webhookId": "1c38f146-01a1-4435-8c03-d785f841b1d0",
+      "webhookId": "62bb34af-5e63-4862-b541-d94e73a9c788",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "f90f334f-7ec1-4797-8c0e-de74f9f5a934"
+      "id": "62b5428d-100b-44e5-93bc-11b9780c0312"
     },
     {
       "parameters": {
@@ -8453,7 +8608,7 @@
         2700,
         1900
       ],
-      "id": "c947dd8d-8d1d-420b-a0ef-a1f6ef6ea095"
+      "id": "d847719a-360d-4630-a3f3-783d177a46f8"
     },
     {
       "parameters": {
@@ -8465,7 +8620,7 @@
           },
           "conditions": [
             {
-              "id": "2e196285-a26d-4889-99aa-823a429c3719",
+              "id": "fa1f1813-1a93-42e1-a32c-532b534f65c1",
               "leftValue": "={{ $json.published }}",
               "rightValue": true,
               "operator": {
@@ -8486,7 +8641,7 @@
         2920,
         1900
       ],
-      "id": "db5333a6-6ee4-483c-ad50-476d0c3eb6fe"
+      "id": "953f13f0-d651-42c2-a50a-995524ae8b8a"
     },
     {
       "parameters": {
@@ -8506,14 +8661,14 @@
         3140,
         1700
       ],
-      "webhookId": "8739ba39-c475-46e4-b04c-bc577eb3ca67",
+      "webhookId": "758957be-104c-4c19-b305-31eb86523702",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "b33e77fd-047a-4343-8e26-4ef37d9ddbb4"
+      "id": "414c4f5d-221b-4d0b-a364-7b53ca756978"
     },
     {
       "parameters": {
@@ -8554,7 +8709,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "bcd3cea1-4c56-41b9-93b2-b94f88b725d2"
+      "id": "b09c9664-7af3-4ad6-b545-f0bd008c281e"
     },
     {
       "parameters": {
@@ -8566,7 +8721,7 @@
           },
           "conditions": [
             {
-              "id": "022cfa36-07cd-492c-ad3f-7c9381ed7756",
+              "id": "231e589a-ac49-4389-bbed-488243934100",
               "leftValue": "={{ $('Разбираем ссылку на треки').first().json.approved }}",
               "rightValue": true,
               "operator": {
@@ -8587,7 +8742,7 @@
         3360,
         1900
       ],
-      "id": "43fd249c-157e-4892-9083-b27b08d2102b"
+      "id": "85f013f1-a964-4aa8-adf1-5efb1cfaa05b"
     },
     {
       "parameters": {
@@ -8607,14 +8762,14 @@
         3580,
         2100
       ],
-      "webhookId": "7a37c49d-e52d-4a70-bc75-c9782476fd37",
+      "webhookId": "e6ebc5fb-e61c-4059-82cc-e9a91223f764",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "fbc21763-8694-4bfa-9fa8-feade1672ca6"
+      "id": "f6d9b83d-c376-4bdc-90b5-0e7df2fe3d1b"
     },
     {
       "parameters": {
@@ -8627,7 +8782,7 @@
         3360,
         2500
       ],
-      "id": "120ad066-9530-4750-97ac-25fa0b63b595"
+      "id": "7500ef1f-1114-4a50-8ee7-9bdc8c4740d3"
     },
     {
       "parameters": {
@@ -8639,7 +8794,7 @@
           },
           "conditions": [
             {
-              "id": "c2cd99eb-2c4d-4dbb-abdd-b3399eb6fa02",
+              "id": "be28327e-c53e-41ae-b030-0c0fa9f51f82",
               "leftValue": "={{ $('Чистка: нужна?').first().json.need }}",
               "rightValue": true,
               "operator": {
@@ -8660,7 +8815,7 @@
         3580,
         2500
       ],
-      "id": "bb4742c3-6043-4cc4-86c0-b3e0a12309fe"
+      "id": "8790ecf8-e7f4-4ed1-aedb-4ff5ef5a8215"
     },
     {
       "parameters": {
@@ -8681,7 +8836,7 @@
         2500
       ],
       "onError": "continueRegularOutput",
-      "id": "7b7bc568-c5ce-4a61-a753-575fc87e7025"
+      "id": "f63161ae-a6e1-430d-a429-b5422dd5c823"
     },
     {
       "parameters": {
@@ -8694,7 +8849,7 @@
         4020,
         2500
       ],
-      "id": "863754cd-a1db-4131-a0a2-c25db6a349c9"
+      "id": "2a913bd3-1b30-43b1-a1d5-c6ce69aebf1a"
     },
     {
       "parameters": {
@@ -8738,7 +8893,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "7dc50250-d05c-4be1-b6f6-14c2211ef3dc"
+      "id": "68791da1-4653-4cae-a350-4996d2980f32"
     },
     {
       "parameters": {
@@ -8758,14 +8913,14 @@
         4460,
         2500
       ],
-      "webhookId": "b63c620c-3e73-43d3-8340-f7399bc4861e",
+      "webhookId": "3c9d6d29-9057-4d78-ab16-cae2991eac27",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "26fbf0ba-6b0d-4493-bdc8-c350087d9f0a"
+      "id": "b094337d-ac5a-4896-970a-cb286021f3e3"
     },
     {
       "parameters": {
@@ -8777,7 +8932,7 @@
           },
           "conditions": [
             {
-              "id": "bbc3de8d-ca97-4490-8547-529c394854cb",
+              "id": "5b791805-aa29-4e07-bfd9-0a94d925bb2e",
               "leftValue": "={{ $('Чистка: запущена?').first().json.ok }}",
               "rightValue": true,
               "operator": {
@@ -8798,7 +8953,7 @@
         4680,
         2500
       ],
-      "id": "0cf6ac26-c7bd-44d0-8a4e-0d8b5ce321f2"
+      "id": "c9e4622f-87b3-477b-86d7-ee488bc7d544"
     },
     {
       "parameters": {
@@ -8817,8 +8972,8 @@
         4900,
         2500
       ],
-      "webhookId": "4bb2c467-df54-4f47-b5c5-7de8a184b369",
-      "id": "c649cc9e-0be2-47dd-b0c3-8359ea9481e1"
+      "webhookId": "dd7c0ccf-8096-49c7-86ba-242a3692f303",
+      "id": "7e5130c7-71cb-4171-a21a-b01450ac80ac"
     },
     {
       "parameters": {
@@ -8857,7 +9012,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "1d60b229-9293-4324-9772-e60b0f1ae1ce"
+      "id": "279ac979-7f68-48ba-8245-094e1ad10ccd"
     },
     {
       "parameters": {
@@ -8870,7 +9025,7 @@
         5340,
         2500
       ],
-      "id": "7e3db882-59a5-4bd5-8802-933562968db1"
+      "id": "68995763-351b-4e6b-9ca7-f718f749d7b3"
     },
     {
       "parameters": {
@@ -8949,7 +9104,7 @@
         5560,
         2500
       ],
-      "id": "07fd8691-954e-4157-80c1-24e3bcdb7b45"
+      "id": "94805d39-8ba4-4495-a29d-a178e7f6354a"
     },
     {
       "parameters": {
@@ -8970,7 +9125,7 @@
         2400
       ],
       "onError": "continueRegularOutput",
-      "id": "e1b43bb0-3980-4846-871e-497fd3a7d158"
+      "id": "81e0bc42-073a-40ab-a575-b6d0e91af2e2"
     },
     {
       "parameters": {
@@ -8983,7 +9138,7 @@
         6000,
         2500
       ],
-      "id": "9daa4964-831d-4077-ad62-f3cfb2881ce4"
+      "id": "b8c7dd33-f1e8-4245-a11d-3099972999a9"
     },
     {
       "parameters": {
@@ -9082,7 +9237,7 @@
         6220,
         2500
       ],
-      "id": "6ee93e94-d237-42cf-92e9-f555992b90e8"
+      "id": "c22ea87d-a99e-41a5-9bc5-81072081fce2"
     },
     {
       "parameters": {
@@ -9124,7 +9279,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "e80f65ea-f2be-464c-a304-6f23af158b5b"
+      "id": "fd98e395-bf9f-4cec-8fe7-d10e84dfb565"
     },
     {
       "parameters": {
@@ -9144,14 +9299,14 @@
         6660,
         2400
       ],
-      "webhookId": "da5c79f8-51f1-4cce-9f1c-66861045e923",
+      "webhookId": "ceae5d05-1c98-4dc0-af02-d04b6ec3cd89",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "29498d1f-0240-4b19-83b6-8b5597375ea5"
+      "id": "c0280cf4-2635-4310-b338-5962cf74f533"
     },
     {
       "parameters": {
@@ -9163,7 +9318,7 @@
           },
           "conditions": [
             {
-              "id": "5f2f6051-b0de-43b9-a92e-d851784baeb0",
+              "id": "af1d2ebe-9de8-4559-b25c-4730f4bc5e97",
               "leftValue": "={{ $('Чистка: итог').first().json.action === 'done' && $('Чистка: итог').first().json.approved }}",
               "rightValue": true,
               "operator": {
@@ -9184,7 +9339,7 @@
         6880,
         2400
       ],
-      "id": "d07f871a-ac1f-4e99-859e-d0a74ff46ad8"
+      "id": "ebf453a2-6722-4a2e-b66f-fdda1df5010f"
     },
     {
       "parameters": {
@@ -9204,14 +9359,14 @@
         6440,
         2650
       ],
-      "webhookId": "71a059b4-5ddf-45dd-8642-025a24a8e1ac",
+      "webhookId": "1c043d53-fce0-4c2f-b9de-afda31692279",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "b7726def-3dbd-46dc-902a-52465271ddc9"
+      "id": "ba44e5cf-acf6-49b8-ab8f-575698f91027"
     },
     {
       "parameters": {
@@ -9224,7 +9379,7 @@
         2700,
         3200
       ],
-      "id": "1888cc2b-ca6d-4e84-8d64-7c914a9c1ada"
+      "id": "75a6bf41-b50b-4344-b216-7f1d414fa868"
     },
     {
       "parameters": {
@@ -9236,7 +9391,7 @@
           },
           "conditions": [
             {
-              "id": "94846d46-de46-4efe-8d3d-aae0b806674a",
+              "id": "f81eb5dc-05d1-49c7-a766-74627db223ca",
               "leftValue": "={{ $json.ask }}",
               "rightValue": true,
               "operator": {
@@ -9257,7 +9412,7 @@
         2920,
         3200
       ],
-      "id": "dea3e6fd-17d9-4dc6-973e-e56719880ad5"
+      "id": "8126f144-8888-4d7e-8094-accfc585a0c0"
     },
     {
       "parameters": {
@@ -9278,7 +9433,7 @@
         3100
       ],
       "onError": "continueRegularOutput",
-      "id": "1fd7eafc-410c-479f-8667-5e85cd1a8953"
+      "id": "bd862eac-f72a-4e7b-bdb9-b30cc56dcb51"
     },
     {
       "parameters": {
@@ -9291,7 +9446,7 @@
         3360,
         3100
       ],
-      "id": "c213c50f-6a38-4f9b-a5b9-3cbbc671f469"
+      "id": "b9ff1971-91a3-4964-af9e-e2c9c6fac93b"
     },
     {
       "parameters": {
@@ -9303,7 +9458,7 @@
           },
           "conditions": [
             {
-              "id": "45105919-cbfd-48ce-8d75-9f3cc8cc5620",
+              "id": "8fceacce-436a-48d0-85f5-95186a256d91",
               "leftValue": "={{ $json.update }}",
               "rightValue": true,
               "operator": {
@@ -9324,7 +9479,7 @@
         3580,
         3200
       ],
-      "id": "00f48433-a314-431a-a539-ba3254ebc649"
+      "id": "8624b555-6eb9-4d33-93b2-792ded792274"
     },
     {
       "parameters": {
@@ -9366,7 +9521,7 @@
           "name": "Google Sheets account 2"
         }
       },
-      "id": "6d0b8b00-b8d8-4378-9508-caf35072c423"
+      "id": "6d106567-54e2-4472-9c34-532d861704d9"
     },
     {
       "parameters": {
@@ -9379,7 +9534,7 @@
         4020,
         3200
       ],
-      "id": "b9901ad6-eea2-45a7-ab1b-5c707adf22aa"
+      "id": "50c42fc5-c48a-484e-9e12-2ce45939644f"
     },
     {
       "parameters": {
@@ -9391,7 +9546,7 @@
           },
           "conditions": [
             {
-              "id": "ee4132a6-f48e-4d12-9348-f1c6b9e236f2",
+              "id": "777405a1-cc1f-424e-88ee-5e514beaa98d",
               "leftValue": "={{ $json.button }}",
               "rightValue": true,
               "operator": {
@@ -9412,7 +9567,7 @@
         4240,
         3200
       ],
-      "id": "ca80c006-49c3-4554-9eb7-1c7667302a9c"
+      "id": "e0805f0d-26b3-45b4-a366-388bf0efaf32"
     },
     {
       "parameters": {
@@ -9449,14 +9604,14 @@
         4460,
         3100
       ],
-      "webhookId": "b8b5b195-1578-4316-a691-c9585397af60",
+      "webhookId": "9cf65e2b-5425-4b20-99ca-8c111da470ff",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "f621e387-6571-438b-8d78-cae846888778"
+      "id": "f0177225-757e-4a26-b209-5e59667ba369"
     },
     {
       "parameters": {
@@ -9476,14 +9631,14 @@
         4460,
         3300
       ],
-      "webhookId": "c5267e36-479d-4787-b0c2-e3e4ae881a24",
+      "webhookId": "69d382a5-f01f-4b24-8374-6dbf91842af0",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "7d487e7d-c5ec-48d4-be68-695fad268f4a"
+      "id": "f4e62b91-c800-4a07-975d-1697ac3be260"
     },
     {
       "parameters": {
@@ -9522,7 +9677,7 @@
         }
       },
       "alwaysOutputData": true,
-      "id": "2e1464e0-f3f4-47fd-a1ea-e4e85a15e60d"
+      "id": "a2bae13b-cfcc-4d71-aaa1-56ee8d123ee6"
     },
     {
       "parameters": {
@@ -9535,7 +9690,7 @@
         5120,
         1600
       ],
-      "id": "d4055fa8-e969-409f-8159-249ca4710e80"
+      "id": "53c90b96-18d4-4e30-820a-a6ce1d09a3d0"
     },
     {
       "parameters": {
@@ -9547,7 +9702,7 @@
           },
           "conditions": [
             {
-              "id": "f9e379c8-97ad-4442-8ccf-a17d7348fc95",
+              "id": "43f51f55-daa0-46a7-8f1b-346c99cbfcfa",
               "leftValue": "={{ $json.ok }}",
               "rightValue": true,
               "operator": {
@@ -9568,7 +9723,7 @@
         5340,
         1600
       ],
-      "id": "a17409c1-a3aa-48df-b8d3-bb0ae7b38972"
+      "id": "ec2bc72e-f381-4950-a129-cc32945329c8"
     },
     {
       "parameters": {
@@ -9588,14 +9743,14 @@
         5560,
         1500
       ],
-      "webhookId": "7654d352-8503-4e70-a0ed-e2dbc3eda7a4",
+      "webhookId": "51d04e18-665b-4f6d-8908-dff94b8c3511",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "36920f3e-54a3-4ab4-92e7-0bb608b14c15"
+      "id": "5d4c9223-9ac3-4c13-8290-36c151b51120"
     },
     {
       "parameters": {
@@ -9627,7 +9782,7 @@
         5780,
         1500
       ],
-      "id": "a4b209e8-71d5-42dc-92fc-6af988ce53e7"
+      "id": "1879f285-1fed-4667-bddf-1068e60ce18f"
     },
     {
       "parameters": {
@@ -9647,14 +9802,14 @@
         5560,
         1750
       ],
-      "webhookId": "10246c0b-d8fd-4bfe-a154-344830e4555b",
+      "webhookId": "67472905-3c88-4ba5-ba26-27d4337fad09",
       "credentials": {
         "telegramApi": {
           "id": "UW2MJh6bPIyVZeig",
           "name": "Telegram account 2"
         }
       },
-      "id": "c4e5fb1e-6e41-4d2d-8d1d-9b16d7d0923b"
+      "id": "1a813ec3-06cd-45ba-b94d-ffb5e1bed4f7"
     },
     {
       "parameters": {
@@ -9663,14 +9818,14 @@
         "width": 620,
         "color": 4
       },
-      "name": "Заметка 201",
+      "name": "Заметка 208",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         -40,
         -360
       ],
-      "id": "0090d226-4a76-4d70-8ff9-4c37c4d1b4c6"
+      "id": "7f727115-d8c7-4976-b72a-de657e246a7b"
     },
     {
       "parameters": {
@@ -9679,14 +9834,14 @@
         "width": 1000,
         "color": 5
       },
-      "name": "Заметка 202",
+      "name": "Заметка 209",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         3100,
         -1920
       ],
-      "id": "aca290b5-5304-4baf-a564-5f0969eb0bc0"
+      "id": "3ab08cb5-7e8b-4eed-bc47-7c2f4af542b8"
     },
     {
       "parameters": {
@@ -9695,14 +9850,14 @@
         "width": 900,
         "color": 3
       },
-      "name": "Заметка 203",
+      "name": "Заметка 210",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         3100,
         1040
       ],
-      "id": "9c7e0649-a800-4c1c-8c2b-dad369369f75"
+      "id": "9addfcbd-f28e-4a3a-88cb-bb25f6b71fdc"
     }
   ],
   "connections": {
@@ -10194,6 +10349,97 @@
       ]
     },
     "Разбираем ответ этапа": {
+      "main": [
+        [
+          {
+            "node": "Лупа: план",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Лупа: план": {
+      "main": [
+        [
+          {
+            "node": "Нужна лупа?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нужна лупа?": {
+      "main": [
+        [
+          {
+            "node": "Сервер: лупа",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Поручение?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сервер: лупа": {
+      "main": [
+        [
+          {
+            "node": "Есть точки?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть точки?": {
+      "main": [
+        [
+          {
+            "node": "Готовим уточнение",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Поручение?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим уточнение": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: уточнение",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: уточнение": {
+      "main": [
+        [
+          {
+            "node": "Лупа: итог",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Лупа: итог": {
       "main": [
         [
           {
