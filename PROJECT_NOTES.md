@@ -2262,3 +2262,4 @@ Real-ESRGAN, 4K, живая ткань, плашка); 24/7 эфир + дрей�
 - Подвал, случай A (Templates!I2): «♪ A reimagining of the theme from [Composer]'s [Piece], with variations on it. …» + пример Simple Gifts.
 - Листья: частоту Аниматор предлагает и спрашивает автора; обычно ближний раз в 2 мин, дальний раз в минуту, в парке/листопад — чаще (BM2). Скоро «прогулка в парке».
 - Сервер ещё не обновлён (highs + будущая лупа — одним обновлением, когда нет сборки).
+- Подвал, случай A — пингвиний вариант (автор выбрала): «♪ Pengui's take on the theme from [Composer]'s [Piece], with a few variations he hummed along the way. Public domain. Theme performed by the channel author. Arranged and produced with AI tools by © Jazzt a Pengui.» (Templates!I2)
