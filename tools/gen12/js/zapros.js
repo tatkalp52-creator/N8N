@@ -63,6 +63,7 @@ const card = [
 ].filter(Boolean).join('\n');
 
 const myItems = items.filter(it => sc.items.includes(it.n));
+const previewStage = myItems.some(it => it.preview);
 const itemsSpec = myItems.map(it => `  ${it.n}. ${it.name}${it.hint ? ' — ' + it.hint : ''}${it.canEmpty ? ' (можно оставить пустым: "-")' : ''}`).join('\n');
 const subs = sc.subs;
 const talk = plan.silent
@@ -174,7 +175,9 @@ const requestBody = {
   input,
   tools,
   // молчаливый этап и разметка автора — это всегда работа над пунктами: ответ инструментом, тогда придёт и превью
-  tool_choice: (plan.silent || marksText) && myItems.length ? { type: 'function', name: 'propose_items' } : 'auto',
+  // пункт с превью (оживление): автор проверяет его глазами — на любое не-одобрение отвечаем строками, тогда придёт видео
+  tool_choice: (plan.silent || marksText || (previewStage && !(plan.approveNums || []).length)) && myItems.length
+    ? { type: 'function', name: 'propose_items' } : 'auto',
   parallel_tool_calls: false,
   truncation: 'auto',
 };

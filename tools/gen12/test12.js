@@ -38,7 +38,7 @@ async function context(stages, row, inc) {
     'Читаем строку проекта': { sys_ProjectID: 'P1', sys_Status: 'Картинка в работе', ai_ImageVariants: '[]', ...row },
     'Читаем шаблоны канала': TMPL,
     'Читаем этапы': stages,
-    'Читаем пункты': ITEMS,
+    'Читаем пункты': inc.__items || ITEMS,
   };
   return (await run('Контекст проекта', { nodes }))[0];
 }
@@ -266,6 +266,7 @@ async function turn(stages, row, inc, response, subResponse) {
     const req = (await run('Готовим запрос этапу', { nodes: n }))[0];
     const imgs = req.requestBody.input[0].content.filter(c => c.type === 'input_image').map(c => c.image_url);
     assert.deepEqual(imgs, ['data:image/jpeg;base64,GRID'], 'аниматор видит картинку с сеткой');
+    assert.deepEqual(req.requestBody.tool_choice, { type: 'function', name: 'propose_items' }, 'пункт с превью — всегда строками, тогда придёт видео');
     assert.ok(req.seen.includes('grid:U2') && !req.seen.some(x => x.startsWith('data:')), 'в памяти — метка, не данные');
     assert.ok(req.requestBody.instructions.includes('КАТАЛОГ ЭФФЕКТОВ') && req.requestBody.instructions.includes('строка «дымок: x, y»')
       && req.requestBody.instructions.includes('на этом канале: густота 4') && req.requestBody.instructions.includes('на этом канале: не используется'),
@@ -372,6 +373,18 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal((await who(DIRECT, '✍️ 1 тоже глянь')).stageName, 'Писатель', 'обращение важнее номера');
   }
   console.log('9d номер пункта — к его этапу OK');
+
+  // ── 9e. Аниматор прислал те же строки — видео-превью всё равно приходит ──
+  {
+    const ANIM2 = [DIRECT[0], { ...st('🎞️', 'Аниматор', 'автор', 'да', '9') }, DIRECT[1], DIRECT[2]];
+    const IT9 = [...ITEMS, { 'Канал': 'demo', '№': '9', 'Пункт': 'Оживление', 'Колонки': 'fx_Effects', 'Можно пусто': 'да', 'Превью': 'оживление' }];
+    const ROW = { ...APPROVED, sys_EditorState: JSON.stringify({ v: 2, items: { 9: { text: 'свеча: 61, 41.9' } }, agreed: { 9: false }, stages: {} }) };
+    const t9 = await turn(ANIM2, ROW, { text: '9 предложи заново', __items: IT9 }, call('propose_items', { items: [{ n: 9, text: 'свеча: 61, 41.9' }], message: 'Те же строки.' }));
+    assert.equal(t9.plan.stageName, 'Аниматор');
+    assert.deepEqual(t9.req.requestBody.tool_choice, { type: 'function', name: 'propose_items' });
+    assert.ok(t9.r.previewBody && t9.r.previewBody.fx_Effects === 'свеча: 61, 41.9', 'без изменений — превью всё равно');
+  }
+  console.log('9e те же строки → превью OK');
 
   // ── 10. Нет строк в «Этапах» — честно говорим ──
   t = await turn([], {}, { text: 'привет' });

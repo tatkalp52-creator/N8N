@@ -34,6 +34,7 @@ if (!plan.silent) {
 
 let action = 'chat';
 let changed = [];
+let proposed = [];
 let note = null;
 let delegate = null;
 let art = null;
@@ -42,6 +43,8 @@ let approveVariant = null;
 
 if (functionName === 'propose_items') {
   changed = itApply(state, items, sc.items, args, plan.silent || !stage.approve);
+  // что этап прислал на этом ходу, даже без изменений (превью покажем и тогда)
+  proposed = (Array.isArray(args.items) ? args.items : []).map(p => parseInt(p && p.n, 10)).filter(n => sc.items.includes(n));
   action = 'text_block';
 } else if (functionName === 'save_note') {
   const kb = kbForStage(ctx.tmpl, stage.icon, '');
@@ -66,7 +69,7 @@ if (functionName === 'propose_items') {
 }
 
 return [{ json: {
-  action, functionName, callId, message, changed, note, delegate, art,
+  action, functionName, callId, message, changed, proposed, note, delegate, art,
   approveUrl, approveVariant,
   editorState: JSON.stringify(state),
   stageIcon: stage.icon, stageName: stage.name,

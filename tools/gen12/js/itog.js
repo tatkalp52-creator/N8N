@@ -18,6 +18,7 @@ let art = null;
 let approveUrl = '';
 let approveVariant = null;
 let changed = [];
+let proposed = [];
 let speaker = stage;
 // Картинку без согласования автора (этап «авто» или молчаливый) согласуем сами после рисунка.
 let autoApprove = false;
@@ -38,7 +39,7 @@ if (plan.mode === 'say') {
   state = stParseState(r.editorState);
   // лупа уточнила точки оживления — берём её версию пункта
   try { const lp = $('Лупа: итог').first().json; if (lp && lp.editorState) { state = stParseState(lp.editorState); lupaMoved = lp.moved || 0; } } catch (e) {}
-  action = r.action; message = r.message; note = r.note; changed = r.changed || [];
+  action = r.action; message = r.message; note = r.note; changed = r.changed || []; proposed = r.proposed || [];
   approveUrl = r.approveUrl; approveVariant = r.approveVariant;
   if (r.art) { art = r.art; autoApprove = !stage.approve; }
   // автор одобрила — показываем пункты и проверяем переход, даже если модель ответила просто текстом
@@ -122,7 +123,7 @@ if (action === 'approved') text += `\n\n✅ Картинка согласова�
 text += `\n\nID: ${ctx.projectId}`;
 // Превью: изменился пункт, которому в листе «Пункты» положено превью, — сборщик нарисует картинку.
 let previewBody = null;
-const pvItem = items.find(it => it.preview && changed.includes(it.n) && (state.items[it.n] || {}).text);
+const pvItem = items.find(it => it.preview && (changed.includes(it.n) || proposed.includes(it.n)) && (state.items[it.n] || {}).text);
 if (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {
   const fx = {};
   for (const key of Object.keys(ctx.tmpl || {})) {        // вид эффектов — колонки 🎬 (как у сборки)
