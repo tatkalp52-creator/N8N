@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-05-lupa"
+ASSEMBLER_VERSION = "2026-10-05-snap"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1422,6 +1422,63 @@ def parse_effects(text):
     return out
 
 
+# ── ПРИМАГНИЧИВАНИЕ (05.10): точки, которые можно найти счётом, а не глазом ──
+# Пламя — самое яркое тёплое пятно рядом с точкой; стекло окна — тёмная область рядом
+# с прямоугольником. Глаз птицы ищется в своём узле (самое тёмное круглое пятно).
+def snap_flame(arr, px, py, W, H, search_pct=4.0):
+    import numpy as np
+    r = int(search_pct / 100 * W)
+    x0, y0 = max(0, int(px) - r), max(0, int(py) - r)
+    x1, y1 = min(W, int(px) + r), min(H, int(py) + r)
+    win = arr[y0:y1, x0:x1].astype(np.float32)
+    if win.size == 0:
+        return px, py
+    score = win.mean(axis=2) + 0.6 * (win[..., 0] - win[..., 2])      # светло и тепло
+    thr = np.percentile(score, 99.93)                                  # сердцевина пламени, не банка
+    if thr < 170:                                                     # огня рядом нет — точку не трогаем
+        return px, py
+    ys, xs = np.nonzero(score >= thr)
+    return x0 + float(xs.mean()), y0 + float(ys.mean())
+
+
+def snap_glass(arr, rx0, ry0, rx1, ry1, W, H):
+    import numpy as np
+    from PIL import Image, ImageFilter
+    w, h = rx1 - rx0, ry1 - ry0
+    ex0, ey0 = max(0, int(rx0 - 0.6 * w)), max(0, int(ry0 - 0.6 * h))
+    ex1, ey1 = min(W, int(rx1 + 0.6 * w)), min(H, int(ry1 + 0.6 * h))
+    lum = np.asarray(Image.fromarray(arr[ey0:ey1, ex0:ex1].astype(np.uint8)).convert("L")
+                     .filter(ImageFilter.GaussianBlur(3)), np.float32)
+    inner = lum[max(0, ry0 - ey0):ry1 - ey0, max(0, rx0 - ex0):rx1 - ex0]
+    if inner.size == 0:
+        return rx0, ry0, rx1, ry1
+    blue = arr[ey0:ey1, ex0:ex1, 2].astype(np.float32) - arr[ey0:ey1, ex0:ex1, 0].astype(np.float32)
+    thr = float(np.percentile(lum, 25))
+    dark = (lum <= thr) & (blue > -5)                                  # тёмное и не тёплое — стекло, не рама
+    if dark.sum() < 50:
+        return rx0, ry0, rx1, ry1
+    # самая большая тёмная область и все сопоставимые с ней (стёкла между перекладинами)
+    small = Image.fromarray((dark * 255).astype(np.uint8)).resize((max(1, dark.shape[1] // 4), max(1, dark.shape[0] // 4)))
+    m = np.asarray(small) > 127
+    lab = np.zeros(m.shape, np.int32); n = 0; sizes = []
+    for yy in range(m.shape[0]):
+        for xx in range(m.shape[1]):
+            if m[yy, xx] and not lab[yy, xx]:
+                n += 1; stack = [(yy, xx)]; lab[yy, xx] = n; c = 0
+                while stack:
+                    a, b = stack.pop(); c += 1
+                    for na, nb in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                        if 0 <= na < m.shape[0] and 0 <= nb < m.shape[1] and m[na, nb] and not lab[na, nb]:
+                            lab[na, nb] = n; stack.append((na, nb))
+                sizes.append(c)
+    if not sizes:
+        return rx0, ry0, rx1, ry1
+    big = max(sizes)
+    keep = np.isin(lab, [i + 1 for i, c in enumerate(sizes) if c >= 0.25 * big])
+    ys, xs = np.nonzero(keep)
+    return (ex0 + xs.min() * 4, ey0 + ys.min() * 4, ex0 + (xs.max() + 1) * 4, ey0 + (ys.max() + 1) * 4)
+
+
 def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
     import sys as _sys
     if "/app/pylibs" not in _sys.path:  # numpy и pillow ставятся сюда (переживают Deploy)
@@ -1607,6 +1664,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # СВЕЧА (04.10): точка — середина пламени. Пламя подрагивает и дышит яркостью,
             # вокруг — тёплый ореол. Все частоты кратны петле — шва нет. Вид — 🎬 candleGlow.
             glow = _num("candleGlow", 1.0)
+            px, py = snap_flame(base, px, py, W, H)      # точка — к самому яркому тёплому пятну рядом
             ph = rng.uniform(0, 2 * math.pi, 4)
             R = int(60 * k)
             gx0, gy0 = int(px - R), int(py - R)
@@ -1641,6 +1699,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             r_op = _num("rainOpacity", 1.0)
             rx0, ry0 = int(min(nums[0], nums[2]) / 100 * W), int(min(nums[1], nums[3]) / 100 * H)
             rx1, ry1 = int(max(nums[0], nums[2]) / 100 * W), int(max(nums[1], nums[3]) / 100 * H)
+            rx0, ry0, rx1, ry1 = (int(v) for v in snap_glass(base, rx0, ry0, rx1, ry1, W, H))   # к тёмному стеклу
             rw, rh = max(4, rx1 - rx0), max(4, ry1 - ry0)
             lum = base[ry0:ry0 + rh, rx0:rx0 + rw].mean(axis=2)
             dark = np.clip((175 - lum) / 90, 0, 1)            # стекло тёмное — там видно дождь
@@ -1676,16 +1735,21 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
         elif kind == "blink":
             # точный центр глаза — самая тёмная точка рядом с указанной
             # (тёмное рядом бывает и клювом — поэтому дальние точки «дороже»)
-            rad = int(7 * k)
+            # ищем шире (глаз рядом, но точка может промахнуться на пару процентов): тёмное круглое
+            # пятно; размытие гасит тонкие линии рисунка, дальние точки чуть «дороже»
+            rad = int(max(7 * k, 0.03 * W))
             gx0, gy0 = max(0, int(px) - rad), max(0, int(py) - rad)
-            lum = np.asarray(src.convert("L").crop((gx0, gy0, gx0 + 2 * rad, gy0 + 2 * rad))
-                             .filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32)
+            crop_l = src.convert("L").crop((gx0, gy0, gx0 + 2 * rad, gy0 + 2 * rad))
+            lum = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32)
+            wide = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(5.0 * k)), np.float32)
             gy_, gx_ = np.mgrid[0:lum.shape[0], 0:lum.shape[1]].astype(np.float32)
-            cost = lum + 6.0 / k * np.hypot(gx_ + gx0 - px, gy_ + gy0 - py)
+            # глаз — маленькое тёмное пятно на более светлом (пёрышки вокруг), а не просто тень
+            cost = (lum - wide) + 0.25 * lum + 0.8 / k * np.hypot(gx_ + gx0 - px, gy_ + gy0 - py)
             iy, ix = np.unravel_index(np.argmin(cost), cost.shape)
             ex, ey = gx0 + ix + 0.5, gy0 + iy + 0.5
             # размер глаза меряем: тёмное пятно вокруг найденной точки (у канарейки глаз крошечный)
-            ring_l = float(np.median(lum))
+            loc = np.hypot(gx_ - ix, gy_ - iy) <= 8 * k          # окрестность самого глаза, не всё окно
+            ring_l = float(np.median(lum[loc]))
             dark_ = lum < (lum[iy, ix] + ring_l) / 2
             near = np.hypot(gx_ - ix, gy_ - iy) <= 6 * k
             r = float(np.clip(math.sqrt(max(1.0, float((dark_ & near).sum())) / math.pi) + 0.8 * k, 1.6 * k, 5 * k))
