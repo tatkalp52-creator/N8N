@@ -1479,6 +1479,131 @@ def snap_glass(arr, rx0, ry0, rx1, ry1, W, H):
     return (ex0 + xs.min() * 4, ey0 + ys.min() * 4, ex0 + (xs.max() + 1) * 4, ey0 + (ys.max() + 1) * 4)
 
 
+# ── ЗОНЫ ПО ЗАКРАСКЕ (05.10): форма вместо прямоугольника ──
+# Строка «дождь: область x y, x y, …» / «пар: область …» — контур, который автор закрасила.
+def polygon_mask(points_pct, W, H, box):
+    """Маска контура (точки в % кадра) внутри рамки box=(x0,y0,x1,y1) в пикселях."""
+    import numpy as np
+    from PIL import Image, ImageDraw
+    x0, y0, x1, y1 = box
+    m = Image.new("L", (max(1, x1 - x0), max(1, y1 - y0)), 0)
+    pts = [(px / 100 * W - x0, py / 100 * H - y0) for px, py in points_pct]
+    if len(pts) >= 3:
+        ImageDraw.Draw(m).polygon(pts, fill=255)
+    return np.asarray(m, np.float32) / 255
+
+
+def poly_box(points_pct, W, H, pad=0):
+    xs = [p[0] / 100 * W for p in points_pct]
+    ys = [p[1] / 100 * H for p in points_pct]
+    return (max(0, int(min(xs)) - pad), max(0, int(min(ys)) - pad), min(W, int(max(xs)) + pad + 1), min(H, int(max(ys)) + pad + 1))
+
+
+def periodic_noise(h, w, sigma, seed):
+    """Плавный шум, бесшовный по обеим осям (для петли, которая прокручивается)."""
+    import numpy as np
+    rng_ = np.random.default_rng(seed)
+    f = np.fft.fft2(rng_.standard_normal((h, w)))
+    fy = np.fft.fftfreq(h)[:, None]
+    fx = np.fft.fftfreq(w)[None, :]
+    g = np.exp(-2 * (np.pi * sigma) ** 2 * (fx ** 2 + fy ** 2))
+    n = np.real(np.fft.ifft2(f * g))
+    n = (n - n.min()) / max(1e-6, n.max() - n.min())
+    return n.astype(np.float32)
+
+
+def mask_contours(mask, step_pct_x, step_pct_y, tol=1.2):
+    """Контур самой большой части маски (сетка клеток) → упрощённый многоугольник в процентах."""
+    import numpy as np
+    h, w = mask.shape
+    start = None
+    for y in range(h):
+        xs = np.nonzero(mask[y])[0]
+        if len(xs):
+            start = (y, int(xs[0]))
+            break
+    if start is None:
+        return []
+    # обход границы (соседи Мура)
+    dirs = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
+    inside = lambda p: 0 <= p[0] < h and 0 <= p[1] < w and mask[p[0], p[1]]
+    cont, cur, d = [start], start, 6
+    for _ in range(8 * h * w):
+        for i in range(8):
+            nd = (d + i) % 8
+            nb = (cur[0] + dirs[nd][0], cur[1] + dirs[nd][1])
+            if inside(nb):
+                cur, d = nb, (nd + 5) % 8
+                break
+        else:
+            break
+        if cur == start:
+            break
+        cont.append(cur)
+    pts = [(x * step_pct_x, y * step_pct_y) for y, x in cont]
+
+    def dp(seq):
+        if len(seq) < 3:
+            return seq
+        (ax, ay), (bx, by) = seq[0], seq[-1]
+        L = max(1e-6, ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5)
+        dist = [abs((by - ay) * px - (bx - ax) * py + bx * ay - by * ax) / L for px, py in seq[1:-1]]
+        i = int(np.argmax(dist)) + 1
+        if dist[i - 1] > tol:
+            return dp(seq[:i + 1])[:-1] + dp(seq[i:])
+        return [seq[0], seq[-1]]
+    simp = dp(pts + [pts[0]])[:-1] if len(pts) > 3 else pts
+    return [(round(x, 1), round(y, 1)) for x, y in simp]
+
+
+def find_painted_areas(orig_path, marked_path, min_area_pct=0.25):
+    """Закрашенные автором области (толстая кисть или заливка): форма каждой — контуром в %."""
+    import numpy as np
+    from PIL import Image, ImageFilter
+    orig = Image.open(orig_path).convert("RGB")
+    W, H = orig.size
+    marked = Image.open(marked_path).convert("RGB").resize((W, H), Image.LANCZOS)
+    a = np.asarray(marked, np.float32)
+    b = np.asarray(orig, np.float32)
+    # «стало краснее»: красный вырос относительно зелёного и синего (подходит и для полупрозрачной кисти)
+    d = (a[..., 0] - b[..., 0]) - 0.5 * ((a[..., 1] - b[..., 1]) + (a[..., 2] - b[..., 2]))
+    red = (d > 45) & (a[..., 0] - a[..., 1] > 40)
+    S = 4
+    w, h = W // S, H // S
+    m = red[:h * S, :w * S].reshape(h, S, w, S).mean(axis=(1, 3)) > 0.5
+    # тонкие линии (обводки, буквы, стрелки) убираем «раскрытием»: остаются только толстые закраски
+    im = Image.fromarray((m * 255).astype(np.uint8))
+    k = max(3, int(round(0.012 * W / S)) | 1)
+    core = im.filter(ImageFilter.MinFilter(k)).filter(ImageFilter.MaxFilter(k))
+    core = np.asarray(core) > 127
+    lab = np.zeros(core.shape, np.int32)
+    areas = []
+    n = 0
+    for y0 in range(h):
+        for x0 in range(w):
+            if not core[y0, x0] or lab[y0, x0]:
+                continue
+            n += 1
+            stack = [(y0, x0)]
+            lab[y0, x0] = n
+            cnt = 0
+            while stack:
+                y, x = stack.pop()
+                cnt += 1
+                for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                    if 0 <= ny < h and 0 <= nx < w and core[ny, nx] and not lab[ny, nx]:
+                        lab[ny, nx] = n
+                        stack.append((ny, nx))
+            if cnt * S * S < min_area_pct / 100 * W * H:
+                continue
+            poly = mask_contours(lab == n, S / W * 100, S / H * 100)
+            ys, xs = np.nonzero(lab == n)
+            areas.append({"poly": poly, "box": [round(xs.min() * S / W * 100, 1), round(ys.min() * S / H * 100, 1),
+                                                round((xs.max() + 1) * S / W * 100, 1), round((ys.max() + 1) * S / H * 100, 1)]})
+    areas.sort(key=lambda z: (z["box"][0], z["box"][1]))
+    return areas
+
+
 def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
     import sys as _sys
     if "/app/pylibs" not in _sys.path:  # numpy и pillow ставятся сюда (переживают Deploy)
