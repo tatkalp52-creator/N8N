@@ -360,6 +360,19 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('9c аниматор: сетка для него, превью для автора OK');
 
+  // ── 9d. «9 предложи заново» — к этапу, чей пункт, даже если сейчас работает другой ──
+  {
+    const who = async (stages, text) => (await run('Кто отвечает', { nodes: { 'Контекст проекта': await context(stages, APPROVED, { text }) } }))[0];
+    assert.equal((await who(DIRECT, 'перепиши концовку')).stageName, 'Писатель', 'без номера — текущий этап');
+    assert.equal((await who(DIRECT, '1 предложи заново')).stageName, 'Технический писатель', 'номер чужого пункта — его этапу');
+    assert.equal((await who(DIRECT, 'пункт 2: короче')).stageName, 'Технический писатель');
+    assert.equal((await who(DIRECT, '3 ок')).stageName, 'Писатель');
+    assert.equal((await who(DIRECT, '1, 3 ок')).stageName, 'Писатель', 'номера разных этапов — текущий этап');
+    assert.equal((await who(WINDOW, '3 перепиши')).stageName, 'Редактор', 'за подчинённого — его начальник');
+    assert.equal((await who(DIRECT, '✍️ 1 тоже глянь')).stageName, 'Писатель', 'обращение важнее номера');
+  }
+  console.log('9d номер пункта — к его этапу OK');
+
   // ── 10. Нет строк в «Этапах» — честно говорим ──
   t = await turn([], {}, { text: 'привет' });
   assert.ok(t.r.chunks[0].includes('В листе «Этапы» нет строк'));

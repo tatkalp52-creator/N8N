@@ -14,7 +14,9 @@ const current = stCurrent(stages, items, state, approvedUrl);
 // Всё готово, а автор пишет без обращения — отвечает последний этап, который говорит с автором
 // словами (у кого есть пункты): художнику без обращения сообщение не уходит — он бы его нарисовал.
 const lastAuthor = [...stages].reverse().find(s => s.talks === 'author' && s.items.length) || null;
-const stage = addressed ? addressed.stage : (current || (isStart ? null : lastAuthor));
+// «9 …» — к этапу, чей пункт 9 (если это не текущий этап)
+const byItem = isStart || addressed ? null : stByItem(stages, ctx.text);
+const stage = addressed ? addressed.stage : (byItem || current || (isStart ? null : lastAuthor));
 let userText = addressed ? addressed.rest : String(ctx.text || '');
 const photo = ctx.photo && ctx.photo.length ? ctx.photo : null;
 if (!userText.trim()) userText = photo ? '(фото без подписи)' : '';

@@ -197,6 +197,20 @@ function stApplyApproval(state, nums) {
 }
 
 // Обращение по значку («✍️ …») или по имени («Писателю: …»).
+// Сообщение начинается с номера пункта («9 предложи заново», «пункт 9: …») — отвечает этап, чей это
+// пункт (по листам «Этапы»/«Пункты»), даже если сейчас работает другой. Все номера — одного этапа.
+function stByItem(stages, text) {
+  const m = String(text || '').match(/^\s*(?:пункт[а-яё]*\s*)?((?:\d+\s*(?:[,и]\s*)?)+)(?![\d.,]\d)/iu);
+  if (!m) return null;
+  const nums = (m[1].match(/\d+/g) || []).map(Number);
+  const owners = [...new Set(nums.map(n => {
+    const s = stages.find(s_ => s_.items.includes(n));
+    if (!s) return null;
+    return s.talks === 'boss' ? (stages.find(b => bareIcon(b.icon) === bareIcon(s.boss)) || s) : s;   // за подчинённого отвечает его начальник
+  }))];
+  return owners.length === 1 && owners[0] ? owners[0] : null;
+}
+
 function stAddressed(stages, text) {
   const t = String(text || '').trim();
   for (const s of stages) {
