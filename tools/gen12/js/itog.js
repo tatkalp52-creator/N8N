@@ -159,7 +159,7 @@ return [{ json: {
   nextIcon,
   previewBody,
   agreedFields,
-  previewCaption: previewBody ? `${stage ? stage.icon + ' ' : ''}Превью: так это будет выглядеть\n\nID: ${ctx.projectId}` : '',
+  previewCaption: previewBody ? `${stage ? stage.icon + ' ' : ''}Превью: так это будет двигаться (6 секунд, дважды). Поправить — словами или маркером на кадре.\n\nID: ${ctx.projectId}` : '',
   autoApprove,
   event,
   // для веток рисования (узлы перенесены из 01_Художник)

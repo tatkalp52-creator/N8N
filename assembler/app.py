@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-05-knobs"
+ASSEMBLER_VERSION = "2026-10-05-video"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1725,14 +1725,18 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             sig = 14 * k
             nA = periodic_noise(bh, bw, sig, 11)
             nB = periodic_noise(bh, bw, sig * 0.55, 12)
-            cyc_a = max(1, int(round(1 * spd)))
-            cyc_b = max(1, int(round(2 * spd)))
+            v_a = 40 * k * spd                     # пикселей в секунду вверх; любая скорость, петля без шва:
+            v_b = 64 * k * spd                     # два сдвинутых слоя перетекают друг в друга за петлю
 
-            def steam(t, x0=x0, y0=y0, bh=bh, env=env, nA=nA, nB=nB, cyc_a=cyc_a, cyc_b=cyc_b, dens=dens):
-                u = (t % EFFECTS_LOOP_SECONDS) / EFFECTS_LOOP_SECONDS
-                a_ = np.roll(nA, -int(round(u * cyc_a * bh)), axis=0)     # вверх, петля без шва
-                b_ = np.roll(nB, -int(round(u * cyc_b * bh)), axis=0)
-                n = 0.62 * a_ + 0.38 * b_
+            def flow(nz, v, t, bh=bh):
+                L = EFFECTS_LOOP_SECONDS
+                w = 0.5 * math.pi * (t % L) / L
+                one = np.roll(nz, -int(round(v * (t % L))) % bh, axis=0)
+                two = np.roll(nz, -int(round(v * ((t % L) - L))) % bh, axis=0)
+                return 0.5 + (one - 0.5) * math.cos(w) + (two - 0.5) * math.sin(w)
+
+            def steam(t, x0=x0, y0=y0, env=env, nA=nA, nB=nB, v_a=v_a, v_b=v_b, dens=dens):
+                n = 0.62 * flow(nA, v_a, t) + 0.38 * flow(nB, v_b, t)
                 haze = np.clip((n - 0.32) / 0.5, 0, 1) ** 1.4
                 al = env * (0.2 + 0.8 * haze) * 0.62 * steam_opacity / 0.62 * dens
                 return x0, y0, np.clip(al, 0, 0.85), np.array([244, 240, 232], np.float32)
@@ -2908,6 +2912,51 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
     return out_path
 
 
+# ВИДЕО-ПРЕВЬЮ (05.10): автор видит движение, а не стоп-кадр. Та же петля эффектов, что в
+# ролике (с ручками листа «Эффекты»), дважды подряд, на кадре поменьше — чтобы было быстро.
+# Пути листьев и край нарисованы на кадре, как на картинке-превью.
+FX_PREVIEW_VIDEO_WIDTH = 1024
+
+
+def draw_fx_preview_video(image_path, fx_text, data, out_path):
+    from PIL import Image
+    work = os.path.dirname(out_path)
+    events_only = "\n".join(l for l in str(fx_text or "").splitlines()
+                             if l.strip().lower().startswith(EVENT_EFFECT_WORDS))
+    base = os.path.join(work, "pv_base.jpg")
+    draw_fx_preview(image_path, events_only, data, base)          # листья и край — линиями
+    im = Image.open(base).convert("RGB")
+    if im.width > FX_PREVIEW_VIDEO_WIDTH:
+        h_ = int(round(im.height * FX_PREVIEW_VIDEO_WIDTH / im.width / 2)) * 2
+        im = im.resize((FX_PREVIEW_VIDEO_WIDTH, h_), Image.LANCZOS)
+    small = os.path.join(work, "pv_small.png")
+    im.save(small)
+    loop = os.path.join(work, "pv_loop.mp4")
+    effects = parse_effects(fx_text)
+    if effects:
+        render_effects_loop(small, effects, data, 24, loop)
+    else:
+        run_ffmpeg(["-loop", "1", "-i", small, "-t", str(EFFECTS_LOOP_SECONDS), "-r", "24",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", loop])
+    run_ffmpeg(["-stream_loop", "1", "-i", loop, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out_path])
+    return out_path
+
+
+@app.route("/fx_preview_video", methods=["POST"])
+def fx_preview_video():
+    data = request.json or {}
+    work_dir = tempfile.mkdtemp(prefix="fxpv_")
+
+    @after_this_request
+    def cleanup(response):
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return response
+    img = _fx_image(data["imageUrl"], work_dir)
+    out = draw_fx_preview_video(img, data.get("fx_Effects") or "", data, os.path.join(work_dir, "preview.mp4"))
+    return send_file(out, mimetype="video/mp4", download_name="preview.mp4")
+
+
 @app.route("/fx_zoom", methods=["POST"])
 def fx_zoom():
     data = request.json or {}
@@ -3100,6 +3149,53 @@ def edit_mask():
             return response
 
 
+# СКРИНШОТ (05.10): автор рисует на скриншоте видео-превью — вокруг кадра рамки и кнопки телефона.
+# Находим, где внутри скриншота лежит кадр (масштаб и сдвиг — по совпадению с исходной картинкой),
+# и вырезаем его. Если пропорции и так совпадают — картинка как есть.
+def align_marked_to_original(orig_path, marked_path, out_path):
+    import numpy as np
+    from PIL import Image
+    orig = Image.open(orig_path).convert("L")
+    marked = Image.open(marked_path).convert("RGB")
+    W, H = orig.size
+    mw, mh = marked.size
+    if abs((mw / mh) / (W / H) - 1) < 0.03:
+        return marked_path
+    TW = 160
+    th = int(round(TW * H / W))
+    T = np.asarray(orig.resize((TW, th), Image.BILINEAR), np.float32)
+    T = T - T.mean()
+    best = None
+    for s_ in np.linspace(0.45, 1.0, 23):
+        frame_w = s_ * mw if mw / mh < W / H else s_ * mh * W / H
+        if frame_w > mw + 1 or frame_w * H / W > mh + 1:
+            continue
+        f = TW / frame_w
+        M = np.asarray(marked.convert("L").resize((max(TW, int(round(mw * f))), max(th, int(round(mh * f)))),
+                                                   Image.BILINEAR), np.float32)
+        Hh, Ww = M.shape
+        # нормированная корреляция окна с кадром через БПФ
+        sh = (Hh, Ww)
+        FT = np.conj(np.fft.rfft2(T, sh))
+        corr = np.fft.irfft2(np.fft.rfft2(M, sh) * FT, sh)[:Hh - th + 1, :Ww - TW + 1]
+        c1 = np.cumsum(np.cumsum(np.pad(M, ((1, 0), (1, 0))), 0), 1)
+        c2 = np.cumsum(np.cumsum(np.pad(M * M, ((1, 0), (1, 0))), 0), 1)
+        box = lambda c: c[th:, TW:] - c[:-th, TW:] - c[th:, :-TW] + c[:-th, :-TW]
+        n = TW * th
+        var = np.maximum(box(c2) - box(c1) ** 2 / n, 1e-6)
+        score = corr / np.sqrt(var * (T * T).sum())
+        iy, ix = np.unravel_index(np.argmax(score), score.shape)
+        if best is None or score[iy, ix] > best[0]:
+            best = (float(score[iy, ix]), ix / f, iy / f, frame_w)
+    if not best or best[0] < 0.5:
+        print(f"[fx_marks] кадр на скриншоте не найден (совпадение {best[0] if best else 0:.2f}) — беру как есть")
+        return marked_path
+    _, x0, y0, fw = best
+    marked.crop((int(round(x0)), int(round(y0)), int(round(x0 + fw)), int(round(y0 + fw * H / W)))).save(out_path, quality=95)
+    print(f"[fx_marks] кадр на скриншоте: {x0:.0f},{y0:.0f} ширина {fw:.0f} (совпадение {best[0]:.2f})")
+    return out_path
+
+
 @app.route("/fx_marks", methods=["POST"])
 def fx_marks():
     import base64
@@ -3110,6 +3206,7 @@ def fx_marks():
         raw = str(data.get("markedDataUrl") or "")
         marked = os.path.join(work_dir, "marked.jpg")
         open(marked, "wb").write(base64.b64decode(raw.split(",", 1)[-1]))
+        marked = align_marked_to_original(orig, marked, os.path.join(work_dir, "marked_frame.jpg"))
         marks = find_red_marks(orig, marked)
         # ЗАКРАСКИ (05.10): толстая кисть или заливка — форма области контуром; её строка —
         # «дождь: область …», «пар: область …» (что это — по подписи автора на фото)

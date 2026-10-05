@@ -273,12 +273,13 @@ if_node('Есть что сказать?', '!$json.skip', [EX + 4180, EY])
 tg_send('Отправляем ответ', '={{ $json.chatId }}', '={{ $json.text }}', [EX + 4400, EY - 120])
 code('Что дальше?', 'chto_dalshe.js', [EX + 4620, EY])
 if_node('Нужно превью?', "$('Что дальше?').first().json.preview", [EX + 4730, EY + 200])
-add({'parameters': {'method': 'POST', 'url': ASM + '/fx_preview', 'sendBody': True, 'specifyBody': 'json',
+# превью — видео (05.10): та же петля эффектов, что в ролике; картинка не показывала движения
+add({'parameters': {'method': 'POST', 'url': ASM + '/fx_preview_video', 'sendBody': True, 'specifyBody': 'json',
                     'jsonBody': "={{ JSON.stringify(" + R + ".previewBody) }}",
-                    'options': {'timeout': 180000, 'response': {'response': {'responseFormat': 'file', 'outputPropertyName': 'data'}}}},
+                    'options': {'timeout': 300000, 'response': {'response': {'responseFormat': 'file', 'outputPropertyName': 'data'}}}},
      'name': 'Сервер: превью', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [EX + 4730, EY + 380],
      'onError': 'continueRegularOutput'})
-add({'parameters': {'resource': 'message', 'operation': 'sendPhoto', 'chatId': '={{ ' + R + '.chatId }}',
+add({'parameters': {'resource': 'message', 'operation': 'sendVideo', 'chatId': '={{ ' + R + '.chatId }}',
                     'binaryData': True, 'binaryPropertyName': 'data',
                     'additionalFields': {'caption': '={{ ' + R + '.previewCaption }}'}},
      'name': 'Отправляем превью', 'type': 'n8n-nodes-base.telegram', 'typeVersion': 1.2, 'position': [EX + 4950, EY + 380],
