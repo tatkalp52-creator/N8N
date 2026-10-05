@@ -320,6 +320,8 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.ok(rm.chunks[0].includes('Разметка прочитана: штрихов — 2'));
     assert.ok(rm.chunks[0].includes('смотрите картинку-превью') && !rm.chunks[0].includes('46, 20'));
     assert.equal(rm.previewBody.fx_Effects, 'дымок: 44, 37 → 46, 20');
+    nm['Сервер: разметка'] = { ok: true, zones: true, marks: [], text: 'обводки' };
+    assert.ok((await run('Итог хода', { nodes: nm }))[0].chunks[0].includes('обводки и подписи'));
     nm['Сервер: разметка'] = { ok: false, error: 'boom', marks: [], text: '' };
     const rf = (await run('Итог хода', { nodes: nm }))[0];
     assert.ok(rf.chunks[0].includes('Разметку прочитать не удалось (boom)'));

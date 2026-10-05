@@ -96,7 +96,8 @@ if (plan.needMarks) {
   let mk = null;
   try { mk = $('Сервер: разметка').first().json || null; } catch (e) {}
   const n = mk && Array.isArray(mk.marks) ? mk.marks.length : 0;
-  text += n ? `\n\n🖍 Разметка прочитана: штрихов — ${n}.`
+  text += mk && mk.zones ? `\n\n🖍 Разметка прочитана: обводки и подписи — этап читает их по фото, точные места доводит лупа.`
+    : n ? `\n\n🖍 Разметка прочитана: штрихов — ${n}.`
     : `\n\n⚠️ Разметку прочитать не удалось${mk && mk.error ? ' (' + escapeHtml(String(mk.error)) + ')' : (mk ? ' — красных штрихов не нашлось' : ' — сборщик не ответил')}.`;
 }
 if (lupaMoved) text += `\n\n🔍 Лупа уточнила точек: ${lupaMoved}.`;
