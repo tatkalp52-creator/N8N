@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-04-candle-rain2"
+ASSEMBLER_VERSION = "2026-10-05-highs"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -772,7 +772,7 @@ def build_audio_track(
     gap_seconds=0, loop_count=None, mix_seconds=None,
     compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
-    denoise_amount=0, loudness_report=None,
+    denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -861,6 +861,12 @@ def build_audio_track(
         if denoise_amount:
             source_path = os.path.join(faded_dir, f"denoised_{i}.wav")
             run_ffmpeg(["-i", trimmed_path, "-af", f"afftdn=nr={denoise_amount}", source_path])
+        # НОВОЕ (05.10): мягко приглушить верха (стеклянное пианино Suno) — 🎬 HighsDb / HighsHz.
+        # Полка с пологим наклоном: переход широкий, без ступеньки; громкость дальше меряется уже после неё.
+        if highs_db:
+            eq_path = os.path.join(faded_dir, f"highs_{i}.wav")
+            run_ffmpeg(["-i", source_path, "-af", f"treble=g={highs_db:.2f}:f={highs_hz:.0f}:t=s:w=0.35", eq_path])
+            source_path = eq_path
         leveled_path = os.path.join(faded_dir, f"leveled_{i}.wav")
         run_ffmpeg(["-i", source_path, "-af", f"{gain_to_target(source_path, target_lufs)},{track_limiter}", leveled_path])
         af_parts = [
@@ -2222,6 +2228,14 @@ def assemble():
         limiter_attack_ms = float(data.get("limiterAttackMs", 5))
         limiter_release_ms = float(data.get("limiterReleaseMs", 50))
         denoise_amount = float(data.get("denoiseAmount", 0))
+        try:
+            highs_db = -abs(float(data.get("highsDb", 0) or 0))      # всегда вниз: «на сколько тише верха»
+        except (TypeError, ValueError):
+            highs_db = 0.0
+        try:
+            highs_hz = float(data.get("highsHz", 7000) or 7000)
+        except (TypeError, ValueError):
+            highs_hz = 7000.0
         loudness_report = []
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir, loudness_report=loudness_report,
@@ -2238,6 +2252,7 @@ def assemble():
             limiter_attack_ms=limiter_attack_ms,
             limiter_release_ms=limiter_release_ms,
             denoise_amount=denoise_amount,
+            highs_db=highs_db, highs_hz=highs_hz,
         )
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
