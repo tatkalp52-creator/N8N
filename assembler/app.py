@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-05-video"
+ASSEMBLER_VERSION = "2026-10-05-cloud"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1414,6 +1414,7 @@ class FxNums(list):
     """Числа строки эффекта + ручки этой строки (knobs) + признак области (area)."""
     knobs = {}
     area = False
+    cloud = []
 
 
 def parse_effects(text):
@@ -1428,14 +1429,22 @@ def parse_effects(text):
             if km:
                 knobs[w_] = float(km.group(1))
                 low = low[:km.start()] + low[km.end():]
+        # «облако x y, x y, …» — докуда живёт эффект (обводка автора); пар держится внутри неё
+        cloud = []
+        cm = re.search(r"облак\w*\s*([\d.,\s]+)", low)
+        if cm:
+            cv = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", cm.group(1))]
+            cloud = list(zip(cv[0::2], cv[1::2]))
+            low = low[:cm.start()] + low[cm.end():]
         area = "область" in low
-        low = low.replace("область", " ")
+        low = low.replace("область", " ").replace(";", " ")
         m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", low)
         if not m:
             continue
         kind = EFFECT_NAMES.get(m.group(1).strip())
         nums = FxNums(float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2)))
         nums.knobs, nums.area = knobs, area and len(nums) >= 6
+        nums.cloud = cloud if len(cloud) >= 3 else []
         if kind and len(nums) >= 2:
             out.append((kind, nums))
         else:
@@ -1475,7 +1484,7 @@ def fx_knob(data, kind, nums, word):
 # ── ПРИМАГНИЧИВАНИЕ (05.10): точки, которые можно найти счётом, а не глазом ──
 # Пламя — самое яркое тёплое пятно рядом с точкой; стекло окна — тёмная область рядом
 # с прямоугольником. Глаз птицы ищется в своём узле (самое тёмное круглое пятно).
-def snap_flame(arr, px, py, W, H, search_pct=4.0):
+def snap_flame(arr, px, py, W, H, search_pct=6.0):
     import numpy as np
     r = int(search_pct / 100 * W)
     x0, y0 = max(0, int(px) - r), max(0, int(py) - r)
@@ -1483,12 +1492,27 @@ def snap_flame(arr, px, py, W, H, search_pct=4.0):
     win = arr[y0:y1, x0:x1].astype(np.float32)
     if win.size == 0:
         return px, py
-    score = win.mean(axis=2) + 0.6 * (win[..., 0] - win[..., 2])      # светло и тепло
-    thr = np.percentile(score, 99.93)                                  # сердцевина пламени, не банка
-    if thr < 170:                                                     # огня рядом нет — точку не трогаем
+    warm = win[..., 0] - win[..., 2]
+    # пламя — светлое И тёплое; блик на серебре (селёдка, тарелка) светлый, но не тёплый (05.10)
+    score = np.where(warm > 25, win.mean(axis=2) + 1.2 * warm, 0)
+    # ближние точки чуть «дороже»: из двух огней берём тот, на который показали
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    score = score - 0.15 * np.hypot(xx - px, yy - py) / max(1, r) * 100
+    thr = np.percentile(score, 99.93)
+    if thr < 190:                                                     # огня рядом нет — точку не трогаем
         return px, py
     ys, xs = np.nonzero(score >= thr)
-    return x0 + float(xs.mean()), y0 + float(ys.mean())
+    cx, cy = x0 + float(xs.mean()), y0 + float(ys.mean())
+    # второй шаг: свеча найдена — сам язычок пламени это самое светлое место прямо рядом (чуть выше воска)
+    r2 = max(4, int(0.02 * W))
+    ax0, ay0 = max(0, int(cx) - r2), max(0, int(cy) - 2 * r2)
+    ax1, ay1 = min(W, int(cx) + r2), min(H, int(cy) + r2)
+    lum = arr[ay0:ay1, ax0:ax1].astype(np.float32).mean(axis=2)
+    if lum.size:
+        t2 = np.percentile(lum, 99.5)
+        ys2, xs2 = np.nonzero(lum >= t2)
+        return ax0 + float(xs2.mean()), ay0 + float(ys2.mean())
+    return cx, cy
 
 
 def snap_glass(arr, rx0, ry0, rx1, ry1, W, H):
@@ -1563,21 +1587,33 @@ def periodic_noise(h, w, sigma, seed):
 
 
 def mask_contours(mask, step_pct_x, step_pct_y, tol=0.6):
-    """Контур маски → упрощённый многоугольник в процентах: по каждой строке левый и правый край
-    (левая сторона сверху вниз, правая снизу вверх). Вырезы сбоку (цветок в углу окна) сохраняются."""
+    """Внешний контур маски (обход по границе, выемки сохраняются) → упрощённый многоугольник в %."""
     import numpy as np
-    rows = [y for y in range(mask.shape[0]) if mask[y].any()]
-    if not rows:
+    m = np.pad(mask.astype(bool), 1)
+    ys, xs = np.nonzero(m)
+    if not len(ys):
         return []
-    left, right = [], []
-    for y in rows:
-        xs = np.nonzero(mask[y])[0]
-        left.append((float(xs[0]) * step_pct_x, (y + 0.5) * step_pct_y))
-        right.append((float(xs[-1] + 1) * step_pct_x, (y + 0.5) * step_pct_y))
-    left[0] = (left[0][0], rows[0] * step_pct_y)
-    right[0] = (right[0][0], rows[0] * step_pct_y)
-    left[-1] = (left[-1][0], (rows[-1] + 1) * step_pct_y)
-    right[-1] = (right[-1][0], (rows[-1] + 1) * step_pct_y)
+    i0 = np.lexsort((xs, ys))[0]
+    start = (int(ys[i0]), int(xs[i0]))
+    # соседи по часовой стрелке, начиная с запада
+    nb = [(0, -1), (-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1)]
+    cont = [start]
+    cur, back = start, 0            # back — направление, откуда пришли (сначала «с запада»: там пусто)
+    for _ in range(4 * m.size):
+        found = False
+        for k in range(1, 9):
+            d = (back + k) % 8
+            ny, nx = cur[0] + nb[d][0], cur[1] + nb[d][1]
+            if m[ny, nx]:
+                back = (d + 4) % 8          # из нового пикселя смотрим назад, на предыдущий
+                # начинаем следующий поиск с соседа, следующего за предыдущим пустым
+                cur = (ny, nx)
+                found = True
+                break
+        if not found or cur == start:
+            break
+        cont.append(cur)
+    pts = [((x - 1 + 0.5) * step_pct_x, (y - 1 + 0.5) * step_pct_y) for y, x in cont]
 
     def dp(seq):
         if len(seq) < 3:
@@ -1589,7 +1625,11 @@ def mask_contours(mask, step_pct_x, step_pct_y, tol=0.6):
         if dist[i - 1] > tol:
             return dp(seq[:i + 1])[:-1] + dp(seq[i:])
         return [seq[0], seq[-1]]
-    poly = dp(left) + dp(right[::-1])
+    if len(pts) > 3:
+        far = max(range(len(pts)), key=lambda i: (pts[i][0] - pts[0][0]) ** 2 + (pts[i][1] - pts[0][1]) ** 2)
+        poly = dp(pts[:far + 1])[:-1] + dp(pts[far:] + [pts[0]])[:-1]
+    else:
+        poly = pts
     return [(round(x, 1), round(y, 1)) for x, y in poly]
 
 
@@ -1641,6 +1681,62 @@ def find_painted_areas(orig_path, marked_path, min_area_pct=0.25):
     return areas
 
 
+def find_outlined_zones(orig_path, marked_path, min_area_pct=0.15):
+    """Замкнутые обводки (05.10): тонкая линия, которая вместе с закраской замыкает область, —
+    «облако», докуда живёт эффект (пар над ванной), или кружок вокруг свечи/глаза.
+    Возвращает каждую замкнутую область целиком (с закраской внутри) контуром в %."""
+    import numpy as np
+    from PIL import Image
+    orig = Image.open(orig_path).convert("RGB")
+    W, H = orig.size
+    marked = Image.open(marked_path).convert("RGB").resize((W, H), Image.LANCZOS)
+    a = np.asarray(marked, np.float32)
+    b = np.asarray(orig, np.float32)
+    d = (a[..., 0] - b[..., 0]) - 0.5 * ((a[..., 1] - b[..., 1]) + (a[..., 2] - b[..., 2]))
+    red = (d > 45) & (a[..., 0] - a[..., 1] > 40)
+    S = 4
+    w, h = W // S, H // S
+    m = red[:h * S, :w * S].reshape(h, S, w, S).max(axis=(1, 3))
+    # снаружи — всё, куда можно дойти от края кадра, не пересекая красного; остальное — замкнутые области
+    outside = np.zeros((h, w), bool)
+    stack = [(y, x) for y in range(h) for x in (0, w - 1)] + [(y, x) for x in range(w) for y in (0, h - 1)]
+    stack = [(y, x) for y, x in stack if not m[y, x]]
+    for y, x in stack:
+        outside[y, x] = True
+    while stack:
+        y, x = stack.pop()
+        for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+            if 0 <= ny < h and 0 <= nx < w and not outside[ny, nx] and not m[ny, nx]:
+                outside[ny, nx] = True
+                stack.append((ny, nx))
+    inside = ~outside
+    holes = inside & ~m                     # дырки внутри красного — значит, обводка замкнута
+    lab = np.zeros((h, w), np.int32)
+    zones, n = [], 0
+    for y0 in range(h):
+        for x0 in range(w):
+            if not inside[y0, x0] or lab[y0, x0]:
+                continue
+            n += 1
+            st = [(y0, x0)]
+            lab[y0, x0] = n
+            while st:
+                y, x = st.pop()
+                for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                    if 0 <= ny < h and 0 <= nx < w and inside[ny, nx] and not lab[ny, nx]:
+                        lab[ny, nx] = n
+                        st.append((ny, nx))
+            comp = lab == n
+            if (comp & holes).sum() * S * S < min_area_pct / 100 * W * H:
+                continue                    # просто штрих или заливка без обводки
+            ys, xs = np.nonzero(comp)
+            zones.append({"poly": mask_contours(comp, S / W * 100, S / H * 100),
+                          "box": [round(float(xs.min()) * S / W * 100, 1), round(float(ys.min()) * S / H * 100, 1),
+                                  round(float(xs.max() + 1) * S / W * 100, 1), round(float(ys.max() + 1) * S / H * 100, 1)]})
+    zones.sort(key=lambda z: (z["box"][0], z["box"][1]))
+    return zones
+
+
 def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
     import sys as _sys
     if "/app/pylibs" not in _sys.path:  # numpy и pillow ставятся сюда (переживают Deploy)
@@ -1685,6 +1781,16 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             rest.append((kind, nums))
     spec = rest + [("rain", FxNums([q[0] / W * 100, q[1] / H * 100, q[2] / W * 100, q[3] / H * 100, 1.0])) for q in rains]
     kn = lambda kind, nums, word: fx_knob(data, kind, nums, word)
+    # пар: несколько закрасок воды с одним облаком — одна дымка (иначе густота удвоится)
+    merged = []
+    for kind, nums in spec:
+        if kind == "steam" and nums.area and getattr(nums, "cloud", []):
+            twin = next((q for q in merged if q[0] == "steam" and q[1].area and q[1].cloud == nums.cloud), None)
+            if twin:
+                twin[1].extra = getattr(twin[1], "extra", []) + [list(zip(nums[0::2], nums[1::2]))]
+                continue
+        merged.append((kind, nums))
+    spec = merged
 
     for kind, nums in spec:
         px, py = nums[0] / 100 * W, nums[1] / 100 * H
@@ -1700,13 +1806,19 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 hw_, hh_ = nums[2] / 2, 2.2 * 16 / 9 * (nums[2] / 36)
                 poly = [(nums[0] + hw_ * math.cos(a_), nums[1] + hh_ * math.sin(a_))
                         for a_ in np.linspace(0, 2 * math.pi, 24, endpoint=False)]
-            sx0, sy0, sx1, sy1 = poly_box(poly, W, H)
-            rise = int(230 * k * steam_height * rise_k)
+            polys = [poly] + list(getattr(nums, "extra", []))
+            sx0, sy0, sx1, sy1 = poly_box([p_ for q in polys for p_ in q], W, H)
+            cloud = getattr(nums, "cloud", [])
+            # без облака дымка низкая, у самой глади (05.10: высокая шла стеной через Пингви)
+            rise = int(110 * k * steam_height * rise_k)
             padx = int(0.12 * (sx1 - sx0) + 20 * k)
             x0, y0 = max(0, sx0 - padx), max(0, sy0 - rise)
             x1, y1 = min(W, sx1 + padx), sy1
+            if cloud:
+                cx0, cy0, cx1, cy1 = poly_box(cloud, W, H)
+                x0, y0, x1, y1 = min(x0, cx0), min(y0, cy0), max(x1, cx1), max(y1, cy1)
             bw, bh = x1 - x0, y1 - y0
-            src_m = polygon_mask(poly, W, H, (x0, y0, x1, y1))
+            src_m = np.max([polygon_mask(q, W, H, (x0, y0, x1, y1)) for q in polys], axis=0)
             src_b = np.asarray(Image.fromarray((src_m * 255).astype(np.uint8))
                                .filter(ImageFilter.GaussianBlur(6 * k)), np.float32) / 255
             # над каждой точкой глади дымка тянется вверх и редеет; столбцы без воды — пусто
@@ -1722,6 +1834,15 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             below = (yy_ <= bot_s[None, :]).astype(np.uint8) * 255      # всё выше дна глади
             below = np.asarray(Image.fromarray(below).filter(ImageFilter.GaussianBlur(5 * k)), np.float32) / 255
             env = col[None, :] * np.exp(-above / max(1.0, 0.42 * rise)) * below    # непрерывно, без шва
+            if cloud:
+                # облако автора: дымка живёт только внутри него, гуще внизу, у воды; края мягкие
+                cm_ = polygon_mask(cloud, W, H, (x0, y0, x1, y1))
+                cm_ = np.asarray(Image.fromarray((cm_ * 255).astype(np.uint8))
+                                 .filter(ImageFilter.GaussianBlur(5 * k)), np.float32) / 255
+                cys = np.nonzero(cm_.max(axis=1) > 0.3)[0]
+                ctop, cbot = (cys.min(), cys.max()) if len(cys) else (0, bh - 1)
+                fade = np.clip((np.arange(bh, dtype=np.float32) - ctop) / max(1, cbot - ctop), 0, 1)[:, None] ** 0.8
+                env = np.maximum(src_b * 0.55, cm_ * (0.3 + 0.7 * fade)) * cm_.clip(0.0, 1.0) ** 0.5
             sig = 14 * k
             nA = periodic_noise(bh, bw, sig, 11)
             nB = periodic_noise(bh, bw, sig * 0.55, 12)
@@ -1868,10 +1989,11 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             swing = kn(kind, nums, "раскачка")
             px, py = snap_flame(base, px, py, W, H)      # точка — к самому яркому тёплому пятну рядом
             ph = rng.uniform(0, 2 * math.pi, 6)
-            R = int(60 * k)
+            R = int(60 * k * max(1.0, glow) ** 0.5)          # ореол крупнее — и пятно света шире
             gx0, gy0 = int(px - R), int(py - R)
             yy, xx = np.mgrid[0:2 * R, 0:2 * R].astype(np.float32)
-            halo = np.exp(-((xx - R) ** 2 + (yy - R) ** 2) / (2 * (R * 0.42) ** 2))
+            rr = ((xx - R) ** 2 + (yy - R) ** 2) / (R * R)
+            halo = np.exp(-rr / (2 * 0.42 ** 2)) * np.clip(1 - rr, 0, 1) ** 2   # к краю — ровно в ноль, без квадрата
             fw, fh = 3.0 * k, 11.0 * k
 
             def candle(t, gx0=gx0, gy0=gy0, halo=halo, R=R, ph=ph, glow=glow, fw=fw, fh=fh, px=px, py=py, swing=swing):
@@ -3215,9 +3337,20 @@ def fx_marks():
         except Exception as e_:
             print(f"[fx_marks] закраски не прочитались: {e_}")
             areas = []
+        try:
+            zones = find_outlined_zones(orig, marked)
+        except Exception as e_:
+            print(f"[fx_marks] обводки не прочитались: {e_}")
+            zones = []
         area_text = ""
+        if zones:
+            area_text += ("\nОБВОДКИ (замкнутые, вместе с закраской внутри) — докуда живёт эффект: для пара над водой это «облако», "
+                          "пиши «пар: область <контур закраски>; облако <контур обводки>»; маленький кружок вокруг свечи или глаза — "
+                          "точка в его середине:\n" + "\n".join(
+                f"О{i}) рамка {z['box'][0]}, {z['box'][1]} — {z['box'][2]}, {z['box'][3]}; контур: "
+                + ", ".join(f"{x} {y}" for x, y in z["poly"]) for i, z in enumerate(zones, 1)))
         if areas:
-            area_text = ("\nЗАКРАСКИ (области, слева направо) — переписывай контур в строку как есть: «дождь: область …», "
+            area_text += ("\nЗАКРАСКИ (области, слева направо) — переписывай контур в строку как есть: «дождь: область …», "
                          "«пар: область …» и т. п., что это — по подписи на фото:\n" + "\n".join(
                 f"З{i}) рамка {a_['box'][0]}, {a_['box'][1]} — {a_['box'][2]}, {a_['box'][3]}; контур: "
                 + ", ".join(f"{x} {y}" for x, y in a_["poly"]) for i, a_ in enumerate(areas, 1)))
