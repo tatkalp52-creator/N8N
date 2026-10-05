@@ -131,7 +131,8 @@ if (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {
     const v = String((ctx.tmpl || {})[key] == null ? '' : ctx.tmpl[key]).trim();
     if (label && v) fx[label.charAt(0).toLowerCase() + label.slice(1)] = v;
   }
-  previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId };
+  previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId,
+    fxTable: fxTableFor(ctx.effects) };
 }
 // Согласованное — сразу в колонки строки выпуска (как в листе «Пункты»); несогласованное там пусто.
 let agreedFields = null;

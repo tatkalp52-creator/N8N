@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-05-snap2"
+ASSEMBLER_VERSION = "2026-10-05-knobs"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1405,21 +1405,71 @@ EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", 
 EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge")
 
 
+# Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
+# Ручки — шкала 1–10 листа «Эффекты»: 5 — как сейчас, 1 — вдвое слабее, 10 — вдвое сильнее.
+KNOB_WORDS = ("густота", "высота", "скорость", "ореол", "раскачка", "яркость", "капли", "частота", "размер")
+
+
+class FxNums(list):
+    """Числа строки эффекта + ручки этой строки (knobs) + признак области (area)."""
+    knobs = {}
+    area = False
+
+
 def parse_effects(text):
     out = []
     for line in str(text or "").splitlines():
         if line.strip().lower().startswith(EVENT_EFFECT_WORDS):
             continue
-        m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", line)
+        low = line.lower()
+        knobs = {}
+        for w_ in KNOB_WORDS:
+            km = re.search(w_ + r"\s*(\d+(?:\.\d+)?)", low)
+            if km:
+                knobs[w_] = float(km.group(1))
+                low = low[:km.start()] + low[km.end():]
+        area = "область" in low
+        low = low.replace("область", " ")
+        m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", low)
         if not m:
             continue
-        kind = EFFECT_NAMES.get(m.group(1).strip().lower())
-        nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2))]
+        kind = EFFECT_NAMES.get(m.group(1).strip())
+        nums = FxNums(float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2)))
+        nums.knobs, nums.area = knobs, area and len(nums) >= 6
         if kind and len(nums) >= 2:
             out.append((kind, nums))
         else:
             print(f"[effects] не поняла строку: {line!r}")
     return out
+
+
+def fx_mech(kind, nums):
+    """Какой строке листа «Эффекты» (столбец «Механика») соответствует строка выпуска."""
+    if kind == "steam":
+        return "steam_surface" if (getattr(nums, "area", False) or (len(nums) >= 3 and nums[2] > 0)) else "steam_cup"
+    return kind
+
+
+def fx_knob(data, kind, nums, word):
+    """Множитель ручки: строка выпуска → строка канала в листе «Эффекты» → 1 (как сейчас)."""
+    v = (getattr(nums, "knobs", None) or {}).get(word)
+    if v is None:
+        table = data.get("fxTable") or []
+        if isinstance(table, str):
+            try:
+                table = json.loads(table)
+            except ValueError:
+                table = []
+        mech = fx_mech(kind, nums)
+        for row in table:
+            if str(row.get("mech", "")).strip() == mech:
+                km = re.search(word + r"\s*(\d+(?:[.,]\d+)?)", str(row.get("knobs", "")).lower())
+                if km:
+                    v = float(km.group(1).replace(",", "."))
+                break
+    if v is None:
+        return 1.0
+    return 2 ** ((max(1.0, min(10.0, v)) - 5) / 5)
 
 
 # ── ПРИМАГНИЧИВАНИЕ (05.10): точки, которые можно найти счётом, а не глазом ──
@@ -1512,39 +1562,26 @@ def periodic_noise(h, w, sigma, seed):
     return n.astype(np.float32)
 
 
-def mask_contours(mask, step_pct_x, step_pct_y, tol=1.2):
-    """Контур самой большой части маски (сетка клеток) → упрощённый многоугольник в процентах."""
+def mask_contours(mask, step_pct_x, step_pct_y, tol=0.6):
+    """Контур маски → упрощённый многоугольник в процентах: по каждой строке левый и правый край
+    (левая сторона сверху вниз, правая снизу вверх). Вырезы сбоку (цветок в углу окна) сохраняются."""
     import numpy as np
-    h, w = mask.shape
-    start = None
-    for y in range(h):
-        xs = np.nonzero(mask[y])[0]
-        if len(xs):
-            start = (y, int(xs[0]))
-            break
-    if start is None:
+    rows = [y for y in range(mask.shape[0]) if mask[y].any()]
+    if not rows:
         return []
-    # обход границы (соседи Мура)
-    dirs = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
-    inside = lambda p: 0 <= p[0] < h and 0 <= p[1] < w and mask[p[0], p[1]]
-    cont, cur, d = [start], start, 6
-    for _ in range(8 * h * w):
-        for i in range(8):
-            nd = (d + i) % 8
-            nb = (cur[0] + dirs[nd][0], cur[1] + dirs[nd][1])
-            if inside(nb):
-                cur, d = nb, (nd + 5) % 8
-                break
-        else:
-            break
-        if cur == start:
-            break
-        cont.append(cur)
-    pts = [(x * step_pct_x, y * step_pct_y) for y, x in cont]
+    left, right = [], []
+    for y in rows:
+        xs = np.nonzero(mask[y])[0]
+        left.append((float(xs[0]) * step_pct_x, (y + 0.5) * step_pct_y))
+        right.append((float(xs[-1] + 1) * step_pct_x, (y + 0.5) * step_pct_y))
+    left[0] = (left[0][0], rows[0] * step_pct_y)
+    right[0] = (right[0][0], rows[0] * step_pct_y)
+    left[-1] = (left[-1][0], (rows[-1] + 1) * step_pct_y)
+    right[-1] = (right[-1][0], (rows[-1] + 1) * step_pct_y)
 
     def dp(seq):
         if len(seq) < 3:
-            return seq
+            return list(seq)
         (ax, ay), (bx, by) = seq[0], seq[-1]
         L = max(1e-6, ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5)
         dist = [abs((by - ay) * px - (bx - ax) * py + bx * ay - by * ax) / L for px, py in seq[1:-1]]
@@ -1552,8 +1589,8 @@ def mask_contours(mask, step_pct_x, step_pct_y, tol=1.2):
         if dist[i - 1] > tol:
             return dp(seq[:i + 1])[:-1] + dp(seq[i:])
         return [seq[0], seq[-1]]
-    simp = dp(pts + [pts[0]])[:-1] if len(pts) > 3 else pts
-    return [(round(x, 1), round(y, 1)) for x, y in simp]
+    poly = dp(left) + dp(right[::-1])
+    return [(round(x, 1), round(y, 1)) for x, y in poly]
 
 
 def find_painted_areas(orig_path, marked_path, min_area_pct=0.25):
@@ -1598,8 +1635,8 @@ def find_painted_areas(orig_path, marked_path, min_area_pct=0.25):
                 continue
             poly = mask_contours(lab == n, S / W * 100, S / H * 100)
             ys, xs = np.nonzero(lab == n)
-            areas.append({"poly": poly, "box": [round(xs.min() * S / W * 100, 1), round(ys.min() * S / H * 100, 1),
-                                                round((xs.max() + 1) * S / W * 100, 1), round((ys.max() + 1) * S / H * 100, 1)]})
+            areas.append({"poly": poly, "box": [round(float(xs.min()) * S / W * 100, 1), round(float(ys.min()) * S / H * 100, 1),
+                                                round(float(xs.max() + 1) * S / W * 100, 1), round(float(ys.max() + 1) * S / H * 100, 1)]})
     areas.sort(key=lambda z: (z["box"][0], z["box"][1]))
     return areas
 
@@ -1633,7 +1670,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
     # двумя стёклами, не должно лить дождь дважды — перекрывающиеся прямоугольники сливаем
     rains, rest = [], []
     for kind, nums in spec:
-        if kind == "rain" and len(nums) >= 4:
+        if kind == "rain" and len(nums) >= 4 and not nums.area:
             rx0, ry0 = int(min(nums[0], nums[2]) / 100 * W), int(min(nums[1], nums[3]) / 100 * H)
             rx1, ry1 = int(max(nums[0], nums[2]) / 100 * W), int(max(nums[1], nums[3]) / 100 * H)
             r_ = [int(v) for v in snap_glass(base, rx0, ry0, rx1, ry1, W, H)]
@@ -1646,49 +1683,65 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 rains.append(r_)
         else:
             rest.append((kind, nums))
-    spec = rest + [("rain", [q[0] / W * 100, q[1] / H * 100, q[2] / W * 100, q[3] / H * 100, 1.0]) for q in rains]
+    spec = rest + [("rain", FxNums([q[0] / W * 100, q[1] / H * 100, q[2] / W * 100, q[3] / H * 100, 1.0])) for q in rains]
+    kn = lambda kind, nums, word: fx_knob(data, kind, nums, word)
 
     for kind, nums in spec:
         px, py = nums[0] / 100 * W, nums[1] / 100 * H
-        if kind == "steam" and len(nums) >= 3 and nums[2] > 0:
-            # ПАР НАД ВАННОЙ (04.10): третья цифра — ширина водной глади (% кадра). Три широкие,
-            # сильно размытые, еле заметные струи по всей ширине; петля — вся 6-секундная.
-            span = nums[2] / 100 * W
-            bw, bh = int(span + 90 * k), int(200 * k * steam_height)
-            x0, y0 = int(px - bw / 2), int(py - bh)
-            grain = np.asarray(Image.fromarray(rng.uniform(0, 255, (bh, bw)).astype(np.uint8))
-                               .filter(ImageFilter.GaussianBlur(2.0 * k)), np.float32) / 255
-            grain = 0.7 + 0.3 * grain
-            wide = [dict(bx=(f - 0.5) * span, A=26, f=1.0, ph=p_, mp=m_)
-                    for f, p_, m_ in ((0.2, 0.0, 0.15), (0.52, 2.2, 0.6), (0.82, 4.3, 0.35))]
+        if kind == "steam" and (nums.area or (len(nums) >= 3 and nums[2] > 0)):
+            # ПАР НАД ВОДОЙ (05.10): дымка поднимается со всей глади, а не струйками. Гладь —
+            # область, которую автор закрасила («пар: область x y, x y, …»), или старая запись
+            # «пар: x, y, ширина» (тогда гладь — плоский овал). Над гладью дымка гуще, выше —
+            # редеет и растворяется. Ручки: густота, высота, скорость (лист «Эффекты»).
+            dens, rise_k, spd = kn(kind, nums, "густота"), kn(kind, nums, "высота"), kn(kind, nums, "скорость")
+            if nums.area:
+                poly = list(zip(nums[0::2], nums[1::2]))
+            else:
+                hw_, hh_ = nums[2] / 2, 2.2 * 16 / 9 * (nums[2] / 36)
+                poly = [(nums[0] + hw_ * math.cos(a_), nums[1] + hh_ * math.sin(a_))
+                        for a_ in np.linspace(0, 2 * math.pi, 24, endpoint=False)]
+            sx0, sy0, sx1, sy1 = poly_box(poly, W, H)
+            rise = int(230 * k * steam_height * rise_k)
+            padx = int(0.12 * (sx1 - sx0) + 20 * k)
+            x0, y0 = max(0, sx0 - padx), max(0, sy0 - rise)
+            x1, y1 = min(W, sx1 + padx), sy1
+            bw, bh = x1 - x0, y1 - y0
+            src_m = polygon_mask(poly, W, H, (x0, y0, x1, y1))
+            src_b = np.asarray(Image.fromarray((src_m * 255).astype(np.uint8))
+                               .filter(ImageFilter.GaussianBlur(6 * k)), np.float32) / 255
+            # над каждой точкой глади дымка тянется вверх и редеет; столбцы без воды — пусто
+            has = src_m.max(axis=0) > 0.5
+            top = np.where(has, np.argmax(src_m > 0.5, axis=0), bh).astype(np.float32)
+            col = np.asarray(Image.fromarray((has * 255).astype(np.uint8)[None, :].repeat(4, 0))
+                             .filter(ImageFilter.GaussianBlur(10 * k)), np.float32)[0] / 255
+            top_s = np.interp(np.arange(bw), np.nonzero(has)[0], top[has]) if has.any() else top
+            bot = np.where(has, bh - 1 - np.argmax(src_m[::-1] > 0.5, axis=0), 0).astype(np.float32)
+            bot_s = np.interp(np.arange(bw), np.nonzero(has)[0], bot[has]) if has.any() else bot
+            yy_ = np.arange(bh, dtype=np.float32)[:, None]
+            above = np.clip(top_s[None, :] - yy_, 0, None)
+            below = (yy_ <= bot_s[None, :]).astype(np.uint8) * 255      # всё выше дна глади
+            below = np.asarray(Image.fromarray(below).filter(ImageFilter.GaussianBlur(5 * k)), np.float32) / 255
+            env = col[None, :] * np.exp(-above / max(1.0, 0.42 * rise)) * below    # непрерывно, без шва
+            sig = 14 * k
+            nA = periodic_noise(bh, bw, sig, 11)
+            nB = periodic_noise(bh, bw, sig * 0.55, 12)
+            cyc_a = max(1, int(round(1 * spd)))
+            cyc_b = max(1, int(round(2 * spd)))
 
-            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wide=wide):
-                t = (t % EFFECTS_LOOP_SECONDS) / EFFECTS_LOOP_SECONDS
-                can = Image.new("L", (bw * SS, bh * SS), 0)
-                d = ImageDraw.Draw(can)
-                for w in wide:
-                    S = 120
-                    pts = []
-                    for i in range(S + 1):
-                        s_ = i / S
-                        x = bw / 2 + w["bx"] + k * w["A"] * s_ ** 0.9 * math.sin(2 * math.pi * (w["f"] * s_ - t) + w["ph"])
-                        pts.append((x, bh - 1 - s_ * (bh - 6), s_))
-                    for i in range(S):
-                        xa, ya, s_ = pts[i]
-                        xb, yb, _ = pts[i + 1]
-                        fade = min(1, s_ / 0.08) * max(0, min(1, (0.95 - s_) / 0.5))
-                        dash = 0.5 + 0.5 * math.sin(2 * math.pi * (1.5 * s_ - t) + w["mp"] * 6.28)
-                        a = fade * (0.4 + 0.6 * dash)
-                        if a > 0.01:
-                            d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
-                                   width=max(1, int((9 + 16 * s_) * k * SS)))
-                al = np.asarray(can.resize((bw, bh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(7 * k)),
-                                np.float32) / 255 * grain * steam_opacity * 0.42
-                return x0, y0, al, np.array([246, 241, 231], np.float32)
+            def steam(t, x0=x0, y0=y0, bh=bh, env=env, nA=nA, nB=nB, cyc_a=cyc_a, cyc_b=cyc_b, dens=dens):
+                u = (t % EFFECTS_LOOP_SECONDS) / EFFECTS_LOOP_SECONDS
+                a_ = np.roll(nA, -int(round(u * cyc_a * bh)), axis=0)     # вверх, петля без шва
+                b_ = np.roll(nB, -int(round(u * cyc_b * bh)), axis=0)
+                n = 0.62 * a_ + 0.38 * b_
+                haze = np.clip((n - 0.32) / 0.5, 0, 1) ** 1.4
+                al = env * (0.2 + 0.8 * haze) * 0.62 * steam_opacity / 0.62 * dens
+                return x0, y0, np.clip(al, 0, 0.85), np.array([244, 240, 232], np.float32)
             layers.append(steam)
 
         elif kind == "steam":
-            bw, bh = int(150 * k), int(165 * k * steam_height)
+            c_op, c_h, c_sp = kn(kind, nums, "густота"), kn(kind, nums, "высота"), kn(kind, nums, "скорость")
+            c_cyc = max(1, int(round(2 * c_sp)))     # петля 6 с: столько проходов струйки
+            bw, bh = int(150 * k), int(165 * k * steam_height * c_h)
             x0, y0 = int(px - bw / 2), int(py - bh)
             grain = np.asarray(Image.fromarray(rng.uniform(0, 255, (bh, bw)).astype(np.uint8))
                                .filter(ImageFilter.GaussianBlur(0.6 * k)), np.float32) / 255
@@ -1697,8 +1750,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                      dict(bx=1, A=19, f=1.4, ph=2.3, m=2.4, mp=0.55, w=1.3),
                      dict(bx=11, A=13, f=1.8, ph=4.1, m=1.8, mp=0.85, w=1.0)]
 
-            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps):
-                t = (t % 3.0) / 3.0  # своя петля 3 с, в 6-секундной — дважды
+            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps, c_op=c_op, c_cyc=c_cyc):
+                t = (t * c_cyc / EFFECTS_LOOP_SECONDS) % 1.0  # c_cyc проходов за петлю
                 can = Image.new("L", (bw * SS, bh * SS), 0)
                 d = ImageDraw.Draw(can)
                 for w in wisps:
@@ -1719,8 +1772,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                             d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
                                    width=max(1, int((2.0 + 3.8 * s) * w["w"] * k * SS)))
                 al = np.asarray(can.resize((bw, bh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.9 * k)),
-                                np.float32) / 255 * grain * steam_opacity
-                return x0, y0, al, np.array([246, 241, 231], np.float32)
+                                np.float32) / 255 * grain * steam_opacity * c_op
+                return x0, y0, np.clip(al, 0, 1), np.array([246, 241, 231], np.float32)
             layers.append(steam)
 
         elif kind == "bubbles":
@@ -1760,9 +1813,9 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
         elif kind == "smoke":
             # ДЫМОК (04.10): одна тонкая белая струйка из трубы, чуть сносится ветром.
             # Точка — верх трубы. Вид — 🎬 smokeOpacity / smokeSize.
-            s_op = _num("smokeOpacity", 0.8)
-            s_sz = _num("smokeSize", 1.0)
-            thick = nums[4] if len(nums) >= 5 and nums[4] > 0 else 1.0
+            s_op = _num("smokeOpacity", 0.8) * kn(kind, nums, "густота")
+            s_sz = _num("smokeSize", 1.0) * kn(kind, nums, "высота")
+            thick = (nums[4] if len(nums) >= 5 and nums[4] > 0 else 1.0) * kn(kind, nums, "толщина")
             lean_px = 0.6 * 38 * k * s_sz                 # снос ветром по умолчанию
             if len(nums) >= 4:   # верхний конец струйки задан: высота и снос — как нарисовано
                 top_y = nums[3] / 100 * H
@@ -1804,34 +1857,47 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             layers.append(smoke)
 
         elif kind == "candle":
-            # СВЕЧА (04.10): точка — середина пламени. Пламя подрагивает и дышит яркостью,
-            # вокруг — тёплый ореол. Все частоты кратны петле — шва нет. Вид — 🎬 candleGlow.
-            glow = _num("candleGlow", 1.0)
+            # СВЕЧА (04.10; язычок — 05.10): точка — середина пламени. Язычок-капля: основание
+            # стоит, кончик раскачивается и вытягивается; вокруг дышит тёплый ореол. Все частоты
+            # кратны петле — шва нет. Ручки: ореол, раскачка (лист «Эффекты») и 🎬 candleGlow.
+            glow = _num("candleGlow", 1.0) * kn(kind, nums, "ореол")
+            swing = kn(kind, nums, "раскачка")
             px, py = snap_flame(base, px, py, W, H)      # точка — к самому яркому тёплому пятну рядом
-            ph = rng.uniform(0, 2 * math.pi, 4)
+            ph = rng.uniform(0, 2 * math.pi, 6)
             R = int(60 * k)
             gx0, gy0 = int(px - R), int(py - R)
             yy, xx = np.mgrid[0:2 * R, 0:2 * R].astype(np.float32)
             halo = np.exp(-((xx - R) ** 2 + (yy - R) ** 2) / (2 * (R * 0.42) ** 2))
-            fw, fh = 3.2 * k, 8.5 * k
+            fw, fh = 3.0 * k, 11.0 * k
 
-            def candle(t, gx0=gx0, gy0=gy0, halo=halo, R=R, ph=ph, glow=glow, fw=fw, fh=fh, px=px, py=py):
+            def candle(t, gx0=gx0, gy0=gy0, halo=halo, R=R, ph=ph, glow=glow, fw=fw, fh=fh, px=px, py=py, swing=swing):
                 L = EFFECTS_LOOP_SECONDS
                 f = (0.55 * math.sin(2 * math.pi * 7 * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * 13 * t / L + ph[1])
                      + 0.15 * math.sin(2 * math.pi * 29 * t / L + ph[2]))
-                sway = 1.6 * k * math.sin(2 * math.pi * 5 * t / L + ph[3])
+                # кончик: медленное покачивание + быстрый трепет; основание почти на месте
+                tip = swing * k * (2.4 * math.sin(2 * math.pi * 3 * t / L + ph[3])
+                                   + 1.1 * math.sin(2 * math.pi * 11 * t / L + ph[4]))
+                stretch = 1 + 0.18 * math.sin(2 * math.pi * 4 * t / L + ph[5]) + 0.12 * f
                 a = halo * (0.2 + 0.09 * f) * glow
                 can = Image.new("L", (2 * R * SS, 2 * R * SS), 0)
                 d = ImageDraw.Draw(can)
-                cx, cy = (px - gx0 + sway) * SS, (py - gy0) * SS
-                h_ = fh * (1 + 0.22 * f) * SS
-                d.ellipse([cx - fw * SS, cy - h_ * 0.75, cx + fw * SS, cy + h_ * 0.35], fill=255)
+                bx_, by_ = (px - gx0), (py - gy0) + fh * 0.4      # основание пламени
+                h_ = fh * stretch
+                left, right = [], []
+                for i in range(25):
+                    s_ = i / 24                                   # 0 — основание, 1 — кончик
+                    hw = fw * (1 - s_) ** 0.75 * min(1.0, (s_ + 0.06) / 0.3) ** 0.5
+                    cx = bx_ + tip * s_ ** 1.6
+                    cy = by_ - h_ * s_
+                    left.append(((cx - hw) * SS, cy * SS))
+                    right.append(((cx + hw) * SS, cy * SS))
+                d.polygon(left + right[::-1], fill=255)
                 core = np.asarray(can.resize((2 * R, 2 * R), Image.LANCZOS)
-                                  .filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32) / 255
-                a = np.maximum(a, core * (0.36 + 0.2 * f))
+                                  .filter(ImageFilter.GaussianBlur(1.0 * k)), np.float32) / 255
+                a = np.maximum(a, core * (0.42 + 0.18 * f))
                 col = np.empty((2 * R, 2 * R, 3), np.float32)
                 col[...] = (255, 196, 120)
-                col[core > 0.05] = (255, 238, 190)
+                col[core > 0.05] = (255, 236, 186)
                 return gx0, gy0, np.clip(a, 0, 1), col
             layers.append(candle)
 
@@ -1839,18 +1905,27 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # ДОЖДЬ ЗА ОКНОМ (04.10): прямоугольник стекла (левый верх → правый низ). За стеклом
             # тонкие струи, по стеклу изредка сползают капли. Видно только на тёмном стекле
             # (рама, цветок на подоконнике не трогаются). Петля бесшовная. Вид — 🎬 rainOpacity.
-            r_op = _num("rainOpacity", 1.0)
-            rx0, ry0 = int(min(nums[0], nums[2]) / 100 * W), int(min(nums[1], nums[3]) / 100 * H)
-            rx1, ry1 = int(max(nums[0], nums[2]) / 100 * W), int(max(nums[1], nums[3]) / 100 * H)
-            if len(nums) < 5:   # пятое число — уже примагничено выше
-                rx0, ry0, rx1, ry1 = (int(v) for v in snap_glass(base, rx0, ry0, rx1, ry1, W, H))   # к тёмному стеклу
-            rw, rh = max(4, rx1 - rx0), max(4, ry1 - ry0)
-            lum = base[ry0:ry0 + rh, rx0:rx0 + rw].mean(axis=2)
-            dark = np.clip((175 - lum) / 90, 0, 1)            # стекло тёмное — там видно дождь
-            n_st = max(12, int(rw * rh / (900 * k * k)))
+            r_op = _num("rainOpacity", 1.0) * kn(kind, nums, "яркость")
+            if nums.area:
+                # ОБЛАСТЬ (05.10): дождь ровно там, где автор закрасила стекло, — цветок и рама вне её
+                poly = list(zip(nums[0::2], nums[1::2]))
+                rx0, ry0, rx1, ry1 = poly_box(poly, W, H)
+                rw, rh = max(4, rx1 - rx0), max(4, ry1 - ry0)
+                dark = np.asarray(Image.fromarray((polygon_mask(poly, W, H, (rx0, ry0, rx0 + rw, ry0 + rh)) * 255)
+                                                  .astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2 * k)),
+                                  np.float32) / 255
+            else:
+                rx0, ry0 = int(min(nums[0], nums[2]) / 100 * W), int(min(nums[1], nums[3]) / 100 * H)
+                rx1, ry1 = int(max(nums[0], nums[2]) / 100 * W), int(max(nums[1], nums[3]) / 100 * H)
+                if len(nums) < 5:   # пятое число — уже примагничено выше
+                    rx0, ry0, rx1, ry1 = (int(v) for v in snap_glass(base, rx0, ry0, rx1, ry1, W, H))   # к тёмному стеклу
+                rw, rh = max(4, rx1 - rx0), max(4, ry1 - ry0)
+                lum = base[ry0:ry0 + rh, rx0:rx0 + rw].mean(axis=2)
+                dark = np.clip((175 - lum) / 90, 0, 1)            # стекло тёмное — там видно дождь
+            n_st = max(12, int(rw * rh / (900 * k * k) * kn(kind, nums, "густота")))
             streaks = [dict(x=rng.uniform(0, rw), y=rng.uniform(0, rh), L=rng.uniform(10, 24) * k,
                             m=int(rng.integers(3, 6)), a=rng.uniform(0.35, 0.8)) for _ in range(n_st)]
-            n_dr = max(2, int(rw / (90 * k)))
+            n_dr = max(1, int(rw / (90 * k) * kn(kind, nums, "капли")))
             drops = [dict(x=rng.uniform(0.08, 0.92) * rw, ph=rng.uniform(0, 1), wob=rng.uniform(0, 6.28))
                      for _ in range(n_dr)]
             slant = 0.12
@@ -1913,7 +1988,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                      for dx in np.linspace(-4.2 * k * q, 4.2 * k * q, 20)],
                     fill=255, width=max(1, int(1.3 * k * max(q, 0.6) * SS)), joint="curve")
             la = np.asarray(lid.resize((bw, bh), Image.LANCZOS), np.float32)[..., None] / 255 * 0.85
-            closed = closed * (1 - la) + np.array([78, 56, 34], np.float32) * la
+            closed = closed * (1 - la) + feather * 0.5 * la      # линия века — темнее своих пёрышек
             soft = np.clip((pad - np.maximum(abs(xx - pad), abs(yy - pad))) / (0.3 * pad), 0, 1)
 
             def blink(t, closed=closed, soft=soft, bx0=bx0, by0=by0):
@@ -3036,20 +3111,33 @@ def fx_marks():
         marked = os.path.join(work_dir, "marked.jpg")
         open(marked, "wb").write(base64.b64decode(raw.split(",", 1)[-1]))
         marks = find_red_marks(orig, marked)
+        # ЗАКРАСКИ (05.10): толстая кисть или заливка — форма области контуром; её строка —
+        # «дождь: область …», «пар: область …» (что это — по подписи автора на фото)
+        try:
+            areas = find_painted_areas(orig, marked)
+        except Exception as e_:
+            print(f"[fx_marks] закраски не прочитались: {e_}")
+            areas = []
+        area_text = ""
+        if areas:
+            area_text = ("\nЗАКРАСКИ (области, слева направо) — переписывай контур в строку как есть: «дождь: область …», "
+                         "«пар: область …» и т. п., что это — по подписи на фото:\n" + "\n".join(
+                f"З{i}) рамка {a_['box'][0]}, {a_['box'][1]} — {a_['box'][2]}, {a_['box'][3]}; контур: "
+                + ", ".join(f"{x} {y}" for x, y in a_["poly"]) for i, a_ in enumerate(areas, 1)))
         if len(marks) > 12:
             # обводки «где оживить» и подписи словами: штрихов много и они мелкие — пересказывать их
             # нет смысла; этап читает разметку по самому фото, точные места доводят лупа и примагничивание
             return jsonify({"ok": True, "marks": marks[:0], "zones": True,
                             "text": f"На фото обводки и подписи автора (мелких штрихов: {len(marks)}). Читай разметку по самому фото: "
                                     "что обведено и что подписано. Места называй по центру обводки — точные точки "
-                                    "(пламя, глаз, стекло) дальше доведут лупа и сборщик."})
+                                    "(пламя, глаз, стекло) дальше доведут лупа и сборщик." + area_text, "areas": areas})
         lines = []
         for i, m_ in enumerate(marks, 1):
             lines.append(f"{i}) верхний конец {m_['top'][0]}, {m_['top'][1]}; нижний конец {m_['bottom'][0]}, "
                          f"{m_['bottom'][1]}; путь сверху вниз: " + " → ".join(f"{p[0]}, {p[1]}" for p in m_["path"]) +
                          f"; толщина штриха {m_['width_pct']} % высоты кадра"
                          f"; рамка штриха: левый верх {m_['box'][0]}, {m_['box'][1]} — правый низ {m_['box'][2]}, {m_['box'][3]}")
-        return jsonify({"ok": True, "marks": marks, "text": "\n".join(lines)})
+        return jsonify({"ok": True, "marks": marks, "areas": areas, "text": "\n".join(lines) + area_text})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e), "marks": [], "text": ""}), 200
     finally:

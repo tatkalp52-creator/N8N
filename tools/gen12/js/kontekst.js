@@ -12,6 +12,10 @@ try { stageRows = $('Читаем этапы').all().map(i => i.json || {}); } c
 let itemRows = [];
 try { itemRows = $('Читаем пункты').all().map(i => i.json || {}); } catch (e) {}
 
+let effectRows = [];
+try { effectRows = $('Читаем эффекты').all().map(i => i.json || {}); } catch (e) {}
+const effects = fxRows(effectRows, inc.channelKey);
+
 const found = !!row.sys_ProjectID && String(row.sys_ProjectID).trim() === inc.projectId;
 const stages = stParseStages(stageRows);
 const items = itParseItems(itemRows);
@@ -25,6 +29,7 @@ return [{
     tmpl,
     stages,
     items,
+    effects,
     setupProblem: !stages.length ? 'В листе «Этапы» нет строк для этого канала — не знаю, кто работает.' : '',
     status: found ? String(row.sys_Status || '').trim() : '',
   }

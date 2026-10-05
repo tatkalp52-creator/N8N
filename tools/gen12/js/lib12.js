@@ -76,6 +76,8 @@ function stParseStages(rows) {
       effort: cell(r, 'Усилие').toLowerCase(),
       // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)
       grid: /сетк/i.test(cell(r, 'Картинка')),
+      // «Справочник: Эффекты» — этап видит каталог эффектов (лист «Эффекты», столбец своего канала)
+      ref: cell(r, 'Справочник'),
     };
   }).filter(s => s.icon && s.name);
   for (const s of list) {
@@ -99,6 +101,25 @@ function stScope(stages, stage) {
   const subs = stSubordinates(stages, stage);
   const items = [...new Set([...stage.items, ...subs.flatMap(s => s.items)])].sort((a, b) => a - b);
   return { items, picture: stage.picture || subs.some(s => s.picture), subs };
+}
+
+// ── Эффекты ──
+// Лист «Эффекты»: Семейство | Эффект | Механика | Строка для сборщика | Как размечать | Ручки | Статус |
+// столбец на канал (заголовок — ключ канала). Строки без «Механики» — пояснения для человека.
+function fxRows(rows, channelKey) {
+  return (rows || []).map(r => ({
+    family: cell(r, 'Семейство'), name: cell(r, 'Эффект'), mech: cell(r, 'Механика'),
+    line: cell(r, 'Строка для сборщика'), marks: cell(r, 'Как размечать'), knobs: cell(r, 'Ручки'),
+    status: cell(r, 'Статус'), value: String((r || {})[channelKey] == null ? '' : r[channelKey]).trim(),
+  })).filter(e => e.mech && e.name);
+}
+// для сборщика: механика → ручки канала (пустая клетка — эффект каналу не нужен)
+function fxTableFor(effects) {
+  return (effects || []).filter(e => e.value).map(e => ({ mech: e.mech, knobs: e.value }));
+}
+function fxCatalogText(effects) {
+  return (effects || []).map(e => `- ${e.family} · ${e.name}: строка «${e.line}»; разметка: ${e.marks}; ручки: ${e.knobs}; ` +
+    `статус: ${e.status}; на этом канале: ${e.value || 'не используется'}`).join('\n');
 }
 
 // ── Пункты ──

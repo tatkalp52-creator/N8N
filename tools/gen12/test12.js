@@ -246,12 +246,16 @@ async function turn(stages, row, inc, response, subResponse) {
 
   // ── 9c. Аниматор: видит картинку с сеткой (метка в памяти, не данные), его пункт — с превью ──
   {
-    const ANIM = [DIRECT[0], { ...st('🎞️', 'Аниматор', 'автор', 'да', '9'), 'Картинка': 'с сеткой' }];
+    const ANIM = [DIRECT[0], { ...st('🎞️', 'Аниматор', 'автор', 'да', '9'), 'Картинка': 'с сеткой', 'Справочник': 'Эффекты' }];
+    const FX = [
+      { 'Семейство': 'Пар и дым', 'Эффект': 'дым', 'Механика': 'smoke', 'Строка для сборщика': 'дымок: x, y', 'Как размечать': 'кружок', 'Ручки': 'густота', 'Статус': 'готов', demo: 'густота 4', other: '' },
+      { 'Семейство': 'Осадки', 'Эффект': 'снег', 'Механика': 'snow', 'Строка для сборщика': 'снег: область', 'Как размечать': 'заливка', 'Ручки': 'густота', 'Статус': 'пока не умеет', demo: '' },
+      { 'Семейство': 'КАК ЧИТАТЬ ЛИСТ', 'Эффект': '', 'Механика': '' }];
     const IT9 = [...ITEMS, { 'Канал': 'demo', '№': '9', 'Пункт': 'Оживление', 'Колонки': 'fx_Effects', 'Можно пусто': 'да', 'Превью': 'оживление' }];
     const ctxA = await (async () => {
       const nodes = { 'Разбираем входящее': { kind: 'stageStart', chatId: 1, projectId: 'P1', channelKey: 'demo', text: '', event: 'Картинка согласована.' },
         'Находим лист канала': { SheetName: 'demo' }, 'Читаем строку проекта': { sys_ProjectID: 'P1', ai_ApprovedImageUrl: 'U2', ai_ImageVariants: V },
-        'Читаем шаблоны канала': { ...TMPL, '🎞️_tmpl_AnimatorRules': 'дымок: x, y' }, 'Читаем этапы': ANIM, 'Читаем пункты': IT9 };
+        'Читаем шаблоны канала': { ...TMPL, '🎞️_tmpl_AnimatorRules': 'дымок: x, y' }, 'Читаем этапы': ANIM, 'Читаем пункты': IT9, 'Читаем эффекты': FX };
       return (await run('Контекст проекта', { nodes }))[0];
     })();
     const n = { 'Контекст проекта': ctxA };
@@ -263,6 +267,9 @@ async function turn(stages, row, inc, response, subResponse) {
     const imgs = req.requestBody.input[0].content.filter(c => c.type === 'input_image').map(c => c.image_url);
     assert.deepEqual(imgs, ['data:image/jpeg;base64,GRID'], 'аниматор видит картинку с сеткой');
     assert.ok(req.seen.includes('grid:U2') && !req.seen.some(x => x.startsWith('data:')), 'в памяти — метка, не данные');
+    assert.ok(req.requestBody.instructions.includes('КАТАЛОГ ЭФФЕКТОВ') && req.requestBody.instructions.includes('строка «дымок: x, y»')
+      && req.requestBody.instructions.includes('на этом канале: густота 4') && req.requestBody.instructions.includes('на этом канале: не используется'),
+      'аниматор видит каталог эффектов со столбцом своего канала');
     n['Готовим запрос этапу'] = req;
     n['Разбираем ответ этапа'] = (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'Вот.' })] }))[0];
     // лупа: точки уточняются по увеличенным кусочкам, меняются только числа этих точек
@@ -298,6 +305,7 @@ async function turn(stages, row, inc, response, subResponse) {
     const r = (await run('Итог хода', { nodes: n }))[0];
     assert.equal(r.previewBody.fx_Effects, 'дымок: 44, 37'); assert.equal(r.previewBody.imageUrl, 'U2');
     assert.equal(r.previewBody.targetLUFS, '-14', 'вид эффектов — колонки 🎬');
+    assert.deepEqual(r.previewBody.fxTable, [{ mech: 'smoke', knobs: 'густота 4' }], 'ручки эффектов канала — из листа «Эффекты»');
     assert.ok(r.previewCaption.includes('ID: P1'));
     const nx = (await run('Что дальше?', { nodes: { 'Итог хода': r } }))[0];
     assert.equal(nx.preview, true);
