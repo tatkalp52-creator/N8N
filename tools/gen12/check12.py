@@ -53,4 +53,10 @@ for n in wf['nodes']:
         for k in (n['parameters'].get('columns', {}).get('value') or {}):
             if k.startswith('tmpl_') and k not in SERVICE or re.match(r'^\W', k):
                 print('GUARD: запись в колонку по имени', n['name'], k); bad += 1
+# Листы, где строк много (Этапы, Пункты, Эффекты), читаются целиком: без returnAllMatches узел отдаёт одну строку
+# (05.10: так пропал пункт 9 — Аниматор остался без своего пункта)
+for n in wf['nodes']:
+    if n['type'] == 'n8n-nodes-base.googleSheets' and n['parameters'].get('sheetName', {}).get('value') in ('Этапы', 'Пункты', 'Эффекты'):
+        if n['parameters'].get('options', {}).get('returnAllMatches') != 'returnAllMatches':
+            print('GUARD: лист читается одной строкой', n['name']); bad += 1
 print('problems:', bad)

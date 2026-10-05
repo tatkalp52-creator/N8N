@@ -194,6 +194,7 @@ nodes[-1]['executeOnce'] = True
 nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}  # по умолчанию узел отдаёт только первую строку
 sheets_read('Читаем пункты', 'Пункты', [('Канал', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 2220, Y])
 nodes[-1]['executeOnce'] = True
+nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
 sheets_read('Читаем эффекты', 'Эффекты', [], [X + 2220, Y + 200])   # каталог эффектов: весь лист, столбцы каналов
 nodes[-1]['executeOnce'] = True
 nodes[-1]['onError'] = 'continueRegularOutput'
