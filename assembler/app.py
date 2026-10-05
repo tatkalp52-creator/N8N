@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-05-snap"
+ASSEMBLER_VERSION = "2026-10-05-snap2"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1504,6 +1504,24 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
     rng = np.random.default_rng(3)
     n_frames = int(round(EFFECTS_LOOP_SECONDS * fps))
     layers = []
+    # дождь: каждое стекло сначала примагничивается к тёмному стеклу; одно окно, записанное
+    # двумя стёклами, не должно лить дождь дважды — перекрывающиеся прямоугольники сливаем
+    rains, rest = [], []
+    for kind, nums in spec:
+        if kind == "rain" and len(nums) >= 4:
+            rx0, ry0 = int(min(nums[0], nums[2]) / 100 * W), int(min(nums[1], nums[3]) / 100 * H)
+            rx1, ry1 = int(max(nums[0], nums[2]) / 100 * W), int(max(nums[1], nums[3]) / 100 * H)
+            r_ = [int(v) for v in snap_glass(base, rx0, ry0, rx1, ry1, W, H)]
+            for q in rains:
+                ix = max(0, min(q[2], r_[2]) - max(q[0], r_[0])) * max(0, min(q[3], r_[3]) - max(q[1], r_[1]))
+                if ix > 0.3 * min((q[2] - q[0]) * (q[3] - q[1]), (r_[2] - r_[0]) * (r_[3] - r_[1])):
+                    q[:] = [min(q[0], r_[0]), min(q[1], r_[1]), max(q[2], r_[2]), max(q[3], r_[3])]
+                    break
+            else:
+                rains.append(r_)
+        else:
+            rest.append((kind, nums))
+    spec = rest + [("rain", [q[0] / W * 100, q[1] / H * 100, q[2] / W * 100, q[3] / H * 100, 1.0]) for q in rains]
 
     for kind, nums in spec:
         px, py = nums[0] / 100 * W, nums[1] / 100 * H
@@ -1699,7 +1717,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             r_op = _num("rainOpacity", 1.0)
             rx0, ry0 = int(min(nums[0], nums[2]) / 100 * W), int(min(nums[1], nums[3]) / 100 * H)
             rx1, ry1 = int(max(nums[0], nums[2]) / 100 * W), int(max(nums[1], nums[3]) / 100 * H)
-            rx0, ry0, rx1, ry1 = (int(v) for v in snap_glass(base, rx0, ry0, rx1, ry1, W, H))   # к тёмному стеклу
+            if len(nums) < 5:   # пятое число — уже примагничено выше
+                rx0, ry0, rx1, ry1 = (int(v) for v in snap_glass(base, rx0, ry0, rx1, ry1, W, H))   # к тёмному стеклу
             rw, rh = max(4, rx1 - rx0), max(4, ry1 - ry0)
             lum = base[ry0:ry0 + rh, rx0:rx0 + rw].mean(axis=2)
             dark = np.clip((175 - lum) / 90, 0, 1)            # стекло тёмное — там видно дождь
