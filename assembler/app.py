@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-06-marks"
+ASSEMBLER_VERSION = "2026-10-06-wisps"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1911,9 +1911,17 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             wisps = [dict(bx=-10, A=15, f=1.6, ph=0.0, m=2.0, mp=0.1, w=1.1),
                      dict(bx=1, A=19, f=1.4, ph=2.3, m=2.4, mp=0.55, w=1.3),
                      dict(bx=11, A=13, f=1.8, ph=4.1, m=1.8, mp=0.85, w=1.0)]
+            # (06.10) несколько струек на одной тарелке были одинаковыми — «как лес»: у каждой точки
+            # свой изгиб, своя фаза и свой сдвиг во времени (зависят от места, петля не рвётся)
+            vr = random.Random(int(px * 7919 + py * 104729))
+            wisps = [dict(w_, ph=w_["ph"] + vr.uniform(0, 6.28), A=w_["A"] * vr.uniform(0.75, 1.3),
+                          f=w_["f"] * vr.uniform(0.85, 1.15), mp=w_["mp"] + vr.uniform(0, 1),
+                          end=vr.uniform(0.55, 0.95)) for w_ in wisps]
+            t_shift = vr.uniform(0, 1)
 
-            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps, c_op=c_op, c_cyc=c_cyc, c_th=c_th):
-                t = (t * c_cyc / EFFECTS_LOOP_SECONDS) % 1.0  # c_cyc проходов за петлю
+            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps, c_op=c_op, c_cyc=c_cyc, c_th=c_th,
+                      t_shift=t_shift):
+                t = (t * c_cyc / EFFECTS_LOOP_SECONDS + t_shift) % 1.0  # c_cyc проходов за петлю
                 can = Image.new("L", (bw * SS, bh * SS), 0)
                 d = ImageDraw.Draw(can)
                 for w in wisps:
@@ -1927,7 +1935,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                     for i in range(S):
                         xa, ya, s = pts[i]
                         xb, yb, _ = pts[i + 1]
-                        fade = min(1, s / 0.04) * max(0, min(1, (0.95 - s) / 0.45))
+                        # каждая струйка тает на своей высоте — нет «стеклянного потолка» (06.10)
+                        fade = min(1, s / 0.04) * max(0, min(1, (w.get("end", 0.95) - s) / (0.45 * w.get("end", 0.95))))
                         dash = 0.5 + 0.5 * math.sin(2 * math.pi * (w["m"] * s - 2 * t) + w["mp"] * 6.28)
                         a = fade * (0.3 + 0.7 * dash ** 1.3)
                         if a > 0.01:
