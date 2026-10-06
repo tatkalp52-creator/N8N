@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-05-cloud"
+ASSEMBLER_VERSION = "2026-10-06-clouds"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1430,11 +1430,16 @@ def parse_effects(text):
                 knobs[w_] = float(km.group(1))
                 low = low[:km.start()] + low[km.end():]
         # «облако x y, x y, …» — докуда живёт эффект (обводка автора); пар держится внутри неё
+        # облаков может быть несколько — пар живёт в их объединении; крошечные (кружок у глаза или свечи,
+        # попавший сюда по ошибке) отбрасываем: площадь меньше 0.3 % кадра (05.10)
         cloud = []
-        cm = re.search(r"облак\w*\s*([\d.,\s]+)", low)
-        if cm:
+        for cm in reversed(list(re.finditer(r"облак\w*\s*([\d.,\s]+)", low))):
             cv = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", cm.group(1))]
-            cloud = list(zip(cv[0::2], cv[1::2]))
+            poly_ = list(zip(cv[0::2], cv[1::2]))
+            if len(poly_) >= 3:
+                ar = 0.5 * abs(sum(poly_[i][0] * poly_[i - 1][1] - poly_[i - 1][0] * poly_[i][1] for i in range(len(poly_))))
+                if ar >= 30:
+                    cloud.insert(0, poly_)
             low = low[:cm.start()] + low[cm.end():]
         area = "область" in low
         low = low.replace("область", " ").replace(";", " ")
@@ -1444,7 +1449,7 @@ def parse_effects(text):
         kind = EFFECT_NAMES.get(m.group(1).strip())
         nums = FxNums(float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2)))
         nums.knobs, nums.area = knobs, area and len(nums) >= 6
-        nums.cloud = cloud if len(cloud) >= 3 else []
+        nums.cloud = cloud
         if kind and len(nums) >= 2:
             out.append((kind, nums))
         else:
@@ -1810,12 +1815,12 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             sx0, sy0, sx1, sy1 = poly_box([p_ for q in polys for p_ in q], W, H)
             cloud = getattr(nums, "cloud", [])
             # без облака дымка низкая, у самой глади (05.10: высокая шла стеной через Пингви)
-            rise = int(110 * k * steam_height * rise_k)
+            rise = int(70 * k * steam_height * rise_k)
             padx = int(0.12 * (sx1 - sx0) + 20 * k)
             x0, y0 = max(0, sx0 - padx), max(0, sy0 - rise)
             x1, y1 = min(W, sx1 + padx), sy1
             if cloud:
-                cx0, cy0, cx1, cy1 = poly_box(cloud, W, H)
+                cx0, cy0, cx1, cy1 = poly_box([p_ for q in cloud for p_ in q], W, H)
                 x0, y0, x1, y1 = min(x0, cx0), min(y0, cy0), max(x1, cx1), max(y1, cy1)
             bw, bh = x1 - x0, y1 - y0
             src_m = np.max([polygon_mask(q, W, H, (x0, y0, x1, y1)) for q in polys], axis=0)
@@ -1836,7 +1841,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             env = col[None, :] * np.exp(-above / max(1.0, 0.42 * rise)) * below    # непрерывно, без шва
             if cloud:
                 # облако автора: дымка живёт только внутри него, гуще внизу, у воды; края мягкие
-                cm_ = polygon_mask(cloud, W, H, (x0, y0, x1, y1))
+                cm_ = np.max([polygon_mask(q, W, H, (x0, y0, x1, y1)) for q in cloud], axis=0)
                 cm_ = np.asarray(Image.fromarray((cm_ * 255).astype(np.uint8))
                                  .filter(ImageFilter.GaussianBlur(5 * k)), np.float32) / 255
                 cys = np.nonzero(cm_.max(axis=1) > 0.3)[0]
