@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-06-clouds"
+ASSEMBLER_VERSION = "2026-10-06-marks"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1407,7 +1407,7 @@ EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", 
 
 # Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
 # Ручки — шкала 1–10 листа «Эффекты»: 5 — как сейчас, 1 — вдвое слабее, 10 — вдвое сильнее.
-KNOB_WORDS = ("густота", "высота", "скорость", "ореол", "раскачка", "яркость", "капли", "частота", "размер")
+KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "ореол", "раскачка", "яркость", "капли", "частота", "размер")
 
 
 class FxNums(list):
@@ -1735,7 +1735,38 @@ def find_outlined_zones(orig_path, marked_path, min_area_pct=0.15):
             if (comp & holes).sum() * S * S < min_area_pct / 100 * W * H:
                 continue                    # просто штрих или заливка без обводки
             ys, xs = np.nonzero(comp)
-            zones.append({"poly": mask_contours(comp, S / W * 100, S / H * 100),
+            # (06.10) обводка внутри обводки (овал на тарелке и петля над ним): замкнутая круглая дырка —
+            # это «область» (вода, еда), вся обводка — «облако». Полумесяц между двумя линиями — не область.
+            inner = []
+            hl = np.zeros((h, w), np.int32)
+            hn = big_holes = 0
+            for hy, hx in zip(*np.nonzero(comp & holes)):
+                if hl[hy, hx]:
+                    continue
+                hn += 1
+                st = [(hy, hx)]
+                hl[hy, hx] = hn
+                while st:
+                    y, x = st.pop()
+                    for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                        if 0 <= ny < h and 0 <= nx < w and holes[ny, nx] and comp[ny, nx] and not hl[ny, nx]:
+                            hl[ny, nx] = hn
+                            st.append((ny, nx))
+                hole = hl == hn
+                cnt = int(hole.sum())
+                if cnt * S * S < min_area_pct / 100 * W * H:
+                    continue
+                hy_, hx_ = np.nonzero(hole)
+                bw_, bh_ = hx_.max() - hx_.min() + 1, hy_.max() - hy_.min() + 1
+                # круглая/овальная дырка заполняет свою рамку на ~3/4 (эллипс — π/4); полумесяц — меньше
+                big_holes += 1
+                if cnt / float(bw_ * bh_) >= 0.65:
+                    inner.append({"poly": mask_contours(hole, S / W * 100, S / H * 100),
+                                  "box": [round(float(hx_.min()) * S / W * 100, 1), round(float(hy_.min()) * S / H * 100, 1),
+                                          round(float(hx_.max() + 1) * S / W * 100, 1), round(float(hy_.max() + 1) * S / H * 100, 1)]})
+            if big_holes < 2:
+                inner = []                  # одна обводка без второй внутри — это просто облако/кружок
+            zones.append({"inner": inner, "poly": mask_contours(comp, S / W * 100, S / H * 100),
                           "box": [round(float(xs.min()) * S / W * 100, 1), round(float(ys.min()) * S / H * 100, 1),
                                   round(float(xs.max() + 1) * S / W * 100, 1), round(float(ys.max() + 1) * S / H * 100, 1)]})
     zones.sort(key=lambda z: (z["box"][0], z["box"][1]))
@@ -1870,8 +1901,9 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
 
         elif kind == "steam":
             c_op, c_h, c_sp = kn(kind, nums, "густота"), kn(kind, nums, "высота"), kn(kind, nums, "скорость")
+            c_th = kn(kind, nums, "толщина")         # (06.10) струйки толще — и мягче по краям
             c_cyc = max(1, int(round(2 * c_sp)))     # петля 6 с: столько проходов струйки
-            bw, bh = int(150 * k), int(165 * k * steam_height * c_h)
+            bw, bh = int(150 * k * max(1.0, c_th)), int(165 * k * steam_height * c_h)
             x0, y0 = int(px - bw / 2), int(py - bh)
             grain = np.asarray(Image.fromarray(rng.uniform(0, 255, (bh, bw)).astype(np.uint8))
                                .filter(ImageFilter.GaussianBlur(0.6 * k)), np.float32) / 255
@@ -1880,7 +1912,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                      dict(bx=1, A=19, f=1.4, ph=2.3, m=2.4, mp=0.55, w=1.3),
                      dict(bx=11, A=13, f=1.8, ph=4.1, m=1.8, mp=0.85, w=1.0)]
 
-            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps, c_op=c_op, c_cyc=c_cyc):
+            def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps, c_op=c_op, c_cyc=c_cyc, c_th=c_th):
                 t = (t * c_cyc / EFFECTS_LOOP_SECONDS) % 1.0  # c_cyc проходов за петлю
                 can = Image.new("L", (bw * SS, bh * SS), 0)
                 d = ImageDraw.Draw(can)
@@ -1900,8 +1932,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                         a = fade * (0.3 + 0.7 * dash ** 1.3)
                         if a > 0.01:
                             d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
-                                   width=max(1, int((2.0 + 3.8 * s) * w["w"] * k * SS)))
-                al = np.asarray(can.resize((bw, bh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.9 * k)),
+                                   width=max(1, int((2.0 + 3.8 * s) * w["w"] * k * c_th * SS)))
+                al = np.asarray(can.resize((bw, bh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.9 * k * c_th ** 1.5)),
                                 np.float32) / 255 * grain * steam_opacity * c_op
                 return x0, y0, np.clip(al, 0, 1), np.array([246, 241, 231], np.float32)
             layers.append(steam)
@@ -3148,7 +3180,9 @@ def find_red_marks(orig_path, marked_path):
     b = np.asarray(orig, np.float32)
     r, g, bl = a[..., 0], a[..., 1], a[..., 2]
     # красный маркер: ярко-красный (оранжевые листики самого превью сюда не попадают)
-    red_full = (r > 140) & (g < 100) & (bl < 100) & (r - g > 90) & (np.abs(a - b).max(axis=2) > 50)
+    # (06.10) порог мягче: тонкий штрих после сжатия бледнеет (185/107/81), строгий порог видел из него
+    # каждый четвёртый пиксель — кружок на глазу и линия в аквариуме рассыпались на крошки и пропадали
+    red_full = (r > 120) & (r - g > 45) & (r - bl > 45) & (np.abs(a - b).max(axis=2) > 40)
     red = red_full[:h * S, :w * S].reshape(h, S, w, S).any(axis=(1, 3))
     # без склейки соседей: близкие штрихи (дымок и лист рядом) остаются раздельными
     m = red
@@ -3323,6 +3357,21 @@ def align_marked_to_original(orig_path, marked_path, out_path):
     return out_path
 
 
+def _mark_vs_zones(m_, zones):
+    """Штрих, который сам и есть обводка (или каракули внутри неё, или завиток у её края), —
+    не отдельный эффект (06.10: из обводки тарелки аниматор сделал шесть «дымков»)."""
+    b = m_["box"]
+    for j, z in enumerate(zones, 1):
+        zb = z["box"]
+        inside = zb[0] - 0.5 <= b[0] and b[2] <= zb[2] + 0.5 and zb[1] - 0.5 <= b[1] and b[3] <= zb[3] + 0.5
+        if inside and (b[2] - b[0]) * (b[3] - b[1]) > 0.3 * (zb[2] - zb[0]) * (zb[3] - zb[1]):
+            return f" — это линия обводки О{j} (или закраска в ней), отдельным эффектом не считать"
+        near = b[0] < zb[2] + 3 and b[2] > zb[0] - 3 and b[1] < zb[3] and b[3] > zb[1] - 10
+        if near:
+            return f" — штрих у обводки О{j}: часть того же эффекта (показывает, докуда и как он идёт), отдельным эффектом не считать"
+    return ""
+
+
 @app.route("/fx_marks", methods=["POST"])
 def fx_marks():
     import base64
@@ -3351,9 +3400,15 @@ def fx_marks():
         if zones:
             area_text += ("\nОБВОДКИ (замкнутые, вместе с закраской внутри) — докуда живёт эффект: для пара над водой это «облако», "
                           "пиши «пар: область <контур закраски>; облако <контур обводки>»; маленький кружок вокруг свечи или глаза — "
-                          "точка в его середине:\n" + "\n".join(
+                          "точка в его середине. Обводка над едой или напитком без второй замкнутой внутри — "
+                          "это место для струек пара («пар: x, y» — точки на самой еде, по листу «Эффекты»):\n" + "\n".join(
                 f"О{i}) рамка {z['box'][0]}, {z['box'][1]} — {z['box'][2]}, {z['box'][3]}; контур: "
-                + ", ".join(f"{x} {y}" for x, y in z["poly"]) for i, z in enumerate(zones, 1)))
+                + ", ".join(f"{x} {y}" for x, y in z["poly"])
+                + "".join(f"\n   О{i}-внутри) замкнутая обводка внутри О{i} — это «область» (что внутри неё: вода, еда), "
+                          f"а весь О{i} — «облако»: «пар: область <этот контур>; облако <контур О{i}>»; "
+                          f"рамка {z_['box'][0]}, {z_['box'][1]} — {z_['box'][2]}, {z_['box'][3]}; контур: "
+                          + ", ".join(f"{x} {y}" for x, y in z_["poly"]) for z_ in z.get("inner", []))
+                for i, z in enumerate(zones, 1)))
         if areas:
             area_text += ("\nЗАКРАСКИ (области, слева направо) — переписывай контур в строку как есть: «дождь: область …», "
                          "«пар: область …» и т. п., что это — по подписи на фото:\n" + "\n".join(
@@ -3371,7 +3426,8 @@ def fx_marks():
             lines.append(f"{i}) верхний конец {m_['top'][0]}, {m_['top'][1]}; нижний конец {m_['bottom'][0]}, "
                          f"{m_['bottom'][1]}; путь сверху вниз: " + " → ".join(f"{p[0]}, {p[1]}" for p in m_["path"]) +
                          f"; толщина штриха {m_['width_pct']} % высоты кадра"
-                         f"; рамка штриха: левый верх {m_['box'][0]}, {m_['box'][1]} — правый низ {m_['box'][2]}, {m_['box'][3]}")
+                         f"; рамка штриха: левый верх {m_['box'][0]}, {m_['box'][1]} — правый низ {m_['box'][2]}, {m_['box'][3]}"
+                         + _mark_vs_zones(m_, zones))
         return jsonify({"ok": True, "marks": marks, "areas": areas, "text": "\n".join(lines) + area_text})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e), "marks": [], "text": ""}), 200
