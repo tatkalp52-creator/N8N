@@ -104,7 +104,7 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(o.hasMask, false, 'без фото — обычная правка');
     const { wf } = require('./harness12.js');
     const masked = wf.nodes.filter(n => n.name.startsWith('gpt-image-2: правка по обводке'));
-    assert.equal(masked.length, 16);
+    assert.equal(masked.length, 8);
     assert.ok(masked.every(n => n.parameters.bodyParameters.parameters.some(p => p.name === 'mask' && p.inputDataFieldName === 'mask')));
     assert.ok(wf.connections['С маской? (C)'].main[0][0].node === 'Сколько картинок? (C, маска)');
   }

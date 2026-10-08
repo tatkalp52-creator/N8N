@@ -359,7 +359,8 @@ function validateRow(row, items, opts) {
   return problems;
 }
 
-// Референсы художнику: картинки из колонок 🎨 — до 16 (в правке 15).
+// Референсы художнику: картинки из колонок 🎨 — до 8 (в правке 7 + сама правляемая картинка = 8).
+// Число связано с MAX_IMAGES в gen12.py: на каждое количество картинок свой узел запроса.
 // Картинки 📍-мест (названных в задании) остаются, общие сокращаются с конца.
 function artRefs(kbImages, placeImages) {
   const fit = max => {
@@ -370,8 +371,8 @@ function artRefs(kbImages, placeImages) {
     const parts = list.map((r, i) => (r.role ? `Image ${i + 1 + shift} — ${r.role}.` : '')).filter(Boolean);
     return parts.length ? 'Reference images: ' + parts.join(' ') + '\n\n' : '';
   };
-  const draw = fit(16);
-  const edit = fit(15);
+  const draw = fit(8);
+  const edit = fit(7);
   return { drawRefUrls: draw.map(r => r.url), drawRoles: roles(draw, 0), editRefUrls: edit.map(r => r.url), editRoles: roles(edit, 1) };
 }
 // Применяем предложения этапа к пунктам — только в пределах его пунктов (scope).

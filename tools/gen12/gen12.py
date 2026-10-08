@@ -371,7 +371,9 @@ def take(name, pos):
     return add(n)
 
 nodes_by = lambda nm: [n for n in nodes if n['name'] == nm][0]
-MAX_IMAGES = 16
+# Максимум картинок в одном запросе художнику (основа правки считается): для каждого числа 1…MAX свой узел запроса,
+# поэтому цифра прямо влияет на размер канваса. Меняется здесь и в lib12.js (artRefs) вместе.
+MAX_IMAGES = 8
 AX = EX + 5100
 
 def image_switch(name, counts):
