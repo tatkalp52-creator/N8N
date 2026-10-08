@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-06-wisps"
+ASSEMBLER_VERSION = "2026-10-08-blink"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2163,12 +2163,18 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             closed = closed * (1 - la) + feather * 0.5 * la      # линия века — темнее своих пёрышек
             soft = np.clip((pad - np.maximum(abs(xx - pad), abs(yy - pad))) / (0.3 * pad), 0, 1)
 
-            def blink(t, closed=closed, soft=soft, bx0=bx0, by0=by0):
+            # (08.10) моргание неспешное: смыкается 0.10 с, закрыт 0.30 с, открывается 0.18 с.
+            # Ручка «частота»: меньше 5 — одно моргание за петлю, 5 — два, больше 7 — три.
+            c_fr = kn(kind, nums, "частота")
+            starts = (2.2,) if c_fr < 0.8 else ((1.2, 3.9) if c_fr < 1.5 else (0.8, 2.6, 4.4))
+
+            def blink(t, closed=closed, soft=soft, bx0=bx0, by0=by0, starts=starts):
                 c = 0.0
-                for at in (1.75, 4.40, 4.62):
-                    if abs(t - at) < 0.09:
-                        c = 1.0 if abs(t - at) < 0.045 else 0.5
-                if not c:
+                for at in starts:
+                    u = t - at
+                    if 0 <= u < 0.58:
+                        c = max(c, min(1.0, u / 0.10) if u < 0.10 else (1.0 if u < 0.40 else (0.58 - u) / 0.18))
+                if c <= 0:
                     return None
                 return bx0, by0, soft * c, closed
             layers.append(blink)
