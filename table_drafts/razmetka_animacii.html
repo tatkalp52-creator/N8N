@@ -48,8 +48,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .pic svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: manipulation; }
 #dots { position: absolute; inset: 0; pointer-events: none; }
 #fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.dot { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: var(--mark); color: #fff; border: 2px solid #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.dot { position: absolute; width: 9px; height: 9px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--mark); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
+.dot .n { position: absolute; left: 7px; top: -17px; min-width: 18px; height: 18px; padding-inline: 4px; border-radius: 9px; background: var(--mark); color: #fff; border: 1.5px solid #fff; font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .dot.b { background: var(--mark2); }
+.eye.auto { opacity: .65; border-style: dotted; }
 .eye { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; pointer-events: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .zoom { display: flex; align-items: center; gap: 10px; }
 .zoom input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
@@ -125,7 +127,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 (function () {
   // Эффекты, которые знает сборщик: слово в строке, сколько касаний, ручки. Числа — проценты кадра.
   var EFFECTS = [
-    { id: 'blink',  name: 'Моргание',   taps: 1, hint: 'Коснись центра глаза. Если глаз крупный или мелкий, потяни «размер» в списке ниже: на картинке появится круг, который закроется.' },
+    { id: 'blink',  name: 'Моргание',   taps: 1, hint: 'Коснись центра глаза. Вокруг точки сразу виден круг: это то, что закроется веком. Крупный или мелкий глаз — потяни «размер» в списке ниже, круг изменится.' },
     { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой). На картинке появится пробный пар; пунктирная рамка — где он живёт, овал внизу — где «сидит».', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5], ['завитки', 5]] },
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'leaves', name: 'Листья',     taps: 2, hint: 'Сначала коснись места, откуда летит лист, потом куда он падает.', kinds: ['продолговатый', 'круглый', 'клён'] },
@@ -163,16 +165,17 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   function drawDot(x, y, label, blue) {
     var d = document.createElement('div');
     d.className = 'dot' + (blue ? ' b' : '');
-    d.style.left = x + '%'; d.style.top = y + '%'; d.textContent = label;
+    d.style.left = x + '%'; d.style.top = y + '%';
+    if (label !== '' && label != null) { var n = document.createElement('span'); n.className = 'n'; n.textContent = label; d.appendChild(n); }
     $('dots').appendChild(d);
   }
   function redrawOverlay() {
     while (ov.firstChild) ov.removeChild(ov.firstChild);
     $('dots').innerHTML = '';
     marks.forEach(function (m) {
-      if (m.eff === 'blink' && m.r) {
-        var c = document.createElement('div'); c.className = 'eye';
-        c.style.left = m.pts[0].x + '%'; c.style.top = m.pts[0].y + '%'; c.style.width = (2 * m.r / 1536 * 100) + '%';
+      if (m.eff === 'blink') {
+        var c = document.createElement('div'); c.className = 'eye' + (m.r ? '' : ' auto');
+        c.style.left = m.pts[0].x + '%'; c.style.top = m.pts[0].y + '%'; c.style.width = (2 * (m.r || 3) / 1536 * 100) + '%';
         $('dots').appendChild(c);
       }
     });
