@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-08-blink"
+ASSEMBLER_VERSION = "2026-10-08-blink-hiss"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -772,7 +772,7 @@ def build_audio_track(
     gap_seconds=0, loop_count=None, mix_seconds=None,
     compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
-    denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0,
+    denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -863,9 +863,15 @@ def build_audio_track(
             run_ffmpeg(["-i", trimmed_path, "-af", f"afftdn=nr={denoise_amount}", source_path])
         # НОВОЕ (05.10): мягко приглушить верха (стеклянное пианино Suno) — 🎬 HighsDb / HighsHz.
         # Полка с пологим наклоном: переход широкий, без ступеньки; громкость дальше меряется уже после неё.
-        if highs_db:
+        # (08.10) второй срез — только самый верх (шипение выше ~9 кГц): 🎬 HissDb / HissHz.
+        if highs_db or hiss_db:
             eq_path = os.path.join(faded_dir, f"highs_{i}.wav")
-            run_ffmpeg(["-i", source_path, "-af", f"treble=g={highs_db:.2f}:f={highs_hz:.0f}:t=s:w=0.35", eq_path])
+            eq_parts = []
+            if highs_db:
+                eq_parts.append(f"treble=g={highs_db:.2f}:f={highs_hz:.0f}:t=s:w=0.35")
+            if hiss_db:
+                eq_parts.append(f"treble=g={hiss_db:.2f}:f={hiss_hz:.0f}:t=s:w=0.3")
+            run_ffmpeg(["-i", source_path, "-af", ",".join(eq_parts), eq_path])
             source_path = eq_path
         leveled_path = os.path.join(faded_dir, f"leveled_{i}.wav")
         run_ffmpeg(["-i", source_path, "-af", f"{gain_to_target(source_path, target_lufs)},{track_limiter}", leveled_path])
@@ -2697,6 +2703,14 @@ def assemble():
             highs_hz = float(data.get("highsHz", 7000) or 7000)
         except (TypeError, ValueError):
             highs_hz = 7000.0
+        try:
+            hiss_db = -abs(float(data.get("hissDb", 0) or 0))
+        except (TypeError, ValueError):
+            hiss_db = 0.0
+        try:
+            hiss_hz = float(data.get("hissHz", 9500) or 9500)
+        except (TypeError, ValueError):
+            hiss_hz = 9500.0
         loudness_report = []
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir, loudness_report=loudness_report,
@@ -2713,7 +2727,7 @@ def assemble():
             limiter_attack_ms=limiter_attack_ms,
             limiter_release_ms=limiter_release_ms,
             denoise_amount=denoise_amount,
-            highs_db=highs_db, highs_hz=highs_hz,
+            highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz,
         )
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
