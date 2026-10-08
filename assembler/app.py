@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-08-blink-1-3"
+ASSEMBLER_VERSION = "2026-10-08-blink-events"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1421,6 +1421,8 @@ class FxNums(list):
     knobs = {}
     area = False
     cloud = []
+    exact = False
+    radius = None
 
 
 def parse_effects(text):
@@ -1447,6 +1449,11 @@ def parse_effects(text):
                 if ar >= 30:
                     cloud.insert(0, poly_)
             low = low[:cm.start()] + low[cm.end():]
+        radius = None
+        rm = re.search(r"радиус\w*\s*(\d+(?:\.\d+)?)", low)
+        if rm:
+            radius = float(rm.group(1))
+            low = low[:rm.start()] + low[rm.end():]
         area = "область" in low
         low = low.replace("область", " ").replace(";", " ")
         m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", low)
@@ -1455,6 +1462,8 @@ def parse_effects(text):
         kind = EFFECT_NAMES.get(m.group(1).strip())
         nums = FxNums(float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2)))
         nums.knobs, nums.area = knobs, area and len(nums) >= 6
+        nums.exact = "точно" in low
+        nums.radius = radius
         nums.cloud = cloud
         if kind and len(nums) >= 2:
             out.append((kind, nums))
@@ -1777,6 +1786,70 @@ def find_outlined_zones(orig_path, marked_path, min_area_pct=0.15):
                                   round(float(xs.max() + 1) * S / W * 100, 1), round(float(ys.max() + 1) * S / H * 100, 1)]})
     zones.sort(key=lambda z: (z["box"][0], z["box"][1]))
     return zones
+
+
+def blink_patch(src, base, px, py, k, SS=4, exact=False, radius=None):
+    """Глаз рядом с точкой (px, py) в пикселях: находим его и готовим «закрытый» кусочек картинки
+    (веко цветом шёрстки или пёрышек вокруг) и мягкую маску. Возвращает (closed, soft, bx0, by0).
+    (08.10) Ищем близко к точке автора (раньше уходило на тёмную точку под клювом); слово «точно» в строке —
+    верить точке без поиска. «радиус N» — размер глаза в пикселях кадра 1536×864 (с ним точка тоже берётся
+    как есть): автор видит круг на страничке разметки и сама решает, сколько закрывать."""
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:
+        _sys.path.insert(0, "/app/pylibs")
+    import math
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter
+    W, H = src.size
+    rad = int(max(4 * k, 0.011 * W))
+    gx0, gy0 = max(0, int(px) - rad), max(0, int(py) - rad)
+    crop_l = src.convert("L").crop((gx0, gy0, gx0 + 2 * rad, gy0 + 2 * rad))
+    lum = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32)
+    wide = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(5.0 * k)), np.float32)
+    gy_, gx_ = np.mgrid[0:lum.shape[0], 0:lum.shape[1]].astype(np.float32)
+    if exact or radius:
+        ix, iy = int(round(px - gx0)), int(round(py - gy0))
+        ix = min(max(ix, 0), lum.shape[1] - 1); iy = min(max(iy, 0), lum.shape[0] - 1)
+    else:
+        # глаз — маленькое тёмное пятно на более светлом, а не просто тень; чем дальше от точки, тем «дороже»
+        cost = (lum - wide) + 0.25 * lum + 3.0 / k * np.hypot(gx_ + gx0 - px, gy_ + gy0 - py)
+        iy, ix = np.unravel_index(np.argmin(cost), cost.shape)
+    ex, ey = gx0 + ix + 0.5, gy0 + iy + 0.5
+    if radius:
+        r = float(radius) * k
+        rc = r
+    else:
+        # размер глаза меряем: тёмное пятно вокруг найденной точки (строже, чтобы не прихватить тёмную голову)
+        loc = np.hypot(gx_ - ix, gy_ - iy) <= 14 * k
+        ring_l = float(np.median(lum[loc]))
+        dark_ = lum < lum[iy, ix] + 0.3 * (ring_l - lum[iy, ix])
+        near = np.hypot(gx_ - ix, gy_ - iy) <= 7 * k
+        r = float(np.clip(math.sqrt(max(1.0, float((dark_ & near).sum())) / math.pi) + 0.6 * k, 1.6 * k, 6 * k))
+        rc = r * 1.3
+    pad = int(rc * 1.9) + 2
+    bx0, by0, bw, bh = int(ex) - pad, int(ey) - pad, 2 * pad, 2 * pad
+    bx0, by0 = max(0, min(bx0, W - bw)), max(0, min(by0, H - bh))
+    patch = base[by0:by0 + bh, bx0:bx0 + bw].copy()
+    yy, xx = np.mgrid[0:bh, 0:bw].astype(np.float32)
+    dist = np.hypot(xx + bx0 - ex, yy + by0 - ey)
+    ring = (dist > rc * 1.1) & (dist < rc * 1.7)
+    feather = np.median(patch[ring], axis=0)      # цвет шёрстки или пёрышек вокруг глаза
+    grain = patch[ring].std(axis=0) * 0.5   # зерно рисунка, чтобы веко не было плоской заливкой
+    rnd = np.random.default_rng(int(ex * 7 + ey * 13))
+    fill = feather + np.asarray(Image.fromarray(np.clip(rnd.normal(0, 1, (bh, bw, 3)) * 80 + 128, 0, 255).astype(np.uint8))
+                                .filter(ImageFilter.GaussianBlur(0.8 * k)), np.float32).__sub__(128) / 80 * grain
+    cover = np.clip((rc - dist) / (0.5 * k + 1e-6), 0, 1)[..., None]
+    closed = patch * (1 - cover) + fill * cover
+    lid = Image.new("L", (bw * SS, bh * SS), 0)
+    dl = ImageDraw.Draw(lid)
+    q = r / (5 * k)   # веко — по размеру глаза
+    dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.4 * k * q + 1.8 * k * q * (1 - (dx / (4.2 * k * q)) ** 2)) * SS)
+             for dx in np.linspace(-4.2 * k * q, 4.2 * k * q, 20)],
+            fill=255, width=max(1, int(1.3 * k * max(q, 0.6) * SS)), joint="curve")
+    la = np.asarray(lid.resize((bw, bh), Image.LANCZOS), np.float32)[..., None] / 255 * 0.85
+    closed = closed * (1 - la) + feather * 0.5 * la      # линия века — темнее своих пёрышек
+    soft = np.clip((pad - np.maximum(abs(xx - pad), abs(yy - pad))) / (0.3 * pad), 0, 1)
+    return closed, soft, bx0, by0
 
 
 def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
@@ -2130,44 +2203,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             layers.append(rain)
 
         elif kind == "blink":
-            # точный центр глаза — самая тёмная точка рядом с указанной
-            # (тёмное рядом бывает и клювом — поэтому дальние точки «дороже»)
-            # ищем шире (глаз рядом, но точка может промахнуться на пару процентов): тёмное круглое
-            # пятно; размытие гасит тонкие линии рисунка, дальние точки чуть «дороже»
-            rad = int(max(7 * k, 0.03 * W))
-            gx0, gy0 = max(0, int(px) - rad), max(0, int(py) - rad)
-            crop_l = src.convert("L").crop((gx0, gy0, gx0 + 2 * rad, gy0 + 2 * rad))
-            lum = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32)
-            wide = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(5.0 * k)), np.float32)
-            gy_, gx_ = np.mgrid[0:lum.shape[0], 0:lum.shape[1]].astype(np.float32)
-            # глаз — маленькое тёмное пятно на более светлом (пёрышки вокруг), а не просто тень
-            cost = (lum - wide) + 0.25 * lum + 0.8 / k * np.hypot(gx_ + gx0 - px, gy_ + gy0 - py)
-            iy, ix = np.unravel_index(np.argmin(cost), cost.shape)
-            ex, ey = gx0 + ix + 0.5, gy0 + iy + 0.5
-            # размер глаза меряем: тёмное пятно вокруг найденной точки (у канарейки глаз крошечный)
-            loc = np.hypot(gx_ - ix, gy_ - iy) <= 8 * k          # окрестность самого глаза, не всё окно
-            ring_l = float(np.median(lum[loc]))
-            dark_ = lum < (lum[iy, ix] + ring_l) / 2
-            near = np.hypot(gx_ - ix, gy_ - iy) <= 6 * k
-            r = float(np.clip(math.sqrt(max(1.0, float((dark_ & near).sum())) / math.pi) + 0.8 * k, 1.6 * k, 5 * k))
-            pad = int(r * 2.2)
-            bx0, by0, bw, bh = int(ex) - pad, int(ey) - pad, 2 * pad, 2 * pad
-            patch = base[by0:by0 + bh, bx0:bx0 + bw].copy()
-            yy, xx = np.mgrid[0:bh, 0:bw].astype(np.float32)
-            dist = np.hypot(xx + bx0 - ex, yy + by0 - ey)
-            ring = (dist > r * 1.3) & (dist < r * 2.0)
-            feather = patch[ring].mean(axis=0)  # цвет пёрышек вокруг глаза
-            cover = np.clip((r * 1.25 - dist) / (0.5 * k + 1e-6), 0, 1)[..., None]
-            closed = patch * (1 - cover) + feather * cover
-            lid = Image.new("L", (bw * SS, bh * SS), 0)
-            dl = ImageDraw.Draw(lid)
-            q = r / (5 * k)   # веко — по размеру глаза
-            dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.4 * k * q + 1.8 * k * q * (1 - (dx / (4.2 * k * q)) ** 2)) * SS)
-                     for dx in np.linspace(-4.2 * k * q, 4.2 * k * q, 20)],
-                    fill=255, width=max(1, int(1.3 * k * max(q, 0.6) * SS)), joint="curve")
-            la = np.asarray(lid.resize((bw, bh), Image.LANCZOS), np.float32)[..., None] / 255 * 0.85
-            closed = closed * (1 - la) + feather * 0.5 * la      # линия века — темнее своих пёрышек
-            soft = np.clip((pad - np.maximum(abs(xx - pad), abs(yy - pad))) / (0.3 * pad), 0, 1)
+            closed, soft, bx0, by0 = blink_patch(src, base, px, py, k, SS, getattr(nums, "exact", False), getattr(nums, "radius", None))
 
             # (08.10) моргание живое и неровное: одно неспешное, потом три быстрых подряд.
             # Каждое: смыкание, закрыт, открытие — (закрывается, держит, открывается) в секундах.
@@ -2283,6 +2319,7 @@ def parse_leaves(text, data):
         pairs = [(nums[i], nums[i + 1]) for i in range(0, len(nums) - 1, 2)]
         leaf = dict(frm=pairs[0], to=pairs[-1], via=pairs if len(pairs) > 2 else None, shape="long", colors=[],
                     size=size0, fall=fall0, shrink=1.0, behind=False, period=None)
+        fall_set = False
         for w in parts[1:]:
             if "кругл" in w or "round" in w:
                 leaf["shape"] = "round"
@@ -2303,10 +2340,12 @@ def parse_leaves(text, data):
                 leaf["period"] = float(m.group(1)) * (60 if m.group(2) else 1)
             m = re.search(r"пада\w*\s*(\d+(?:\.\d+)?)", w)
             if m:
-                leaf["fall"] = float(m.group(1))
+                leaf["fall"] = float(m.group(1)); fall_set = True
             for name, rgb in LEAF_COLORS.items():
                 if name in w:
                     leaf["colors"].append(rgb)
+        if not fall_set:   # (08.10) листья падают с разной скоростью и парением: 0.8…1.5 от общего времени полёта
+            leaf["fall"] = fall0 * (0.8 + 0.7 * ((len(leaves) * 0.618 + 0.3) % 1.0))
         leaves.append(leaf)
     return leaves, edge
 
@@ -2445,6 +2484,87 @@ def leaf_path(x0, y0, x1, y1, seconds, fps, seed, swing, half=1.15, via=None):
     return path
 
 
+# МОРГАНИЕ СОБЫТИЯМИ (08.10): не в петле на 6 секунд (там оно повторялось как метроном), а отдельными
+# короткими клипами в случайные моменты, как листья. Строки «моргание: x, y» рядом друг с другом (два глаза
+# одного зверя) моргают вместе. На каждую группу два клипа: одно неспешное (примерно раз в
+# 🎬 blinkEverySeconds, по умолчанию 17.5 с) и серия из трёх быстрых (раз в четыре периода).
+BLINK_EVERY_DEFAULT = 17.5
+BLINK_SLOW = (0.09, 0.22, 0.16)    # смыкание, закрыт, открытие, секунды
+BLINK_QUICK = (0.06, 0.07, 0.09)
+
+
+def group_blinks(blink_spec, W, H):
+    """[(kind, nums)] → группы глаз: точки ближе 6 % ширины кадра — один зверь, моргают вместе."""
+    groups = []
+    for kind, nums in blink_spec:
+        pt = (nums[0] / 100 * W, nums[1] / 100 * H)
+        for g in groups:
+            if any(math.hypot(pt[0] - q[0], pt[1] - q[1]) < 0.06 * W for q, _ in g):
+                g.append((pt, nums)); break
+        else:
+            groups.append([(pt, nums)])
+    return groups
+
+
+def blink_closure(t, pattern):
+    """Насколько глаз закрыт (0…1) в момент t; pattern = [(начало, (смыкание, закрыт, открытие)), …]."""
+    c = 0.0
+    for at, (tc, th, to) in pattern:
+        u = t - at
+        if 0 <= u < tc + th + to:
+            v = u / tc if u < tc else (1.0 if u < tc + th else (tc + th + to - u) / to)
+            c = max(c, min(1.0, v))
+    return c
+
+
+def render_blink_event(image_path, group, pattern, fps, seconds, out_path, mask_path, k_unused=None):
+    """Клип события: картинка с закрытыми глазами группы (одним неподвижным кадром) и маска, где
+    видно только нужное: в маске глаз проявляется и исчезает по рисунку моргания. Остальное — как в петле."""
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:
+        _sys.path.insert(0, "/app/pylibs")
+    import numpy as np
+    from PIL import Image
+    src = Image.open(image_path).convert("RGB")
+    W, H = src.size
+    base = np.asarray(src, np.float32)
+    k = H / 864.0
+    full = base.copy()
+    patches = []
+    for (px, py), nums in group:
+        closed, soft, bx0, by0 = blink_patch(src, base, px, py, k, 4, getattr(nums, "exact", False), getattr(nums, "radius", None))
+        bh, bw = soft.shape
+        full[by0:by0 + bh, bx0:bx0 + bw] = closed
+        patches.append((soft, bx0, by0))
+    frames_dir = out_path + "_frames"
+    masks_dir = out_path + "_masks"
+    os.makedirs(frames_dir, exist_ok=True)
+    os.makedirs(masks_dir, exist_ok=True)
+    full_png = os.path.join(frames_dir, "closed.png")
+    Image.fromarray(np.clip(full, 0, 255).astype(np.uint8)).save(full_png)
+    zero_png = os.path.join(masks_dir, "zero.png")
+    Image.fromarray(np.zeros((H, W), np.uint8)).save(zero_png)
+    n = int(seconds * fps)
+    for f in range(n):
+        c = blink_closure(f / fps, pattern)
+        dst = os.path.join(masks_dir, f"{f:04d}.png")
+        if c <= 0:
+            shutil.copyfile(zero_png, dst)
+            continue
+        m = np.zeros((H, W), np.float32)
+        for soft, bx0, by0 in patches:
+            bh, bw = soft.shape
+            m[by0:by0 + bh, bx0:bx0 + bw] = np.maximum(m[by0:by0 + bh, bx0:bx0 + bw], soft * c)
+        Image.fromarray(np.clip(m * 255, 0, 255).astype(np.uint8)).save(dst)
+    run_ffmpeg(["-loop", "1", "-framerate", str(fps), "-i", full_png, "-t", f"{seconds:g}",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p", out_path])
+    run_ffmpeg(["-framerate", str(fps), "-i", os.path.join(masks_dir, "%04d.png"),
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p", mask_path])
+    shutil.rmtree(frames_dir, ignore_errors=True)
+    shutil.rmtree(masks_dir, ignore_errors=True)
+    return out_path
+
+
 def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
     """Клип события: картинка + один падающий лист, и рядом маска — где лист и насколько
     он непрозрачен (поверх петли лист кладётся по этой маске, без догадок по разнице кадров).
@@ -2573,7 +2693,9 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
         raw = download_media(loop_url, os.path.join(pdir, "loop_src.mp4"))
         loop_path = normalize_clip(raw, os.path.join(pdir, "loop_norm.mp4"), fps)
         loop_len = media_duration(loop_path)
-    effects = parse_effects(data.get("fx_Effects"))
+    all_effects = parse_effects(data.get("fx_Effects"))
+    blink_spec = [e for e in all_effects if e[0] == "blink"]      # моргание — отдельными событиями, не в петле
+    effects = [e for e in all_effects if e[0] != "blink"]
     if effects and loop_path:
         print("[effects] есть fx_LoopUrl — эффекты пропускаю (одна петля на видео)")
     elif effects:
@@ -2607,6 +2729,33 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
         events.append((ev, ln))
         masks[len(events) - 1] = mask
         periods.append(leaf["period"] or (gap_min + gap_max) / 2)
+    if blink_spec and not loop_url:
+        try:
+            from PIL import Image as _Im
+            bw_, bh_ = _Im.open(image_path).size
+            every = _f("blinkEverySeconds", BLINK_EVERY_DEFAULT)
+            clip_s = max(loop_len, EFFECTS_LOOP_SECONDS) if loop_len else EFFECTS_LOOP_SECONDS
+            for g_i, group in enumerate(group_blinks(blink_spec, bw_, bh_)):
+                rng_b = random.Random(f"{project_id}-blink-{g_i}")
+                factor = fx_knob(data, "blink", group[0][1], "частота")   # 5 — как есть, больше — чаще
+                for kind_name, pat_fn, mult in (("one", lambda s0: [(s0, BLINK_SLOW)], 1.0),
+                                                ("three", lambda s0: [(s0 + 0.32 * i, BLINK_QUICK) for i in range(3)], 4.0)):
+                    s0 = rng_b.uniform(0.4, clip_s - 2.4)
+                    raw = render_blink_event(image_path, group, pat_fn(s0), fps, clip_s,
+                                             os.path.join(pdir, f"blink{g_i}{kind_name}_src.mp4"),
+                                             os.path.join(pdir, f"blink{g_i}{kind_name}_mask_src.mp4"))
+                    mask = normalize_clip(os.path.join(pdir, f"blink{g_i}{kind_name}_mask_src.mp4"),
+                                          os.path.join(pdir, f"blink{g_i}{kind_name}_mask.mp4"), fps)
+                    ev = normalize_clip(raw, os.path.join(pdir, f"blink{g_i}{kind_name}_norm.mp4"), fps)
+                    ln = media_duration(ev)
+                    if loop_len:
+                        ln = loop_len * max(1, -(-(ln - 0.1) // loop_len))
+                    events.append((ev, ln))
+                    masks[len(events) - 1] = mask
+                    periods.append(every * mult / factor)
+            print(f"[blink] групп глаз: {len(group_blinks(blink_spec, bw_, bh_))}, одно моргание раз в ~{every / factor:g} с")
+        except Exception as blink_error:   # моргание — украшение, сборку не роняем
+            print(f"[blink] моргание не получилось: {blink_error}")
     if leaves:
         print(f"[leaves] листьев: {len(leaves)}, раз в " + ", ".join(f"{p:g} с" for p in periods if p))
     mode = ("петля + события" if loop_path and events else "петля" if loop_path

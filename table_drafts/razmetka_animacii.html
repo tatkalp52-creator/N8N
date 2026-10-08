@@ -49,6 +49,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 #dots { position: absolute; inset: 0; pointer-events: none; }
 .dot { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: var(--mark); color: #fff; border: 2px solid #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .dot.b { background: var(--mark2); }
+.eye { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; pointer-events: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .zoom { display: flex; align-items: center; gap: 10px; }
 .zoom input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
 .mark { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 10px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
@@ -122,7 +123,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 (function () {
   // Эффекты, которые знает сборщик: слово в строке, сколько касаний, ручки. Числа — проценты кадра.
   var EFFECTS = [
-    { id: 'blink',  name: 'Моргание',   taps: 1, hint: 'Коснись центра глаза птицы.' },
+    { id: 'blink',  name: 'Моргание',   taps: 1, hint: 'Коснись центра глаза. Если глаз крупный или мелкий, потяни «размер» в списке ниже: на картинке появится круг, который закроется.' },
     { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой).', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5]] },
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'leaves', name: 'Листья',     taps: 2, hint: 'Сначала коснись места, откуда летит лист, потом куда он падает.', kinds: ['продолговатый', 'круглый', 'клён'] },
@@ -139,7 +140,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 
   function lineOf(m) {
     var p = m.pts, s;
-    if (m.eff === 'blink') s = 'моргание: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
+    if (m.eff === 'blink') s = 'моргание: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + (m.r ? '; радиус ' + fmt(m.r) : '');
     else if (m.eff === 'candle') s = 'свеча: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
     else if (m.eff === 'smoke') s = 'дымок: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
     else if (m.eff === 'steam') {
@@ -166,6 +167,13 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   function redrawOverlay() {
     while (ov.firstChild) ov.removeChild(ov.firstChild);
     $('dots').innerHTML = '';
+    marks.forEach(function (m) {
+      if (m.eff === 'blink' && m.r) {
+        var c = document.createElement('div'); c.className = 'eye';
+        c.style.left = m.pts[0].x + '%'; c.style.top = m.pts[0].y + '%'; c.style.width = (2 * m.r / 1536 * 100) + '%';
+        $('dots').appendChild(c);
+      }
+    });
     marks.forEach(function (m, i) {
       var n = i + 1, p = m.pts;
       if (m.eff === 'leaves' || m.eff === 'bubbles') {
@@ -210,6 +218,18 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         ['', 'продолговатый', 'круглый', 'клён'].forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v || 'вид листа по умолчанию'; if (m.kind === v) o.selected = true; sel.appendChild(o); });
         sel.onchange = function () { m.kind = sel.value; t.textContent = lineOf(m); renderOut(); };
         kb2.appendChild(sel); d.appendChild(kb2);
+      }
+      if (m.eff === 'blink') {
+        var kb3 = document.createElement('div'); kb3.className = 'knobs';
+        var lab3 = document.createElement('label');
+        var s3 = document.createElement('span'); s3.textContent = 'размер';
+        var inp3 = document.createElement('input'); inp3.type = 'range'; inp3.min = 1; inp3.max = 14; inp3.step = 0.5; inp3.value = m.r || 3; inp3.id = 'r' + i;
+        var out3 = document.createElement('span'); out3.textContent = m.r ? m.r : 'авто';
+        inp3.oninput = function () { m.r = Number(inp3.value); out3.textContent = inp3.value; t.textContent = lineOf(m); redrawOverlay(); renderOut(); };
+        lab3.appendChild(s3); lab3.appendChild(inp3); lab3.appendChild(out3); kb3.appendChild(lab3);
+        var auto3 = document.createElement('button'); auto3.type = 'button'; auto3.textContent = 'Авто';
+        auto3.onclick = function () { m.r = null; refresh(); };
+        kb3.appendChild(auto3); d.appendChild(kb3);
       }
       box.appendChild(d);
     });
