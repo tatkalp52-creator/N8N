@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-08-blink-events"
+ASSEMBLER_VERSION = "2026-10-08-blink-events2"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2324,6 +2324,9 @@ def parse_leaves(text, data):
             print(f"[leaves] не поняла строку (нужно «x, y → x, y»): {line!r}")
             continue
         pairs = [(nums[i], nums[i + 1]) for i in range(0, len(nums) - 1, 2)]
+        if abs(pairs[-1][1] - pairs[0][1]) < 3:   # (08.10) лист должен падать вниз: «откуда» и «куда» на одной высоте — падать некуда
+            print(f"[leaves] лист без падения (вторая точка не ниже первой), пропускаю: {line!r}")
+            continue
         leaf = dict(frm=pairs[0], to=pairs[-1], via=pairs if len(pairs) > 2 else None, shape="long", colors=[],
                     size=size0, fall=fall0, shrink=1.0, behind=False, period=None)
         fall_set = False
@@ -2454,6 +2457,8 @@ def leaf_path(x0, y0, x1, y1, seconds, fps, seed, swing, half=1.15, via=None):
     замедляется, чуть приподнимается, на миг встаёт ребром и скользит обратно.
     Первая дуга короче — лист только что сорвался. Дуги немного разные."""
     import numpy as np
+    if abs(y1 - y0) < 1:   # страховка от деления на ноль, если «куда» не ниже «откуда»
+        y1 = y0 + 1.0
     r = np.random.default_rng(int(seed * 1000) + 1)
     n = max(2, int(round(seconds / half)))
     durs = r.uniform(0.85, 1.15, n)

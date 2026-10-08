@@ -285,6 +285,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     var r = ov.getBoundingClientRect();
     var x = Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width * 100));
     var y = Math.min(100, Math.max(0, (ev.clientY - r.top) / r.height * 100));
+    if (cur.id === 'leaves' && pending.length === 1 && Math.abs(r1(y) - pending[0].y) < 3) {
+      $('hint').textContent = 'Лист падает вниз: коснись заметно ниже первой точки (иначе он не полетит).';
+      return;
+    }
     pending.push({ x: r1(x), y: r1(y) });
     if (pending.length >= cur.taps) {
       var m = { eff: cur.id, pts: pending.slice(0, cur.taps) };
