@@ -49,13 +49,14 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .pic svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: manipulation; }
 #dots { position: absolute; inset: 0; pointer-events: none; }
 #fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.dot { position: absolute; width: 9px; height: 9px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--mark); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
+.dot { position: absolute; width: 6px; height: 6px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--mark); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
 .dot .n { position: absolute; left: 7px; top: -17px; min-width: 18px; height: 18px; padding-inline: 4px; border-radius: 9px; background: var(--mark); color: #fff; border: 1.5px solid #fff; font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .dot.b { background: var(--mark2); }
 .eye.auto { opacity: .65; border-style: dotted; }
 .eye { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; pointer-events: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .pane { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.35); }
 .pane .stage { max-height: 44vh; }
+#loupe { flex: none; width: 104px; height: 104px; border: 2px solid var(--accent); border-radius: 10px; background: var(--bg); }
 .pane .note { display: none; }
 .mark .tog { min-height: 36px; padding: 4px 10px; font-size: 14px; }
 .zoom { display: flex; align-items: center; gap: 10px; }
@@ -98,6 +99,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       <span class="label">Увеличение</span>
       <input id="zoom" type="range" min="1" max="4" step="0.25" value="1" aria-label="Увеличение картинки">
       <span id="zoomv" style="min-width:2.5em;text-align:right">1×</span>
+      <canvas id="loupe" width="264" height="264" hidden></canvas>
     </div>
     <div class="stage" id="stage">
       <div class="pic" id="pic">
@@ -178,6 +180,21 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (label !== '' && label != null) { var n = document.createElement('span'); n.className = 'n'; n.textContent = label; d.appendChild(n); }
     $('dots').appendChild(d);
   }
+  // Лупа глаза: увеличенный кусочек картинки вокруг точки и круг закрытия в том же увеличении (размер виден точно)
+  function drawLoupe() {
+    var lp = $('loupe'), c = lp.getContext('2d'), m = null;
+    for (var q = marks.length - 1; q >= 0; q--) { if (marks[q].eff === 'blink' && marks[q].open) { m = marks[q]; break; } }
+    if (!m || !img.naturalWidth) { lp.hidden = true; return; }
+    lp.hidden = false;
+    var f = img.naturalWidth / 1536, win = 30 * f, cx = m.pts[0].x / 100 * img.naturalWidth, cy = m.pts[0].y / 100 * img.naturalHeight;
+    c.clearRect(0, 0, 264, 264);
+    c.imageSmoothingEnabled = true;
+    c.drawImage(img, cx - win / 2, cy - win / 2, win, win, 0, 0, 264, 264);
+    var rr = (m.r || 3) * 264 / 30;
+    c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.7)'; c.beginPath(); c.arc(132, 132, rr, 0, 7); c.stroke();
+    c.lineWidth = 1.6; c.strokeStyle = '#2dd4bf'; c.beginPath(); c.arc(132, 132, rr, 0, 7); c.stroke();
+    c.fillStyle = '#e11d48'; c.fillRect(131, 126, 2, 12); c.fillRect(126, 131, 12, 2);
+  }
   function redrawOverlay() {
     while (ov.firstChild) ov.removeChild(ov.firstChild);
     $('dots').innerHTML = '';
@@ -221,7 +238,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Убрать'; del.setAttribute('aria-label', 'Убрать точку ' + (i + 1));
       del.onclick = function () { marks.splice(i, 1); refresh(); };
       var tog = document.createElement('button'); tog.type = 'button'; tog.className = 'tog'; tog.textContent = m.open ? 'Свернуть' : 'Настроить';
-      tog.onclick = function () { m.open = !m.open; renderList(); };
+      tog.onclick = function () { m.open = !m.open; renderList(); drawLoupe(); };
       d.appendChild(num); d.appendChild(t);
       var side = document.createElement('div'); side.className = 'row'; side.style.flexWrap = 'nowrap';
       if (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink') side.appendChild(tog);
@@ -251,7 +268,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         var s3 = document.createElement('span'); s3.textContent = 'размер';
         var inp3 = document.createElement('input'); inp3.type = 'range'; inp3.min = 1; inp3.max = 14; inp3.step = 0.5; inp3.value = m.r || 3; inp3.id = 'r' + i;
         var out3 = document.createElement('span'); out3.textContent = m.r ? m.r : 'авто';
-        inp3.oninput = function () { m.r = Number(inp3.value); out3.textContent = inp3.value; t.textContent = lineOf(m); redrawOverlay(); renderOut(); };
+        inp3.oninput = function () { m.r = Number(inp3.value); out3.textContent = inp3.value; t.textContent = lineOf(m); redrawOverlay(); renderOut(); drawLoupe(); };
         lab3.appendChild(s3); lab3.appendChild(inp3); lab3.appendChild(out3); kb3.appendChild(lab3);
         var auto3 = document.createElement('button'); auto3.type = 'button'; auto3.textContent = 'Авто';
         auto3.onclick = function () { m.r = null; refresh(); };
@@ -272,7 +289,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     $('hint').textContent = pending.length ? (cur.id === 'leaves' ? (pending.length < 2 ? 'Теперь коснись, куда лист падает (ниже первой точки).' : 'Можно добавить ещё точку пути ниже или нажать «Готово».') : second[cur.id]) : cur.hint;
     $('done').hidden = !(cur.id === 'leaves' && pending.length >= 2);
   }
-  function refresh() { redrawOverlay(); renderList(); renderOut(); setHint(); }
+  function refresh() { redrawOverlay(); renderList(); renderOut(); setHint(); drawLoupe(); }
 
   function buildEffects() {
     var box = $('effects');
