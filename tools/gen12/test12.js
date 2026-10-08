@@ -302,6 +302,9 @@ async function turn(stages, row, inc, response, subResponse) {
       // без пункта оживления лупа не нужна
       const nn = { ...n, 'Разбираем ответ этапа': { ...ln['Разбираем ответ этапа'], changed: [] } };
       assert.equal((await run('Лупа: план', { nodes: nn }))[0].need, false);
+      // выключатель tmpl_Lupa = нет: лупа не запускается, точки автора остаются как есть
+      const off = { ...ln, 'Контекст проекта': { ...ln['Контекст проекта'], tmpl: { ...(ln['Контекст проекта'].tmpl || {}), tmpl_Lupa: 'нет' } } };
+      assert.equal((await run('Лупа: план', { nodes: off }))[0].need, false, 'tmpl_Lupa = нет выключает лупу');
     }
     const r = (await run('Итог хода', { nodes: n }))[0];
     assert.equal(r.previewBody.fx_Effects, 'дымок: 44, 37'); assert.equal(r.previewBody.imageUrl, 'U2');
