@@ -1843,8 +1843,10 @@ def blink_patch(src, base, px, py, k, SS=4, exact=False, radius=None):
     lid = Image.new("L", (bw * SS, bh * SS), 0)
     dl = ImageDraw.Draw(lid)
     q = r / (5 * k)   # веко — по размеру глаза
-    dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.4 * k * q + 1.8 * k * q * (1 - (dx / (4.2 * k * q)) ** 2)) * SS)
-             for dx in np.linspace(-4.2 * k * q, 4.2 * k * q, 20)],
+    # веко — круглая дуга «улыбкой» (08.10: стало круглее и глубже, ширина по размеру глаза)
+    half_w = max(4.2 * k * q, 0.9 * rc)
+    dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.2 * rc + 0.62 * half_w * (1 - (dx / half_w) ** 2) ** 0.5 * 0.9 - 0.2 * half_w) * SS)
+             for dx in np.linspace(-half_w, half_w, 40)],
             fill=255, width=max(1, int(1.3 * k * max(q, 0.6) * SS)), joint="curve")
     la = np.asarray(lid.resize((bw, bh), Image.LANCZOS), np.float32)[..., None] / 255 * 0.85
     closed = closed * (1 - la) + feather * 0.5 * la      # линия века — темнее своих пёрышек
