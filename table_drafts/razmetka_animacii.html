@@ -54,6 +54,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .dot.b { background: var(--mark2); }
 .eye.auto { opacity: .65; border-style: dotted; }
 .eye { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; pointer-events: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.pane { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.35); }
+.pane .stage { max-height: 44vh; }
+.pane .note { display: none; }
+.mark .tog { min-height: 36px; padding: 4px 10px; font-size: 14px; }
 .zoom { display: flex; align-items: center; gap: 10px; }
 .zoom input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
 .mark { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 10px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
@@ -86,6 +90,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     <div class="label">Что оживляем</div>
     <div class="row" id="effects" role="group" aria-label="Эффект"></div>
     <div class="hint" id="hint" role="status"></div>
+  </section>
+
+  <div class="pane" aria-label="Картинка">
     <div class="zoom">
       <span class="label">Увеличение</span>
       <input id="zoom" type="range" min="1" max="4" step="0.25" value="1" aria-label="Увеличение картинки">
@@ -99,8 +106,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         <div id="dots"></div>
       </div>
     </div>
-    <p class="note">Касайся точно: у мелких глаз (воробей, утка) лучше увеличить картинку.</p>
-  </section>
+    <p class="note">Картинка остаётся на месте, пока листаешь список ниже. Мелкие глаза лучше увеличить.</p>
+  </div>
 
   <section class="card" aria-label="Точки">
     <div class="row" style="justify-content: space-between">
@@ -199,14 +206,20 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     var box = $('list');
     box.innerHTML = '';
     if (!marks.length) { var e = document.createElement('p'); e.className = 'empty'; e.textContent = 'Пока ничего не отмечено. Выбери эффект и коснись картинки.'; box.appendChild(e); return; }
-    marks.forEach(function (m, i) {
+    marks.map(function (m, i) { return [m, i]; }).reverse().forEach(function (pair) {
+      var m = pair[0], i = pair[1];
       var d = document.createElement('div'); d.className = 'mark';
       var num = document.createElement('div'); num.className = 'num'; num.textContent = i + 1;
       var t = document.createElement('div'); t.className = 'txt'; t.textContent = lineOf(m);
       var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Убрать'; del.setAttribute('aria-label', 'Убрать точку ' + (i + 1));
       del.onclick = function () { marks.splice(i, 1); refresh(); };
-      d.appendChild(num); d.appendChild(t); d.appendChild(del);
-      if (m.eff === 'steam') {
+      var tog = document.createElement('button'); tog.type = 'button'; tog.className = 'tog'; tog.textContent = m.open ? 'Свернуть' : 'Настроить';
+      tog.onclick = function () { m.open = !m.open; renderList(); };
+      d.appendChild(num); d.appendChild(t);
+      var side = document.createElement('div'); side.className = 'row'; side.style.flexWrap = 'nowrap';
+      if (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink') side.appendChild(tog);
+      side.appendChild(del); d.appendChild(side);
+      if (m.eff === 'steam' && m.open) {
         var kb = document.createElement('div'); kb.className = 'knobs';
         EFFECTS[1].knobs.forEach(function (k) {
           var lab = document.createElement('label');
@@ -218,14 +231,14 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         });
         d.appendChild(kb);
       }
-      if (m.eff === 'leaves') {
+      if (m.eff === 'leaves' && m.open) {
         var kb2 = document.createElement('div'); kb2.className = 'knobs';
         var sel = document.createElement('select'); sel.id = 'kind' + i; sel.setAttribute('aria-label', 'Вид листа');
         ['', 'продолговатый', 'круглый', 'клён'].forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v || 'вид листа по умолчанию'; if (m.kind === v) o.selected = true; sel.appendChild(o); });
         sel.onchange = function () { m.kind = sel.value; t.textContent = lineOf(m); renderOut(); };
         kb2.appendChild(sel); d.appendChild(kb2);
       }
-      if (m.eff === 'blink') {
+      if (m.eff === 'blink' && m.open) {
         var kb3 = document.createElement('div'); kb3.className = 'knobs';
         var lab3 = document.createElement('label');
         var s3 = document.createElement('span'); s3.textContent = 'размер';
@@ -277,6 +290,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var m = { eff: cur.id, pts: pending.slice(0, cur.taps) };
       if (cur.id === 'steam') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
       if (cur.id === 'leaves') m.kind = '';
+      marks.forEach(function (o) { o.open = false; }); m.open = true;
       marks.push(m); pending = [];
     }
     refresh();
