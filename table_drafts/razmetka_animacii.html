@@ -46,7 +46,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .stage { overflow: auto; max-height: 72vh; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); -webkit-overflow-scrolling: touch; }
 .pic { position: relative; display: block; margin: 0; }
 .pic img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
-.pic svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: manipulation; }
+.pic svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
 #dots { position: absolute; inset: 0; pointer-events: none; }
 #fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .dot { position: absolute; width: 6px; height: 6px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--mark); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
@@ -108,6 +108,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       <span class="label">Увеличение</span>
       <input id="zoom" type="range" min="1" max="4" step="0.25" value="1" aria-label="Увеличение картинки">
       <span id="zoomv" style="min-width:2.5em;text-align:right">1×</span>
+      <button id="panbtn" type="button" aria-pressed="false" title="Тянуть картинку (на мышке — правая кнопка)">✋ Двигать картинку</button>
       <canvas id="loupe" width="264" height="264" hidden></canvas>
     </div>
     <div class="stage" id="stage">
@@ -336,7 +337,44 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     });
   }
 
+  // Двигать картинку: правая кнопка мыши или кнопка «Двигать»; двигать точку: взяться за неё и тянуть
+  var panMode = false, drag = null, suppress = false;
+  $('panbtn').onclick = function () { panMode = !panMode; $('panbtn').setAttribute('aria-pressed', panMode ? 'true' : 'false'); ov.style.cursor = panMode ? 'grab' : ''; };
+  ov.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+  function hitPoint(ev) {
+    var r = ov.getBoundingClientRect(), best = null, bd = 16;
+    marks.forEach(function (m) { m.pts.forEach(function (q, k) {
+      var d = Math.hypot(r.left + q.x / 100 * r.width - ev.clientX, r.top + q.y / 100 * r.height - ev.clientY);
+      if (d <= bd) { bd = d; best = { m: m, k: k }; }
+    }); });
+    return best;
+  }
+  ov.addEventListener('pointerdown', function (ev) {
+    suppress = false;
+    if (!img.getAttribute('src')) return;
+    var st = $('stage');
+    if (ev.button === 2 || panMode) { drag = { pan: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop }; ov.setPointerCapture(ev.pointerId); ov.style.cursor = 'grabbing'; ev.preventDefault(); return; }
+    if (ev.button !== 0) return;
+    var h = hitPoint(ev);
+    if (h) { drag = { m: h.m, k: h.k, moved: false }; suppress = true; ov.setPointerCapture(ev.pointerId); ev.preventDefault(); }
+  });
+  ov.addEventListener('pointermove', function (ev) {
+    if (!drag) return;
+    if (drag.pan) { var st = $('stage'); st.scrollLeft = drag.sl - (ev.clientX - drag.sx); st.scrollTop = drag.stp - (ev.clientY - drag.sy); return; }
+    var r = ov.getBoundingClientRect();
+    drag.m.pts[drag.k] = { x: r1(Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width * 100))), y: r1(Math.min(100, Math.max(0, (ev.clientY - r.top) / r.height * 100))) };
+    drag.moved = true; drag.m.open = true; refresh();
+  });
+  function endDrag(ev) {
+    if (!drag) return;
+    if (drag.pan) ov.style.cursor = panMode ? 'grab' : '';
+    drag = null;
+  }
+  ov.addEventListener('pointerup', endDrag);
+  ov.addEventListener('pointercancel', endDrag);
+
   ov.addEventListener('click', function (ev) {
+    if (suppress) { suppress = false; return; }
     if (!img.getAttribute('src')) return;
     var r = ov.getBoundingClientRect();
     var x = Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width * 100));
@@ -462,4 +500,3 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   setImage(SAMPLE);
 })();
 </script>
-</body></html>
