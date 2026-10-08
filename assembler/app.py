@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-08-blink-hiss"
+ASSEMBLER_VERSION = "2026-10-08-blink-1-3"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2169,17 +2169,23 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             closed = closed * (1 - la) + feather * 0.5 * la      # линия века — темнее своих пёрышек
             soft = np.clip((pad - np.maximum(abs(xx - pad), abs(yy - pad))) / (0.3 * pad), 0, 1)
 
-            # (08.10) моргание неспешное: смыкается 0.10 с, закрыт 0.30 с, открывается 0.18 с.
-            # Ручка «частота»: меньше 5 — одно моргание за петлю, 5 — два, больше 7 — три.
+            # (08.10) моргание живое и неровное: одно неспешное, потом три быстрых подряд.
+            # Каждое: смыкание, закрыт, открытие — (закрывается, держит, открывается) в секундах.
+            # Ручка «частота»: меньше 5 — только одно моргание за петлю, 5 — одно и три быстрых, больше 7 — ещё одно в начале.
             c_fr = kn(kind, nums, "частота")
-            starts = (2.2,) if c_fr < 0.8 else ((1.2, 3.9) if c_fr < 1.5 else (0.8, 2.6, 4.4))
+            slow = (0.09, 0.22, 0.16)       # неспешное
+            quick = (0.06, 0.07, 0.09)      # быстрое
+            blinks = [(2.4, slow)] if c_fr < 0.8 else [(1.3, slow), (3.9, quick), (4.2, quick), (4.5, quick)]
+            if c_fr > 1.5:
+                blinks = [(0.2, slow)] + blinks
 
-            def blink(t, closed=closed, soft=soft, bx0=bx0, by0=by0, starts=starts):
+            def blink(t, closed=closed, soft=soft, bx0=bx0, by0=by0, blinks=blinks):
                 c = 0.0
-                for at in starts:
+                for at, (tc, th, to) in blinks:
                     u = t - at
-                    if 0 <= u < 0.58:
-                        c = max(c, min(1.0, u / 0.10) if u < 0.10 else (1.0 if u < 0.40 else (0.58 - u) / 0.18))
+                    if 0 <= u < tc + th + to:
+                        v = u / tc if u < tc else (1.0 if u < tc + th else (tc + th + to - u) / to)
+                        c = max(c, min(1.0, v))
                 if c <= 0:
                     return None
                 return bx0, by0, soft * c, closed
