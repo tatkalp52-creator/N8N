@@ -47,6 +47,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .pic img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
 .pic svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: manipulation; }
 #dots { position: absolute; inset: 0; pointer-events: none; }
+#fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .dot { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: var(--mark); color: #fff; border: 2px solid #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .dot.b { background: var(--mark2); }
 .eye { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; pointer-events: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
@@ -91,6 +92,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       <div class="pic" id="pic">
         <img id="img" alt="Картинка выпуска">
         <svg id="ov" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"></svg>
+        <canvas id="fx"></canvas>
         <div id="dots"></div>
       </div>
     </div>
@@ -124,7 +126,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   // Эффекты, которые знает сборщик: слово в строке, сколько касаний, ручки. Числа — проценты кадра.
   var EFFECTS = [
     { id: 'blink',  name: 'Моргание',   taps: 1, hint: 'Коснись центра глаза. Если глаз крупный или мелкий, потяни «размер» в списке ниже: на картинке появится круг, который закроется.' },
-    { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой).', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5], ['завитки', 5]] },
+    { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой). На картинке появится пробный пар; пунктирная рамка — где он живёт, овал внизу — где «сидит».', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5], ['завитки', 5]] },
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'leaves', name: 'Листья',     taps: 2, hint: 'Сначала коснись места, откуда летит лист, потом куда он падает.', kinds: ['продолговатый', 'круглый', 'клён'] },
     { id: 'candle', name: 'Свеча',      taps: 1, hint: 'Коснись пламени свечи.' },
@@ -311,6 +313,62 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     pic.style.width = (z * 100) + '%';
     $('zoomv').textContent = (z % 1 ? z.toFixed(2).replace(/0$/, '') : z) + '×';
   });
+
+
+  // ── Пробный пар прямо на картинке: примерно так он будет двигаться (формулы те же, что у сборщика,
+  // разброс струек чуть иной). Пунктирная рамка — зона, где пар живёт; овал у основания — «посадка».
+  var LOOP = 6, steamCache = {};
+  function mult(v) { return Math.pow(2, (v - 5) / 5); }
+  function seeded(seed) { var a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function wispsFor(m) {
+    var key = Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729);
+    if (steamCache[key]) return steamCache[key];
+    var r = seeded(key);
+    var base = [{ bx: -10, A: 15, f: 1.6, ph: 0, m: 2.0, mp: 0.1, w: 1.1 }, { bx: 1, A: 19, f: 1.4, ph: 2.3, m: 2.4, mp: 0.55, w: 1.3 }, { bx: 11, A: 13, f: 1.8, ph: 4.1, m: 1.8, mp: 0.85, w: 1.0 }];
+    var w = base.map(function (b) { return { bx: b.bx, w: b.w, m: b.m, ph: b.ph + r() * 6.28, A: b.A * (0.75 + r() * 0.55), f: b.f * (0.85 + r() * 0.3), mp: b.mp + r(), end: 0.55 + r() * 0.4 }; });
+    return (steamCache[key] = { w: w, shift: r() });
+  }
+  var fx = $('fx'), fxc = fx.getContext('2d'), off = document.createElement('canvas'), offc = off.getContext('2d');
+  function drawSteam(now) {
+    var dw = pic.clientWidth, dh = pic.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (fx.width !== Math.round(dw * dpr) || fx.height !== Math.round(dh * dpr)) { fx.width = Math.round(dw * dpr); fx.height = Math.round(dh * dpr); }
+    fxc.setTransform(dpr, 0, 0, dpr, 0, 0); fxc.clearRect(0, 0, dw, dh);
+    var steams = marks.filter(function (m) { return m.eff === 'steam'; });
+    if (steams.length && dh) {
+      var k = dh / 864, tt = (now / 1000) % LOOP;
+      steams.forEach(function (m) {
+        var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh;
+        var cOp = mult(m.k['густота']), cH = mult(m.k['высота']), cSp = mult(m.k['скорость']), cTh = mult(m.k['толщина']), cCu = mult(m.k['завитки']);
+        var cyc = Math.max(1, Math.round(2 * cSp)), hx = Math.max(0, cCu - 1) * 0.8;
+        var bw = Math.max(150 * k * Math.max(1, cTh), (2 * (11 + 24.7 * (1 + hx) * cCu) + 30) * k), bh = 165 * k * cH;
+        var wi = wispsFor(m), t = (tt * cyc / LOOP + wi.shift) % 1;
+        off.width = Math.ceil(bw); off.height = Math.ceil(bh); offc.clearRect(0, 0, off.width, off.height); offc.lineCap = 'round';
+        wi.w.forEach(function (w) {
+          var S = 70, pts = [];
+          for (var i = 0; i <= S; i++) {
+            var sx = i / S;
+            var x = bw / 2 + k * (w.bx * (1 - 0.5 * sx) + w.A * cCu * Math.pow(sx, 0.9) * (Math.sin(2 * Math.PI * (w.f * sx - t) + w.ph) + hx * Math.sin(2 * Math.PI * (2.2 * w.f * sx - 1.7 * t) + 1.7 * w.ph)));
+            pts.push([x, bh - 1 - sx * (bh - 6), sx]);
+          }
+          for (var j = 0; j < S; j++) {
+            var a = pts[j], b = pts[j + 1], s2 = a[2];
+            var fade = Math.min(1, s2 / 0.04) * Math.max(0, Math.min(1, (w.end - s2) / (0.45 * w.end)));
+            var dash = 0.5 + 0.5 * Math.sin(2 * Math.PI * (w.m * s2 - 2 * t) + w.mp * 6.28);
+            var al = fade * (0.3 + 0.7 * Math.pow(dash, 1.3)) * 0.62 * cOp * 0.8;
+            if (al > 0.01) { offc.strokeStyle = 'rgba(250,246,236,' + Math.min(1, al * 1.4).toFixed(3) + ')'; offc.lineWidth = Math.max(1, (2 + 3.8 * s2) * w.w * k * cTh); offc.beginPath(); offc.moveTo(a[0], a[1]); offc.lineTo(b[0], b[1]); offc.stroke(); }
+          }
+        });
+        if ('filter' in fxc) fxc.filter = 'blur(' + (0.9 * k * Math.pow(cTh, 1.5)).toFixed(2) + 'px)';
+        fxc.drawImage(off, px - bw / 2, py - bh);
+        fxc.filter = 'none';
+        fxc.save(); fxc.setLineDash([5, 4]); fxc.strokeStyle = 'rgba(37,99,235,0.8)'; fxc.lineWidth = 1.5;
+        fxc.strokeRect(px - bw / 2, py - bh, bw, bh);
+        fxc.beginPath(); fxc.ellipse(px, py, 14 * k, 4 * k, 0, 0, 7); fxc.stroke(); fxc.restore();
+      });
+    }
+    requestAnimationFrame(drawSteam);
+  }
+  requestAnimationFrame(drawSteam);
 
   buildEffects();
   setImage(SAMPLE);
