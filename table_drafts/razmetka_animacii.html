@@ -129,7 +129,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   // Эффекты, которые знает сборщик: слово в строке, сколько касаний, ручки. Числа — проценты кадра.
   var EFFECTS = [
     { id: 'blink',  name: 'Моргание',   taps: 1, hint: 'Коснись центра глаза. Вокруг точки сразу виден круг: это то, что закроется веком. Крупный или мелкий глаз — потяни «размер» в списке ниже, круг изменится.' },
-    { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой). На картинке появится пробный пар; пунктирная рамка — где он живёт, овал внизу — где «сидит».', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5], ['завитки', 5]] },
+    { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой). На картинке появится пробный пар; пунктирная рамка — где он живёт, овал внизу — где «сидит».', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5], ['завитки', 5], ['прозрачность', 5]] },
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'leaves', name: 'Листья',     taps: 2, hint: 'Сначала коснись места, откуда летит лист, потом куда он падает.', kinds: ['продолговатый', 'круглый', 'клён'] },
     { id: 'candle', name: 'Свеча',      taps: 1, hint: 'Коснись пламени свечи.' },
@@ -211,7 +211,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         EFFECTS[1].knobs.forEach(function (k) {
           var lab = document.createElement('label');
           var s = document.createElement('span'); s.textContent = k[0];
-          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 1; inp.max = 10; inp.step = 1; inp.value = m.k[k[0]]; inp.id = 'k' + i + '_' + k[0];
+          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 0; inp.max = 15; inp.step = 1; inp.value = m.k[k[0]]; inp.id = 'k' + i + '_' + k[0];
           var out = document.createElement('span'); out.textContent = m.k[k[0]];
           inp.oninput = function () { m.k[k[0]] = Number(inp.value); out.textContent = inp.value; t.textContent = lineOf(m); renderOut(); };
           lab.appendChild(s); lab.appendChild(inp); lab.appendChild(out); kb.appendChild(lab);
@@ -342,7 +342,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var k = dh / 864, tt = (now / 1000) % LOOP;
       steams.forEach(function (m) {
         var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh;
-        var cOp = mult(m.k['густота']), cH = mult(m.k['высота']), cSp = mult(m.k['скорость']), cTh = mult(m.k['толщина']), cCu = mult(m.k['завитки']);
+        var cOp = mult(m.k['густота']) / mult(m.k['прозрачность']), cH = mult(m.k['высота']), cSp = mult(m.k['скорость']), cTh = mult(m.k['толщина']), cCu = mult(m.k['завитки']);
         var cyc = Math.max(1, Math.round(2 * cSp)), hx = Math.max(0, cCu - 1) * 0.8;
         var bw = Math.max(150 * k * Math.max(1, cTh), (2 * (11 + 24.7 * (1 + hx) * cCu) + 30) * k), bh = 165 * k * cH;
         var wi = wispsFor(m), t = (tt * cyc / LOOP + wi.shift) % 1;

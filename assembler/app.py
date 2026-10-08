@@ -1413,7 +1413,7 @@ EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", 
 
 # Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
 # Ручки — шкала 1–10 листа «Эффекты»: 5 — как сейчас, 1 — вдвое слабее, 10 — вдвое сильнее.
-KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "ореол", "раскачка", "яркость", "капли", "частота", "размер")
+KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер")
 
 
 class FxNums(list):
@@ -1498,7 +1498,7 @@ def fx_knob(data, kind, nums, word):
                 break
     if v is None:
         return 1.0
-    return 2 ** ((max(1.0, min(10.0, v)) - 5) / 5)
+    return 2 ** ((max(0.0, min(20.0, v)) - 5) / 5)    # (08.10) шкала шире: 0…20 (5 — как есть)
 
 
 # ── ПРИМАГНИЧИВАНИЕ (05.10): точки, которые можно найти счётом, а не глазом ──
@@ -1984,6 +1984,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             c_op, c_h, c_sp = kn(kind, nums, "густота"), kn(kind, nums, "высота"), kn(kind, nums, "скорость")
             c_th = kn(kind, nums, "толщина")         # (06.10) струйки толще — и мягче по краям
             c_cyc = max(1, int(round(2 * c_sp)))     # петля 6 с: столько проходов струйки
+            c_tr = kn(kind, nums, "прозрачность")    # (08.10) отдельно от густоты: больше — прозрачнее (полезно при толстых струйках)
             c_cu = kn(kind, nums, "завитки")         # (08.10) 5 — как есть; больше — струйка вьётся шире и с перекруткой
             hx = max(0.0, c_cu - 1.0) * 0.8          # вторая, более частая волна — завиток на изгибе
             bw = int(max(150 * k * max(1.0, c_th), (2 * (11 + 24.7 * (1 + hx) * c_cu) + 30) * k))
@@ -2004,7 +2005,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             t_shift = vr.uniform(0, 1)
 
             def steam(t, bw=bw, bh=bh, x0=x0, y0=y0, grain=grain, wisps=wisps, c_op=c_op, c_cyc=c_cyc, c_th=c_th,
-                      t_shift=t_shift, c_cu=c_cu, hx=hx):
+                      t_shift=t_shift, c_cu=c_cu, hx=hx, c_tr=c_tr):
                 t = (t * c_cyc / EFFECTS_LOOP_SECONDS + t_shift) % 1.0  # c_cyc проходов за петлю
                 can = Image.new("L", (bw * SS, bh * SS), 0)
                 d = ImageDraw.Draw(can)
@@ -2028,7 +2029,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                             d.line([(xa * SS, ya * SS), (xb * SS, yb * SS)], fill=int(255 * a),
                                    width=max(1, int((2.0 + 3.8 * s) * w["w"] * k * c_th * SS)))
                 al = np.asarray(can.resize((bw, bh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.9 * k * c_th ** 1.5)),
-                                np.float32) / 255 * grain * steam_opacity * c_op
+                                np.float32) / 255 * grain * steam_opacity * c_op / c_tr
                 return x0, y0, np.clip(al, 0, 1), np.array([246, 241, 231], np.float32)
             layers.append(steam)
 
