@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-08-blink-events2"
+ASSEMBLER_VERSION = "2026-10-08-edges-multi"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2311,10 +2311,13 @@ def parse_leaves(text, data):
         low = line.strip().lower()
         if low.startswith(("край", "edge")):
             body = low.split(":", 1)[-1]
+            line_pts = []
             for pair in body.split(","):
                 nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", pair)]
                 if len(nums) >= 2:
-                    edge.append((nums[0], nums[1]))
+                    line_pts.append((nums[0], nums[1]))
+            if len(line_pts) >= 2:   # (08.10) каждая строка «край:» — отдельная линия (скамейка, ствол, стена…)
+                edge.append(line_pts)
             continue
         if not low.startswith(("листья", "лист", "leaves", "leaf")):
             continue
@@ -2577,6 +2580,93 @@ def render_blink_event(image_path, group, pattern, fps, seconds, out_path, mask_
     return out_path
 
 
+def _seg_cross(a, b, c, d):
+    """Пересекаются ли отрезки ab и cd."""
+    def o(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    return (o(a, b, c) * o(a, b, d) < 0) and (o(c, d, a) * o(c, d, b) < 0)
+
+
+def _poly_dist(poly, x, y):
+    best = 1e18
+    for (ax, ay), (bx, by) in zip(poly, poly[1:]):
+        dx, dy = bx - ax, by - ay
+        ll = dx * dx + dy * dy or 1.0
+        t = min(1.0, max(0.0, ((x - ax) * dx + (y - ay) * dy) / ll))
+        best = min(best, (x - ax - t * dx) ** 2 + (y - ay - t * dy) ** 2)
+    return best
+
+
+def edge_for_leaf(path, edges_px):
+    """(08.10) Линия «края» для листа: та, которую его путь пересекает первой; если не пересекает —
+    ближайшая к точке, где лист кончает путь. Край может быть любым: горизонтальным (скамейка),
+    вертикальным (ствол, стена)."""
+    best, best_i = None, None
+    for poly in edges_px:
+        for i in range(len(path) - 1):
+            a, b = (path[i][0], path[i][1]), (path[i + 1][0], path[i + 1][1])
+            if any(_seg_cross(a, b, c, d) for c, d in zip(poly, poly[1:])):
+                if best_i is None or i < best_i:
+                    best, best_i = poly, i
+                break
+    if best is None and edges_px:
+        ex_, ey_ = path[-1][0], path[-1][1]
+        best = min(edges_px, key=lambda pl: _poly_dist(pl, ex_, ey_))
+    return best
+
+
+def extend_path_behind(path, poly, s0, L0, fps, k):
+    """Лист «за край» обязан дойти до края и скрыться целиком: путь по физике кончается чуть выше точки
+    «куда» (парение у конца дуги), поэтому, если до линии не дошёл, дотягиваем его прямо к ближайшей точке
+    линии и дальше — на размер листа за неё."""
+    import numpy as np
+    x, y = path[-1][0], path[-1][1]
+    if float(edge_side(poly, [x], [y])[0]) * s0 < 0:
+        return path     # уже по ту сторону
+    best = None
+    for (ax, ay), (bx, by) in zip(poly, poly[1:]):
+        dx, dy = bx - ax, by - ay
+        ll = dx * dx + dy * dy or 1.0
+        t = min(1.0, max(0.0, ((x - ax) * dx + (y - ay) * dy) / ll))
+        qx, qy = ax + t * dx, ay + t * dy
+        d = math.hypot(qx - x, qy - y)
+        if best is None or d < best[0]:
+            best = (d, qx, qy)
+    d, qx, qy = best
+    if d > 0.12 * 864 * k or d < 1e-6:
+        return path
+    ux, uy = (qx - x) / d, (qy - y) / d
+    total = d + 1.2 * L0
+    back = path[max(0, len(path) - 7)]
+    v = math.hypot(x - back[0], y - back[1]) / max(1, min(6, len(path) - 1)) * fps   # пикс/с в конце пути
+    v = max(v, 40 * k)
+    n = max(2, int(total / v * fps))
+    out = list(path)
+    last = path[-1]
+    for i in range(1, n + 1):
+        f = i / n
+        out.append((x + ux * total * f, y + uy * total * f) + tuple(last[2:]))
+    return out
+
+
+def edge_side(poly, X, Y):
+    """Расстояние со знаком стороны для каждого пикселя (X, Y — массивы, транслируются)."""
+    import numpy as np
+    X, Y = np.broadcast_arrays(np.asarray(X, np.float32), np.asarray(Y, np.float32))
+    bd = np.full(X.shape, 1e18, np.float32)
+    sg = np.ones(X.shape, np.float32)
+    for (ax, ay), (bx, by) in zip(poly, poly[1:]):
+        dx, dy = bx - ax, by - ay
+        ll = dx * dx + dy * dy or 1.0
+        t = np.clip(((X - ax) * dx + (Y - ay) * dy) / ll, 0, 1)
+        dd = (X - ax - t * dx) ** 2 + (Y - ay - t * dy) ** 2
+        cr = dx * (Y - ay) - dy * (X - ax)
+        m = dd < bd
+        bd = np.where(m, dd, bd)
+        sg = np.where(m, np.where(cr >= 0, 1.0, -1.0) * np.sqrt(dd), sg)
+    return sg   # расстояние до линии со знаком стороны
+
+
 def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
     """Клип события: картинка + один падающий лист, и рядом маска — где лист и насколько
     он непрозрачен (поверх петли лист кладётся по этой маске, без догадок по разнице кадров).
@@ -2609,8 +2699,13 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
     (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
     via = [P(q) for q in leaf["via"]] if leaf.get("via") else None
     path = leaf_path(x0, y0, x1, y1, fall, fps, seed, L0 * 1.1, via=via)
-    ex = [e[0] / 100 * W for e in edge] if (leaf["behind"] and edge) else None
-    ey = [e[1] / 100 * H for e in edge] if ex else None
+    poly = None
+    if leaf["behind"] and edge:
+        poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge])
+    s0 = (1.0 if float(edge_side(poly, [x0], [y0])[0]) >= 0 else -1.0) if poly else 1.0   # сторона, с которой лист стартует: туда он виден
+    if poly:
+        path = extend_path_behind(path, poly, s0, L0, fps, k)
+        fall = len(path) / fps
     frames_dir = out_path + "_frames"
     masks_dir = out_path + "_masks"
     os.makedirs(frames_dir, exist_ok=True)
@@ -2632,9 +2727,8 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
                 al = al * (1 - (age - fall) / rest) ** 1.6
             h, w = al.shape
             lx0, ly0 = int(x - w / 2), int(y - h / 2)
-            if ex:   # ниже края — за краем: не рисуем
-                fy = np.interp(np.arange(w) + lx0, ex, ey)
-                al = al * ((np.arange(h) + ly0)[:, None] < fy[None, :])
+            if poly:   # по ту сторону края от старта — за краем: не рисуем
+                al = al * (edge_side(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None]) * s0 >= 6 * k)
             ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
             if ya < yb and xa < xb:
                 a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
@@ -3227,15 +3321,17 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
         L0 = leaf["size"] * k
         via = [P(q) for q in leaf["via"]] if leaf.get("via") else None
         path = leaf_path(x0, y0, x1, y1, leaf["fall"], 24, seed, L0 * 1.1, via=via)
-        ex = [e[0] / 100 * W for e in edge] if (leaf["behind"] and edge) else None
-        ey = [e[1] / 100 * H for e in edge] if ex else None
+        poly = None
+        if leaf["behind"] and edge:
+            poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge])
+        s0 = (1.0 if float(edge_side(poly, [x0], [y0])[0]) >= 0 else -1.0) if poly else 1.0
         step = 8   # положение через треть секунды
         # тонкая линия пути — чтобы маленький лист было видно на превью
         trail = Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8))
         dtr = ImageDraw.Draw(trail)
         pts = [(q[0], q[1]) for q in path]
-        if ex:
-            pts = [(x, y) for x, y in pts if y < float(np.interp(x, ex, ey))]
+        if poly:
+            pts = [(x, y) for x, y in pts if float(edge_side(poly, [x], [y])[0]) * s0 >= 6 * k]
         for i in range(0, len(pts) - 1, 2):
             dtr.line([pts[i], pts[i + 1]], fill=(200, 90, 30), width=max(1, int(1.5 * k)))
         frame = np.asarray(trail, np.float32).copy()
@@ -3246,9 +3342,8 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
             al = spr[..., 3] / 255 * (0.55 + 0.45 * i / max(1, len(path) - 1))
             h, w = al.shape
             lx0, ly0 = int(x - w / 2), int(y - h / 2)
-            if ex:
-                fy = np.interp(np.arange(w) + lx0, ex, ey)
-                al = al * ((np.arange(h) + ly0)[:, None] < fy[None, :])
+            if poly:
+                al = al * (edge_side(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None]) * s0 >= 6 * k)
             ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
             if ya < yb and xa < xb:
                 a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
@@ -3256,13 +3351,14 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
     im = Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8))
     if edge:
         d = ImageDraw.Draw(im)
-        pts = [(e[0] / 100 * W, e[1] / 100 * H) for e in edge]
-        for (ax, ay), (bx, by) in zip(pts, pts[1:]):
-            n = max(1, int(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5 / (12 * k)))
-            for i in range(0, n, 2):   # пунктир
-                t0, t1 = i / n, min(1, (i + 1) / n)
-                d.line([(ax + (bx - ax) * t0, ay + (by - ay) * t0), (ax + (bx - ax) * t1, ay + (by - ay) * t1)],
-                       fill=(30, 110, 200), width=max(2, int(2 * k)))
+        for pl in edge:
+            pts = [(e[0] / 100 * W, e[1] / 100 * H) for e in pl]
+            for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+                n = max(1, int(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5 / (12 * k)))
+                for i in range(0, n, 2):   # пунктир
+                    t0, t1 = i / n, min(1, (i + 1) / n)
+                    d.line([(ax + (bx - ax) * t0, ay + (by - ay) * t0), (ax + (bx - ax) * t1, ay + (by - ay) * t1)],
+                           fill=(30, 110, 200), width=max(2, int(2 * k)))
     im.save(out_path, quality=90)
     return out_path
 
