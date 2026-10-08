@@ -386,6 +386,22 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('9e те же строки → превью OK');
 
+  // ── 9f. Слово «пересобери» реплаем на выпуск = сборка без новой чистки ──
+  {
+    const mk = text => ({ message: { chat: { id: 1 }, from: { id: 1 }, text, reply_to_message: { text: 'ID: 20261006_142515_pengui' } } });
+    for (const w of ['пересобери', 'Пересобери!', 'собери', 'Собрать', 'пересобрать']) {
+      const r = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': mk(w) } }))[0];
+      assert.equal(r.kind, 'build', w); assert.equal(r.projectId, '20261006_142515_pengui');
+    }
+    for (const w of ['собери мне пожалуйста картинку по-другому', 'пересобери текст 3', 'привет']) {
+      const r = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': mk(w) } }))[0];
+      assert.equal(r.kind, 'message', w);
+    }
+    const l = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': mk('https://drive.google.com/file/d/1CQQwEcSM1TUOIzI1XyskHVK_-kiuBVeI/view') } }))[0];
+    assert.equal(l.kind, 'tracks');
+  }
+  console.log('9f «пересобери» → build, обычные реплики и ссылка не задеты OK');
+
   // ── 10. Нет строк в «Этапах» — честно говорим ──
   t = await turn([], {}, { text: 'привет' });
   assert.ok(t.r.chunks[0].includes('В листе «Этапы» нет строк'));

@@ -6,7 +6,8 @@
 //   channelPick  — нажата кнопка выбора канала → создаём проект
 //   imgApprove   — кнопка "✅" под вариантом картинки (img|ID|N)
 //   finalApprove — финальная кнопка "✅ Согласовано" под сводкой (final|ID)
-//   build        — кнопка "🎬 Собрать с этими треками" (build|ID)
+//   build        — кнопка "🎬 Собрать с этими треками" (build|ID) или слово «собери / пересобери» реплаем на выпуск
+//                  (собирает на уже почищенных треках, без новой чистки)
 //   oldButton    — кнопка из старой схемы (approve|ID)
 //   tracks       — ссылка на треки
 //   cleanStatus  — «как чистка?» / «статус»
@@ -75,7 +76,8 @@ if (urlMatch && userText.replace(urlMatch[0], '').trim().split(/\s+/).filter(Boo
 
 return [{
   json: {
-    kind: tracksUrl ? 'tracks' : (/^\s*(как\s+(там\s+)?чистка|статус)(?![а-яё])/iu.test(userText) ? 'cleanStatus' : 'message'),
+    kind: tracksUrl ? 'tracks' : (/^\s*(как\s+(там\s+)?чистка|статус)(?![а-яё])/iu.test(userText) ? 'cleanStatus'
+      : (/^\s*(пересобер|собер|пересобра|собра)[а-яё]*\s*[.!]?\s*$/iu.test(userText) ? 'build' : 'message')),
     chatId,
     ...fromId(m),
     text: userText,

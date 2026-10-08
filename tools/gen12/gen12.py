@@ -673,15 +673,19 @@ add({'parameters': {'workflowId': {'__rl': True, 'value': VIDEO_WF_ID, 'mode': '
                                        'value': {'message': "={{ { text: '/render ' + $('Стена: проверяем таблицу').first().json.projectId, chat: { id: $('Стена: проверяем таблицу').first().json.chatId } } }}"},
                                        'matchingColumns': [], 'schema': [], 'attemptToConvertTypes': False, 'convertFieldsToString': False},
                     'options': {'waitForSubWorkflow': False}},
-     'name': '04_Video', 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.2, 'position': [WX + 880, WY - 100]})
+     'name': '04_Video', 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.2, 'position': [WX + 1000, WY - 100]})
 tg_send('Сборку не запускаю', '={{ $json.chatId }}', '={{ $json.problemsText }}', [WX + 660, WY + 150])
 link('Куда дальше?', 'Перечитываем строку (стена)', 5)
 link('Уже утверждено?', 'Перечитываем строку (стена)', 0)
 link('Чистка ещё идёт', 'Ждём стук Kaggle')
 chain('Перечитываем строку (стена)', 'Стена: проверяем таблицу', 'Всё на месте?')
+# Пересборка уже выпущенного проекта: 04 отказывает при статусе «Опубликовано», поэтому перед сборкой статус возвращается
+sheets_update('Статус: снова утверждено', SHEET, {'sys_ProjectID': "={{ $('Стена: проверяем таблицу').first().json.projectId }}",
+                                                 'sys_Status': 'Утверждено'}, [WX + 770, WY - 100])
 link('Всё на месте?', 'Треки получены, приступаю к сборке', 0)
 link('Всё на месте?', 'Сборку не запускаю', 1)
-link('Треки получены, приступаю к сборке', '04_Video')
+link('Треки получены, приступаю к сборке', 'Статус: снова утверждено')
+link('Статус: снова утверждено', '04_Video')
 
 
 
