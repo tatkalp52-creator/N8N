@@ -450,6 +450,13 @@ async function turn(stages, row, inc, response, subResponse) {
     // обычные слова с «заново» внутри — не сброс
     r1 = await turn(DIRECT, row, { text: 'перепиши заново, но короче', replyText: '✍️ Писатель: вот история\n\nID: P1' }, call('propose_items', { message: 'ok' }));
     assert.equal(r1.plan.mode, 'model');
+    // женский род и «я»: «Я согласовала» — чистое одобрение; длинная реплика с «согласовано» — нет
+    for (const w of ['Я согласовала', 'согласовала', 'ну вот, согласовано', 'Одобряю', 'это ок']) {
+      r1 = await turn(DIRECT, row, { text: w, replyText: '✍️ Писатель: вот история\n\nID: P1' }, call('propose_items', { message: 'ok' }));
+      assert.deepEqual(r1.plan.approveNums, [3], w);
+    }
+    r1 = await turn(DIRECT, row, { text: 'согласовано, но убери последнюю фразу', replyText: '✍️ Писатель: вот история\n\nID: P1' }, call('propose_items', { message: 'ok' }));
+    assert.deepEqual(r1.plan.approveNums, []);
     console.log('9g reply = адрес этапа, «заново» = сброс этапа и следующих OK');
   }
 
