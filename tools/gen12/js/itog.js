@@ -23,10 +23,22 @@ let speaker = stage;
 // Картинку без согласования автора (этап «авто» или молчаливый) согласуем сами после рисунка.
 let autoApprove = false;
 let lupaMoved = 0;
+let resetPicture = false;
 
 if (plan.mode === 'say') {
   message = plan.sayText;
   speaker = null;
+} else if (plan.mode === 'reset') {
+  // «заново»: стираем разговор и черновики этапа и всех следующих; картинки-варианты остаются
+  if (ctx.status === 'Опубликовано') {
+    message = 'Выпуск уже опубликован — заново не начинаю.';
+  } else {
+    const rs = stResetState(stages, items, state, stage);
+    state = rs.state;
+    resetPicture = rs.picture;
+    action = 'reset';
+    message = `начинаем заново — ${rs.names.join(', ')}. Старые черновики стёрты${rs.picture ? '; варианты картинок сохранены, согласование картинки снято' : ''}.`;
+  }
 } else if (plan.mode === 'done') {
   action = 'done';
 } else if (plan.mode === 'draw' || plan.mode === 'edit') {
@@ -70,6 +82,7 @@ let statusReverted = false;
 if (cur !== 'Опубликовано') {
   if (action === 'approved' && !(cur === 'Утверждено' && approveUrl === approvedBefore)) statusAfter = 'Картинка согласована';
   if (cur === 'Утверждено' && changed.length) statusAfter = 'Картинка согласована';
+  if (action === 'reset') statusAfter = resetPicture ? 'Картинка в работе' : (cur === 'Утверждено' ? 'Картинка согласована' : statusAfter);
   statusReverted = cur === 'Утверждено' && statusAfter !== 'Утверждено';
 }
 
@@ -79,6 +92,9 @@ let event = '';
 let nextIcon = '';
 if (action === 'done') {
   transition = stages.some(s => s.approve) ? 'summary' : 'package';
+} else if (action === 'reset') {
+  const next = stCurrent(stages, items, state, resetPicture ? '' : approvedUrl);
+  if (next) { transition = 'next'; nextIcon = next.icon; event = 'Автор попросила начать заново.'; }
 } else if (stage && ['text_block', 'approved'].includes(action)) {
   const wasDone = stComplete(stages, items, before, approvedBefore, stage);
   const nowDone = stComplete(stages, items, state, approvedUrl, stage);
@@ -138,7 +154,7 @@ if (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {
 // Согласованное — сразу в колонки строки выпуска (как в листе «Пункты»); несогласованное там пусто.
 let agreedFields = null;
 const agreedKey = st_ => items.filter(it => st_.agreed[it.n]).map(it => it.n + ':' + ((st_.items[it.n] || {}).text || '')).join('\n');
-if (agreedKey(state) !== agreedKey(before)) {
+if (action === 'reset' || agreedKey(state) !== agreedKey(before)) {
   const onlyAgreed = stParseState(JSON.stringify(state));
   for (const it of items) if (!onlyAgreed.agreed[it.n]) delete onlyAgreed.items[it.n];
   agreedFields = { sys_ProjectID: ctx.projectId, ...itFields(items, onlyAgreed) };
@@ -155,7 +171,8 @@ return [{ json: {
   statusReverted,
   approvedUrl: approveUrl,
   approveVariant,
-  userBrief: String(row.ai_UserBrief || '').trim() || (plan.fromAuthor ? String(ctx.text || '').trim() : ''),
+  userBrief: resetPicture ? '' : (String(row.ai_UserBrief || '').trim() || (plan.fromAuthor ? String(ctx.text || '').trim() : '')),
+  clearApproved: resetPicture,
   transition,
   nextIcon,
   previewBody,
@@ -179,4 +196,5 @@ return [{ json: {
   sheetName: ctx.sheetName,
   channelKey: ctx.channelKey,
   stageIcon: stage ? stage.icon : '',
+  stageName: stage ? stage.name : '',
 } }];

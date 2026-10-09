@@ -405,6 +405,54 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('9f «пересобери» → build, обычные реплики и ссылка не задеты OK');
 
+  // ── 9g. Ответ (reply) на сообщение этапа — адрес; «заново» — сброс этапа и следующих ──
+  {
+    const APP = { ai_ImageVariants: V, ai_ApprovedImageUrl: 'U2', sys_Status: 'Картинка согласована', ai_UserBrief: 'Пингви на кухне',
+      ai_Description: 'old', ai_Title: 'old title' };
+    const STATE = JSON.stringify({ v: 2,
+      items: { 3: { text: 'Story', ru: 'История' }, 2: { text: 'Title', ru: '' } },
+      agreed: { 3: false, 2: false },
+      stages: { '✍': { conv: 'conv_w', pending: '', seen: [] }, '🏷': { conv: 'conv_t', pending: '', seen: [] } } });
+    const row = { ...APP, sys_EditorState: STATE };
+    // «согласовано» в ответ на сообщение художника — это не одобрение истории Писателя
+    let r1 = await turn(DIRECT, row, { text: 'согласовано', replyText: '🎨 Художник: рисую 🎨\n\nID: P1' }, call('propose_items', { message: 'ok' }));
+    assert.equal(r1.plan.stageName, 'Художник'); assert.deepEqual(r1.plan.approveNums || [], []);
+    // «ок» в ответ на сообщение Писателя — одобряет его пункт
+    r1 = await turn(DIRECT, row, { text: 'ок', replyText: '✍️ Писатель: вот история\n\nID: P1' }, call('propose_items', { message: 'ok' }));
+    assert.equal(r1.plan.stageName, 'Писатель'); assert.deepEqual(r1.plan.approveNums, [3]);
+    // картинка «Вариант N» — к этапу-художнику
+    r1 = await turn(DIRECT, row, { text: 'светлее', replyVariant: 1, replyText: 'Вариант 1\nID: P1' });
+    assert.equal(r1.plan.stageName, 'Художник');
+    // «заново» без адреса и без ответа — вопрос, ничего не стираем
+    r1 = await turn(DIRECT, row, { text: 'заново' });
+    assert.equal(r1.plan.mode, 'say'); assert.ok(r1.r.chunks[0].includes('С какого этапа'));
+    assert.equal(JSON.parse(r1.r.editorState).items[3].text, 'Story');
+    // «заново» ответом на Писателя: Писатель и все следующие стёрты, согласование снято, колонки очищены, переход к старту
+    r1 = await turn(DIRECT, row, { text: 'Заново!', replyText: '✍️ Писатель: вот история\n\nID: P1' });
+    assert.equal(r1.plan.mode, 'reset'); assert.equal(r1.r.action, 'reset');
+    let st = JSON.parse(r1.r.editorState);
+    assert.deepEqual(Object.keys(st.items), []); assert.deepEqual(st.stages, {}); assert.equal(r1.r.transition, 'next');
+    assert.equal(r1.r.clearApproved, false); assert.equal(r1.r.approvedUrl, '');
+    assert.ok(r1.r.chunks[0].includes('✍️ <b>Писатель</b>: начинаем заново'));
+    assert.equal(r1.r.agreedFields.ai_Title, ''); assert.equal(r1.r.agreedFields.ai_Description, '');
+    assert.equal(r1.next, 'next');
+    // то же словом-адресом
+    r1 = await turn(DIRECT, row, { text: '✍️ с нуля' });
+    assert.equal(r1.plan.mode, 'reset');
+    // «заново» у художника: картинка-варианты остаются, согласование и задание сброшены, остальные этапы стёрты
+    r1 = await turn(DIRECT, row, { text: 'Художник: заново' });
+    assert.equal(r1.r.action, 'reset'); assert.equal(r1.r.clearApproved, true); assert.equal(r1.r.userBrief, '');
+    assert.equal(r1.r.statusAfter, 'Картинка в работе'); assert.equal(r1.r.transition, 'next');
+    assert.deepEqual(Object.keys(JSON.parse(r1.r.editorState).items), []);
+    // опубликованный выпуск не трогаем
+    r1 = await turn(DIRECT, { ...row, sys_Status: 'Опубликовано' }, { text: '✍️ заново' });
+    assert.ok(r1.r.chunks[0].includes('опубликован')); assert.equal(JSON.parse(r1.r.editorState).items[3].text, 'Story');
+    // обычные слова с «заново» внутри — не сброс
+    r1 = await turn(DIRECT, row, { text: 'перепиши заново, но короче', replyText: '✍️ Писатель: вот история\n\nID: P1' }, call('propose_items', { message: 'ok' }));
+    assert.equal(r1.plan.mode, 'model');
+    console.log('9g reply = адрес этапа, «заново» = сброс этапа и следующих OK');
+  }
+
   // ── 10. Нет строк в «Этапах» — честно говорим ──
   t = await turn([], {}, { text: 'привет' });
   assert.ok(t.r.chunks[0].includes('В листе «Этапы» нет строк'));

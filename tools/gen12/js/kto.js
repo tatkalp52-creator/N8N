@@ -16,7 +16,9 @@ const current = stCurrent(stages, items, state, approvedUrl);
 const lastAuthor = [...stages].reverse().find(s => s.talks === 'author' && s.items.length) || null;
 // «9 …» — к этапу, чей пункт 9 (если это не текущий этап)
 const byItem = isStart || addressed ? null : stByItem(stages, ctx.text);
-const stage = addressed ? addressed.stage : (byItem || current || (isStart ? null : lastAuthor));
+// Ответ (reply) на сообщение этапа — адрес: «согласовано» на сообщение художника относится к художнику.
+const replyStage = isStart || addressed || byItem ? null : stByReply(stages, ctx.replyText, ctx.replyVariant);
+const stage = addressed ? addressed.stage : (byItem || replyStage || current || (isStart ? null : lastAuthor));
 let userText = addressed ? addressed.rest : String(ctx.text || '');
 const photo = ctx.photo && ctx.photo.length ? ctx.photo : null;
 if (!userText.trim()) userText = photo ? '(фото без подписи)' : '';
@@ -24,8 +26,13 @@ if (!userText.trim()) userText = photo ? '(фото без подписи)' : ''
 let mode = 'none';
 let sayText = '';
 let silent = false;
+const resetAsked = !isStart && stIsReset(addressed ? addressed.rest : ctx.text);
+const resetTarget = addressed ? addressed.stage : stByReply(stages, ctx.replyText, ctx.replyVariant);
 if (ctx.setupProblem) {
   mode = 'say'; sayText = ctx.setupProblem;
+} else if (resetAsked) {
+  if (resetTarget) mode = 'reset';
+  else { mode = 'say'; sayText = 'С какого этапа начать заново? Ответьте словом «заново» на сообщение нужного этапа или напишите, например, «✍️ заново».'; }
 } else if (!stage) {
   mode = 'done'; // все этапы завершены — дальше сводка / запись
 } else if (stage.picture && !stage.items.length) {
@@ -63,8 +70,8 @@ return [{
   json: {
     mode,
     approveNums,
-    stageIcon: stage ? stage.icon : '',
-    stageName: stage ? stage.name : '',
+    stageIcon: mode === 'reset' ? resetTarget.icon : (stage ? stage.icon : ''),
+    stageName: mode === 'reset' ? resetTarget.name : (stage ? stage.name : ''),
     userText,
     photo: mode === 'model' ? photo : null,
     isStart,

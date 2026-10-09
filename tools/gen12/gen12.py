@@ -261,7 +261,7 @@ sheets_update('Сохраняем ход', '={{ ' + R + '.sheetName }}', {
     'sys_EditorState': '={{ ' + R + '.editorState }}',
     'sys_Status': '={{ ' + R + '.statusAfter }}',
     'ai_UserBrief': '={{ ' + R + '.userBrief }}',
-    'ai_ApprovedImageUrl': "={{ " + R + ".approvedUrl || " + CTX + ".row.ai_ApprovedImageUrl || '' }}",
+    'ai_ApprovedImageUrl': "={{ " + R + ".clearApproved ? '' : (" + R + ".approvedUrl || " + CTX + ".row.ai_ApprovedImageUrl || '') }}",
 }, [EX + 3080, EY])
 if_node('Согласованное есть?', '!!' + R + '.agreedFields', [EX + 3190, EY - 300])
 code('Согласованное по колонкам', 'soglasovannoe.js', [EX + 3300, EY - 460])
@@ -419,7 +419,7 @@ for i, nm in enumerate(B2):
     take(nm, [AX + 1540 + i * 220, DY])
 tg_photo('Отправляем картинку (B)', "={{ $('Собираем ссылку (B)').first().json.chatId }}",
          "={{ $('Собираем ссылку (B)').first().json.ai_ImageUrl }}",
-         "=Вариант {{ $('Собираем ссылку (B)').first().json.variantNumber }}\nID: {{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}",
+         "={{ $('Итог хода').first().json.stageIcon }} {{ $('Итог хода').first().json.stageName }}: Вариант {{ $('Собираем ссылку (B)').first().json.variantNumber }}\nID: {{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}",
          "=✅ Согласовать вариант {{ $('Собираем ссылку (B)').first().json.variantNumber }}",
          "=img|{{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}|{{ $('Собираем ссылку (B)').first().json.variantNumber }}",
          [AX + 2640, DY])
@@ -448,7 +448,7 @@ for i, nm in enumerate(C2):
     take(nm, [AX + 1980 + i * 220, CY])
 tg_photo('Отправляем картинку (C)', "={{ $('Собираем ссылку (C)').first().json.chatId }}",
          "={{ $('Собираем ссылку (C)').first().json.ai_ImageUrl }}",
-         "=Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено{{ $('Собираем все референсы (C)').first().json.hasMask ? ' по обводке' : ($('Кто отвечает').first().json.needMask ? '; обводка не прочиталась — правка всей картинки' : '') }})\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}",
+         "={{ $('Итог хода').first().json.stageIcon }} {{ $('Итог хода').first().json.stageName }}: Вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }} (уточнено{{ $('Собираем все референсы (C)').first().json.hasMask ? ' по обводке' : ($('Кто отвечает').first().json.needMask ? '; обводка не прочиталась — правка всей картинки' : '') }})\nID: {{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}",
          "=✅ Согласовать вариант {{ $('Собираем ссылку (C)').first().json.variantNumber }}",
          "=img|{{ $('Собираем ссылку (C)').first().json.sys_ProjectID }}|{{ $('Собираем ссылку (C)').first().json.variantNumber }}",
          [AX + 3080, CY])

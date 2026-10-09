@@ -88,6 +88,8 @@ return [{
     // ответ на картинку «Вариант N» — какой вариант имеется в виду
     replyVariant: (() => { const r = msg.reply_to_message; const mm = r && String(r.caption || r.text || '').match(/Вариант\s+(\d+)/); return mm ? Number(mm[1]) : null; })(),
     tracksUrl,
+    // начало сообщения, на которое автор ответила (reply): по значку и имени в начале понятно, к какому этапу оно относится
+    replyText: msg.reply_to_message ? String(msg.reply_to_message.text || msg.reply_to_message.caption || '').slice(0, 300) : '',
     event: '',
   }
 }];

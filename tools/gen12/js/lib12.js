@@ -242,6 +242,38 @@ function stAddressed(stages, text) {
   return null;
 }
 
+// Ответ (reply) на сообщение этапа — это адрес: каждое сообщение этапа начинается со значка и имени
+// («✍️ Писатель: …»); картинка этапа-художника подписана «Вариант N».
+function stByReply(stages, replyText, replyVariant) {
+  const t = bareIcon(String(replyText || '').trim());
+  if (t) {
+    const sorted = [...stages].sort((a, b) => bareIcon(b.icon).length - bareIcon(a.icon).length);
+    for (const s of sorted) { const ic = bareIcon(s.icon); if (ic && t.startsWith(ic)) return s; }
+  }
+  if (replyVariant) return stages.find(s => s.picture) || null;
+  return null;
+}
+
+// «заново» / «сначала» / «с нуля» — начать этап сначала (после обращения «✍️ …» или как reply на сообщение этапа).
+function stIsReset(text) {
+  return /^\s*(?:(?:давай|начни|начинай|начнём|начнем)\s+)?(?:заново|сначала|с\s+нуля|с\s+начала)\s*[.!]?\s*$/iu.test(String(text || ''));
+}
+// Сброс этапа: его разговор и черновики/согласование его пунктов — и всех следующих этапов (они строятся на нём).
+// Варианты картинок не трогаем; у этапа-художника сбрасывается только согласование картинки.
+function stResetState(stages, items, state, stage) {
+  const idx = stages.findIndex(s => bareIcon(s.icon) === bareIcon(stage.icon));
+  const later = stages.slice(idx < 0 ? 0 : idx);
+  const names = [];
+  let picture = false;
+  for (const s of later) {
+    delete state.stages[bareIcon(s.icon)];
+    for (const n of s.items) { delete state.items[n]; delete state.agreed[n]; }
+    if (s.picture) picture = true;
+    if (s.talks !== 'boss') names.push(`${s.icon} ${s.name}`);
+  }
+  return { state, names, picture };
+}
+
 // ── Знания этапа из Templates: все колонки со значком этапа ──
 // 📍 в заголовке: колонка из блоков «НАЗВАНИЕ: слово, слово» (через пустую строку);
 // блок берётся, только если одно из слов встретилось в задании (ловится по началу слова).
