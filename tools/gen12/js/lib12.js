@@ -181,12 +181,13 @@ const ST_OK_WORDS = ['ок', 'окей', 'ok', 'okay', 'oк', 'согласна'
   'утверждаю', 'принято', 'отлично', 'супер', 'хорошо', 'годится', 'подходит'];
 const ST_FILL_WORDS = ['всё', 'все', 'пункт', 'пункты', 'пункта', 'и', 'тоже', 'так', 'я', 'это', 'вот', 'уже', 'тогда', 'ну'];
 function stApproval(text, scopeItems, state) {
-  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');
+  // «согласованно» (две «н») — частая опечатка: двойные «н» сливаем, слова-согласия сравниваем без них
+  const t = String(text || '').toLowerCase().replace(/ё/g, 'е').replace(/нн/g, 'н');
   if (!t.trim() || t.length > 60) return [];
   const nums = (t.match(/\d+/g) || []).map(Number);
   const hasEmoji = /[👍✅👌]/u.test(t);
   const words = t.replace(/[👍✅👌]/gu, ' ').replace(/\d+/g, ' ').split(/[^a-zа-я]+/i).filter(Boolean);
-  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е'));
+  const okWords = ST_OK_WORDS.map(w => w.replace(/ё/g, 'е').replace(/нн/g, 'н'));
   const fill = ST_FILL_WORDS.map(w => w.replace(/ё/g, 'е'));
   if (!words.every(w => okWords.includes(w) || fill.includes(w))) return [];
   if (!hasEmoji && !words.some(w => okWords.includes(w))) return [];

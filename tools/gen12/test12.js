@@ -451,7 +451,7 @@ async function turn(stages, row, inc, response, subResponse) {
     r1 = await turn(DIRECT, row, { text: 'перепиши заново, но короче', replyText: '✍️ Писатель: вот история\n\nID: P1' }, call('propose_items', { message: 'ok' }));
     assert.equal(r1.plan.mode, 'model');
     // женский род и «я»: «Я согласовала» — чистое одобрение; длинная реплика с «согласовано» — нет
-    for (const w of ['Я согласовала', 'согласовала', 'ну вот, согласовано', 'Одобряю', 'это ок']) {
+    for (const w of ['согласованно', 'Согласованно!', 'Я согласовала', 'согласовала', 'ну вот, согласовано', 'Одобряю', 'это ок']) {
       r1 = await turn(DIRECT, row, { text: w, replyText: '✍️ Писатель: вот история\n\nID: P1' }, call('propose_items', { message: 'ok' }));
       assert.deepEqual(r1.plan.approveNums, [3], w);
     }
