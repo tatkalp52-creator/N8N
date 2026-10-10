@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-08-edges-multi"
+ASSEMBLER_VERSION = "2026-10-10-steam-loop"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1987,6 +1987,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             c_tr = kn(kind, nums, "прозрачность")    # (08.10) отдельно от густоты: больше — прозрачнее (полезно при толстых струйках)
             c_cu = kn(kind, nums, "завитки")         # (08.10) 5 — как есть; больше — струйка вьётся шире и с перекруткой
             hx = max(0.0, c_cu - 1.0) * 0.8          # вторая, более частая волна — завиток на изгибе
+            # (10.10) по времени — ровно 2 оборота за проход: с 1.7 петля не замыкалась, пар дёргался на стыке
             bw = int(max(150 * k * max(1.0, c_th), (2 * (11 + 24.7 * (1 + hx) * c_cu) + 30) * k))
             bh = int(165 * k * steam_height * c_h)
             x0, y0 = int(px - bw / 2), int(py - bh)
@@ -2016,7 +2017,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                         s = i / S
                         x = bw / 2 + k * (w["bx"] * (1 - 0.5 * s) + w["A"] * c_cu * s ** 0.9 *
                                           (math.sin(2 * math.pi * (w["f"] * s - t) + w["ph"]) +
-                                           hx * math.sin(2 * math.pi * (2.2 * w["f"] * s - 1.7 * t) + 1.7 * w["ph"])))
+                                           hx * math.sin(2 * math.pi * (2.2 * w["f"] * s - 2 * t) + 1.7 * w["ph"])))
                         pts.append((x, bh - 1 - s * (bh - 6), s))
                     for i in range(S):
                         xa, ya, s = pts[i]
