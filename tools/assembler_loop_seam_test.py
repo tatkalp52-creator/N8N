@@ -35,7 +35,8 @@ for line, knobs in LINES.items():
             fr = [app.render_effects_loop(path, spec, {}, FPS, None, still_at=i / FPS) for i in range(n + 2)]
             d = np.array([np.abs(fr[i + 1] - fr[i]).mean() for i in range(n + 1)])
             med = float(np.median(d)) or 1e-9
-            if d.max() > RATIO * med and d.max() > 0.002:
+            lim = RATIO * (2.0 if line.startswith("свеча") else 1.0)   # пламя трепещет по замыслу (быстрая частота 29 за петлю) — даёт до 3.2
+            if d.max() > lim * med and d.max() > 0.002:
                 bad += 1
                 print(f"ДЁРГАЕТСЯ: «{line}; {word} {v}» — скачок в кадре {int(d.argmax())}, в {d.max() / med:.1f} раза больше обычного")
 print("problems:", bad)
