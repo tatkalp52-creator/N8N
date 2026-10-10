@@ -1,0 +1,502 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+<title>Разметка оживления</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Раскладка: одна колонка, картинка с касаниями — главная; справа/снизу список точек и готовый текст для бота. */
+:root {
+  --bg: #f3f4f2;
+  --surface: #ffffff;
+  --fg: #1d2423;
+  --muted: #5d6967;
+  --line: #d5dad8;
+  --accent: #0f766e;
+  --accent-fg: #ffffff;
+  --mark: #e11d48;
+  --mark2: #2563eb;
+  --soft: #e3efed;
+  --font: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121817; --surface: #1b2322; --fg: #e8eeec; --muted: #9aa8a5; --line: #33403e;
+    --accent: #2dd4bf; --accent-fg: #06201d; --mark: #fb7185; --mark2: #60a5fa; --soft: #1f3330;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121817; --surface: #1b2322; --fg: #e8eeec; --muted: #9aa8a5; --line: #33403e;
+  --accent: #2dd4bf; --accent-fg: #06201d; --mark: #fb7185; --mark2: #60a5fa; --soft: #1f3330;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.45; padding-inline: 16px; padding-block: 16px 40px; }
+.wrap { max-width: 920px; margin-inline: auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 22px; line-height: 1.2; margin: 0; font-weight: 600; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, .filebtn { font: inherit; min-height: 44px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.filebtn { display: inline-flex; align-items: center; background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.hint { background: var(--soft); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+.stage { overflow: auto; max-height: 72vh; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); -webkit-overflow-scrolling: touch; }
+.pic { position: relative; display: block; margin: 0; }
+.pic img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.pic svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+#dots { position: absolute; inset: 0; pointer-events: none; }
+#fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.dot { position: absolute; width: 6px; height: 6px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--mark); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
+.dot .n { position: absolute; left: 7px; top: -17px; min-width: 18px; height: 18px; padding-inline: 4px; border-radius: 9px; background: var(--mark); color: #fff; border: 1.5px solid #fff; font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.dot.b { background: var(--mark2); }
+.eye.auto { opacity: .65; border-style: dotted; }
+.eye { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; pointer-events: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.pane { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.35); }
+.pane .stage { max-height: 44vh; }
+#loupe { flex: none; width: 104px; height: 104px; border: 2px solid var(--accent); border-radius: 10px; background: var(--bg); }
+.pane .note { display: none; }
+.cols { display: flex; flex-direction: column; gap: 16px; }
+.colR { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (min-width: 760px) {
+  .wrap { max-width: 1280px; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); align-items: start; }
+  .pane { top: 8px; }
+  .pane .stage { max-height: calc(100vh - 170px); }
+}
+.mark .tog { min-height: 36px; padding: 4px 10px; font-size: 14px; }
+.zoom { display: flex; align-items: center; gap: 10px; }
+.zoom input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
+.mark { display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 10px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
+.mark:first-child { border-top: 0; padding-top: 0; }
+.num { width: 28px; height: 28px; border-radius: 50%; background: var(--mark); color: #fff; display: grid; place-items: center; font-weight: 600; font-size: 14px; }
+.txt { font-family: var(--mono); font-size: 14px; overflow-wrap: anywhere; min-width: 0; }
+.knobs { grid-column: 2 / 4; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; }
+.knobs label { display: grid; grid-template-columns: 72px 1fr 24px; align-items: center; gap: 6px; font-size: 14px; }
+.knobs input { min-width: 0; accent-color: var(--accent); }
+.mark select { font: inherit; min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 4px 8px; }
+.out { font-family: var(--mono); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 96px; margin: 0; }
+.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.ok { color: var(--accent); font-weight: 600; }
+.empty { color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Разметка оживления</h1>
+    <p class="sub">Выбери картинку выпуска, коснись нужных мест и скопируй готовый текст пункта 9 для бота. Картинка остаётся на твоём устройстве.</p>
+  </header>
+
+  <section class="card" aria-label="Картинка">
+    <div class="row">
+      <label class="filebtn" for="file">Выбрать картинку<input id="file" type="file" accept="image/*"></label>
+      <button id="sample" type="button">Показать пример</button>
+    </div>
+    <div class="label">Что оживляем</div>
+    <div class="row" id="effects" role="group" aria-label="Эффект"></div>
+    <div class="hint" id="hint" role="status"></div>
+    <button id="done" type="button" class="primary" hidden>Готово: лист нарисован</button>
+  </section>
+
+  <div class="cols">
+  <div class="pane" aria-label="Картинка">
+    <div class="zoom">
+      <span class="label">Увеличение</span>
+      <input id="zoom" type="range" min="1" max="4" step="0.25" value="1" aria-label="Увеличение картинки">
+      <span id="zoomv" style="min-width:2.5em;text-align:right">1×</span>
+      <button id="panbtn" type="button" aria-pressed="false" title="Тянуть картинку (на мышке — правая кнопка)">✋ Двигать картинку</button>
+      <canvas id="loupe" width="264" height="264" hidden></canvas>
+    </div>
+    <div class="stage" id="stage">
+      <div class="pic" id="pic">
+        <img id="img" alt="Картинка выпуска">
+        <svg id="ov" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 100 100"></svg>
+        <canvas id="fx"></canvas>
+        <div id="dots"></div>
+      </div>
+    </div>
+    <p class="note">Картинка остаётся на месте, пока листаешь список ниже. Мелкие глаза лучше увеличить.</p>
+  </div>
+
+  <div class="colR">
+  <section class="card" aria-label="Точки">
+    <div class="row" style="justify-content: space-between">
+      <div class="label">Отмеченное</div>
+      <div class="row">
+        <button id="undo" type="button">Отменить последнее</button>
+        <button id="clear" type="button">Очистить всё</button>
+      </div>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <section class="card" aria-label="Текст для бота">
+    <div class="label">Текст для бота</div>
+    <pre class="out" id="out"></pre>
+    <div class="row">
+      <button id="copy" type="button" class="primary">Скопировать</button>
+      <span id="copied" class="ok" role="status"></span>
+    </div>
+    <p class="note">Вставь в чат с ботом реплаем на сообщение выпуска. Первая строка просит записать пункт 9 как есть.</p>
+  </section>
+  </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Эффекты, которые знает сборщик: слово в строке, сколько касаний, ручки. Числа — проценты кадра.
+  var EFFECTS = [
+    { id: 'blink',  name: 'Моргание',   taps: 1, hint: 'Коснись центра глаза. Вокруг точки сразу виден круг: это то, что закроется веком. Крупный или мелкий глаз — потяни «размер» в списке ниже, круг изменится.' },
+    { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой). На картинке появится пробный пар; пунктирная рамка — где он живёт, овал внизу — где «сидит».', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5], ['завитки', 5], ['прозрачность', 5]] },
+    { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
+    { id: 'edge', name: 'Край (за него листья скрываются)', taps: 99, hint: 'Проведи линию вдоль скамейки, забора или другого края, за которым лист скрывается: точки слева направо, потом «Готово». Нужно листьям с отметкой «за край».' },
+    { id: 'leaves', name: 'Листья', taps: 99, hint: 'Коснись места, откуда летит лист, потом проведи путь падения точками сверху вниз (одной, двумя, тремя) и нажми «Готово». Лист качается вокруг твоей линии.', kinds: ['продолговатый', 'круглый', 'клён'] },
+    { id: 'candle', name: 'Свеча',      taps: 1, hint: 'Коснись пламени свечи.' },
+    { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
+    { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' }
+  ];
+  var cur = EFFECTS[0], pending = [], marks = [];
+  var $ = function (id) { return document.getElementById(id); };
+  var img = $('img'), ov = $('ov'), pic = $('pic');
+
+  function r1(v) { return Math.round(v * 10) / 10; }
+  function fmt(v) { return String(r1(v)); }
+
+  function lineOf(m) {
+    var p = m.pts, s;
+    if (m.eff === 'blink') s = 'моргание: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + (m.r ? '; радиус ' + fmt(m.r) : '');
+    else if (m.eff === 'candle') s = 'свеча: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
+    else if (m.eff === 'smoke') s = 'дымок: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
+    else if (m.eff === 'steam') {
+      s = 'пар: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
+      EFFECTS[1].knobs.forEach(function (k) { var v = m.k[k[0]]; if (v !== k[1]) s += '; ' + k[0] + ' ' + v; });
+    } else if (m.eff === 'bubbles') s = 'пузыри: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + ', ' + fmt(p[1].y);
+    else if (m.eff === 'edge') s = 'край: ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
+    else if (m.eff === 'leaves') s = 'листья: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join(' → ') + (m.kind ? '; ' + m.kind : '') + (m.size ? '; ' + m.size : '') + (m.deep ? '; вглубь' : '') + (m.behind ? '; за край' : '');
+    else if (m.eff === 'rain') s = 'дождь: ' + fmt(Math.min(p[0].x, p[1].x)) + ', ' + fmt(Math.min(p[0].y, p[1].y)) + ', ' + fmt(Math.max(p[0].x, p[1].x)) + ', ' + fmt(Math.max(p[0].y, p[1].y));
+    return s;
+  }
+  function effName(id) { return EFFECTS.filter(function (e) { return e.id === id; })[0].name; }
+
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function drawDot(x, y, label, blue) {
+    var d = document.createElement('div');
+    d.className = 'dot' + (blue ? ' b' : '');
+    d.style.left = x + '%'; d.style.top = y + '%';
+    if (label !== '' && label != null) { var n = document.createElement('span'); n.className = 'n'; n.textContent = label; d.appendChild(n); }
+    $('dots').appendChild(d);
+  }
+  // Лупа глаза: увеличенный кусочек картинки вокруг точки и круг закрытия в том же увеличении (размер виден точно)
+  function drawLoupe() {
+    var lp = $('loupe'), c = lp.getContext('2d'), m = null;
+    for (var q = marks.length - 1; q >= 0; q--) { if (marks[q].eff === 'blink' && marks[q].open) { m = marks[q]; break; } }
+    if (!m || !img.naturalWidth) { lp.hidden = true; return; }
+    lp.hidden = false;
+    var f = img.naturalWidth / 1536, win = 30 * f, cx = m.pts[0].x / 100 * img.naturalWidth, cy = m.pts[0].y / 100 * img.naturalHeight;
+    c.clearRect(0, 0, 264, 264);
+    c.imageSmoothingEnabled = true;
+    c.drawImage(img, cx - win / 2, cy - win / 2, win, win, 0, 0, 264, 264);
+    var rr = (m.r || 3) * 264 / 30;
+    c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.7)'; c.beginPath(); c.arc(132, 132, rr, 0, 7); c.stroke();
+    c.lineWidth = 1.6; c.strokeStyle = '#2dd4bf'; c.beginPath(); c.arc(132, 132, rr, 0, 7); c.stroke();
+    c.fillStyle = '#e11d48'; c.fillRect(131, 126, 2, 12); c.fillRect(126, 131, 12, 2);
+  }
+  function redrawOverlay() {
+    while (ov.firstChild) ov.removeChild(ov.firstChild);
+    $('dots').innerHTML = '';
+    marks.forEach(function (m) {
+      if (m.eff === 'blink') {
+        var c = document.createElement('div'); c.className = 'eye' + (m.r ? '' : ' auto');
+        c.style.left = m.pts[0].x + '%'; c.style.top = m.pts[0].y + '%'; c.style.width = (2 * (m.r || 3) / 1536 * 100) + '%';
+        $('dots').appendChild(c);
+      }
+    });
+    marks.forEach(function (m, i) {
+      var n = i + 1, p = m.pts;
+      if (m.eff === 'bubbles') {
+        ov.appendChild(svgEl('line', { x1: p[0].x, y1: p[0].y, x2: p[0].x, y2: p[1].y, stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
+        drawDot(p[0].x, p[1].y, '', true);
+      }
+      if (m.eff === 'edge') {
+        ov.appendChild(svgEl('polyline', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#d97706', 'stroke-width': 3, 'vector-effect': 'non-scaling-stroke' }));
+        for (var ei = 1; ei < p.length; ei++) drawDot(p[ei].x, p[ei].y, '', true);
+      }
+      if (m.eff === 'leaves') {
+        ov.appendChild(svgEl('polyline', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
+        for (var qi = 1; qi < p.length; qi++) drawDot(p[qi].x, p[qi].y, '', true);
+      }
+      if (m.eff === 'rain') {
+        ov.appendChild(svgEl('rect', { x: Math.min(p[0].x, p[1].x), y: Math.min(p[0].y, p[1].y), width: Math.abs(p[0].x - p[1].x), height: Math.abs(p[0].y - p[1].y), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }));
+      }
+      drawDot(p[0].x, p[0].y, n, false);
+    });
+    if ((cur.id === 'leaves' || cur.id === 'edge') && pending.length > 1) {
+      ov.appendChild(svgEl('polyline', { points: pending.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
+    }
+    pending.forEach(function (p) { drawDot(p.x, p.y, '', true); });
+  }
+
+  function renderList() {
+    var box = $('list');
+    box.innerHTML = '';
+    if (!marks.length) { var e = document.createElement('p'); e.className = 'empty'; e.textContent = 'Пока ничего не отмечено. Выбери эффект и коснись картинки.'; box.appendChild(e); return; }
+    marks.map(function (m, i) { return [m, i]; }).reverse().forEach(function (pair) {
+      var m = pair[0], i = pair[1];
+      var d = document.createElement('div'); d.className = 'mark';
+      var num = document.createElement('div'); num.className = 'num'; num.textContent = i + 1;
+      var t = document.createElement('div'); t.className = 'txt'; t.textContent = lineOf(m);
+      var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Убрать'; del.setAttribute('aria-label', 'Убрать точку ' + (i + 1));
+      del.onclick = function () { marks.splice(i, 1); refresh(); };
+      var tog = document.createElement('button'); tog.type = 'button'; tog.className = 'tog'; tog.textContent = m.open ? 'Свернуть' : 'Настроить';
+      tog.onclick = function () { m.open = !m.open; renderList(); drawLoupe(); };
+      d.appendChild(num); d.appendChild(t);
+      var side = document.createElement('div'); side.className = 'row'; side.style.flexWrap = 'nowrap';
+      if (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink') side.appendChild(tog);
+      side.appendChild(del); d.appendChild(side);
+      if (m.eff === 'steam' && m.open) {
+        var kb = document.createElement('div'); kb.className = 'knobs';
+        EFFECTS[1].knobs.forEach(function (k) {
+          var lab = document.createElement('label');
+          var s = document.createElement('span'); s.textContent = k[0];
+          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 0; inp.max = 15; inp.step = 1; inp.value = m.k[k[0]]; inp.id = 'k' + i + '_' + k[0];
+          var out = document.createElement('span'); out.textContent = m.k[k[0]];
+          inp.oninput = function () { m.k[k[0]] = Number(inp.value); out.textContent = inp.value; t.textContent = lineOf(m); renderOut(); };
+          lab.appendChild(s); lab.appendChild(inp); lab.appendChild(out); kb.appendChild(lab);
+        });
+        d.appendChild(kb);
+      }
+      if (m.eff === 'leaves' && m.open) {
+        var kb2 = document.createElement('div'); kb2.className = 'knobs';
+        var sel = document.createElement('select'); sel.id = 'kind' + i; sel.setAttribute('aria-label', 'Вид листа');
+        ['', 'продолговатый', 'круглый', 'клён'].forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v || 'вид листа по умолчанию'; if (m.kind === v) o.selected = true; sel.appendChild(o); });
+        sel.onchange = function () { m.kind = sel.value; t.textContent = lineOf(m); renderOut(); };
+        kb2.appendChild(sel);
+        var sz = document.createElement('select'); sz.id = 'size' + i; sz.setAttribute('aria-label', 'Размер листа');
+        [['', 'размер обычный'], ['маленький', 'маленький (далеко)'], ['крупный', 'крупный (близко)']].forEach(function (v) { var o = document.createElement('option'); o.value = v[0]; o.textContent = v[1]; if ((m.size || '') === v[0]) o.selected = true; sz.appendChild(o); });
+        sz.onchange = function () { m.size = sz.value; t.textContent = lineOf(m); renderOut(); };
+        kb2.appendChild(sz);
+        [['deep', 'вглубь: уменьшается, пока падает'], ['behind', 'за край: скрывается за линией «Край»']].forEach(function (c) {
+          var lb = document.createElement('label'); lb.style.display = 'flex'; lb.style.gap = '8px'; lb.style.alignItems = 'center'; lb.style.minHeight = '36px'; lb.style.gridTemplateColumns = 'none';
+          var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = c[0] + i; cb.checked = !!m[c[0]];
+          cb.onchange = function () { m[c[0]] = cb.checked; t.textContent = lineOf(m); renderOut(); };
+          var tx = document.createElement('span'); tx.textContent = c[1];
+          lb.appendChild(cb); lb.appendChild(tx); kb2.appendChild(lb);
+        });
+        d.appendChild(kb2);
+      }
+      if (m.eff === 'blink' && m.open) {
+        var kb3 = document.createElement('div'); kb3.className = 'knobs';
+        var lab3 = document.createElement('label');
+        var s3 = document.createElement('span'); s3.textContent = 'размер';
+        var inp3 = document.createElement('input'); inp3.type = 'range'; inp3.min = 1; inp3.max = 14; inp3.step = 0.5; inp3.value = m.r || 3; inp3.id = 'r' + i;
+        var out3 = document.createElement('span'); out3.textContent = m.r ? m.r : 'авто';
+        inp3.oninput = function () { m.r = Number(inp3.value); out3.textContent = inp3.value; t.textContent = lineOf(m); redrawOverlay(); renderOut(); drawLoupe(); };
+        lab3.appendChild(s3); lab3.appendChild(inp3); lab3.appendChild(out3); kb3.appendChild(lab3);
+        var auto3 = document.createElement('button'); auto3.type = 'button'; auto3.textContent = 'Авто';
+        auto3.onclick = function () { m.r = null; refresh(); };
+        kb3.appendChild(auto3); d.appendChild(kb3);
+      }
+      box.appendChild(d);
+    });
+  }
+
+  function outText() {
+    var lines = marks.map(lineOf);
+    if (!lines.length) return '';
+    return 'Пункт 9, запиши ровно так, без изменений:\n' + lines.join('\n');
+  }
+  function renderOut() { $('out').textContent = outText() || 'Текст появится, когда ты что-нибудь отметишь.'; }
+  function setHint() {
+    var second = { rain: 'Теперь коснись противоположного угла окна.', bubbles: 'Теперь коснись уровня воды.', leaves: 'Теперь коснись места, куда лист падает.' };
+    $('hint').textContent = pending.length ? (cur.id === 'edge' ? 'Добавь ещё точки вправо вдоль края или нажми «Готово».' : cur.id === 'leaves' ? (pending.length < 2 ? 'Теперь коснись, куда лист падает (ниже первой точки).' : 'Можно добавить ещё точку пути ниже или нажать «Готово».') : second[cur.id]) : cur.hint;
+    $('done').hidden = !((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= (cur.id === 'edge' ? 2 : 2));
+    $('done').textContent = cur.id === 'edge' ? 'Готово: край нарисован' : 'Готово: лист нарисован';
+  }
+  function refresh() { redrawOverlay(); renderList(); renderOut(); setHint(); drawLoupe(); }
+
+  function buildEffects() {
+    var box = $('effects');
+    EFFECTS.forEach(function (e) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = e.name;
+      b.setAttribute('aria-pressed', e === cur ? 'true' : 'false');
+      b.onclick = function () {
+        cur = e; pending = [];
+        Array.prototype.forEach.call(box.children, function (c) { c.setAttribute('aria-pressed', c === b ? 'true' : 'false'); });
+        refresh();
+      };
+      box.appendChild(b);
+    });
+  }
+
+  // Двигать картинку: правая кнопка мыши или кнопка «Двигать»; двигать точку: взяться за неё и тянуть
+  var panMode = false, drag = null, suppress = false;
+  $('panbtn').onclick = function () { panMode = !panMode; $('panbtn').setAttribute('aria-pressed', panMode ? 'true' : 'false'); ov.style.cursor = panMode ? 'grab' : ''; };
+  ov.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+  function hitPoint(ev) {
+    var r = ov.getBoundingClientRect(), best = null, bd = 16;
+    marks.forEach(function (m) { m.pts.forEach(function (q, k) {
+      var d = Math.hypot(r.left + q.x / 100 * r.width - ev.clientX, r.top + q.y / 100 * r.height - ev.clientY);
+      if (d <= bd) { bd = d; best = { m: m, k: k }; }
+    }); });
+    return best;
+  }
+  ov.addEventListener('pointerdown', function (ev) {
+    suppress = false;
+    if (!img.getAttribute('src')) return;
+    var st = $('stage');
+    if (ev.button === 2 || panMode) { drag = { pan: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop }; ov.setPointerCapture(ev.pointerId); ov.style.cursor = 'grabbing'; ev.preventDefault(); return; }
+    if (ev.button !== 0) return;
+    var h = hitPoint(ev);
+    if (h) { drag = { m: h.m, k: h.k, moved: false }; suppress = true; ov.setPointerCapture(ev.pointerId); ev.preventDefault(); }
+  });
+  ov.addEventListener('pointermove', function (ev) {
+    if (!drag) return;
+    if (drag.pan) { var st = $('stage'); st.scrollLeft = drag.sl - (ev.clientX - drag.sx); st.scrollTop = drag.stp - (ev.clientY - drag.sy); return; }
+    var r = ov.getBoundingClientRect();
+    drag.m.pts[drag.k] = { x: r1(Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width * 100))), y: r1(Math.min(100, Math.max(0, (ev.clientY - r.top) / r.height * 100))) };
+    drag.moved = true; drag.m.open = true; refresh();
+  });
+  function endDrag(ev) {
+    if (!drag) return;
+    if (drag.pan) ov.style.cursor = panMode ? 'grab' : '';
+    drag = null;
+  }
+  ov.addEventListener('pointerup', endDrag);
+  ov.addEventListener('pointercancel', endDrag);
+
+  ov.addEventListener('click', function (ev) {
+    if (suppress) { suppress = false; return; }
+    if (!img.getAttribute('src')) return;
+    var r = ov.getBoundingClientRect();
+    var x = Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width * 100));
+    var y = Math.min(100, Math.max(0, (ev.clientY - r.top) / r.height * 100));
+    if (cur.id === 'edge' && pending.length >= 1 && r1(x) < pending[pending.length - 1].x + 0.5) {
+      $('hint').textContent = 'Край ведём слева направо: следующая точка правее предыдущей.';
+      return;
+    }
+    if (cur.id === 'leaves' && pending.length >= 1 && r1(y) < pending[pending.length - 1].y + 1.5) {
+      $('hint').textContent = 'Лист падает вниз: следующая точка пути должна быть заметно ниже предыдущей.';
+      return;
+    }
+    pending.push({ x: r1(x), y: r1(y) });
+    if (pending.length >= cur.taps) {
+      var m = { eff: cur.id, pts: pending.slice(0, cur.taps) };
+      if (cur.id === 'steam') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
+      if (cur.id === 'leaves') m.kind = '';
+      marks.forEach(function (o) { o.open = false; }); m.open = true;
+      marks.push(m); pending = [];
+    }
+    refresh();
+  });
+
+  $('undo').onclick = function () { if (pending.length) pending.pop(); else marks.pop(); refresh(); };
+  $('done').onclick = function () {
+    if ((cur.id !== 'leaves' && cur.id !== 'edge') || pending.length < 2) return;
+    var m = { eff: cur.id, pts: pending.slice(), kind: '' };
+    marks.forEach(function (o) { o.open = false; }); m.open = true;
+    marks.push(m); pending = []; refresh();
+  };
+  $('clear').onclick = function () { marks = []; pending = []; refresh(); };
+
+  function setImage(src) { marks = []; pending = []; img.onload = refresh; img.src = src; refresh(); }
+  $('file').addEventListener('change', function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader(); rd.onload = function () { setImage(rd.result); }; rd.readAsDataURL(f);
+  });
+
+  // Пример: простая нарисованная сцена, чтобы страница была рабочей сразу. Не картинка выпуска.
+  var SAMPLE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">' +
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8d9b8"/><stop offset="1" stop-color="#b9a07a"/></linearGradient></defs>' +
+    '<rect width="1200" height="800" fill="url(#g)"/><rect y="520" width="1200" height="280" fill="#8a7653"/>' +
+    '<rect x="620" y="470" width="420" height="40" rx="6" fill="#4b3d2c"/><rect x="650" y="510" width="16" height="130" fill="#3a2f22"/><rect x="1000" y="510" width="16" height="130" fill="#3a2f22"/>' +
+    '<rect x="700" y="400" width="90" height="70" rx="8" fill="#e9eceb"/><rect x="790" y="420" width="22" height="34" rx="10" fill="none" stroke="#e9eceb" stroke-width="8"/>' +
+    '<ellipse cx="300" cy="640" rx="70" ry="48" fill="#6b5a40"/><circle cx="262" cy="598" r="30" fill="#6b5a40"/><circle cx="256" cy="592" r="5" fill="#111"/>' +
+    '<text x="40" y="60" font-family="sans-serif" font-size="30" fill="#4b3d2c">Пример: это не картинка выпуска</text></svg>');
+  $('sample').onclick = function () { setImage(SAMPLE); };
+
+  $('copy').onclick = function () {
+    var t = outText(); if (!t) { $('copied').textContent = 'Нечего копировать'; return; }
+    function done() { $('copied').textContent = 'Скопировано'; setTimeout(function () { $('copied').textContent = ''; }, 2500); }
+    function fallback() {
+      var range = document.createRange(); range.selectNodeContents($('out')); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      $('copied').textContent = 'Текст выделен, нажми «Копировать» в меню';
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
+  };
+
+  $('zoom').addEventListener('input', function () {
+    var z = Number($('zoom').value);
+    pic.style.width = (z * 100) + '%';
+    $('zoomv').textContent = (z % 1 ? z.toFixed(2).replace(/0$/, '') : z) + '×';
+  });
+
+
+  // ── Пробный пар прямо на картинке: примерно так он будет двигаться (формулы те же, что у сборщика,
+  // разброс струек чуть иной). Пунктирная рамка — зона, где пар живёт; овал у основания — «посадка».
+  var LOOP = 6, steamCache = {};
+  function mult(v) { return Math.pow(2, (v - 5) / 5); }
+  function seeded(seed) { var a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function wispsFor(m) {
+    var key = Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729);
+    if (steamCache[key]) return steamCache[key];
+    var r = seeded(key);
+    var base = [{ bx: -10, A: 15, f: 1.6, ph: 0, m: 2.0, mp: 0.1, w: 1.1 }, { bx: 1, A: 19, f: 1.4, ph: 2.3, m: 2.4, mp: 0.55, w: 1.3 }, { bx: 11, A: 13, f: 1.8, ph: 4.1, m: 1.8, mp: 0.85, w: 1.0 }];
+    var w = base.map(function (b) { return { bx: b.bx, w: b.w, m: b.m, ph: b.ph + r() * 6.28, A: b.A * (0.75 + r() * 0.55), f: b.f * (0.85 + r() * 0.3), mp: b.mp + r(), end: 0.55 + r() * 0.4 }; });
+    return (steamCache[key] = { w: w, shift: r() });
+  }
+  var fx = $('fx'), fxc = fx.getContext('2d'), off = document.createElement('canvas'), offc = off.getContext('2d');
+  function drawSteam(now) {
+    var dw = pic.clientWidth, dh = pic.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (fx.width !== Math.round(dw * dpr) || fx.height !== Math.round(dh * dpr)) { fx.width = Math.round(dw * dpr); fx.height = Math.round(dh * dpr); }
+    fxc.setTransform(dpr, 0, 0, dpr, 0, 0); fxc.clearRect(0, 0, dw, dh);
+    var steams = marks.filter(function (m) { return m.eff === 'steam'; });
+    if (steams.length && dh) {
+      var k = dh / 864, tt = (now / 1000) % LOOP;
+      steams.forEach(function (m) {
+        var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh;
+        var cOp = mult(m.k['густота']) / mult(m.k['прозрачность']), cH = mult(m.k['высота']), cSp = mult(m.k['скорость']), cTh = mult(m.k['толщина']), cCu = mult(m.k['завитки']);
+        var cyc = Math.max(1, Math.round(2 * cSp)), hx = Math.max(0, cCu - 1) * 0.8;
+        var bw = Math.max(150 * k * Math.max(1, cTh), (2 * (11 + 24.7 * (1 + hx) * cCu) + 30) * k), bh = 165 * k * cH;
+        var wi = wispsFor(m), t = (tt * cyc / LOOP + wi.shift) % 1;
+        off.width = Math.ceil(bw); off.height = Math.ceil(bh); offc.clearRect(0, 0, off.width, off.height); offc.lineCap = 'round';
+        wi.w.forEach(function (w) {
+          var S = 70, pts = [];
+          for (var i = 0; i <= S; i++) {
+            var sx = i / S;
+            var x = bw / 2 + k * (w.bx * (1 - 0.5 * sx) + w.A * cCu * Math.pow(sx, 0.9) * (Math.sin(2 * Math.PI * (w.f * sx - t) + w.ph) + hx * Math.sin(2 * Math.PI * (2.2 * w.f * sx - 1.7 * t) + 1.7 * w.ph)));
+            pts.push([x, bh - 1 - sx * (bh - 6), sx]);
+          }
+          for (var j = 0; j < S; j++) {
+            var a = pts[j], b = pts[j + 1], s2 = a[2];
+            var fade = Math.min(1, s2 / 0.04) * Math.max(0, Math.min(1, (w.end - s2) / (0.45 * w.end)));
+            var dash = 0.5 + 0.5 * Math.sin(2 * Math.PI * (w.m * s2 - 2 * t) + w.mp * 6.28);
+            var al = fade * (0.3 + 0.7 * Math.pow(dash, 1.3)) * 0.62 * cOp * 0.8;
+            if (al > 0.01) { offc.strokeStyle = 'rgba(250,246,236,' + Math.min(1, al * 1.4).toFixed(3) + ')'; offc.lineWidth = Math.max(1, (2 + 3.8 * s2) * w.w * k * cTh); offc.beginPath(); offc.moveTo(a[0], a[1]); offc.lineTo(b[0], b[1]); offc.stroke(); }
+          }
+        });
+        if ('filter' in fxc) fxc.filter = 'blur(' + (0.9 * k * Math.pow(cTh, 1.5)).toFixed(2) + 'px)';
+        fxc.drawImage(off, px - bw / 2, py - bh);
+        fxc.filter = 'none';
+        fxc.save(); fxc.setLineDash([5, 4]); fxc.strokeStyle = 'rgba(37,99,235,0.8)'; fxc.lineWidth = 1.5;
+        fxc.strokeRect(px - bw / 2, py - bh, bw, bh);
+        fxc.beginPath(); fxc.ellipse(px, py, 14 * k, 4 * k, 0, 0, 7); fxc.stroke(); fxc.restore();
+      });
+    }
+    requestAnimationFrame(drawSteam);
+  }
+  requestAnimationFrame(drawSteam);
+
+  buildEffects();
+  setImage(SAMPLE);
+})();
+</script>

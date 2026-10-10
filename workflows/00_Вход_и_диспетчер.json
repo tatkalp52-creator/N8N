@@ -336,7 +336,7 @@
           "values": [
             {
               "lookupColumn": "Channel",
-              "lookupValue": "={{ $json.channelKey }}"
+              "lookupValue": "={{ (function(){ try { return $('Разбираем кнопку согласования').first().json.channelKey; } catch (e) {} return $json.channelKey; })() }}"
             }
           ]
         },
@@ -783,6 +783,15 @@
                 "operation": "contains",
                 "caseSensitive": false
               }
+            },
+            {
+              "id": "b1c2d3e4-0000-4a5b-8c6d-lengthguard01",
+              "leftValue": "={{ ($('Готовим данные для проверки статуса').first().json.briefText || '').trim().length }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
             }
           ],
           "combinator": "and"
@@ -796,7 +805,9 @@
       "position": [
         -1328,
         208
-      ]
+      ],
+      "notesInFlow": true,
+      "notes": "Реальный баг (23.09): проверялось только вхождение слов 'назад'+'картин' ГДЕ УГОДНО в сообщении — длинный текст (например, пересланный бриф для описания, где естественно встречается слово 'картинке') мог случайно содержать оба слова и молча откатывал статус проекта на этап картинки. Добавлено ограничение длины (<60 символов) — это была задумана как короткая команда, а не как то, что нужно искать внутри длинных сообщений."
     },
     {
       "parameters": {
@@ -890,6 +901,15 @@
                 "operation": "contains",
                 "caseSensitive": false
               }
+            },
+            {
+              "id": "b1c2d3e4-0000-4a5b-8c6d-lengthguard02",
+              "leftValue": "={{ ($('Готовим данные для проверки статуса').first().json.briefText || '').trim().length }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
             }
           ],
           "combinator": "and"
@@ -903,7 +923,9 @@
       "position": [
         -1104,
         368
-      ]
+      ],
+      "notesInFlow": true,
+      "notes": "См. парный узел 'Просит вернуться к картинке?' — тот же баг и тот же фикс (ограничение длины сообщения <60 символов), чтобы длинный текст с случайным словом 'описан...' внутри не откатывал статус молча."
     },
     {
       "parameters": {
@@ -1127,14 +1149,20 @@
         1264
       ],
       "notesInFlow": true,
-      "notes": "route=writer/artist → sys_CorrectionTarget ставится в 'writer'/'artist' (разговор открыт). route=video → сбрасывается в '' (обычный рендер или разговор уже закрыт кодовым словом не переспрашивался)."
+      "notes": "route=writer/artist → sys_CorrectionTarget ставится в 'writer'/'artist' (разговор открыт). route=video → сбрасывается в '' (обычный рендер или разговор уже закрыт кодовым словом не переспрашивался).",
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ /https?:\\/\\/\\S+/.test($json.messageText || '') }}",
+              "value1": "={{ /https?:\\/\\/\\S+/.test($('Приклеиваем поля для sub-workflow').first().json.messageText || '') }}",
               "value2": true
             }
           ]
@@ -1150,6 +1178,107 @@
       ],
       "notesInFlow": true,
       "notes": "Автор явно объяснила (20.09, ночь): статус — это просто отметка 'данные для сборки готовы', а не одноразовый пропуск. Ссылка на треки должна доходить до 04_Video ВСЕГДА, даже если проект уже 'Опубликовано' (например, вторая версия видео на тот же пакет — вокальная/инструментальная и т.п.). Раньше это шло через общую развилку по статусу, у которой нет ветки на 'Опубликовано' — значит, для уже опубликованных проектов ссылка молча улетала в заглушку 'для этого статуса нет workflow'. Проверяем ссылку раньше, до статуса: если она есть — сразу в 04_Video, минуя всю статусную развилку целиком; если нет — как раньше, через 'Куда по статусу?'."
+    },
+    {
+      "id": "4c260323-eae0-43d3-a0a0-ee55ac2e6a55",
+      "name": "Это подтверждение пересборки?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1080,
+        900
+      ],
+      "notesInFlow": true,
+      "notes": "Автор явно потребовала (20.09, ночь): реакция на 'скажи явно' от 04_Video ('проект уже опубликован') должна быть чисто телеграмной, без ручного лазания в таблицу. Если статус проекта — 'Опубликовано' и в ответном сообщении есть один из корней 'пересобир/пересобр/пересобер/пересбор' (пересобираем, пересобрать, пересоберём, пересборка — любой падеж/время), система сама возвращает статус на 'Утверждено' и подтверждает это в чат. Дальше обычная ссылка на треки (следующим сообщением) уже уйдёт в 04_Video как обычно.",
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.sys_Status === 'Опубликовано' && /пересоб(ир|р|ер)|пересбор/i.test($json.messageText || '') }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d9b6efcd-a26f-464d-b408-150eed8737d1",
+      "name": "Возвращаем статус Утверждено",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -880,
+        860
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Приклеиваем поля для sub-workflow').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Приклеиваем поля для sub-workflow').first().json.projectId }}",
+            "sys_Status": "Утверждено"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "id": "9fb728a7-943c-4bbd-bc45-ab58e290dbe2",
+      "name": "Подтверждаем возврат статуса",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -680,
+        860
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Приклеиваем поля для sub-workflow').first().json.chatId, text: 'Статус «Утверждено» восстановлен для ' + $('Приклеиваем поля для sub-workflow').first().json.projectId + '. Жду треки.' }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "b30c5d8a-733a-4386-9abe-a5e161c198d5",
+      "name": "Telegram: answerCallbackQuery (согласование)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2224,
+        1000
+      ],
+      "notesInFlow": true,
+      "notes": "Инцидент (20.09, утро): 'Telegram: answerCallbackQuery' и 'Находим лист канала по ID' были параллельными сиблингами от одного узла — тот же баг очерёдности, что чинили сегодня со ссылкой на треки. Пока n8n докручивал длинную ветку одобрения описания (стало ещё длиннее из-за отдельного перевода), callback_query_id успевал протухнуть в Telegram, и ответ падал с 'Bad request'. Сама сборка данных при этом не ломалась — только не гасился 'крутящийся' индикатор на кнопке. Здесь — строго последовательно, до похода в таблицу, отдельным узлом (не тем же общим, которым пользуется выбор канала — тот трогать не стал).",
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/answerCallbackQuery",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ callback_query_id: $json.callbackQueryId }) }}",
+        "options": {}
+      }
     }
   ],
   "pinData": {},
@@ -1331,7 +1460,7 @@
       "main": [
         [
           {
-            "node": "Это ссылка на треки? (минуя статус)",
+            "node": "Это подтверждение пересборки?",
             "type": "main",
             "index": 0
           }
@@ -1473,12 +1602,7 @@
       "main": [
         [
           {
-            "node": "Находим лист канала по ID",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Telegram: answerCallbackQuery",
+            "node": "Telegram: answerCallbackQuery (согласование)",
             "type": "main",
             "index": 0
           }
@@ -1543,6 +1667,57 @@
         [
           {
             "node": "Куда по статусу?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Это подтверждение пересборки?": {
+      "main": [
+        [
+          {
+            "node": "Возвращаем статус Утверждено",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Это ссылка на треки? (минуя статус)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Возвращаем статус Утверждено": {
+      "main": [
+        [
+          {
+            "node": "Подтверждаем возврат статуса",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Подтверждаем возврат статуса": {
+      "main": [
+        [
+          {
+            "node": "Это ссылка на треки? (минуя статус)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram: answerCallbackQuery (согласование)": {
+      "main": [
+        [
+          {
+            "node": "Находим лист канала по ID",
             "type": "main",
             "index": 0
           }
