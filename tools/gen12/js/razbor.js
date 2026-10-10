@@ -74,10 +74,15 @@ if (urlMatch && userText.replace(urlMatch[0], '').trim().split(/\s+/).filter(Boo
   if (driveMatch) tracksUrl = 'https://drive.google.com/uc?export=download&id=' + driveMatch[1];
 }
 
+// Сборка на уже почищенных треках: слово «пересобери / собери» или текст кнопки,
+// набранный руками («🎬 Собрать с этими треками», «собери видео»). Иначе фраза уходила
+// этапу как реплика, и сборка молча не начиналась (10.10).
+const BUILD_RE = /^\s*(?:🎬\uFE0F?\s*)?(?:пересобер|собер|пересобра|собра)[а-яё]*(?:\s+(?:(?:с\s+)?(?:эти(?:ми)?|те(?:ми)?\s+же|чисты(?:ми)?)\s+трек[а-яё]*|видео|выпуск|ролик|заново))?\s*[.!]*\s*$/iu;
+
 return [{
   json: {
     kind: tracksUrl ? 'tracks' : (/^\s*(как\s+(там\s+)?чистка|статус)(?![а-яё])/iu.test(userText) ? 'cleanStatus'
-      : (/^\s*(пересобер|собер|пересобра|собра)[а-яё]*\s*[.!]?\s*$/iu.test(userText) ? 'build' : 'message')),
+      : (BUILD_RE.test(userText) ? 'build' : 'message')),
     chatId,
     ...fromId(m),
     text: userText,

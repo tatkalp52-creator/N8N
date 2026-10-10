@@ -392,11 +392,11 @@ async function turn(stages, row, inc, response, subResponse) {
   // ── 9f. Слово «пересобери» реплаем на выпуск = сборка без новой чистки ──
   {
     const mk = text => ({ message: { chat: { id: 1 }, from: { id: 1 }, text, reply_to_message: { text: 'ID: 20261006_142515_pengui' } } });
-    for (const w of ['пересобери', 'Пересобери!', 'собери', 'Собрать', 'пересобрать']) {
+    for (const w of ['пересобери', 'Пересобери!', 'собери', 'Собрать', 'пересобрать', '🎬 Собрать с этими треками', 'Собрать с этими треками', 'собери с теми же треками', 'пересобери видео', '🎬️ собрать с чистыми треками!']) {
       const r = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': mk(w) } }))[0];
       assert.equal(r.kind, 'build', w); assert.equal(r.projectId, '20261006_142515_pengui');
     }
-    for (const w of ['собери мне пожалуйста картинку по-другому', 'пересобери текст 3', 'привет']) {
+    for (const w of ['собери мне пожалуйста картинку по-другому', 'пересобери текст 3', 'привет', 'собрать с этими треками нельзя, сначала поправь пар']) {
       const r = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': mk(w) } }))[0];
       assert.equal(r.kind, 'message', w);
     }
