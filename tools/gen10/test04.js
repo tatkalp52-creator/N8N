@@ -34,4 +34,23 @@ async function run(name, nodes, input){
   b=(await run('Готовим запрос на названия треков',{'Читаем проект':proj,'Считаем длительности треков':longInfo},tmpl))[0];
   t=(await run('Собираем текст таймкодов',{'Готовим запрос на названия треков':b,'Читаем проект':proj,'Читаем стиль оверлея':{}}))[0].timecodesText;
   assert.equal(t,'0:00 A\n1:00:22 B\n2:03:05 C'); console.log('4 OK (часы)');
+
+  // 5) переводы: языки из tmpl_Languages, правила из 🌐, тело videos.update
+  const data={title:"Pengui's Jazz · Park | Quiet Bench",description:'Story\n\n0:00 A\n\n#pengui',tags:'jazz, cozy, jazz',chatId:7};
+  let pr=await run('Готовим переводы',{'Читаем стиль оверлея':{'tmpl_Languages':''},'Готовим данные для сборки':data});
+  assert.equal(pr.length,0,'нет языков — ветка молчит');
+  pr=(await run('Готовим переводы',{'Читаем стиль оверлея':{'tmpl_Languages':'es, DE; fr en','🌐_tmpl_TranslationRules':"Keep Pengui's Jazz",'🎬tmpl_X':'no'},'Готовим данные для сборки':data}))[0];
+  assert.deepEqual(pr.langs,['es','de','fr']); assert.ok(pr.systemPrompt.includes("Keep Pengui's Jazz")); assert.ok(!pr.systemPrompt.includes('no\n'));
+  const ans={choices:[{message:{content:JSON.stringify({es:{title:'T es <x>',description:'D es'},de:{title:'T de',description:'D de'},fr:{title:''}})}}]};
+  const bl=(await run('Собираем локализации',{'Готовим данные для сборки':data,'Загружаем на YouTube':{uploadId:'vid1'},'Готовим переводы':pr},ans))[0];
+  assert.equal(bl.error,''); assert.deepEqual(bl.langs,['es','de']); assert.equal(bl.body.id,'vid1');
+  assert.equal(bl.body.snippet.description,data.description); assert.deepEqual(bl.body.snippet.tags,['jazz','cozy']); assert.equal(bl.body.snippet.defaultLanguage,'en');
+  assert.equal(bl.body.localizations.es.title,'T es x');
+  const bad=(await run('Собираем локализации',{'Готовим данные для сборки':data,'Загружаем на YouTube':{uploadId:'v'},'Готовим переводы':pr},{error:{message:'timeout'}}))[0];
+  assert.ok(bad.error.includes('не ответил'));
+  let it=(await run('Итог переводов',{'Собираем локализации':bl,'Готовим данные для сборки':data},{kind:'youtube#video'}))[0];
+  assert.ok(it.text.includes('es, de')); assert.equal(it.chatId,7);
+  it=(await run('Итог переводов',{'Собираем локализации':bl,'Готовим данные для сборки':data},{error:{message:'403'}}))[0];
+  assert.ok(it.text.includes('не встали'));
+  console.log('5 OK (переводы)');
 })().catch(e=>{console.error('FAIL',e);process.exit(1)});
