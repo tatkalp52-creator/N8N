@@ -44,6 +44,7 @@ async function context(stages, row, inc) {
 }
 
 // Один ход: Кто отвечает → (модель: запрос → ответ → разбор → поручение) → Итог хода
+const TR = { 'Pengui baked a pie.': 'Пингви испёк пирог.' };
 async function turn(stages, row, inc, response, subResponse) {
   const ctx = await context(stages, row, inc);
   const nodes = { 'Контекст проекта': ctx };
@@ -58,6 +59,18 @@ async function turn(stages, row, inc, response, subResponse) {
       nodes['Готовим поручение'] = (await run('Готовим поручение', { nodes }))[0];
       nodes['OpenAI: поручение'] = subResponse;
     }
+  }
+  nodes['Итог хода: черновик'] = (await run('Итог хода: черновик', { nodes }))[0];
+  const pv = (await run('Перевод для автора: что', { nodes }))[0];
+  nodes['Перевод для автора: что'] = pv;
+  if (pv.need) {
+    // переводчик видит только готовый текст пункта; здесь — словарь TR, иначе «RU: текст»
+    assert.ok(pv.requestBody.input[0].content.includes('JSON'), 'слово JSON — в самом запросе');
+    const src = JSON.parse(pv.requestBody.input[0].content.replace(/^[^\n]*\n/, ''));
+    const outMap = {};
+    for (const k of Object.keys(src)) outMap[k] = TR[src[k]] || 'RU: ' + src[k];
+    nodes['OpenAI: перевод для автора'] = turn.trFail ? { error: { message: 'timeout' } }
+      : { output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(outMap) }] }] };
   }
   const r = (await run('Итог хода', { nodes }))[0];
   nodes['Итог хода'] = r;
@@ -127,7 +140,7 @@ async function turn(stages, row, inc, response, subResponse) {
   // ── 3. Картинка согласована → следующий этап: Писатель, чистая голова ──
   const APPROVED = { ai_ImageVariants: V, ai_ApprovedImageUrl: 'U2', sys_Status: 'Картинка согласована', ai_UserBrief: 'Пингви на кухне' };
   t = await turn(DIRECT, APPROVED, { kind: 'stageStart', event: 'Картинка согласована (вариант 2).' },
-    call('propose_items', { items: [{ n: 3, text: 'Pengui baked a pie.', ru: 'Пингви испёк пирог.' }], message: 'Вот история.' }));
+    call('propose_items', { items: [{ n: 3, text: 'Pengui baked a pie.', ru: 'Пингви испёк пирог с вишней.' }], message: 'Вот история.' }));
   assert.equal(t.plan.stageName, 'Писатель');
   const ins = t.req.requestBody.instructions;
   assert.ok(ins.includes('Пиши просто.') && ins.includes('маленький взрослый') && ins.includes('Автор не любит сироп.'));
@@ -141,8 +154,11 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.deepEqual(toolNames, ['propose_items', 'save_note']);
   assert.ok(t.r.chunks[0].startsWith('✍️ <b>Писатель</b>: Вот история.'));
   assert.ok(t.r.chunks[0].includes('<b>3. Описание</b>\nPengui baked a pie.\n\n— Перевод для автора —\nПингви испёк пирог.') || t.r.chunks[0].includes('Pengui baked a pie. (Пингви испёк пирог.)'));
+  assert.ok(!t.r.chunks[0].includes('с вишней'), 'перевод этапа не показывается — только переводчика');
+  assert.ok(!JSON.stringify(t.req.requestBody.tools).includes('"ru"'), 'этап больше не пишет перевод сам');
   assert.equal(t.next, 'none');
   let state = JSON.parse(t.r.editorState);
+  assert.equal(state.items[3].ruOf, 'Pengui baked a pie.', 'перевод привязан к тексту, с которого сделан');
   assert.equal(state.stages['✍'].conv, 'conv_new'); assert.equal(state.stages['✍'].pending, 'c_propose_items');
   console.log('3 писатель: только ✍️-колонки, свой разговор, картинка OK');
 
@@ -472,6 +488,28 @@ async function turn(stages, row, inc, response, subResponse) {
   const inner = (await run('Разбираем входящее', { nodes: { 'Вызов изнутри': d } }))[0];
   assert.equal(inner.kind, 'stageStart'); assert.equal(inner.event, 'Этап «Писатель» завершён.');
   console.log('11 переход к следующему этапу через внутренний вызов OK');
+
+  // ── 12. Перевод для автора — только от переводчика и только с того текста, что ляжет в таблицу ──
+  {
+    const A = { ai_ImageVariants: V, ai_ApprovedImageUrl: 'U2', sys_Status: 'Картинка согласована', ai_UserBrief: 'Пингви на кухне' };
+    // этап «переводит» пометки автора, а английский оставил прежним — автор видит честный перевод английского
+    let u = await turn(DIRECT, A, { kind: 'stageStart', event: 'Картинка согласована (вариант 2).' },
+      call('propose_items', { items: [{ n: 3, text: 'Old line with a cart.', ru: 'Новая строка без тележки.' }], message: 'Внёс правки.' }));
+    assert.ok(u.r.chunks[0].includes('RU: Old line with a cart.') && !u.r.chunks[0].includes('без тележки'));
+    // следующий ход, текст тот же — второй раз не переводим, перевод на месте
+    const row2 = { ...A, sys_EditorState: u.r.editorState };
+    let u2 = await turn(DIRECT, row2, { text: 'хорошо' }, call('propose_items', { items: [], message: 'Ок.' }));
+    assert.equal(u2.nodes['Перевод для автора: что'].need, false);
+    assert.equal(JSON.parse(u2.r.editorState).items[3].ru, 'RU: Old line with a cart.');
+    // переводчик не ответил — так и пишем, старый перевод не показываем
+    turn.trFail = true;
+    let u3 = await turn(DIRECT, row2, { text: 'поправь' }, call('propose_items', { items: [{ n: 3, text: 'New line.' }], message: 'Готово.' }));
+    turn.trFail = false;
+    assert.ok(u3.r.chunks[0].includes('New line. (перевод не получен)'), u3.r.chunks[0]);
+    assert.ok(u3.r.chunks[0].includes('⚠️ Перевод для автора: переводчик не ответил: timeout'));
+    assert.ok(!u3.r.chunks[0].includes('Old line'));
+  }
+  console.log('12 перевод для автора — переводчиком, с текста для таблицы OK');
 
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

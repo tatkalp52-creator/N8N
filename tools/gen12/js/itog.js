@@ -105,6 +105,9 @@ if (action === 'done') {
   }
 }
 
+// Перевод для автора — от отдельного переводчика (второй проход этого узла; в черновике его ещё нет)
+const ruError = itApplyRu(state);
+
 // ── Что показать автору ──
 const prefix = speaker ? `${speaker.icon} <b>${escapeHtml(speaker.name)}</b>: ` : '';
 let text = prefix + escapeHtml(message || '');
@@ -117,6 +120,7 @@ if (plan.needMarks) {
     : n ? `\n\n🖍 Разметка прочитана: штрихов — ${n}.`
     : `\n\n⚠️ Разметку прочитать не удалось${mk && mk.error ? ' (' + escapeHtml(String(mk.error)) + ')' : (mk ? ' — красных штрихов не нашлось' : ' — сборщик не ответил')}.`;
 }
+if (ruError) text += `\n\n⚠️ Перевод для автора: ${escapeHtml(ruError)}.`;
 if (lupaMoved) text += `\n\n🔍 Лупа уточнила точек: ${lupaMoved}.`;
 if (statusReverted) text += '\n\n⚠️ Статус «Утверждено» снят — после изменений пришлю новую сводку на ✅.';
 if (action === 'text_block' && stage) {
