@@ -228,7 +228,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   function redrawOverlay() {
     while (ov.firstChild) ov.removeChild(ov.firstChild);
     $('dots').innerHTML = '';
+    // (11.10) после «ОК» отметка уходит с картинки — видно только сам эффект; «✓ Изменить» вернёт точки
     marks.forEach(function (m) {
+      if (m.fixed) return;
       if (m.eff === 'blink') {
         var c = document.createElement('div'); c.className = 'eye' + (m.r ? '' : ' auto');
         c.style.left = m.pts[0].x + '%'; c.style.top = m.pts[0].y + '%'; c.style.width = (2 * (m.r || 3) / 1536 * 100) + '%';
@@ -236,6 +238,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       }
     });
     marks.forEach(function (m, i) {
+      if (m.fixed) return;
       var n = i + 1, p = m.pts;
       if (m.eff === 'bubbles') {
         ov.appendChild(svgEl('line', { x1: p[0].x, y1: p[0].y, x2: p[0].x, y2: p[1].y, stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
@@ -394,7 +397,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         okb.onclick = function () { m.fixed = true; m.open = false; if (outlining && outlining.m === m) { outlining = null; pending = []; } refresh(); };
         d.appendChild(okb);
       }
-      if (m.fixed) { var ft = document.createElement('div'); ft.className = 'fixedtag'; ft.textContent = '✓ зафиксировано — точки не сдвинутся'; d.appendChild(ft); }
+      if (m.fixed) { var ft = document.createElement('div'); ft.className = 'fixedtag'; ft.textContent = '✓ зафиксировано — с картинки убрано, виден только эффект'; d.appendChild(ft); }
       box.appendChild(d);
     });
   }
@@ -625,6 +628,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         if ('filter' in fxc) fxc.filter = 'blur(' + (0.9 * k * Math.pow(cTh, 1.5)).toFixed(2) + 'px)';
         fxc.drawImage(off, px - bw / 2, py - bh);
         fxc.filter = 'none';
+        if (m.fixed) return;
         fxc.save(); fxc.setLineDash([5, 4]); fxc.strokeStyle = 'rgba(37,99,235,0.8)'; fxc.lineWidth = 1.5;
         fxc.strokeRect(px - bw / 2, py - bh, bw, bh);
         fxc.beginPath(); fxc.ellipse(px, py, 14 * k, 4 * k, 0, 0, 7); fxc.stroke(); fxc.restore();
@@ -803,7 +807,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         fxc.globalAlpha = Math.min(0.9, (0.34 + 0.16 * f) * bright); fxc.drawImage(L.halo, cx - rd, cy - rd, 2 * rd, 2 * rd);
         fxc.globalAlpha = Math.min(0.9, 0.55 + 0.25 * f); fxc.drawImage(L.core, cx - rd, cy - rd, 2 * rd, 2 * rd);
         fxc.globalAlpha = 1;
-        if (!m.exact && (Math.abs(L.at.x - q.x) > 0.05 || Math.abs(L.at.y - q.y) > 0.05)) {
+        if (!m.fixed && !m.exact && (Math.abs(L.at.x - q.x) > 0.05 || Math.abs(L.at.y - q.y) > 0.05)) {
           fxc.save(); fxc.strokeStyle = 'rgba(37,99,235,0.9)'; fxc.lineWidth = 1.2; fxc.beginPath(); fxc.arc(cx, cy, 3, 0, 7); fxc.stroke(); fxc.restore();
         }
       });
