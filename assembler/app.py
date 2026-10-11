@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-11-steam-puffs"
+ASSEMBLER_VERSION = "2026-10-11-candle-mask"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1414,7 +1414,7 @@ EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", 
 
 # Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
 # Ручки — шкала 1–10 листа «Эффекты»: 5 — как сейчас, 1 — вдвое слабее, 10 — вдвое сильнее.
-KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер", "мерцание")
+KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер", "мерцание", "отсвет")
 
 
 class FxNums(list):
@@ -1422,6 +1422,8 @@ class FxNums(list):
     knobs = {}
     area = False
     cloud = []
+    cuts = []
+    spill = []
     exact = False
     radius = None
 
@@ -1450,6 +1452,15 @@ def parse_effects(text):
                 if ar >= 30:
                     cloud.insert(0, poly_)
             low = low[:cm.start()] + low[cm.end():]
+        # (11.10) свеча: «прорезь x y, …» — где живёт свет (рот, глаза тыквы, топка), можно несколько;
+        # «пятно x y, …» — куда падает отсвет (стол, пол перед огнём)
+        polys_ = {"прорез": [], "пятн": []}
+        for w_ in polys_:
+            for pm in reversed(list(re.finditer(w_ + r"\w*\s*([\d.,\s]+)", low))):
+                pv = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", pm.group(1))]
+                if len(pv) >= 6:
+                    polys_[w_].insert(0, list(zip(pv[0::2], pv[1::2])))
+                low = low[:pm.start()] + low[pm.end():]
         radius = None
         rm = re.search(r"радиус\w*\s*(\d+(?:\.\d+)?)", low)
         if rm:
@@ -1466,6 +1477,7 @@ def parse_effects(text):
         nums.exact = "точно" in low
         nums.radius = radius
         nums.cloud = cloud
+        nums.cuts, nums.spill = polys_["прорез"], polys_["пятн"]
         if kind and len(nums) >= 2:
             out.append((kind, nums))
         else:
@@ -2198,13 +2210,23 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 layers.append(light)
 
         elif kind == "candle":
-            # СВЕЧА (04.10; язычок — 05.10): точка — середина пламени. Язычок-капля: основание
-            # стоит, кончик раскачивается и вытягивается; вокруг дышит тёплый ореол. Все частоты
-            # кратны петле — шва нет. Ручки: ореол, раскачка (лист «Эффекты») и 🎬 candleGlow.
+            # СВЕЧА (04.10; язычок — 05.10; ручки, прорези и отсвет — 11.10): точка — середина пламени.
+            # Язычок-капля: основание стоит, кончик раскачивается; вокруг дышит тёплый ореол.
+            # Ручки (лист «Эффекты» или строка): яркость, ореол, мерцание (глубина: разгорается/притухает),
+            # скорость (как часто), раскачка, отсвет. «прорезь …» — свет живёт только в обведённых
+            # прорезях (тыква, топка): язычок и ореол видны лишь сквозь них, снаружи — мягкий отсвет.
+            # «пятно …» — тёплый отсвет на столе/полу, ярче у огня. Всё мерцает в такт; частоты кратны петле.
             glow = _num("candleGlow", 1.0) * kn(kind, nums, "ореол")
             swing = kn(kind, nums, "раскачка")
-            px, py = snap_flame(base, px, py, W, H)      # точка — к самому яркому тёплому пятну рядом
+            bright = kn(kind, nums, "яркость")
+            depth = kn(kind, nums, "мерцание")
+            c_spd = kn(kind, nums, "скорость")
+            spill_k = kn(kind, nums, "отсвет")
+            cuts, spill = list(getattr(nums, "cuts", [])), list(getattr(nums, "spill", []))
+            if not cuts:
+                px, py = snap_flame(base, px, py, W, H)      # точка — к самому яркому тёплому пятну рядом
             ph = rng.uniform(0, 2 * math.pi, 6)
+            fq = [max(1, int(round(n_ * c_spd))) for n_ in (7, 13, 29, 3, 11, 4)]
             R = int(60 * k * max(1.0, glow) ** 0.5)          # ореол крупнее — и пятно света шире
             gx0, gy0 = int(px - R), int(py - R)
             yy, xx = np.mgrid[0:2 * R, 0:2 * R].astype(np.float32)
@@ -2212,15 +2234,25 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             halo = np.exp(-rr / (2 * 0.42 ** 2)) * np.clip(1 - rr, 0, 1) ** 2   # к краю — ровно в ноль, без квадрата
             fw, fh = 3.0 * k, 11.0 * k
 
-            def candle(t, gx0=gx0, gy0=gy0, halo=halo, R=R, ph=ph, glow=glow, fw=fw, fh=fh, px=px, py=py, swing=swing):
+            def flick(t, ph=ph, fq=fq):
                 L = EFFECTS_LOOP_SECONDS
-                f = (0.55 * math.sin(2 * math.pi * 7 * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * 13 * t / L + ph[1])
-                     + 0.15 * math.sin(2 * math.pi * 29 * t / L + ph[2]))
-                # кончик: медленное покачивание + быстрый трепет; основание почти на месте
-                tip = swing * k * (2.4 * math.sin(2 * math.pi * 3 * t / L + ph[3])
-                                   + 1.1 * math.sin(2 * math.pi * 11 * t / L + ph[4]))
-                stretch = 1 + 0.18 * math.sin(2 * math.pi * 4 * t / L + ph[5]) + 0.12 * f
-                a = halo * (0.2 + 0.09 * f) * glow
+                return (0.55 * math.sin(2 * math.pi * fq[0] * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * fq[1] * t / L + ph[1])
+                        + 0.15 * math.sin(2 * math.pi * fq[2] * t / L + ph[2]))
+
+            clip_m = None
+            if cuts:
+                cm_ = np.max([polygon_mask(q, W, H, (gx0, gy0, gx0 + 2 * R, gy0 + 2 * R)) for q in cuts], axis=0)
+                clip_m = np.asarray(Image.fromarray((cm_ * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2 * k)),
+                                    np.float32) / 255
+
+            def candle(t, gx0=gx0, gy0=gy0, halo=halo, R=R, ph=ph, fq=fq, glow=glow, fw=fw, fh=fh, px=px, py=py,
+                       swing=swing, bright=bright, depth=depth, clip_m=clip_m):
+                L = EFFECTS_LOOP_SECONDS
+                f = flick(t)
+                tip = swing * k * (2.4 * math.sin(2 * math.pi * fq[3] * t / L + ph[3])
+                                   + 1.1 * math.sin(2 * math.pi * fq[4] * t / L + ph[4]))
+                stretch = 1 + 0.18 * math.sin(2 * math.pi * fq[5] * t / L + ph[5]) + 0.12 * f
+                a = halo * (0.2 + 0.09 * f * depth) * glow * bright
                 can = Image.new("L", (2 * R * SS, 2 * R * SS), 0)
                 d = ImageDraw.Draw(can)
                 bx_, by_ = (px - gx0), (py - gy0) + fh * 0.4      # основание пламени
@@ -2236,12 +2268,42 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 d.polygon(left + right[::-1], fill=255)
                 core = np.asarray(can.resize((2 * R, 2 * R), Image.LANCZOS)
                                   .filter(ImageFilter.GaussianBlur(1.0 * k)), np.float32) / 255
-                a = np.maximum(a, core * (0.42 + 0.18 * f))
+                a = np.maximum(a, core * min(1.0, (0.42 + 0.18 * f * depth) * bright))
+                if clip_m is not None:
+                    a = a * clip_m
                 col = np.empty((2 * R, 2 * R, 3), np.float32)
                 col[...] = (255, 196, 120)
                 col[core > 0.05] = (255, 236, 186)
                 return gx0, gy0, np.clip(a, 0, 1), col
             layers.append(candle)
+
+            def glow_layer(polys, strength, soft, fall, warm):
+                """Тёплый свет внутри контуров, ярче у огня; мерцает в такт свече."""
+                bx0, by0, bx1, by1 = poly_box([p_ for q in polys for p_ in q], W, H, pad=int(soft * 3))
+                m_ = np.max([polygon_mask(q, W, H, (bx0, by0, bx1, by1)) for q in polys], axis=0)
+                m_ = np.asarray(Image.fromarray((m_ * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(soft)),
+                                np.float32) / 255
+                Y_, X_ = np.mgrid[by0:by1, bx0:bx1].astype(np.float32)
+                dist = np.hypot(X_ - px, Y_ - py)
+                m_ = m_ * np.exp(-dist / max(1.0, fall))
+
+                def lay(t, bx0=bx0, by0=by0, m_=m_):
+                    f = flick(t)
+                    if warm is None:     # прорези: свет и разгорается, и притухает (к тёмно-оранжевому)
+                        u = float(np.clip(0.5 + 0.5 * depth * f, 0, 1))
+                        col_ = np.array((150 + 105 * u, 62 + 173 * u, 12 + 148 * u), np.float32)
+                        return bx0, by0, np.clip(m_ * strength * min(1.5, bright), 0, 0.9), col_
+                    return bx0, by0, np.clip(m_ * strength * bright * (1 + 0.35 * depth * f), 0, 0.9), np.array(warm, np.float32)
+                return lay
+
+            if cuts:
+                diag = max(math.hypot(*(np.subtract(poly_box(q, W, H)[2:], poly_box(q, W, H)[:2]))) for q in cuts)
+                layers.append(glow_layer(cuts, 0.5, 1.5 * k, 2.5 * diag + 40 * k, None))                # свет в прорезях
+                layers.append(glow_layer(cuts, 0.24 * glow, 14 * k, 2.5 * diag + 40 * k, (255, 170, 90)))  # ореол вокруг них
+            if spill:
+                sb_ = poly_box([p_ for q in spill for p_ in q], W, H)
+                fall = 0.45 * math.hypot(sb_[2] - sb_[0], sb_[3] - sb_[1])
+                layers.append(glow_layer(spill, 0.32 * spill_k, 10 * k, fall, (255, 168, 88)))
 
         elif kind == "rain" and len(nums) >= 4:
             # ДОЖДЬ ЗА ОКНОМ (04.10): прямоугольник стекла (левый верх → правый низ). За стеклом

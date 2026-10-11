@@ -157,12 +157,12 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'edge', name: 'Край (за него листья скрываются)', taps: 99, hint: 'Проведи линию вдоль скамейки, забора или другого края, за которым лист скрывается: точки слева направо, потом «Готово». Нужно листьям с отметкой «за край».' },
     { id: 'leaves', name: 'Листья', taps: 99, hint: 'Коснись места, откуда летит лист, потом проведи путь падения точками сверху вниз (одной, двумя, тремя) и нажми «Готово». Лист качается вокруг твоей линии.', kinds: ['продолговатый', 'круглый', 'клён'] },
-    { id: 'candle', name: 'Свеча',      taps: 1, hint: 'Коснись пламени свечи.' },
+    { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
-  var cur = EFFECTS[0], pending = [], marks = [];
+  var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
   var $ = function (id) { return document.getElementById(id); };
   var img = $('img'), ov = $('ov'), pic = $('pic');
 
@@ -172,7 +172,12 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   function lineOf(m) {
     var p = m.pts, s;
     if (m.eff === 'blink') s = 'моргание: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + (m.r ? '; радиус ' + fmt(m.r) : '');
-    else if (m.eff === 'candle') s = 'свеча: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
+    else if (m.eff === 'candle') {
+      s = 'свеча: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
+      if (m.k) EFFECTS.filter(function (e) { return e.id === 'candle'; })[0].knobs.forEach(function (k) { var v = m.k[k[0]]; if (v !== k[1]) s += '; ' + k[0] + ' ' + v; });
+      (m.cuts || []).forEach(function (c) { s += '; прорезь ' + c.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', '); });
+      if (m.spill && m.spill.length) s += '; пятно ' + m.spill.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
+    }
     else if (m.eff === 'smoke') s = 'дымок: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
     else if (m.eff === 'steam') {
       s = 'пар: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
@@ -250,9 +255,13 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       if (m.eff === 'rain') {
         ov.appendChild(svgEl('rect', { x: Math.min(p[0].x, p[1].x), y: Math.min(p[0].y, p[1].y), width: Math.abs(p[0].x - p[1].x), height: Math.abs(p[0].y - p[1].y), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }));
       }
+      if (m.eff === 'candle') {
+        (m.cuts || []).forEach(function (c) { ov.appendChild(svgEl('polygon', { points: c.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#f59e0b', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' })); });
+        if (m.spill && m.spill.length) ov.appendChild(svgEl('polygon', { points: m.spill.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#f59e0b', 'stroke-width': 2, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }));
+      }
       drawDot(p[0].x, p[0].y, n, false);
     });
-    if ((cur.id === 'leaves' || cur.id === 'edge' || cur.id === 'surf') && pending.length > 1) {
+    if ((outlining || cur.id === 'leaves' || cur.id === 'edge' || cur.id === 'surf') && pending.length > 1) {
       ov.appendChild(svgEl('polyline', { points: pending.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
     }
     pending.forEach(function (p) { drawDot(p.x, p.y, '', true); });
@@ -275,10 +284,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var ok = document.createElement('button'); ok.type = 'button';
       ok.className = m.fixed ? '' : 'primary'; ok.textContent = m.fixed ? '✓ Изменить' : 'ОК';
       ok.setAttribute('aria-label', (m.fixed ? 'Изменить отметку ' : 'Зафиксировать отметку ') + (i + 1));
-      ok.onclick = function () { m.fixed = !m.fixed; m.open = !m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf'); refresh(); };
+      ok.onclick = function () { m.fixed = !m.fixed; m.open = !m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf' || m.eff === 'candle'); if (m.fixed && outlining && outlining.m === m) { outlining = null; pending = []; } refresh(); };
       d.appendChild(num); d.appendChild(t);
       var side = document.createElement('div'); side.className = 'row'; side.style.flexWrap = 'nowrap';
-      if (!m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf')) side.appendChild(tog);
+      if (!m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf' || m.eff === 'candle')) side.appendChild(tog);
       side.appendChild(ok);
       if (!m.fixed) side.appendChild(del);
       d.appendChild(side);
@@ -338,6 +347,27 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         });
         d.appendChild(kb5);
       }
+      if (m.eff === 'candle' && m.open) {
+        if (!m.k) { m.k = {}; EFFECTS.filter(function (e) { return e.id === 'candle'; })[0].knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
+        var kb6 = document.createElement('div'); kb6.className = 'knobs';
+        EFFECTS.filter(function (e) { return e.id === 'candle'; })[0].knobs.forEach(function (k) {
+          var lab = document.createElement('label');
+          var sp = document.createElement('span'); sp.textContent = k[0];
+          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 0; inp.max = 15; inp.step = 1; inp.value = m.k[k[0]]; inp.id = 'C' + i + '_' + k[0];
+          var ou = document.createElement('span'); ou.textContent = m.k[k[0]];
+          inp.oninput = function () { m.k[k[0]] = Number(inp.value); ou.textContent = inp.value; t.textContent = lineOf(m); renderOut(); };
+          lab.appendChild(sp); lab.appendChild(inp); lab.appendChild(ou); kb6.appendChild(lab);
+        });
+        var rowC = document.createElement('div'); rowC.className = 'row';
+        [['cuts', 'Обвести прорезь'], ['spill', m.spill && m.spill.length ? 'Обвести отсвет заново' : 'Обвести отсвет']].forEach(function (c) {
+          var bt = document.createElement('button'); bt.type = 'button'; bt.textContent = c[1];
+          bt.onclick = function () { outlining = { m: m, kind: c[0] }; pending = []; refresh(); };
+          rowC.appendChild(bt);
+        });
+        if ((m.cuts || []).length) { var b1 = document.createElement('button'); b1.type = 'button'; b1.textContent = 'Убрать прорези (' + m.cuts.length + ')'; b1.onclick = function () { m.cuts = []; refresh(); }; rowC.appendChild(b1); }
+        if (m.spill && m.spill.length) { var b2 = document.createElement('button'); b2.type = 'button'; b2.textContent = 'Убрать отсвет'; b2.onclick = function () { m.spill = []; refresh(); }; rowC.appendChild(b2); }
+        kb6.appendChild(rowC); d.appendChild(kb6);
+      }
       if (m.eff === 'lights' && m.open) {
         var kb4 = document.createElement('div'); kb4.className = 'knobs';
         var lb4 = document.createElement('label'); lb4.style.display = 'flex'; lb4.style.gap = '8px'; lb4.style.alignItems = 'center'; lb4.style.minHeight = '36px';
@@ -363,9 +393,36 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (!lines.length) return '';
     return 'Пункт 9, запиши ровно так, без изменений:\n' + lines.join('\n');
   }
-  function renderOut() { $('out').textContent = outText() || 'Текст появится, когда ты что-нибудь отметишь.'; }
+  function renderOut() { $('out').textContent = outText() || 'Текст появится, когда ты что-нибудь отметишь.'; save(); }
+  // Работа не слетает: картинка и отметки запоминаются в этом браузере и возвращаются после обновления
+  var SAVE_KEY = 'razmetka_v1', restoring = false;
+  function save() {
+    if (restoring) return;
+    try {
+      var data = { marks: marks.map(function (m) { var c = {}; for (var key in m) if (key !== 'open') c[key] = m[key]; return c; }) };
+      var src = img.getAttribute('src') || '';
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({ img: src }, data))); }
+      catch (e) { localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({ img: '' }, data))); }   // картинка не влезла — хотя бы отметки
+    } catch (e) {}
+  }
+  function restore() {
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
+    if (!d || !d.marks || !d.marks.length) return false;
+    restoring = true;
+    if (d.img) img.src = d.img; else if (!img.getAttribute('src')) img.src = SAMPLE;
+    marks = d.marks; pending = []; outlining = null;
+    img.onload = function () { restoring = false; refresh(); };
+    restoring = false; refresh();
+    return true;
+  }
   function setHint() {
     var second = { rain: 'Теперь коснись противоположного угла окна.', bubbles: 'Теперь коснись уровня воды.', leaves: 'Теперь коснись места, куда лист падает.' };
+    if (outlining) {
+      $('hint').textContent = (outlining.kind === 'cuts' ? 'Обводи прорезь (глаз, рот, топку) точками по кругу' : 'Обводи, куда падает отсвет (стол, пол) точками по кругу') + (pending.length >= 3 ? ' — или нажми «Готово».' : '.');
+      $('done').hidden = pending.length < 3; $('done').textContent = outlining.kind === 'cuts' ? 'Готово: прорезь обведена' : 'Готово: отсвет обведён';
+      return;
+    }
     $('hint').textContent = pending.length ? (cur.id === 'surf' ? 'Точек: ' + pending.length + '. Обходи край глади по кругу' + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'lights' ? 'Отмечено лампочек: ' + pending.length + '. Коснись следующей или нажми «Готово».' : cur.id === 'edge' ? 'Добавь ещё точки вправо вдоль края или нажми «Готово».' : cur.id === 'leaves' ? (pending.length < 2 ? 'Теперь коснись, куда лист падает (ниже первой точки).' : 'Можно добавить ещё точку пути ниже или нажать «Готово».') : second[cur.id]) : cur.hint;
     $('done').hidden = !(((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) || (cur.id === 'lights' && pending.length >= 1) || (cur.id === 'surf' && pending.length >= 3));
     $('done').textContent = cur.id === 'edge' ? 'Готово: край нарисован' : cur.id === 'lights' ? 'Готово: лампочки отмечены' : cur.id === 'surf' ? 'Готово: гладь обведена' : 'Готово: лист нарисован';
@@ -379,6 +436,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       b.setAttribute('aria-pressed', e === cur ? 'true' : 'false');
       b.onclick = function () {
         if (!$('done').hidden) $('done').onclick();      // незаконченная обводка не пропадает — дописывается
+        outlining = null;
         cur = e; pending = [];
         Array.prototype.forEach.call(box.children, function (c) { c.setAttribute('aria-pressed', c === b ? 'true' : 'false'); });
         refresh();
@@ -406,7 +464,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     var st = $('stage');
     if (ev.button === 2 || panMode) { drag = { pan: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop }; ov.setPointerCapture(ev.pointerId); ov.style.cursor = 'grabbing'; ev.preventDefault(); return; }
     if (ev.button !== 0) return;
-    var h = hitPoint(ev);
+    var h = outlining ? null : hitPoint(ev);      // пока обводишь, точки отметок не хватаются
     if (h) { drag = { m: h.m, k: h.k, moved: false }; suppress = true; ov.setPointerCapture(ev.pointerId); ev.preventDefault(); }
     else { drag = { maybe: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop, id: ev.pointerId }; }   // потянет — поедет картинка
   });
@@ -445,9 +503,11 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       return;
     }
     pending.push({ x: r1(x), y: r1(y) });
+    if (outlining) { refresh(); return; }
     if (pending.length >= cur.taps) {
       var m = { eff: cur.id, pts: pending.slice(0, cur.taps) };
-      if (cur.id === 'steam') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
+      if (cur.id === 'steam' || cur.id === 'candle') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
+      if (cur.id === 'candle') { m.cuts = []; m.spill = []; }
       if (cur.id === 'leaves') m.kind = '';
       marks.forEach(function (o) { o.open = false; }); m.open = true;
       marks.push(m); pending = [];
@@ -455,8 +515,14 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     refresh();
   });
 
-  $('undo').onclick = function () { if (pending.length) pending.pop(); else if (marks.length && !marks[marks.length - 1].fixed) marks.pop(); refresh(); };
+  $('undo').onclick = function () { if (outlining && !pending.length) outlining = null; else if (pending.length) pending.pop(); else if (marks.length && !marks[marks.length - 1].fixed) marks.pop(); refresh(); };
   $('done').onclick = function () {
+    if (outlining) {
+      if (pending.length < 3) return;
+      var om = outlining.m;
+      if (outlining.kind === 'cuts') om.cuts = (om.cuts || []).concat([pending.slice()]); else om.spill = pending.slice();
+      outlining = null; pending = []; om.open = true; refresh(); return;
+    }
     if (!((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) && !(cur.id === 'lights' && pending.length >= 1) && !(cur.id === 'surf' && pending.length >= 3)) return;
     var m = { eff: cur.id, pts: pending.slice(), kind: '' };
     if (cur.id === 'lights' || cur.id === 'surf') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
@@ -465,10 +531,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   };
   $('clear').onclick = function () {
     if (marks.some(function (m) { return m.fixed; }) && !confirm('Убрать всё, и зафиксированное тоже?')) return;
-    marks = []; pending = []; refresh();
+    marks = []; pending = []; outlining = null; refresh();
   };
 
-  function setImage(src) { marks = []; pending = []; img.onload = refresh; img.src = src; refresh(); }
+  function setImage(src) { marks = []; pending = []; outlining = null; img.onload = refresh; img.src = src; refresh(); }
   $('file').addEventListener('change', function (ev) {
     var f = ev.target.files && ev.target.files[0]; if (!f) return;
     var rd = new FileReader(); rd.onload = function () { setImage(rd.result); }; rd.readAsDataURL(f);
@@ -555,6 +621,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     }
     drawLights(now, dw, dh);
     drawSurf(now, dw, dh);
+    drawCandles(now, dw, dh);
     requestAnimationFrame(drawSteam);
   }
 
@@ -654,6 +721,51 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       fxc.save(); fxc.globalAlpha = Math.min(1, 0.85 * mult(m.k['густота'])); fxc.drawImage(S.tmp, S.x0, S.y0); fxc.restore();
     });
   }
+  // Пробная свеча — как у сборщика: язычок качается, ореол дышит; с прорезями свет только в них
+  // (и тёплое свечение вокруг), отсвет — пятно на столе/полу, ярче у огня. Всё мерцает в такт.
+  function drawCandles(now, dw, dh) {
+    var all = marks.filter(function (m) { return m.eff === 'candle' && m.k; });
+    if (!all.length || !dh) return;
+    var k = dh / 864, t = (now / 1000) % LOOP;
+    all.forEach(function (m, mi) {
+      var glow = mult(m.k['ореол']), swing = mult(m.k['раскачка']), bright = mult(m.k['яркость']), depth = mult(m.k['мерцание']), spd = mult(m.k['скорость']), spk = mult(m.k['отсвет']);
+      var r = seeded(Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729)), ph = [r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28];
+      var fq = [7, 13, 29, 3, 11, 4].map(function (n) { return Math.max(1, Math.round(n * spd)); });
+      var w = function (i) { return Math.sin(2 * Math.PI * fq[i] * t / LOOP + ph[i]); };
+      var f = 0.55 * w(0) + 0.3 * w(1) + 0.15 * w(2);
+      var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh, R = 60 * k * Math.sqrt(Math.max(1, glow));
+      var path = function (pts) { fxc.beginPath(); pts.forEach(function (q, j) { var x = q.x / 100 * dw, y = q.y / 100 * dh; if (j) fxc.lineTo(x, y); else fxc.moveTo(x, y); }); fxc.closePath(); };
+      if (m.spill && m.spill.length >= 3) {
+        var xs = m.spill.map(function (q) { return q.x / 100 * dw; }), ys = m.spill.map(function (q) { return q.y / 100 * dh; });
+        var fall = 0.45 * Math.hypot(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
+        fxc.save(); if ('filter' in fxc) fxc.filter = 'blur(' + (10 * k).toFixed(1) + 'px)';
+        var gs = fxc.createRadialGradient(px, py, 0, px, py, fall * 3);
+        var a0 = Math.min(0.9, 0.32 * spk * bright * (1 + 0.35 * depth * f));
+        gs.addColorStop(0, 'rgba(255,168,88,' + a0.toFixed(3) + ')'); gs.addColorStop(0.33, 'rgba(255,168,88,' + (a0 * 0.37).toFixed(3) + ')'); gs.addColorStop(1, 'rgba(255,168,88,0)');
+        fxc.fillStyle = gs; path(m.spill); fxc.fill(); fxc.restore();
+      }
+      var cuts = (m.cuts || []).filter(function (c) { return c.length >= 3; });
+      if (cuts.length) {
+        var u = Math.max(0, Math.min(1, 0.5 + 0.5 * depth * f));
+        var col = 'rgb(' + Math.round(150 + 105 * u) + ',' + Math.round(62 + 173 * u) + ',' + Math.round(12 + 148 * u) + ')';
+        fxc.save(); if ('filter' in fxc) fxc.filter = 'blur(' + (14 * k).toFixed(1) + 'px)';
+        fxc.globalAlpha = Math.min(0.9, 0.24 * glow * bright * (1 + 0.35 * depth * f)); fxc.fillStyle = 'rgb(255,170,90)';
+        cuts.forEach(function (c) { path(c); fxc.fill(); }); fxc.restore();
+        fxc.save(); fxc.globalAlpha = Math.min(0.9, 0.5 * Math.min(1.5, bright)); fxc.fillStyle = col;
+        cuts.forEach(function (c) { path(c); fxc.fill(); }); fxc.restore();
+        fxc.save(); fxc.beginPath();
+        cuts.forEach(function (c) { c.forEach(function (q, j) { var x = q.x / 100 * dw, y = q.y / 100 * dh; if (j) fxc.lineTo(x, y); else fxc.moveTo(x, y); }); fxc.closePath(); });
+        fxc.clip();
+      } else fxc.save();
+      var gh = fxc.createRadialGradient(px, py, 0, px, py, R), ah = Math.min(0.95, (0.2 + 0.09 * f * depth) * glow * bright);
+      gh.addColorStop(0, 'rgba(255,196,120,' + ah.toFixed(3) + ')'); gh.addColorStop(0.45, 'rgba(255,196,120,' + (ah * 0.45).toFixed(3) + ')'); gh.addColorStop(1, 'rgba(255,196,120,0)');
+      fxc.fillStyle = gh; fxc.fillRect(px - R, py - R, 2 * R, 2 * R);
+      var tip = swing * k * (2.4 * w(3) + 1.1 * w(4)), hgt = 11 * k * (1 + 0.18 * w(5) + 0.12 * f), fw = 3 * k, by = py + 4.4 * k;
+      fxc.globalAlpha = Math.min(1, (0.42 + 0.18 * f * depth) * bright) * 1.6; fxc.fillStyle = 'rgb(255,236,186)';
+      fxc.beginPath(); fxc.moveTo(px - fw, by); fxc.quadraticCurveTo(px - fw * 1.1, by - hgt * 0.45, px + tip, by - hgt); fxc.quadraticCurveTo(px + fw * 1.1, by - hgt * 0.45, px + fw, by); fxc.closePath(); fxc.fill();
+      fxc.restore();
+    });
+  }
   function drawLights(now, dw, dh) {
     var all = marks.filter(function (m) { return m.eff === 'lights'; });
     if (!all.length || !dh) return;
@@ -689,6 +801,6 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   requestAnimationFrame(drawSteam);
 
   buildEffects();
-  setImage(SAMPLE);
+  if (!restore()) setImage(SAMPLE);
 })();
 </script>
