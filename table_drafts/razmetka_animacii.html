@@ -65,7 +65,11 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   .cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); align-items: start; }
   .pane { top: 8px; }
   .pane .stage { max-height: calc(100vh - 170px); }
+  /* правый столбик листается сам по себе — страница и картинка при этом стоят на месте */
+  .colR { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
 }
+.okbig { width: 100%; grid-column: 1 / -1; }
+.fixedtag { grid-column: 2 / -1; color: var(--muted); font-size: 13px; }
 .mark .tog { min-height: 36px; padding: 4px 10px; font-size: 14px; }
 .zoom { display: flex; align-items: center; gap: 10px; }
 .zoom input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); height: 32px; }
@@ -384,6 +388,13 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         });
         lb4.appendChild(cb4); lb4.appendChild(tx4); kb4.appendChild(lb4); d.appendChild(kb4);
       }
+      if (m.open && !m.fixed) {
+        var okb = document.createElement('button'); okb.type = 'button'; okb.className = 'primary okbig';
+        okb.textContent = 'ОК — настроила, зафиксировать';
+        okb.onclick = function () { m.fixed = true; m.open = false; if (outlining && outlining.m === m) { outlining = null; pending = []; } refresh(); };
+        d.appendChild(okb);
+      }
+      if (m.fixed) { var ft = document.createElement('div'); ft.className = 'fixedtag'; ft.textContent = '✓ зафиксировано — точки не сдвинутся'; d.appendChild(ft); }
       box.appendChild(d);
     });
   }
