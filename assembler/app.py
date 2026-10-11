@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-10-steam-loop"
+ASSEMBLER_VERSION = "2026-10-11-garland"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1406,6 +1406,7 @@ EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", 
                 "моргание": "blink", "blink": "blink", "глаз": "blink",
                 "дымок": "smoke", "дым": "smoke", "smoke": "smoke",
                 "свеча": "candle", "свечи": "candle", "candle": "candle",
+                "гирлянда": "lights", "гирлянды": "lights", "лампочки": "lights", "lights": "lights",
                 "дождь": "rain", "rain": "rain"}
 # Строки листьев и края — не петля, а события (см. ЛИСТЬЯ ниже)
 EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge")
@@ -1413,7 +1414,7 @@ EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", 
 
 # Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
 # Ручки — шкала 1–10 листа «Эффекты»: 5 — как сейчас, 1 — вдвое слабее, 10 — вдвое сильнее.
-KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер")
+KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер", "мерцание")
 
 
 class FxNums(list):
@@ -2113,6 +2114,45 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                                 np.float32) / 255 * sgrain * s_op
                 return sx0, sy0, al, np.array([248, 246, 240], np.float32)
             layers.append(smoke)
+
+        elif kind == "lights":
+            # ГИРЛЯНДА (11.10): строка «гирлянда: x, y; x, y; …» — по точке на каждую лампочку. У каждой
+            # лампочки свой тёплый ореол, который мерцает в своём ритме; все частоты — целое число раз
+            # за петлю, поэтому шва нет. Ручки: яркость (сила и размер ореола), мерцание (быстрее/живее).
+            # Точка притягивается к самому светлому пикселю совсем рядом (лампочка нарисована светлой);
+            # «точно» — верить точке как есть.
+            bright = kn(kind, nums, "яркость")
+            flick = kn(kind, nums, "мерцание")
+            gray = base.mean(axis=2)
+            pts = [(nums[i] / 100 * W, nums[i + 1] / 100 * H) for i in range(0, len(nums) - 1, 2)]
+            for lx, ly in pts:
+                if not getattr(nums, "exact", False):
+                    r0 = max(3, int(0.012 * W))
+                    xa, xb = max(0, int(lx) - r0), min(W, int(lx) + r0 + 1)
+                    ya, yb = max(0, int(ly) - r0), min(H, int(ly) + r0 + 1)
+                    win = gray[ya:yb, xa:xb]
+                    if win.size:
+                        iy, ix = np.unravel_index(np.argmax(win), win.shape)
+                        lx, ly = xa + ix, ya + iy
+                R = int(30 * k * max(1.0, bright) ** 0.5)
+                gx0, gy0 = int(lx - R), int(ly - R)
+                yy, xx = np.mgrid[0:2 * R, 0:2 * R].astype(np.float32)
+                rr = ((xx - R) ** 2 + (yy - R) ** 2) / (R * R)
+                halo = np.exp(-rr / (2 * 0.35 ** 2)) * np.clip(1 - rr, 0, 1) ** 2
+                core = np.exp(-rr / (2 * 0.09 ** 2))
+                ph = rng.uniform(0, 2 * math.pi, 3)
+                n1 = max(1, int(round(2 * flick))) + int(rng.integers(0, 2))   # медленное дыхание
+                n2 = max(2, int(round(9 * flick))) + int(rng.integers(0, 4))   # лёгкое дрожание
+                col = np.empty((2 * R, 2 * R, 3), np.float32)
+                col[...] = (255, 228, 168)                                   # светлее фона — свет, а не пятно краски
+                col[core > 0.25] = (255, 246, 214)
+
+                def light(t, gx0=gx0, gy0=gy0, halo=halo, core=core, ph=ph, n1=n1, n2=n2, col=col, bright=bright):
+                    L = EFFECTS_LOOP_SECONDS
+                    f = 0.65 * math.sin(2 * math.pi * n1 * t / L + ph[0]) + 0.35 * math.sin(2 * math.pi * n2 * t / L + ph[1])
+                    a = halo * (0.34 + 0.16 * f) * bright + core * (0.55 + 0.25 * f)
+                    return gx0, gy0, np.clip(a, 0, 0.9), col
+                layers.append(light)
 
         elif kind == "candle":
             # СВЕЧА (04.10; язычок — 05.10): точка — середина пламени. Язычок-капля: основание

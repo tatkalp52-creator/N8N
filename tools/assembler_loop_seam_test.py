@@ -24,6 +24,7 @@ LINES = {
     "дымок: 30, 30": ("густота", "толщина", "высота", "скорость"),
     "свеча: 59, 36": ("ореол", "раскачка"),
     "дождь: 70, 10, 90, 40": ("густота", "яркость", "капли"),
+    "гирлянда: 30, 20; 40, 22; 50, 21; 60, 23": ("яркость", "мерцание"),
 }
 FPS, RATIO = 24, 2.0   # обычное движение даёт ≤ 1.3 медианы, рывок «завитков» 10.10 — 4.5…9
 n = int(app.EFFECTS_LOOP_SECONDS * FPS)
@@ -35,7 +36,7 @@ for line, knobs in LINES.items():
             fr = [app.render_effects_loop(path, spec, {}, FPS, None, still_at=i / FPS) for i in range(n + 2)]
             d = np.array([np.abs(fr[i + 1] - fr[i]).mean() for i in range(n + 1)])
             med = float(np.median(d)) or 1e-9
-            lim = RATIO * (2.0 if line.startswith("свеча") else 1.0)   # пламя трепещет по замыслу (быстрая частота 29 за петлю) — даёт до 3.2
+            lim = RATIO * (2.0 if line.startswith(("свеча", "гирлянда")) else 1.0)   # пламя и лампочки трепещут по замыслу (быстрые частоты, целые за петлю) — до ~3.2
             if d.max() > lim * med and d.max() > 0.002:
                 bad += 1
                 print(f"ДЁРГАЕТСЯ: «{line}; {word} {v}» — скачок в кадре {int(d.argmax())}, в {d.max() / med:.1f} раза больше обычного")
