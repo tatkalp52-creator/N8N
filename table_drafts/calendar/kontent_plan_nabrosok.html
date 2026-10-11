@@ -1,0 +1,261 @@
+<title>Контент-план</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Раскладка: сверху месяц-сетка с выпусками по дням, ниже — карточка выбранного дня, ещё ниже копилка идей. Телефон первым. */
+:root {
+  --bg: #f6f1e8;
+  --paper: #fffdf8;
+  --ink: #2c2620;
+  --muted: #7a6e60;
+  --line: #e4dacb;
+  --accent: #8a5a2b;
+  --pengui: #c0463a;
+  --lumos: #4a5fb0;
+  --unicorn: #b88a1e;
+  --soft: #efe6d7;
+  --display: "Lora", Georgia, serif;
+  --body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1915; --paper: #26221d; --ink: #f1ebe1; --muted: #a99d8d; --line: #3a342c;
+    --accent: #d9a36a; --pengui: #e07063; --lumos: #8b9ee8; --unicorn: #dcb24a; --soft: #2f2a23;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1915; --paper: #26221d; --ink: #f1ebe1; --muted: #a99d8d; --line: #3a342c;
+  --accent: #d9a36a; --pengui: #e07063; --lumos: #8b9ee8; --unicorn: #dcb24a; --soft: #2f2a23;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 16px 48px; }
+.wrap { max-width: 760px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: 24px; margin: 0; text-wrap: balance; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.badge { display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle; font-family: var(--body); font-weight: 700; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 12px; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chip[aria-pressed="true"] { border-color: currentColor; font-weight: 700; background: var(--soft); }
+.chip .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.c-pengui { color: var(--pengui); } .c-lumos { color: var(--lumos); } .c-unicorn { color: var(--unicorn); }
+.bg-pengui { background: var(--pengui); } .bg-lumos { background: var(--lumos); } .bg-unicorn { background: var(--unicorn); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.monthbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.monthbar h2 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0; }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.wd { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-align: center; padding-bottom: 2px; }
+.day { min-height: 64px; border: 1px solid var(--line); border-radius: 9px; padding: 3px; display: flex; flex-direction: column; gap: 2px; background: var(--bg); cursor: pointer; text-align: left; min-width: 0; }
+.day.out { visibility: hidden; }
+.day.today { border-color: var(--accent); border-width: 2px; }
+.day.sel { background: var(--soft); outline: 2px solid var(--accent); }
+.day .n { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pill { font-size: 10.5px; line-height: 1.2; color: #fff; border-radius: 5px; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill.done { opacity: .55; text-decoration: line-through; }
+.hint { font-size: 12px; color: var(--muted); }
+.dayhead { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 0; }
+.slot { border-left: 4px solid currentColor; padding: 6px 8px; border-radius: 6px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
+.slot .t { color: var(--ink); font-weight: 700; }
+.slot .note { color: var(--muted); font-size: 13px; }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; }
+.step { font-size: 12px; min-height: 30px; padding: 3px 8px; border-radius: 999px; }
+.step[aria-pressed="true"] { background: currentColor; }
+.step[aria-pressed="true"] span { color: var(--paper); }
+.empty { color: var(--muted); font-style: italic; margin: 0; }
+.idea { display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: start; border-top: 1px solid var(--line); padding-top: 8px; }
+.idea:first-child { border-top: 0; padding-top: 0; }
+.idea .date { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; padding-top: 2px; }
+.idea .t { font-weight: 600; overflow-wrap: anywhere; }
+.idea .note { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.idea button { min-height: 34px; font-size: 13px; white-space: nowrap; }
+.label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+.toast.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+@media (max-width: 420px) { .day { min-height: 52px; } .pill { font-size: 9.5px; padding: 1px 3px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Контент-план <span class="badge">набросок</span></h1>
+    <p class="sub">Это проба, ничего не сохраняется и в таблицу не пишется. Поводы — твои, из листа «Календарь». Потрогай и скажи, что поменять.</p>
+  </header>
+
+  <div class="row" id="chans" role="group" aria-label="Каналы"></div>
+
+  <section class="card" aria-label="Месяц">
+    <div class="monthbar">
+      <button id="prev" type="button" aria-label="Предыдущий месяц">‹</button>
+      <h2 id="mname"></h2>
+      <button id="next" type="button" aria-label="Следующий месяц">›</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="hint">В дне — выпуски, которые стоят в плане: цвет — канал. Коснись дня, чтобы открыть его.</p>
+  </section>
+
+  <section class="card" aria-label="Выбранный день" id="daycard"></section>
+
+  <section class="card" aria-label="Копилка">
+    <div class="row" style="justify-content: space-between">
+      <div class="label">Копилка идей — <span id="kcount"></span></div>
+      <span class="hint" id="khint"></span>
+    </div>
+    <div id="kop"></div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var DATA = [{"id": "s17", "y": "", "m": 1, "d": 20, "t": "Penguin Awareness Day", "ch": "pengui", "st": "Идея", "note": "главный день канала"}, {"id": "s18", "y": "", "m": 1, "d": 27, "t": "День рождения Моцарта (1756)", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s19", "y": "", "m": 2, "d": 14, "t": "Valentine's Day", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s20", "y": "", "m": 3, "d": 1, "t": "День рождения Шопена (1810)", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s21", "y": "", "m": 3, "d": 20, "t": "Весеннее равноденствие", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s22", "y": "", "m": 4, "d": 25, "t": "World Penguin Day", "ch": "pengui", "st": "Идея", "note": "главный день канала"}, {"id": "s01", "y": "", "m": 9, "d": 26, "t": "Love Note Day", "ch": "pengui", "st": "Вышел", "note": "Пингви опускает записку в почтовый ящик · Elgar — Salut d'Amour"}, {"id": "s02", "y": "", "m": 10, "d": 1, "t": "International Coffee Day", "ch": "pengui", "st": "Идея", "note": "Пингви заходит в кофейню за первой чашкой дня. Очень сонный.\n\nВайб:* Щелчок открывающейся крышки плеера, крутящийся диск, утренний неспешный ритуал."}, {"id": "s03", "y": "", "m": 10, "d": 1, "t": "International Music Day", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s04", "y": "", "m": 10, "d": 4, "t": "World Animal Day", "ch": "pengui", "st": "Выбран", "note": "Маленькая встреча Пингви с городским животным — голубем, белкой, котом.\n\nВайб:* Пингви встречает улитку или кормит воробья крошками у скамейки."}, {"id": "s05", "y": "", "m": 10, "d": 9, "t": "День рождения Сен-Санса (1835)", "ch": "pengui", "st": "Идея", "note": "«Лебедь», «Карнавал животных»"}, {"id": "s06", "y": "", "m": 10, "d": 10, "t": "День рождения Верди (1813)", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s07", "y": "", "m": 10, "d": 10, "t": "World Mental Health Day", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s08", "y": "", "m": 10, "d": 16, "t": "World Food Day", "ch": "pengui", "st": "Идея", "note": "Пингви готовит что-то простое и делится частью с соседом."}, {"id": "s09", "y": "", "m": 10, "d": 22, "t": "День рождения Листа (1811)", "ch": "pengui", "st": "Идея", "note": "«Грёзы любви» (Liebestraum No. 3)"}, {"id": "s10", "y": "", "m": 10, "d": 31, "t": "Halloween", "ch": "pengui", "st": "Выбран", "note": "Не обязательно хоррор: Пингви возвращается домой и постепенно понимает, почему весь Нью-Йорк сегодня выглядит странно."}, {"id": "s24", "y": "2026", "m": 11, "d": 1, "t": "NYC Marathon · переход на зимнее время", "ch": "pengui", "st": "Идея", "note": "в 2026 — 1 ноября; дата каждый год разная"}, {"id": "s11", "y": "", "m": 11, "d": 13, "t": "World Kindness Day", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s12", "y": "", "m": 11, "d": 22, "t": "День святой Цецилии, покровительницы музыки", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s23", "y": "2026", "m": 11, "d": 26, "t": "Thanksgiving (США)", "ch": "pengui", "st": "Идея", "note": "в 2026 — 26 ноября; дата каждый год разная"}, {"id": "s13", "y": "", "m": 12, "d": 16, "t": "День рождения Бетховена (1770)", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s14", "y": "", "m": 12, "d": 21, "t": "Зимнее солнцестояние", "ch": "pengui", "st": "Идея", "note": "самая длинная ночь"}, {"id": "s15", "y": "", "m": 12, "d": 24, "t": "Сочельник", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "s16", "y": "", "m": 12, "d": 31, "t": "Новый год", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omufxcj2ezqrl", "y": "", "m": 10, "d": 2, "t": "National Custodial Workers Day", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omug0muzr6rmc", "y": "", "m": 9, "d": 28, "t": "Good Neighbor Day", "ch": "pengui", "st": "Вышел", "note": "Пингви несёт соседу что-нибудь домашнее и по дороге репетирует, что сказать.\n\nВайб:* Пингви выглядывает из-за забора или делится яблоком; либо просто сидит в тишине с озадаченным видом."}, {"id": "omug0muzro01k", "y": "", "m": 9, "d": 30, "t": "Hot Mulled Cider Day", "ch": "pengui", "st": "Выбран", "note": "Осенний яблочный сидр без алкоголя: яблоки, корица, пар, вечерняя кухня.\n\nВайб:* Палочка корицы, тяжёлая керамическая кружка, звуки дождя за окном. Октябрь: Первая декада (Начало осени, звуки, тепло)"}, {"id": "omug0muzrsza8", "y": "", "m": 10, "d": 1, "t": "National Pumpkin Spice Day", "ch": "pengui", "st": "Вышел", "note": "Пингви впервые в сезоне заказывает pumpkin spice и пытается понять, почему все так радуются."}, {"id": "omug0muzrr3ms", "y": "", "m": 10, "d": 2, "t": "Name Your Car Day", "ch": "pengui", "st": "Идея", "note": "У Пингви появляется машина? Или он придумывает имя старому такси, которое постоянно видит."}, {"id": "omug0muzr7p6n", "y": "", "m": 10, "d": 3, "t": "World Card Making Day", "ch": "pengui", "st": "Идея", "note": "Пингви делает открытку человеку, которому давно хотел написать."}, {"id": "omug0muzr6ew0", "y": "", "m": 10, "d": 5, "t": "World Teachers' Day", "ch": "pengui", "st": "Идея", "note": "Старый преподаватель, книга, неожиданная встреча спустя много лет."}, {"id": "omug0muzrd1we", "y": "", "m": 10, "d": 6, "t": "Mad Hatter Day", "ch": "pengui", "st": "Идея", "note": "Пингви примеряет совершенно нелепую шляпу и пытается сделать вид, что всё нормально.\n\nВайб:* Нелепая большая шляпа или берет, сползающий на закрытые глаза."}, {"id": "omug0muzr0jbh", "y": "", "m": 10, "d": 8, "t": "Pierogi Day", "ch": "pengui", "st": "В работе", "note": "Рецепт: Пингви лепит вареники/пироги, и один обязательно получается подозрительной формы.\n\nВайб:* Белая мука на деревянном столе, пар от кастрюли, лепка руками, медитативная кулинария."}, {"id": "omug0muzrbx99", "y": "", "m": 10, "d": 9, "t": "World Post Day", "ch": "pengui", "st": "Идея", "note": "Пингви пишет письмо, идёт на почту и обнаруживает, что отправить письмо оказалось сложнее, чем написать.\n\nВайб:* Тяжёлый крафтовый конверт с сургучной печатью, старый деревянный почтовый ящик."}, {"id": "omug0muzray2u", "y": "", "m": 10, "d": 10, "t": "Walk to a Park Day", "ch": "pengui", "st": "Выбран", "note": "Пингви идёт в парк пешком вместо транспорта и замечает по дороге кучу мелочей."}, {"id": "omug0muzrs7bv", "y": "", "m": 10, "d": 12, "t": "Farmer's Day", "ch": "pengui", "st": "В работе", "note": "Осенний рынок: яблоки, тыквы, корзины, фермерский прилавок.\n\nВайб:* Плетёные корзины, тыквы, запах сена, старый шерстяной кардиган грубой вязки."}, {"id": "omug0muzrmm9d", "y": "", "m": 10, "d": 13, "t": "Ada Lovelace Day", "ch": "pengui", "st": "Идея", "note": "Пингви находит старую книгу/схему механической вычислительной машины."}, {"id": "omug0muzrxucd", "y": "", "m": 10, "d": 16, "t": "Global Cat Day", "ch": "pengui", "st": "Выбран", "note": "Кот появляется рядом с Пингви и совершенно не собирается делать то, что от него хотят."}, {"id": "omug0muzr6m47", "y": "", "m": 10, "d": 18, "t": "Chocolate Cupcake Day", "ch": "pengui", "st": "Идея", "note": "Маленькие шоколадные кексы; один получается кривоватым, но именно его Пингви оставляет себе."}, {"id": "omug0muzr1d2p", "y": "", "m": 10, "d": 20, "t": "International Sloth Day", "ch": "pengui", "st": "Выбран", "note": "Пингви официально ничего не делает весь день. Для него это оказывается довольно сложно.\n\nВайб:* Апогей философии «медленной жизни» (slow living). Дела подождут, мир не убежит. Октябрь: Третья декада (Осень сгущается, винтаж, тайна)"}, {"id": "omug0muzrh4j6", "y": "", "m": 10, "d": 21, "t": "Back to the Future Day", "ch": "pengui", "st": "Идея", "note": "Пингви находит старую фотографию и пытается представить, каким будет его Нью-Йорк через 30 лет."}, {"id": "omug0muzr0yv0", "y": "", "m": 10, "d": 24, "t": "National Food Day", "ch": "pengui", "st": "Идея", "note": "Пингви идёт на рынок и пытается выбрать, что приготовить из всего увиденного."}, {"id": "omug0muzr5y23", "y": "", "m": 10, "d": 25, "t": "World Pasta Day", "ch": "pengui", "st": "Идея", "note": "Рецепт пасты. Мука, тесто, лапша, соус — много хороших действий для guide.\n\nВайб:* Спагетти, соусник, либо кисти, холст и мазки масляной краской."}, {"id": "omug0muzr30zl", "y": "", "m": 10, "d": 27, "t": "World Day for Audiovisual Heritage", "ch": "pengui", "st": "Идея", "note": "Пингви находит старую плёнку/кассету/фотографии и смотрит старую запись."}, {"id": "omug0muzrsit6", "y": "", "m": 10, "d": 28, "t": "National Chocolate Day", "ch": "pengui", "st": "Идея", "note": "Горячий шоколад, шоколадный десерт или маленькая шоколадная лавка."}, {"id": "omug0muzrom0n", "y": "", "m": 10, "d": 30, "t": "Candy Corn Day", "ch": "pengui", "st": "Идея", "note": "Американская кондитерская перед Halloween; Пингви пытается понять эту странную трёхцветную конфету."}, {"id": "omug0muzrnc95", "y": "", "m": 10, "d": 31, "t": "Knock Knock Joke Day", "ch": "pengui", "st": "Идея", "note": "Пингви весь вечер слышит стук в дверь и каждый раз готовит новую шутку.\n\nВайб:* Не страшный, а винтажно-уютный: свеча внутри тыквы, тени на стене, старые сказки при свечах."}, {"id": "omugkqg9uqx6x", "y": "", "m": 10, "d": 9, "t": "Leif Erikson Day", "ch": "pengui", "st": "Идея", "note": "Путешествие, старые карты, корабли; можно сделать северную морскую историю."}, {"id": "omugkqg9uw7wu", "y": "", "m": 10, "d": 12, "t": "Gumbo Day", "ch": "pengui", "st": "Выбран", "note": "Большая кастрюля густого горячего gumbo; отличный рецепт с кучей визуальных действий."}, {"id": "omugkqg9v1azs", "y": "", "m": 10, "d": 21, "t": "Apple Day", "ch": "pengui", "st": "Идея", "note": "Яблочный пирог / яблоки на рынке / одно яблоко в кармане на прогулке."}, {"id": "omugkqg9v0nkx", "y": "", "m": 10, "d": 28, "t": "International Animation Day", "ch": "pengui", "st": "Идея", "note": "Можно впервые дать одной детали иллюстрации ожить: пар, лист, ветка, свет лампы.\n\nВайб:* Блокнот с рисунками по краям страниц (флипбук), плитка тёмного шоколада."}, {"id": "omugkwub79zoq", "y": "", "m": 9, "d": 29, "t": "День немого кино (Silent Movie Day) / День кофе", "ch": "pengui", "st": "Идея", "note": "Вайб:* Чёрно-белое винтажное настроение, мерцание плёнки, пар над чашкой, абсолютная тишина в кадре."}, {"id": "omugkwub7jkr7", "y": "", "m": 10, "d": 2, "t": "День языка тела (National Body Language Day) / День улыбки", "ch": "pengui", "st": "Идея", "note": "Вайб:* Пингви общается без слов: просто наклон головы, лёгкое покачивание с лапки на лапку, дзен."}, {"id": "omugkwub8hslh", "y": "", "m": 10, "d": 10, "t": "Всемирный день каши (World Porridge Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Овсянка в глиняной миске, кусочек тающего сливочного масла, тихое утро. Октябрь: Вторая декада (Тактильность, книги, созерцание)"}, {"id": "omugkwub8fswc", "y": "", "m": 10, "d": 14, "t": "День десерта (National Dessert Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Маленькое пирожное на блюдце с золотой каёмочкой, вилочка, неспешное смакование."}, {"id": "omugkwub899zl", "y": "", "m": 10, "d": 16, "t": "День словаря (Dictionary Day) / Всемирный день хлеба (World Bread Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Хруст свежей корочки, поиск редкого красивого слова в пыльном толстом томе."}, {"id": "omugkwub800bt", "y": "", "m": 10, "d": 17, "t": "День яркой / безвкусной одежды (Wear Something Gaudy Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Пингви надевает несуразно яркий, гигантский вязаный шарф не в тон, но ему абсолютно тепло и всё равно."}, {"id": "omugkwub8ngxa", "y": "", "m": 10, "d": 21, "t": "День подсчёта пуговиц (Count Your Buttons Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Банка со старыми перламутровыми и деревянными пуговицами; перебирать их руками под треск винила."}, {"id": "omugkwub816m7", "y": "", "m": 10, "d": 22, "t": "День клавиши Caps Lock (Caps Lock Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Механическая печатная машинка, стук клавиш, звоночек каретки."}, {"id": "omugkwub86xdr", "y": "", "m": 10, "d": 26, "t": "День воя на луну (Howl at the Moon Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Ночь, круглая луна в окне, термос с чаем на подоконнике."}, {"id": "omugkwub8c6ju", "y": "", "m": 10, "d": 30, "t": "День списков дел (Checklist Day)", "ch": "pengui", "st": "Идея", "note": "Вайб:* Зачеркнуть в блокноте пункт «Посидеть у окна и помолчать»."}, {"id": "omugl2wwz3q85", "y": "", "m": 9, "d": 28, "t": "Понедельник): Всемирный день добрых дел ✉️ *(Пингви оставляет милые записки на скамейках в парке)*", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx0pa79", "y": "", "m": 9, "d": 29, "t": "Вторник): Всемирный день кофе ☕ *(Аромат свежесмолотых зерен на утренней кухне)*", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx0kxxt", "y": "", "m": 9, "d": 30, "t": "Среда): День горячего яблочного сидра 🍎☕ *(Тот самый тёплый сидр с корицей, который мы планировали!)* [Conversation history]", "ch": "pengui", "st": "Идея", "note": "### 🎃 Октябрь 2026\n#### Неделя 1"}, {"id": "omugl2wx04da3", "y": "", "m": 10, "d": 1, "t": "Четверг): Всемирный день какао и шоколада 🍫 *(Первый день октября", "ch": "pengui", "st": "Идея", "note": "время густого горячего шоколада)*"}, {"id": "omugl2wx0qbnd", "y": "", "m": 10, "d": 2, "t": "Пятница): Всемирный день улыбки 😃 *(Первая пятница октября)*", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx0357c", "y": "", "m": 10, "d": 3, "t": "Суббота 🍳): *Cook with Pengui:* Всемирный день грибника / Густой тыквенно-грибной крем-суп 🍄🥣", "ch": "pengui", "st": "Выбран", "note": ""}, {"id": "omugl2wx085t0", "y": "", "m": 10, "d": 5, "t": "Понедельник): Всемирный день учителя / День яблочного пирога 🥧", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx09dou", "y": "", "m": 10, "d": 6, "t": "Вторник): День винтажной одежды и ностальгии 📻 *(Пингви примеряет старый уютный свитер)*", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx0qy5o", "y": "", "m": 10, "d": 7, "t": "Среда): День тёплых пледов и ванны с пеной 🛁", "ch": "pengui", "st": "Вышел", "note": ""}, {"id": "omugl2wx02lks", "y": "", "m": 10, "d": 8, "t": "Четверг): Всемирный день осьминога 🐙 / День уютного чтения 📖", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx0whbu", "y": "", "m": 10, "d": 9, "t": "Пятница): Всемирный день почты ✉️ *(Время отправлять осенние открытки друзьям)*", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx0aw47", "y": "", "m": 10, "d": 11, "t": "Воскресенье 🧘‍♂️): *Yoga with Pengui:* День домашней гармонии *(Поза Сфинкса и растяжка)*", "ch": "pengui", "st": "Идея", "note": "#### Неделя 3"}, {"id": "omugl2wx0j9pq", "y": "", "m": 10, "d": 12, "t": "Понедельник): День испанского языка 🎸 *(Мягкие переборы нейлоновой гитары)* [Conversation history]", "ch": "pengui", "st": "Идея", "note": ""}, {"id": "omugl2wx0fnrk", "y": "", "m": 10, "d": 13, "t": "Вторник): День элегантных шарфов 🧣 *(Главный день в году для рыжего шарфа Пингви!)* [Conversation history]", "ch": "pengui", "st": "Выбран", "note": ""}, {"id": "omugl2wx023j5", "y": "", "m": 10, "d": 15, "t": "Четверг): День поющих зонтиков и осеннего дождя ☔", "ch": "pengui", "st": "Выбран", "note": ""}, {"id": "omugl2wx0pu31", "y": "", "m": 10, "d": 17, "t": "Суббота 🍳): *Cook with Pengui:* День посиделок у костра / Пряный безалкогольный пунш ☕🔥 [Conversation history]", "ch": "pengui", "st": "Идея", "note": ""}];
+  var CH = [
+    { key: 'pengui', name: 'Pengui' },
+    { key: 'lumos', name: 'Luminous' },
+    { key: 'unicorn', name: 'Unicorn' }
+  ];
+  var STEPS = ['запланирован', 'картинка', 'текст', 'треки', 'сборка', 'вышел'];
+  var MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+  var MGEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  var WD = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+  var TODAY = new Date(2026, 9, 11);
+  var YEAR0 = 2026;
+
+  // План: на дату и канал — одна идея и её шаг. Начальный план — то, что в таблице уже «Выбран / В работе / Вышел».
+  var plan = {};      // 'yyyy-m-d|ch' -> { id, step }
+  function yearOf(it) { if (it.y) return Number(it.y); return it.m >= 9 ? YEAR0 : YEAR0 + 1; }
+  function key(y, m, d, ch) { return y + '-' + m + '-' + d + '|' + ch; }
+  var byId = {};
+  DATA.forEach(function (it) {
+    byId[it.id] = it;
+    var st = { 'Выбран': 0, 'В работе': 1, 'Вышел': 5 }[it.st];
+    if (st != null) {
+      var k = key(yearOf(it), it.m, it.d, it.ch);
+      if (!plan[k]) plan[k] = { id: it.id, step: st };
+    }
+  });
+  var active = { pengui: true, lumos: true, unicorn: true };
+  var view = { y: 2026, m: 10 };
+  var sel = { y: 2026, m: 10, d: 11 };
+  var placing = null;   // идея из копилки, которую ставим в день
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { x.classList.remove('on'); }, 2200); }
+  function inPlan(id) { for (var k in plan) if (plan[k].id === id) return k; return null; }
+
+  function renderChans() {
+    var box = $('chans'); box.innerHTML = '';
+    CH.forEach(function (c) {
+      var b = el('button', 'chip c-' + c.key); b.type = 'button';
+      b.setAttribute('aria-pressed', active[c.key] ? 'true' : 'false');
+      var d = el('span', 'dot bg-' + c.key); b.appendChild(d); b.appendChild(document.createTextNode(c.name));
+      b.onclick = function () { active[c.key] = !active[c.key]; render(); };
+      box.appendChild(b);
+    });
+  }
+
+  function renderGrid() {
+    $('mname').textContent = MONTHS[view.m - 1] + ' ' + view.y;
+    var g = $('grid'); g.innerHTML = '';
+    WD.forEach(function (w) { g.appendChild(el('div', 'wd', w)); });
+    var first = new Date(view.y, view.m - 1, 1), shift = (first.getDay() + 6) % 7, days = new Date(view.y, view.m, 0).getDate();
+    for (var i = 0; i < shift; i++) g.appendChild(el('div', 'day out'));
+    for (var d = 1; d <= days; d++) (function (d) {
+      var b = el('button', 'day'); b.type = 'button';
+      if (view.y === TODAY.getFullYear() && view.m === TODAY.getMonth() + 1 && d === TODAY.getDate()) b.classList.add('today');
+      if (sel.y === view.y && sel.m === view.m && sel.d === d) b.classList.add('sel');
+      b.appendChild(el('span', 'n', d));
+      CH.forEach(function (c) {
+        var p = plan[key(view.y, view.m, d, c.key)];
+        if (!p || !active[c.key]) return;
+        var pl = el('span', 'pill bg-' + c.key + (p.step === 5 ? ' done' : ''), byId[p.id].t);
+        b.appendChild(pl);
+      });
+      b.setAttribute('aria-label', d + ' ' + MGEN[view.m - 1]);
+      b.onclick = function () {
+        sel = { y: view.y, m: view.m, d: d };
+        if (placing) { placeInto(placing, sel); placing = null; }
+        render();
+        $('daycard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      };
+      g.appendChild(b);
+    })(d);
+  }
+
+  function placeInto(id, s) {
+    var it = byId[id], k = key(s.y, s.m, s.d, it.ch);
+    var old = inPlan(id); if (old) delete plan[old];
+    var was = plan[k];
+    plan[k] = { id: id, step: 0 };
+    toast((was ? 'Заменено: ' : 'Поставлено: ') + it.t.slice(0, 40) + ' → ' + s.d + ' ' + MGEN[s.m - 1]);
+  }
+
+  function renderDay() {
+    var c = $('daycard'); c.innerHTML = '';
+    c.appendChild(el('h3', 'dayhead', sel.d + ' ' + MGEN[sel.m - 1] + ' ' + sel.y));
+    var any = false;
+    CH.forEach(function (ch) {
+      if (!active[ch.key]) return;
+      var k = key(sel.y, sel.m, sel.d, ch.key), p = plan[k];
+      var s = el('div', 'slot c-' + ch.key);
+      var head = el('div', 'label c-' + ch.key, ch.name); s.appendChild(head);
+      if (!p) {
+        s.appendChild(el('p', 'empty', 'Выпуска нет. Поставь идею из копилки ниже: «В план», потом этот день.'));
+      } else {
+        any = true;
+        var it = byId[p.id];
+        s.appendChild(el('div', 't', it.t));
+        if (it.note) s.appendChild(el('div', 'note', it.note));
+        var st = el('div', 'steps');
+        STEPS.forEach(function (name, i) {
+          var b = el('button', 'step c-' + ch.key); b.type = 'button';
+          b.setAttribute('aria-pressed', i <= p.step ? 'true' : 'false');
+          var sp = el('span', '', name); b.appendChild(sp);
+          b.onclick = function () { p.step = i; render(); };
+          st.appendChild(b);
+        });
+        s.appendChild(st);
+        var rm = el('button', '', 'Убрать из плана'); rm.type = 'button';
+        rm.onclick = function () { delete plan[k]; toast('Вернулось в копилку'); render(); };
+        var r = el('div', 'row'); r.appendChild(rm); s.appendChild(r);
+      }
+      c.appendChild(s);
+    });
+    if (!CH.some(function (ch) { return active[ch.key]; })) c.appendChild(el('p', 'empty', 'Включи хотя бы один канал сверху.'));
+  }
+
+  function renderKop() {
+    var box = $('kop'); box.innerHTML = '';
+    var list = DATA.filter(function (it) { return active[it.ch] && !inPlan(it.id); })
+      .sort(function (a, b) { return (yearOf(a) - yearOf(b)) || (a.m - b.m) || (a.d - b.d); });
+    var near = list.filter(function (it) { return yearOf(it) === view.y && it.m === view.m; });
+    var show = near.length ? near : list;
+    $('kcount').textContent = (near.length ? MONTHS[view.m - 1] : 'все') + ', ' + show.length;
+    $('khint').textContent = placing ? 'Теперь коснись дня в сетке' : '';
+    var lumosEmpty = active.lumos || active.unicorn;
+    if (!show.length) box.appendChild(el('p', 'empty', 'В копилке пусто.'));
+    show.forEach(function (it) {
+      var r = el('div', 'idea');
+      r.appendChild(el('div', 'date', it.d + ' ' + MGEN[it.m - 1].slice(0, 3)));
+      var mid = el('div', ''); var t = el('div', 't c-' + it.ch); t.textContent = it.t; mid.appendChild(t);
+      if (it.note) mid.appendChild(el('div', 'note', it.note));
+      r.appendChild(mid);
+      var b = el('button', ''); b.type = 'button';
+      b.textContent = placing === it.id ? 'Отмена' : 'В план';
+      b.onclick = function () { placing = placing === it.id ? null : it.id; if (placing) toast('Коснись дня в сетке'); render(); };
+      r.appendChild(b);
+      box.appendChild(r);
+    });
+    if (lumosEmpty) {
+      var n = el('p', 'hint', 'У Luminous и Unicorn идей в листе пока нет — они появятся, когда ты их внесёшь.');
+      box.appendChild(n);
+    }
+  }
+
+  function render() { renderChans(); renderGrid(); renderDay(); renderKop(); }
+  $('prev').onclick = function () { view.m--; if (view.m < 1) { view.m = 12; view.y--; } render(); };
+  $('next').onclick = function () { view.m++; if (view.m > 12) { view.m = 1; view.y++; } render(); };
+  render();
+})();
+</script>
