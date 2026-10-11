@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-11-candle-mask"
+ASSEMBLER_VERSION = "2026-10-11-candle-flame"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1414,7 +1414,7 @@ EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", 
 
 # Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
 # Ручки — шкала 1–10 листа «Эффекты»: 5 — как сейчас, 1 — вдвое слабее, 10 — вдвое сильнее.
-KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер", "мерцание", "отсвет")
+KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер", "мерцание", "отсвет", "пламя", "разлив")
 
 
 class FxNums(list):
@@ -2222,17 +2222,19 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             depth = kn(kind, nums, "мерцание")
             c_spd = kn(kind, nums, "скорость")
             spill_k = kn(kind, nums, "отсвет")
+            flame_k = kn(kind, nums, "пламя")             # (11.10) размер язычка — под нарисованный огонёк
+            reach_k = kn(kind, nums, "разлив")            # (11.10) докуда от огня расходится отсвет
             cuts, spill = list(getattr(nums, "cuts", [])), list(getattr(nums, "spill", []))
             if not cuts:
                 px, py = snap_flame(base, px, py, W, H)      # точка — к самому яркому тёплому пятну рядом
             ph = rng.uniform(0, 2 * math.pi, 6)
             fq = [max(1, int(round(n_ * c_spd))) for n_ in (7, 13, 29, 3, 11, 4)]
-            R = int(60 * k * max(1.0, glow) ** 0.5)          # ореол крупнее — и пятно света шире
+            R = int(max(60 * k * max(1.0, glow) ** 0.5, 40 * k * flame_k))   # ореол крупнее — и пятно света шире
             gx0, gy0 = int(px - R), int(py - R)
             yy, xx = np.mgrid[0:2 * R, 0:2 * R].astype(np.float32)
             rr = ((xx - R) ** 2 + (yy - R) ** 2) / (R * R)
             halo = np.exp(-rr / (2 * 0.42 ** 2)) * np.clip(1 - rr, 0, 1) ** 2   # к краю — ровно в ноль, без квадрата
-            fw, fh = 3.0 * k, 11.0 * k
+            fw, fh = 3.0 * k * flame_k, 11.0 * k * flame_k
 
             def flick(t, ph=ph, fq=fq):
                 L = EFFECTS_LOOP_SECONDS
@@ -2249,9 +2251,10 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                        swing=swing, bright=bright, depth=depth, clip_m=clip_m):
                 L = EFFECTS_LOOP_SECONDS
                 f = flick(t)
-                tip = swing * k * (2.4 * math.sin(2 * math.pi * fq[3] * t / L + ph[3])
-                                   + 1.1 * math.sin(2 * math.pi * fq[4] * t / L + ph[4]))
-                stretch = 1 + 0.18 * math.sin(2 * math.pi * fq[5] * t / L + ph[5]) + 0.12 * f
+                # (11.10) раскачка была в пару пикселей — глазом не видно; теперь кончик ходит заметно
+                tip = swing * k * flame_k * (6.0 * math.sin(2 * math.pi * fq[3] * t / L + ph[3])
+                                             + 2.8 * math.sin(2 * math.pi * fq[4] * t / L + ph[4]))
+                stretch = 1 + 0.3 * math.sin(2 * math.pi * fq[5] * t / L + ph[5]) + 0.15 * f
                 a = halo * (0.2 + 0.09 * f * depth) * glow * bright
                 can = Image.new("L", (2 * R * SS, 2 * R * SS), 0)
                 d = ImageDraw.Draw(can)
@@ -2302,7 +2305,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 layers.append(glow_layer(cuts, 0.24 * glow, 14 * k, 2.5 * diag + 40 * k, (255, 170, 90)))  # ореол вокруг них
             if spill:
                 sb_ = poly_box([p_ for q in spill for p_ in q], W, H)
-                fall = 0.45 * math.hypot(sb_[2] - sb_[0], sb_[3] - sb_[1])
+                fall = 0.45 * math.hypot(sb_[2] - sb_[0], sb_[3] - sb_[1]) * reach_k
                 layers.append(glow_layer(spill, 0.32 * spill_k, 10 * k, fall, (255, 168, 88)))
 
         elif kind == "rain" and len(nums) >= 4:

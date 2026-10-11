@@ -161,7 +161,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'edge', name: 'Край (за него листья скрываются)', taps: 99, hint: 'Проведи линию вдоль скамейки, забора или другого края, за которым лист скрывается: точки слева направо, потом «Готово». Нужно листьям с отметкой «за край».' },
     { id: 'leaves', name: 'Листья', taps: 99, hint: 'Коснись места, откуда летит лист, потом проведи путь падения точками сверху вниз (одной, двумя, тремя) и нажми «Готово». Лист качается вокруг твоей линии.', kinds: ['продолговатый', 'круглый', 'клён'] },
-    { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
+    { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['пламя', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5], ['разлив', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
@@ -426,6 +426,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     restoring = true;
     if (d.img) img.src = d.img; else if (!img.getAttribute('src')) img.src = SAMPLE;
     marks = d.marks; pending = []; outlining = null;
+    // новые ползунки, которых не было при сохранении, встают на середину (5)
+    marks.forEach(function (m) { var e = EFFECTS.filter(function (x) { return x.id === m.eff; })[0]; if (m.k && e && e.knobs) e.knobs.forEach(function (kn) { if (m.k[kn[0]] == null) m.k[kn[0]] = kn[1]; }); });
     img.onload = function () { restoring = false; refresh(); };
     restoring = false; refresh();
     return true;
@@ -614,7 +616,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
           var S = 70, pts = [];
           for (var i = 0; i <= S; i++) {
             var sx = i / S;
-            var x = bw / 2 + k * (w.bx * (1 - 0.5 * sx) + w.A * cCu * Math.pow(sx, 0.9) * (Math.sin(2 * Math.PI * (w.f * sx - t) + w.ph) + hx * Math.sin(2 * Math.PI * (2.2 * w.f * sx - 1.7 * t) + 1.7 * w.ph)));
+            var x = bw / 2 + k * (w.bx * (1 - 0.5 * sx) + w.A * cCu * Math.pow(sx, 0.9) * (Math.sin(2 * Math.PI * (w.f * sx - t) + w.ph) + hx * Math.sin(2 * Math.PI * (2.2 * w.f * sx - 2 * t) + 1.7 * w.ph)));
             pts.push([x, bh - 1 - sx * (bh - 6), sx]);
           }
           for (var j = 0; j < S; j++) {
@@ -743,16 +745,16 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (!all.length || !dh) return;
     var k = dh / 864, t = (now / 1000) % LOOP;
     all.forEach(function (m, mi) {
-      var glow = mult(m.k['ореол']), swing = mult(m.k['раскачка']), bright = mult(m.k['яркость']), depth = mult(m.k['мерцание']), spd = mult(m.k['скорость']), spk = mult(m.k['отсвет']);
+      var glow = mult(m.k['ореол']), swing = mult(m.k['раскачка']), bright = mult(m.k['яркость']), depth = mult(m.k['мерцание']), spd = mult(m.k['скорость']), spk = mult(m.k['отсвет']), flk = mult(m.k['пламя'] == null ? 5 : m.k['пламя']), rch = mult(m.k['разлив'] == null ? 5 : m.k['разлив']);
       var r = seeded(Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729)), ph = [r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28];
       var fq = [7, 13, 29, 3, 11, 4].map(function (n) { return Math.max(1, Math.round(n * spd)); });
       var w = function (i) { return Math.sin(2 * Math.PI * fq[i] * t / LOOP + ph[i]); };
       var f = 0.55 * w(0) + 0.3 * w(1) + 0.15 * w(2);
-      var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh, R = 60 * k * Math.sqrt(Math.max(1, glow));
+      var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh, R = Math.max(60 * k * Math.sqrt(Math.max(1, glow)), 40 * k * flk);
       var path = function (pts) { fxc.beginPath(); pts.forEach(function (q, j) { var x = q.x / 100 * dw, y = q.y / 100 * dh; if (j) fxc.lineTo(x, y); else fxc.moveTo(x, y); }); fxc.closePath(); };
       if (m.spill && m.spill.length >= 3) {
         var xs = m.spill.map(function (q) { return q.x / 100 * dw; }), ys = m.spill.map(function (q) { return q.y / 100 * dh; });
-        var fall = 0.45 * Math.hypot(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
+        var fall = rch * 0.45 * Math.hypot(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
         fxc.save(); if ('filter' in fxc) fxc.filter = 'blur(' + (10 * k).toFixed(1) + 'px)';
         var gs = fxc.createRadialGradient(px, py, 0, px, py, fall * 3);
         var a0 = Math.min(0.9, 0.32 * spk * bright * (1 + 0.35 * depth * f));
@@ -775,7 +777,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var gh = fxc.createRadialGradient(px, py, 0, px, py, R), ah = Math.min(0.95, (0.2 + 0.09 * f * depth) * glow * bright);
       gh.addColorStop(0, 'rgba(255,196,120,' + ah.toFixed(3) + ')'); gh.addColorStop(0.45, 'rgba(255,196,120,' + (ah * 0.45).toFixed(3) + ')'); gh.addColorStop(1, 'rgba(255,196,120,0)');
       fxc.fillStyle = gh; fxc.fillRect(px - R, py - R, 2 * R, 2 * R);
-      var tip = swing * k * (2.4 * w(3) + 1.1 * w(4)), hgt = 11 * k * (1 + 0.18 * w(5) + 0.12 * f), fw = 3 * k, by = py + 4.4 * k;
+      var tip = swing * k * flk * (6 * w(3) + 2.8 * w(4)), hgt = 11 * k * flk * (1 + 0.3 * w(5) + 0.15 * f), fw = 3 * k * flk, by = py + 4.4 * k * flk;
       fxc.globalAlpha = Math.min(1, (0.42 + 0.18 * f * depth) * bright) * 1.6; fxc.fillStyle = 'rgb(255,236,186)';
       fxc.beginPath(); fxc.moveTo(px - fw, by); fxc.quadraticCurveTo(px - fw * 1.1, by - hgt * 0.45, px + tip, by - hgt); fxc.quadraticCurveTo(px + fw * 1.1, by - hgt * 0.45, px + fw, by); fxc.closePath(); fxc.fill();
       fxc.restore();
