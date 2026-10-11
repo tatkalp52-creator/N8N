@@ -271,10 +271,18 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       del.onclick = function () { marks.splice(i, 1); refresh(); };
       var tog = document.createElement('button'); tog.type = 'button'; tog.className = 'tog'; tog.textContent = m.open ? 'Свернуть' : 'Настроить';
       tog.onclick = function () { m.open = !m.open; renderList(); drawLoupe(); };
+      // ОК — отметка зафиксирована: точки больше не сдвинуть случайно, «Отменить последнее» её не тронет
+      var ok = document.createElement('button'); ok.type = 'button';
+      ok.className = m.fixed ? '' : 'primary'; ok.textContent = m.fixed ? '✓ Изменить' : 'ОК';
+      ok.setAttribute('aria-label', (m.fixed ? 'Изменить отметку ' : 'Зафиксировать отметку ') + (i + 1));
+      ok.onclick = function () { m.fixed = !m.fixed; m.open = !m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf'); refresh(); };
       d.appendChild(num); d.appendChild(t);
       var side = document.createElement('div'); side.className = 'row'; side.style.flexWrap = 'nowrap';
-      if (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf') side.appendChild(tog);
-      side.appendChild(del); d.appendChild(side);
+      if (!m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf')) side.appendChild(tog);
+      side.appendChild(ok);
+      if (!m.fixed) side.appendChild(del);
+      d.appendChild(side);
+      if (m.fixed) { d.style.opacity = '0.75'; m.open = false; }
       if (m.eff === 'steam' && m.open) {
         var kb = document.createElement('div'); kb.className = 'knobs';
         EFFECTS[1].knobs.forEach(function (k) {
@@ -370,6 +378,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = e.name;
       b.setAttribute('aria-pressed', e === cur ? 'true' : 'false');
       b.onclick = function () {
+        if (!$('done').hidden) $('done').onclick();      // незаконченная обводка не пропадает — дописывается
         cur = e; pending = [];
         Array.prototype.forEach.call(box.children, function (c) { c.setAttribute('aria-pressed', c === b ? 'true' : 'false'); });
         refresh();
@@ -384,14 +393,15 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   ov.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
   function hitPoint(ev) {
     var r = ov.getBoundingClientRect(), best = null, bd = 16;
-    marks.forEach(function (m) { m.pts.forEach(function (q, k) {
+    marks.forEach(function (m) { if (m.fixed) return; m.pts.forEach(function (q, k) {
       var d = Math.hypot(r.left + q.x / 100 * r.width - ev.clientX, r.top + q.y / 100 * r.height - ev.clientY);
       if (d <= bd) { bd = d; best = { m: m, k: k }; }
     }); });
     return best;
   }
+  var downAt = null;
   ov.addEventListener('pointerdown', function (ev) {
-    suppress = false;
+    suppress = false; downAt = [ev.clientX, ev.clientY];
     if (!img.getAttribute('src')) return;
     var st = $('stage');
     if (ev.button === 2 || panMode) { drag = { pan: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop }; ov.setPointerCapture(ev.pointerId); ov.style.cursor = 'grabbing'; ev.preventDefault(); return; }
@@ -416,6 +426,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 
   ov.addEventListener('click', function (ev) {
     if (suppress) { suppress = false; return; }
+    if (downAt && Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]) > 6) return;   // тянула, а не касалась — точку не ставим
     if (!img.getAttribute('src')) return;
     var r = ov.getBoundingClientRect();
     var x = Math.min(100, Math.max(0, (ev.clientX - r.left) / r.width * 100));
@@ -439,7 +450,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     refresh();
   });
 
-  $('undo').onclick = function () { if (pending.length) pending.pop(); else marks.pop(); refresh(); };
+  $('undo').onclick = function () { if (pending.length) pending.pop(); else if (marks.length && !marks[marks.length - 1].fixed) marks.pop(); refresh(); };
   $('done').onclick = function () {
     if (!((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) && !(cur.id === 'lights' && pending.length >= 1) && !(cur.id === 'surf' && pending.length >= 3)) return;
     var m = { eff: cur.id, pts: pending.slice(), kind: '' };
@@ -447,7 +458,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     marks.forEach(function (o) { o.open = false; }); m.open = true;
     marks.push(m); pending = []; refresh();
   };
-  $('clear').onclick = function () { marks = []; pending = []; refresh(); };
+  $('clear').onclick = function () {
+    if (marks.some(function (m) { return m.fixed; }) && !confirm('Убрать всё, и зафиксированное тоже?')) return;
+    marks = []; pending = []; refresh();
+  };
 
   function setImage(src) { marks = []; pending = []; img.onload = refresh; img.src = src; refresh(); }
   $('file').addEventListener('change', function (ev) {
