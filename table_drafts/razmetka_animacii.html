@@ -159,7 +159,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'candle', name: 'Свеча',      taps: 1, hint: 'Коснись пламени свечи.' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
-    { id: 'lights', name: 'Гирлянда',   taps: 99, hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сборщик сам подвинет точку на самое светлое место лампочки; если не надо — в списке поставь «точно».' }
+    { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [];
   var $ = function (id) { return document.getElementById(id); };
@@ -179,7 +179,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     } else if (m.eff === 'bubbles') s = 'пузыри: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + ', ' + fmt(p[1].y);
     else if (m.eff === 'edge') s = 'край: ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
     else if (m.eff === 'leaves') s = 'листья: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join(' → ') + (m.kind ? '; ' + m.kind : '') + (m.size ? '; ' + m.size : '') + (m.deep ? '; вглубь' : '') + (m.behind ? '; за край' : '');
-    else if (m.eff === 'lights') s = 'гирлянда: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join('; ') + (m.exact ? '; точно' : '');
+    else if (m.eff === 'lights') s = 'гирлянда: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join('; ') + '; яркость ' + m.k['яркость'] + '; мерцание ' + m.k['мерцание'] + (m.exact ? '; точно' : '');
     else if (m.eff === 'rain') s = 'дождь: ' + fmt(Math.min(p[0].x, p[1].x)) + ', ' + fmt(Math.min(p[0].y, p[1].y)) + ', ' + fmt(Math.max(p[0].x, p[1].x)) + ', ' + fmt(Math.max(p[0].y, p[1].y));
     return s;
   }
@@ -316,6 +316,14 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         var cb4 = document.createElement('input'); cb4.type = 'checkbox'; cb4.id = 'exact' + i; cb4.checked = !!m.exact;
         cb4.onchange = function () { m.exact = cb4.checked; t.textContent = lineOf(m); renderOut(); };
         var tx4 = document.createElement('span'); tx4.textContent = 'точно: не двигать точки к светлому';
+        EFFECTS.filter(function (e) { return e.id === 'lights'; })[0].knobs.forEach(function (k) {
+          var lab = document.createElement('label');
+          var sp = document.createElement('span'); sp.textContent = k[0];
+          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 0; inp.max = 15; inp.step = 1; inp.value = m.k[k[0]]; inp.id = 'L' + i + '_' + k[0];
+          var ou = document.createElement('span'); ou.textContent = m.k[k[0]];
+          inp.oninput = function () { m.k[k[0]] = Number(inp.value); ou.textContent = inp.value; t.textContent = lineOf(m); renderOut(); };
+          lab.appendChild(sp); lab.appendChild(inp); lab.appendChild(ou); kb4.appendChild(lab);
+        });
         lb4.appendChild(cb4); lb4.appendChild(tx4); kb4.appendChild(lb4); d.appendChild(kb4);
       }
       box.appendChild(d);
@@ -415,6 +423,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   $('done').onclick = function () {
     if (!((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) && !(cur.id === 'lights' && pending.length >= 1)) return;
     var m = { eff: cur.id, pts: pending.slice(), kind: '' };
+    if (cur.id === 'lights') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
     marks.forEach(function (o) { o.open = false; }); m.open = true;
     marks.push(m); pending = []; refresh();
   };
@@ -505,7 +514,74 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         fxc.beginPath(); fxc.ellipse(px, py, 14 * k, 4 * k, 0, 0, 7); fxc.stroke(); fxc.restore();
       });
     }
+    drawLights(now, dw, dh);
     requestAnimationFrame(drawSteam);
+  }
+
+  // ── Пробная гирлянда: те же формулы, что у сборщика (ореол, ядро, два ритма мерцания, притягивание
+  // точки к самому светлому пикселю рядом). Разброс ритмов у каждой лампочки свой, как и в ролике.
+  var pix = null, pixSrc = '', lightCache = {};
+  function pixels() {
+    if (!img.naturalWidth) return null;
+    if (pixSrc === img.src && pix) return pix;
+    var c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    var cc = c.getContext('2d'); cc.drawImage(img, 0, 0);
+    try { pix = cc.getImageData(0, 0, c.width, c.height); } catch (e) { pix = null; }
+    pixSrc = img.src; lightCache = {};
+    return pix;
+  }
+  function snapBulb(x, y) {
+    var P = pixels(); if (!P) return { x: x, y: y };
+    var W = P.width, H = P.height, lx = x / 100 * W, ly = y / 100 * H, r0 = Math.max(3, Math.floor(0.012 * W));
+    var xa = Math.max(0, Math.floor(lx) - r0), xb = Math.min(W, Math.floor(lx) + r0 + 1), ya = Math.max(0, Math.floor(ly) - r0), yb = Math.min(H, Math.floor(ly) + r0 + 1);
+    var best = -1, bx = lx, by = ly;
+    for (var yy = ya; yy < yb; yy++) for (var xx = xa; xx < xb; xx++) {
+      var o = (yy * W + xx) * 4, g = P.data[o] + P.data[o + 1] + P.data[o + 2];
+      if (g > best) { best = g; bx = xx; by = yy; }
+    }
+    return { x: bx / W * 100, y: by / H * 100 };
+  }
+  function sprite(R, prof, coreCol) {
+    var c = document.createElement('canvas'); c.width = c.height = Math.max(2, 2 * R);
+    var cc = c.getContext('2d'), d = cc.createImageData(c.width, c.height);
+    for (var yy = 0; yy < c.height; yy++) for (var xx = 0; xx < c.width; xx++) {
+      var rr = ((xx - R) * (xx - R) + (yy - R) * (yy - R)) / (R * R), o = (yy * c.width + xx) * 4, a = prof(rr);
+      var hot = coreCol && Math.exp(-rr / (2 * 0.09 * 0.09)) > 0.25;
+      d.data[o] = 255; d.data[o + 1] = hot ? 246 : 228; d.data[o + 2] = hot ? 214 : 168; d.data[o + 3] = Math.round(255 * Math.min(1, a));
+    }
+    cc.putImageData(d, 0, 0); return c;
+  }
+  function drawLights(now, dw, dh) {
+    var all = marks.filter(function (m) { return m.eff === 'lights'; });
+    if (!all.length || !dh) return;
+    var k = dh / 864, t = (now / 1000) % LOOP, dpr = Math.min(2, window.devicePixelRatio || 1);
+    all.forEach(function (m) {
+      var bright = mult(m.k['яркость']), flick = mult(m.k['мерцание']);
+      var R = Math.max(2, Math.round(30 * k * Math.sqrt(Math.max(1, bright)) * dpr));
+      m.pts.forEach(function (q, idx) {
+        var key = [q.x, q.y, m.exact ? 1 : 0, R, m.k['мерцание']].join('|');
+        var L = lightCache[key];
+        if (!L) {
+          var r = seeded(Math.round(q.x * 7919 + q.y * 104729) + idx);
+          L = lightCache[key] = {
+            at: m.exact ? { x: q.x, y: q.y } : snapBulb(q.x, q.y),
+            halo: sprite(R, function (rr) { return Math.exp(-rr / (2 * 0.35 * 0.35)) * Math.pow(Math.max(0, 1 - rr), 2); }, false),
+            core: sprite(R, function (rr) { return Math.exp(-rr / (2 * 0.09 * 0.09)); }, true),
+            ph: [r() * 6.283, r() * 6.283],
+            n1: Math.max(1, Math.round(2 * flick)) + Math.floor(r() * 2),
+            n2: Math.max(2, Math.round(9 * flick)) + Math.floor(r() * 4)
+          };
+        }
+        var f = 0.65 * Math.sin(2 * Math.PI * L.n1 * t / LOOP + L.ph[0]) + 0.35 * Math.sin(2 * Math.PI * L.n2 * t / LOOP + L.ph[1]);
+        var cx = L.at.x / 100 * dw, cy = L.at.y / 100 * dh, rd = R / dpr;
+        fxc.globalAlpha = Math.min(0.9, (0.34 + 0.16 * f) * bright); fxc.drawImage(L.halo, cx - rd, cy - rd, 2 * rd, 2 * rd);
+        fxc.globalAlpha = Math.min(0.9, 0.55 + 0.25 * f); fxc.drawImage(L.core, cx - rd, cy - rd, 2 * rd, 2 * rd);
+        fxc.globalAlpha = 1;
+        if (!m.exact && (Math.abs(L.at.x - q.x) > 0.05 || Math.abs(L.at.y - q.y) > 0.05)) {
+          fxc.save(); fxc.strokeStyle = 'rgba(37,99,235,0.9)'; fxc.lineWidth = 1.2; fxc.beginPath(); fxc.arc(cx, cy, 3, 0, 7); fxc.stroke(); fxc.restore();
+        }
+      });
+    });
   }
   requestAnimationFrame(drawSteam);
 
