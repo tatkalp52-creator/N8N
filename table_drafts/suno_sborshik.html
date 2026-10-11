@@ -48,7 +48,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .tempo { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
 .bpm { font-family: var(--display); font-size: 44px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; min-width: 2.6ch; text-align: right; }
 .bpm small { font-family: var(--body); font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 4px; }
-.tempo input[type=range] { width: 100%; accent-color: var(--accent); height: 32px; }
+.tempo input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); height: 40px; }
 .beat { width: 14px; height: 14px; border-radius: 50%; background: var(--line); transition: background .06s; }
 .beat.on { background: var(--accent); }
 .beat.down.on { background: var(--warn); }
@@ -97,9 +97,13 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
 .side .card { gap: 8px; }
 .side #pane { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 @media (min-width: 700px) {
-  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); align-items: start; }
-  .side { position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); }
-  .side #pane { max-height: calc(100vh - 120px); }
+  html, body { height: 100%; }
+  body { overflow: hidden; padding-block: 12px; }
+  .wrap { height: 100%; }
+  .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); align-items: stretch; }
+  .main { overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 2px; }
+  .side, .side .card { min-height: 0; height: 100%; }
+  .side #pane { flex: 1; min-height: 0; overflow-y: auto; }
   .layout { grid-template-columns: minmax(0, 1fr) minmax(280px, 40%); }
 
 }
@@ -121,6 +125,8 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     <p class="sub">Касание по слову — добавить в Style, долгое касание или перетаскивание в красный лоток — в Exclude. Всё, что собрано, остаётся на этом устройстве.</p>
   </header>
 
+  <div class="layout">
+  <div class="main">
   <section class="card" aria-label="Темп">
     <div class="row" style="justify-content: space-between">
       <h2>Темп</h2>
@@ -128,12 +134,17 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     </div>
     <div class="tempo">
       <div class="bpm"><span id="bpmv">90</span><small>BPM</small></div>
-      <input id="bpm" type="range" min="40" max="180" step="1" value="90" aria-label="Темп, ударов в минуту">
+      <div class="row" style="flex-wrap:nowrap;gap:6px">
+        <button type="button" id="minus" aria-label="Медленнее на 1">−</button>
+        <input id="bpm" type="range" min="40" max="200" step="1" value="90" aria-label="Темп, ударов в минуту — двигай">
+        <button type="button" id="plus" aria-label="Быстрее на 1">+</button>
+        <input id="bpmn" type="number" min="40" max="200" step="1" value="90" aria-label="Темп числом" style="width:4.5em;font:inherit;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);padding:4px 6px">
+      </div>
     </div>
     <div class="row">
       <button id="play" type="button" class="primary">▶ Метроном</button>
       <div class="row" aria-hidden="true"><span class="beat down" id="b0"></span><span class="beat" id="b1"></span><span class="beat" id="b2"></span><span class="beat" id="b3"></span></div>
-      <span class="hint">Мягкий щелчок, первая доля чуть выше.</span>
+      <span class="hint">Мягкий щелчок, первая доля чуть выше. Темп можно менять на ходу.</span>
     </div>
     <div class="row" id="presets"></div>
     <div class="row">
@@ -141,8 +152,6 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     </div>
   </section>
 
-  <div class="layout">
-  <div class="main">
   <div class="trays">
     <section class="card" aria-label="Style">
       <div class="row" style="justify-content: space-between"><span class="label">Style of Music</span><span class="row"><span class="count" id="sc"></span><button type="button" class="primary mini" data-copy="outS">Копировать</button></span></div>
@@ -258,8 +267,11 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch (e) { toast('Звук в этом браузере недоступен'); return; }
     nextT = ctx.currentTime + 0.05; beat = 0; timer = setInterval(tick, 25); $('play').textContent = '■ Стоп';
   };
-  function setBpm(v) { st.bpm = v; $('bpm').value = v; $('bpmv').textContent = v; $('durbpm').textContent = v; $('tword').textContent = tword(v); renderOut(); calcDur(); save(); }
+  function setBpm(v) { v = Math.max(40, Math.min(200, Math.round(Number(v) || 90))); st.bpm = v; $('bpm').value = v; $('bpmn').value = v; $('bpmv').textContent = v; $('durbpm').textContent = v; $('tword').textContent = tword(v); renderOut(); calcDur(); save(); }
   $('bpm').oninput = function () { setBpm(Number($('bpm').value)); };
+  $('bpmn').onchange = function () { setBpm($('bpmn').value); };
+  $('minus').onclick = function () { setBpm(st.bpm - 1); };
+  $('plus').onclick = function () { setBpm(st.bpm + 1); };
   [60, 72, 80, 90, 100, 120, 140].forEach(function (v) { var b = el('button', '', v); b.type = 'button'; b.onclick = function () { setBpm(v); }; $('presets').appendChild(b); });
   $('bpmToStyle').checked = st.bpmToStyle;
   $('bpmToStyle').onchange = function () { st.bpmToStyle = $('bpmToStyle').checked; renderOut(); save(); };
@@ -274,7 +286,7 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   }
   function remove(where, w) { st[where] = st[where].filter(function (t) { return t !== w; }); renderTrays(); renderPane(); save(); }
   function renderTrays() {
-    [['s', 'trayS', 'Пусто. Касайся слов внизу — они встанут сюда.'], ['x', 'trayX', 'Пусто. Сюда — то, чего в треке быть не должно.']].forEach(function (z) {
+    [['s', 'trayS', 'Пусто. Касайся слов в палитре — они встанут сюда.'], ['x', 'trayX', 'Пусто. Сюда — то, чего в треке быть не должно.']].forEach(function (z) {
       var box = $(z[1]); box.innerHTML = '';
       if (!st[z[0]].length) box.appendChild(el('p', 'empty', z[2]));
       st[z[0]].forEach(function (w) {
