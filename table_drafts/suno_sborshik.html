@@ -1,0 +1,382 @@
+<title>Сборщик Suno</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Manrope:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Раскладка: сверху темп с метрономом; дальше три «лотка» (Style, Exclude, Lyrics) — то, что уйдёт в Suno;
+   под ними палитры: инструменты, стили, слова для Exclude, формы для Lyrics. Касание = добавить, перетаскивание тоже работает. */
+:root {
+  --bg: #f4f0e8;
+  --paper: #fffdf9;
+  --ink: #26221e;
+  --muted: #776c60;
+  --line: #e2d8c8;
+  --accent: #6d4c9f;
+  --accent-soft: #ece4f6;
+  --warn: #b5482f;
+  --warn-soft: #f7e3dc;
+  --ok: #3b7a57;
+  --display: "Fraunces", Georgia, serif;
+  --body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1916; --paper: #24211d; --ink: #f0ebe3; --muted: #a79c8e; --line: #3a352e;
+    --accent: #b49ae0; --accent-soft: #332b40; --warn: #e88a72; --warn-soft: #3d2924; --ok: #7cc49b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1916; --paper: #24211d; --ink: #f0ebe3; --muted: #a79c8e; --line: #3a352e;
+  --accent: #b49ae0; --accent-soft: #332b40; --warn: #e88a72; --warn-soft: #3d2924; --ok: #7cc49b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 16px 56px; }
+.wrap { max-width: 1100px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-family: var(--display); font-weight: 650; font-size: 26px; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 500; font-size: 18px; margin: 0; }
+.sub { color: var(--muted); margin: 2px 0 0; font-size: 13.5px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 12px; cursor: pointer; }
+button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.primary { background: var(--accent); color: var(--paper); border-color: var(--accent); font-weight: 700; }
+.label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+/* темп */
+.tempo { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+.bpm { font-family: var(--display); font-size: 44px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; min-width: 2.6ch; text-align: right; }
+.bpm small { font-family: var(--body); font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 4px; }
+.tempo input[type=range] { width: 100%; accent-color: var(--accent); height: 32px; }
+.beat { width: 14px; height: 14px; border-radius: 50%; background: var(--line); transition: background .06s; }
+.beat.on { background: var(--accent); }
+.beat.down.on { background: var(--warn); }
+.tword { font-style: italic; color: var(--muted); }
+
+/* лотки */
+.trays { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.tray { min-height: 92px; border: 2px dashed var(--line); border-radius: 12px; padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; background: var(--bg); }
+.tray.over { border-color: var(--accent); background: var(--accent-soft); }
+.tray.ex.over { border-color: var(--warn); background: var(--warn-soft); }
+.tray .empty { color: var(--muted); font-size: 13px; font-style: italic; margin: 4px; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; background: var(--accent-soft); border: 1px solid transparent; border-radius: 999px; padding: 3px 4px 3px 10px; min-height: 30px; }
+.tray.ex .tag { background: var(--warn-soft); }
+.tag button { min-height: 24px; height: 24px; width: 24px; padding: 0; border-radius: 50%; border: 0; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; }
+.out { font-family: var(--mono); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0; min-height: 40px; }
+.count { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+textarea { width: 100%; min-height: 220px; font-family: var(--mono); font-size: 13px; line-height: 1.5; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; resize: vertical; }
+input[type=text] { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 10px; flex: 1; min-width: 0; }
+
+/* палитры */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 700; }
+.group { display: flex; flex-direction: column; gap: 6px; }
+.group h3 { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13.5px; border-radius: 999px; padding: 4px 11px; min-height: 34px; background: var(--paper); user-select: none; touch-action: manipulation; }
+.chip.used { opacity: .45; }
+.chip.neg { border-color: var(--warn); color: var(--warn); }
+.styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.style { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px; min-height: 0; border-radius: 12px; }
+.style b { font-size: 14px; }
+.style span { color: var(--muted); font-size: 12.5px; }
+.style em { font-style: normal; font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
+.style.used { outline: 2px solid var(--accent); }
+.forms { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.form { text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; }
+.form b { font-size: 14px; }
+.form span { color: var(--muted); font-size: 12.5px; }
+.form .two { display: flex; gap: 6px; }
+.form .two button { min-height: 32px; font-size: 12.5px; padding: 3px 10px; }
+.dur { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ok); }
+.layout { display: flex; flex-direction: column; gap: 14px; }
+.main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.side { min-width: 0; }
+.side .card { gap: 8px; }
+.side #pane { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+@media (min-width: 900px) {
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); align-items: start; }
+  .side { position: sticky; top: calc(8px + env(safe-area-inset-top, 0px)); }
+  .side #pane { max-height: calc(100vh - 120px); }
+  .trays { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 899px) {
+  body { padding-bottom: 46vh; }
+  .side { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding: 0 8px env(safe-area-inset-bottom, 0px); }
+  .side .card { border-radius: 14px 14px 0 0; box-shadow: 0 -8px 20px -10px rgba(0,0,0,.35); max-height: 44vh; }
+  .side #pane { max-height: calc(44vh - 64px); }
+  .tab { min-height: 34px; padding: 3px 10px; font-size: 13px; }
+}
+.toast { position: fixed; left: 50%; top: calc(12px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 40; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+.toast.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast, .beat { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Сборщик Suno</h1>
+    <p class="sub">Касание по слову — добавить в Style, долгое касание или перетаскивание в красный лоток — в Exclude. Всё, что собрано, остаётся на этом устройстве.</p>
+  </header>
+
+  <section class="card" aria-label="Темп">
+    <div class="row" style="justify-content: space-between">
+      <h2>Темп</h2>
+      <span class="tword" id="tword"></span>
+    </div>
+    <div class="tempo">
+      <div class="bpm"><span id="bpmv">90</span><small>BPM</small></div>
+      <input id="bpm" type="range" min="40" max="180" step="1" value="90" aria-label="Темп, ударов в минуту">
+    </div>
+    <div class="row">
+      <button id="play" type="button" class="primary">▶ Метроном</button>
+      <div class="row" aria-hidden="true"><span class="beat down" id="b0"></span><span class="beat" id="b1"></span><span class="beat" id="b2"></span><span class="beat" id="b3"></span></div>
+      <span class="hint">Мягкий щелчок, первая доля чуть выше.</span>
+    </div>
+    <div class="row" id="presets"></div>
+    <div class="row">
+      <label class="hint" style="display:flex;gap:8px;align-items:center;min-height:36px"><input id="bpmToStyle" type="checkbox" checked> писать темп в Style</label>
+    </div>
+  </section>
+
+  <div class="layout">
+  <div class="main">
+  <div class="trays">
+    <section class="card" aria-label="Style">
+      <div class="row" style="justify-content: space-between"><span class="label">Style of Music</span><span class="count" id="sc"></span></div>
+      <div class="tray" id="trayS" data-tray="s"></div>
+      <div class="row"><input type="text" id="addS" placeholder="своё слово в Style" aria-label="Своё слово в Style"><button type="button" id="addSb">+</button></div>
+      <pre class="out" id="outS"></pre>
+      <div class="row"><button type="button" class="primary" data-copy="outS">Скопировать Style</button><button type="button" id="clrS">Очистить</button></div>
+    </section>
+    <section class="card" aria-label="Exclude">
+      <div class="row" style="justify-content: space-between"><span class="label">Exclude Styles</span><span class="count" id="xc"></span></div>
+      <div class="tray ex" id="trayX" data-tray="x"></div>
+      <div class="row"><input type="text" id="addX" placeholder="что не нужно" aria-label="Своё слово в Exclude"><button type="button" id="addXb">+</button></div>
+      <pre class="out" id="outX"></pre>
+      <div class="row"><button type="button" class="primary" data-copy="outX">Скопировать Exclude</button><button type="button" id="clrX">Очистить</button></div>
+    </section>
+  </div>
+
+  <section class="card" aria-label="Lyrics">
+    <div class="row" style="justify-content: space-between">
+      <span class="label">Lyrics — форма и длительность</span>
+      <span class="hint">примерно <span class="dur" id="dur">—</span> при <span id="durbpm">90</span> BPM</span>
+    </div>
+    <textarea id="lyr" spellcheck="false" aria-label="Поле Lyrics"></textarea>
+    <p class="hint">Длительность считается по тактам в скобках и темпу: каждый раздел «— 8 bars» = 8 тактов по 4 доли. Suno считает такты не точно, это ориентир. Больше разделов — длиннее трек.</p>
+    <div class="row"><button type="button" class="primary" data-copy="lyr">Скопировать Lyrics</button><button type="button" id="clrL">Очистить</button></div>
+  </section>
+
+  </div>
+  <aside class="side">
+  <section class="card" aria-label="Палитры">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="pane"></div>
+  </section>
+  </aside>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { x.classList.remove('on'); }, 1800); }
+
+  var INSTR = [
+    ['Клавишные', ['felt piano', 'upright piano', 'grand piano', 'Rhodes', 'Wurlitzer', 'celesta', 'harpsichord', 'clavichord', 'chamber organ', 'pipe organ', 'harmonium', 'accordion']],
+    ['Струнные', ['upright bass', 'nylon guitar', 'archtop guitar', 'gypsy jazz guitar', 'violin', 'viola', 'cello', 'string quartet', 'harp', 'lute', 'mandolin', 'hurdy-gurdy']],
+    ['Духовые', ['soft clarinet', 'flute', 'alto flute', 'recorder', 'oboe', 'bassoon', 'muted trumpet', 'flugelhorn', 'tenor sax', 'soprano sax', 'french horn', 'tin whistle']],
+    ['Ударные', ['brushed drums', 'soft brushes', 'light ride cymbal', 'shaker', 'bossa percussion', 'frame drum', 'tambourine', 'glockenspiel', 'vibraphone', 'marimba', 'handbells', 'no drums']],
+    ['Голоса без слов', ['wordless choir', 'humming', 'soft oohs', 'boys choir', 'female choir', 'male choir', 'gregorian chant', 'solo soprano vocalise']]
+  ];
+  var STYLES = [
+    ['Café jazz', 'спокойный акустический джаз маленьким составом, как в кафе', 'acoustic café jazz, small ensemble'],
+    ['Cool jazz', 'приглушённый, ровный, без напора; мягкие духовые', 'cool jazz, mellow, laid-back'],
+    ['Swing', 'покачивание «тум-па», шаги контрабаса, щётки', 'gentle swing, walking bass'],
+    ['Bossa nova', 'мягкий бразильский ритм, нейлоновая гитара, тихо', 'bossa nova, soft syncopation'],
+    ['Gypsy jazz', 'Джанго Рейнхардт: ритм-гитара «ла помп», скрипка', 'gypsy jazz, jazz manouche'],
+    ['Chamber jazz', 'джаз как камерная музыка: фортепиано, струнные, кларнет', 'chamber jazz, intimate'],
+    ['Jazz waltz', 'джаз на три четверти, кружит', 'jazz waltz, 3/4'],
+    ['Ballad', 'медленно, нежно, много воздуха между нотами', 'slow jazz ballad, tender'],
+    ['Baroque', 'Бах, Вивальди: чёткий пульс, клавесин, переклички голосов', 'baroque, harpsichord continuo'],
+    ['Renaissance consort', 'старинный ансамбль: лютня, флейты, виолы', 'renaissance consort, early music'],
+    ['Medieval', 'средневековые танцы и напевы: волынка, колёсная лира', 'medieval, estampie, modal'],
+    ['Gregorian / sacred', 'хорал, собор, гулкое пространство, без ритма', 'sacred choral, gregorian, cathedral reverb'],
+    ['Ambient', 'без мелодии на первом плане, тянущиеся звуки, сон', 'ambient, slow evolving'],
+    ['Lullaby', 'колыбельная: простая мелодия, челеста, музыкальная шкатулка', 'lullaby, music box'],
+    ['Celtic', 'кельтские мотивы: арфа, вистл, мягкий бодран', 'celtic, harp, tin whistle'],
+    ['Classical crossover', 'классическая тема в джазовой обработке', 'classical crossover, jazz arrangement']
+  ];
+  var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'sunlit', 'intimate', 'airy', 'spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'major key', 'minor key', 'modal', 'instrumental'];
+  var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo'];
+  // Формы: раздел = [метка, тактов]. Короткая и полная версии.
+  var FORMS = [
+    ['Песенная AABA', 'классика джаза: тема, повтор, мост, тема', [['Intro', 4], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Outro', 4]], [['Intro', 8], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Solo — piano', 16], ['Solo — sax', 16], ['Bridge B', 8], ['Theme A', 8], ['Outro', 8]]],
+    ['Рондо ABACA', 'возвращающийся рефрен, между ним — эпизоды', [['Refrain A', 8], ['Episode B', 8], ['Refrain A', 8], ['Outro', 4]], [['Intro', 4], ['Refrain A', 8], ['Episode B', 8], ['Refrain A', 8], ['Episode C', 8], ['Refrain A', 8], ['Episode D', 8], ['Refrain A', 8], ['Outro', 8]]],
+    ['Тема с вариациями', 'одна тема, каждый раз по-новому', [['Theme', 8], ['Variation 1', 8], ['Variation 2', 8], ['Theme', 8]], [['Intro', 4], ['Theme', 16], ['Variation 1 — gentle', 16], ['Variation 2 — playful', 16], ['Variation 3 — slower', 16], ['Variation 4 — full', 16], ['Theme', 16], ['Outro', 8]]],
+    ['Трёхчастная ABA', 'тема, контраст, возвращение', [['Section A', 8], ['Section B', 8], ['Section A', 8]], [['Intro', 4], ['Section A', 16], ['Section B — contrast', 16], ['Interlude', 4], ['Section A', 16], ['Outro', 8]]],
+    ['Двухчастная AB', 'вопрос — ответ, как старинный танец', [['Section A', 8], ['Section B', 8]], [['Section A', 8], ['Section A', 8], ['Section B', 8], ['Section B', 8], ['Outro', 4]]],
+    ['Ноктюрн', 'медленная певучая мелодия над ровным аккомпанементом', [['Intro', 2], ['Melody', 8], ['Middle', 8], ['Melody', 8]], [['Intro', 4], ['Melody', 16], ['Middle — darker', 16], ['Melody — ornamented', 16], ['Coda', 8]]],
+    ['Вальс', 'на три, кружится; пары фраз по 8 тактов', [['Intro', 4], ['Waltz A', 16], ['Waltz B', 16], ['Waltz A', 16]], [['Intro', 4], ['Waltz A', 16], ['Waltz B', 16], ['Waltz A', 16], ['Trio C', 16], ['Waltz A', 16], ['Coda', 8]]],
+    ['Канон', 'одна мелодия входит голосами по очереди', [['Voice 1', 8], ['Voice 2 enters', 8], ['Voice 3 enters', 8]], [['Bass ground', 4], ['Voice 1', 8], ['Voice 2 enters', 8], ['Voice 3 enters', 8], ['All voices', 16], ['Fade', 8]]],
+    ['Хорал', 'медленные аккорды-строфы, как в соборе', [['Verse 1', 8], ['Verse 2', 8]], [['Intro', 4], ['Verse 1', 8], ['Verse 2', 8], ['Interlude', 4], ['Verse 3', 8], ['Verse 4', 8], ['Amen', 4]]],
+    ['Эстампи', 'средневековый танец из повторяющихся «пунктов»', [['Punctus 1', 8], ['Punctus 2', 8]], [['Intro drone', 4], ['Punctus 1', 8], ['Punctus 1', 8], ['Punctus 2', 8], ['Punctus 2', 8], ['Punctus 3', 8], ['Punctus 3', 8], ['Outro', 4]]],
+    ['Колыбельная', 'простая мелодия по кругу, всё тише', [['Melody', 8], ['Melody', 8], ['Fade', 4]], [['Intro — music box', 4], ['Melody', 8], ['Melody', 8], ['Middle', 8], ['Melody — softer', 8], ['Melody — softest', 8], ['Fade', 8]]],
+    ['Эмбиент', 'без формы: медленно меняющиеся слои', [['Drift', 16], ['Drift', 16]], [['Drift — start', 16], ['Drift — layers enter', 16], ['Drift — fullest', 16], ['Drift — thinning', 16], ['Drift — end', 16]]]
+  ];
+
+  var st = { bpm: 90, s: [], x: [], lyr: '', tab: 0, bpmToStyle: true };
+  try { var saved = JSON.parse(localStorage.getItem('suno-builder') || 'null'); if (saved) st = Object.assign(st, saved); } catch (e) {}
+  function save() { try { localStorage.setItem('suno-builder', JSON.stringify(st)); } catch (e) {} }
+
+  // ── темп и метроном ──
+  var TWORDS = [[60, 'Largo — очень медленно'], [66, 'Adagio — медленно'], [76, 'Andante — шагом'], [96, 'Moderato — умеренно'], [112, 'Allegretto — живо'], [140, 'Allegro — быстро'], [999, 'Presto — очень быстро']];
+  function tword(b) { for (var i = 0; i < TWORDS.length; i++) if (b < TWORDS[i][0]) return TWORDS[i][1]; return ''; }
+  var ctx = null, timer = null, nextT = 0, beat = 0;
+  function click(t, down) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = down ? 1320 : 990;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(down ? 0.22 : 0.15, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.09);
+  }
+  function lamp(i) { for (var k = 0; k < 4; k++) $('b' + k).classList.toggle('on', k === i); }
+  function tick() {
+    while (nextT < ctx.currentTime + 0.12) {
+      var b = beat % 4, when = nextT;
+      click(when, b === 0);
+      setTimeout(function (bb) { return function () { lamp(bb); }; }(b), Math.max(0, (when - ctx.currentTime) * 1000));
+      nextT += 60 / st.bpm; beat++;
+    }
+  }
+  $('play').onclick = function () {
+    if (timer) { clearInterval(timer); timer = null; lamp(-1); $('play').textContent = '▶ Метроном'; return; }
+    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch (e) { toast('Звук в этом браузере недоступен'); return; }
+    nextT = ctx.currentTime + 0.05; beat = 0; timer = setInterval(tick, 25); $('play').textContent = '■ Стоп';
+  };
+  function setBpm(v) { st.bpm = v; $('bpm').value = v; $('bpmv').textContent = v; $('durbpm').textContent = v; $('tword').textContent = tword(v); renderOut(); calcDur(); save(); }
+  $('bpm').oninput = function () { setBpm(Number($('bpm').value)); };
+  [60, 72, 80, 90, 100, 120, 140].forEach(function (v) { var b = el('button', '', v); b.type = 'button'; b.onclick = function () { setBpm(v); }; $('presets').appendChild(b); });
+  $('bpmToStyle').checked = st.bpmToStyle;
+  $('bpmToStyle').onchange = function () { st.bpmToStyle = $('bpmToStyle').checked; renderOut(); save(); };
+
+  // ── лотки ──
+  function add(where, w) {
+    w = String(w || '').trim(); if (!w) return;
+    var other = where === 's' ? 'x' : 's';
+    st[other] = st[other].filter(function (t) { return t.toLowerCase() !== w.toLowerCase(); });
+    if (!st[where].some(function (t) { return t.toLowerCase() === w.toLowerCase(); })) st[where].push(w);
+    renderTrays(); renderPane(); save();
+  }
+  function remove(where, w) { st[where] = st[where].filter(function (t) { return t !== w; }); renderTrays(); renderPane(); save(); }
+  function renderTrays() {
+    [['s', 'trayS', 'Пусто. Касайся слов внизу — они встанут сюда.'], ['x', 'trayX', 'Пусто. Сюда — то, чего в треке быть не должно.']].forEach(function (z) {
+      var box = $(z[1]); box.innerHTML = '';
+      if (!st[z[0]].length) box.appendChild(el('p', 'empty', z[2]));
+      st[z[0]].forEach(function (w) {
+        var t = el('span', 'tag'); t.draggable = true; t.appendChild(document.createTextNode(w));
+        t.ondragstart = function (e) { e.dataTransfer.setData('text/plain', JSON.stringify({ w: w, from: z[0] })); };
+        var x = el('button', '', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Убрать ' + w); x.onclick = function () { remove(z[0], w); };
+        t.appendChild(x); box.appendChild(t);
+      });
+    });
+    renderOut();
+  }
+  function styleText() { return (st.bpmToStyle ? [st.bpm + ' BPM'] : []).concat(st.s).join(', '); }
+  function renderOut() {
+    var s = styleText(), x = st.x.join(', ');
+    $('outS').textContent = s || '—'; $('outX').textContent = x || '—';
+    $('sc').textContent = s.length + ' знаков'; $('xc').textContent = x.length + ' знаков';
+  }
+  ['trayS', 'trayX'].forEach(function (id) {
+    var box = $(id);
+    box.ondragover = function (e) { e.preventDefault(); box.classList.add('over'); };
+    box.ondragleave = function () { box.classList.remove('over'); };
+    box.ondrop = function (e) {
+      e.preventDefault(); box.classList.remove('over');
+      var d = {}; try { d = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (er) { d = { w: e.dataTransfer.getData('text/plain') }; }
+      add(box.dataset.tray, d.w);
+    };
+  });
+  function bindAdd(inp, btn, where) { var go = function () { add(where, $(inp).value); $(inp).value = ''; }; $(btn).onclick = go; $(inp).onkeydown = function (e) { if (e.key === 'Enter') go(); }; }
+  bindAdd('addS', 'addSb', 's'); bindAdd('addX', 'addXb', 'x');
+  $('clrS').onclick = function () { st.s = []; renderTrays(); renderPane(); save(); };
+  $('clrX').onclick = function () { st.x = []; renderTrays(); renderPane(); save(); };
+
+  // ── палитры ──
+  var TABS = ['Инструменты', 'Стили', 'Настроение', 'Exclude', 'Формы Lyrics'];
+  function chip(w, neg) {
+    var b = el('button', 'chip' + (neg ? ' neg' : '') + ((st.s.concat(st.x)).indexOf(w) >= 0 ? ' used' : ''), w); b.type = 'button'; b.draggable = true;
+    b.ondragstart = function (e) { e.dataTransfer.setData('text/plain', JSON.stringify({ w: w })); };
+    var hold = null, long = false;
+    b.onpointerdown = function () { long = false; hold = setTimeout(function () { long = true; add('x', w); toast('В Exclude: ' + w); }, 550); };
+    b.onpointerup = b.onpointerleave = function () { clearTimeout(hold); };
+    b.onclick = function () { if (long) return; add(neg ? 'x' : 's', w); toast((neg ? 'В Exclude: ' : 'В Style: ') + w); };
+    return b;
+  }
+  function renderTabs() {
+    var box = $('tabs'); box.innerHTML = '';
+    TABS.forEach(function (t, i) { var b = el('button', 'tab', t); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', i === st.tab ? 'true' : 'false'); b.onclick = function () { st.tab = i; renderTabs(); renderPane(); save(); }; box.appendChild(b); });
+  }
+  function renderPane() {
+    var p = $('pane'); p.innerHTML = '';
+    if (st.tab === 0) INSTR.forEach(function (g) { var d = el('div', 'group'); d.appendChild(el('h3', '', g[0])); var c = el('div', 'chips'); g[1].forEach(function (w) { c.appendChild(chip(w)); }); d.appendChild(c); p.appendChild(d); });
+    if (st.tab === 1) {
+      var g = el('div', 'styles');
+      STYLES.forEach(function (s) {
+        var b = el('button', 'style' + (st.s.indexOf(s[2]) >= 0 ? ' used' : '')); b.type = 'button';
+        b.appendChild(el('b', '', s[0])); b.appendChild(el('span', '', s[1])); b.appendChild(el('em', '', s[2]));
+        b.draggable = true; b.ondragstart = function (e) { e.dataTransfer.setData('text/plain', JSON.stringify({ w: s[2] })); };
+        b.onclick = function () { add('s', s[2]); toast('В Style: ' + s[2]); };
+        g.appendChild(b);
+      });
+      p.appendChild(g); p.appendChild(el('p', 'hint', 'Под названием — что это на слух, ниже — слова, которые уйдут в Style.'));
+    }
+    if (st.tab === 2) { var c2 = el('div', 'chips'); MOOD.forEach(function (w) { c2.appendChild(chip(w)); }); p.appendChild(c2); }
+    if (st.tab === 3) { var c3 = el('div', 'chips'); EXCL.forEach(function (w) { c3.appendChild(chip(w, true)); }); p.appendChild(c3); p.appendChild(el('p', 'hint', 'Касание — сразу в Exclude.')); }
+    if (st.tab === 4) {
+      var f = el('div', 'forms');
+      FORMS.forEach(function (fm) {
+        var b = el('div', 'form card'); b.style.padding = '10px';
+        b.appendChild(el('b', '', fm[0])); b.appendChild(el('span', '', fm[1]));
+        var two = el('div', 'two');
+        [['Коротко', fm[2]], ['Полностью', fm[3]]].forEach(function (v) {
+          var bt = el('button', '', v[0] + ' ≈ ' + mmss(secs(v[1]))); bt.type = 'button';
+          bt.onclick = function () { $('lyr').value = lyrics(v[1]); st.lyr = $('lyr').value; calcDur(); save(); toast(fm[0] + ': ' + v[0].toLowerCase()); };
+          two.appendChild(bt);
+        });
+        b.appendChild(two); f.appendChild(b);
+      });
+      p.appendChild(f); p.appendChild(el('p', 'hint', 'Время на кнопках — при текущем темпе. Шаблон встаёт в поле Lyrics, там его можно править.'));
+    }
+  }
+
+  // ── Lyrics и длительность ──
+  function lyrics(secsList) { return ['[Instrumental]'].concat(secsList.map(function (s) { return '[' + s[0] + ' — ' + s[1] + ' bars]'; })).concat(['[End]']).join('\n'); }
+  function secs(list) { return list.reduce(function (a, s) { return a + s[1]; }, 0) * 4 * 60 / st.bpm; }
+  function mmss(t) { t = Math.round(t); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+  function calcDur() {
+    var bars = 0, m, re = /(\d+)\s*bars?/gi, t = $('lyr').value;
+    while ((m = re.exec(t))) bars += Number(m[1]);
+    $('dur').textContent = bars ? mmss(bars * 4 * 60 / st.bpm) : '—';
+    if (st.tab === 4) renderPane();
+  }
+  $('lyr').value = st.lyr || '';
+  $('lyr').oninput = function () { st.lyr = $('lyr').value; calcDur(); save(); };
+  $('clrL').onclick = function () { $('lyr').value = ''; st.lyr = ''; calcDur(); save(); };
+
+  // ── копирование ──
+  Array.prototype.forEach.call(document.querySelectorAll('[data-copy]'), function (b) {
+    b.onclick = function () {
+      var id = b.getAttribute('data-copy'), t = id === 'lyr' ? $('lyr').value : (id === 'outS' ? styleText() : st.x.join(', '));
+      if (!t) { toast('Пусто'); return; }
+      function fb() { if (id === 'lyr') { $('lyr').select(); } else { var r = document.createRange(); r.selectNodeContents($(id)); var s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast('Выделено — скопируй из меню'); }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Скопировано'); }, fb); else fb();
+    };
+  });
+
+  setBpm(st.bpm); renderTabs(); renderPane(); renderTrays(); calcDur();
+})();
+</script>
