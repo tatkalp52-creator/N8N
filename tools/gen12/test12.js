@@ -511,5 +511,14 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('12 перевод для автора — переводчиком, с текста для таблицы OK');
 
+  // ── 14. Новый проект: одно сообщение, по кнопке на канал (подпись — колонка «Кнопка» Catalog) ──
+  {
+    const k = (await run('Кнопка на каждый канал', { nodes: { 'Разбираем входящее': { chatId: 7 } },
+      input: [{ Channel: 'one', 'Кнопка': 'One' }, { Channel: 'two' }, { Channel: '' }] }));
+    assert.equal(k.length, 1, 'одно сообщение');
+    assert.deepEqual(k[0].body.reply_markup.inline_keyboard, [[{ text: 'One', callback_data: 'one' }], [{ text: 'two', callback_data: 'two' }]]);
+  }
+  console.log('14 новый проект: одно сообщение со всеми каналами OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

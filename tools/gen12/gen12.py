@@ -160,8 +160,10 @@ link('Вызов изнутри', 'Разбираем входящее')
 
 sheets_read('Читаем каталог каналов', 'Catalog', [], [X + 900, Y - 700], always=False)
 code('Кнопка на каждый канал', 'kanaly.js', [X + 1120, Y - 700], lib=True)
-tg_send('Предлагаем каналы', '={{ $json.chatId }}', '={{ $json.text }}', [X + 1340, Y - 700],
-        button=('▶ Начать проект', '={{ $json.channel }}'))
+# одно сообщение со всеми кнопками каналов: у узла Telegram число кнопок фиксировано, поэтому — прямой вызов API
+add({'parameters': {'method': 'POST', 'url': '=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage',
+                    'sendBody': True, 'specifyBody': 'json', 'jsonBody': '={{ JSON.stringify($json.body) }}', 'options': {}},
+     'name': 'Предлагаем каналы', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [X + 1340, Y - 700]})
 link('Что пришло?', 'Читаем каталог каналов', 0)
 chain('Читаем каталог каналов', 'Кнопка на каждый канал', 'Предлагаем каналы')
 
