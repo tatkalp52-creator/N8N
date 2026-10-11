@@ -66,8 +66,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .step[aria-pressed="true"] { background: currentColor; }
 .step[aria-pressed="true"] span { color: var(--paper); }
 .empty { color: var(--muted); font-style: italic; margin: 0; }
-.idea { display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: start; border-top: 1px solid var(--line); padding-top: 8px; }
-.idea:first-child { border-top: 0; padding-top: 0; }
+.dgroup { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+.dgroup:first-child { border-top: 0; padding-top: 0; }
+.dgroup h4 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 600; color: var(--ink); }
+.idea { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
 .idea .date { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; padding-top: 2px; }
 .idea .t { font-weight: 600; overflow-wrap: anywhere; }
 .idea .note { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -87,8 +89,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .wd { font-size: 9px; }
   .monthbar h2 { font-size: 15px; }
   .monthbar button { min-height: 32px; padding: 2px 8px; }
-  .idea { grid-template-columns: 1fr; gap: 4px; }
-  .idea .date { padding-top: 0; }
+  .idea { gap: 6px; }
+  .idea button { padding: 3px 8px; min-height: 30px; font-size: 12px; }
   .sub { display: none; }
   .chip { min-height: 32px; padding: 3px 8px; font-size: 13px; }
 }
@@ -260,17 +262,27 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + byId[placing].t.slice(0, 50) : 'Цвет в дне — выпуск канала. Коснись дня — внизу покажу, что в нём.';
     var lumosEmpty = active.lumos || active.unicorn;
     if (!show.length) box.appendChild(el('p', 'empty', 'В копилке пусто.'));
+    var groups = [];
     show.forEach(function (it) {
-      var r = el('div', 'idea');
-      r.appendChild(el('div', 'date', it.d + ' ' + MGEN[it.m - 1].slice(0, 3)));
-      var mid = el('div', ''); var t = el('div', 't c-' + it.ch); t.textContent = it.t; mid.appendChild(t);
-      if (it.note) mid.appendChild(el('div', 'note', it.note));
-      r.appendChild(mid);
-      var b = el('button', ''); b.type = 'button';
-      b.textContent = placing === it.id ? 'Отмена' : 'В план';
-      b.onclick = function () { placing = placing === it.id ? null : it.id; if (placing) toast('Коснись дня слева'); render(); };
-      r.appendChild(b);
-      box.appendChild(r);
+      var gk = yearOf(it) + '-' + it.m + '-' + it.d, g = groups[groups.length - 1];
+      if (!g || g.k !== gk) { g = { k: gk, it: it, list: [] }; groups.push(g); }
+      g.list.push(it);
+    });
+    groups.forEach(function (g) {
+      var sec = el('div', 'dgroup');
+      sec.appendChild(el('h4', '', g.it.d + ' ' + MGEN[g.it.m - 1]));
+      g.list.forEach(function (it) {
+        var r = el('div', 'idea');
+        var mid = el('div', ''); var t = el('div', 't c-' + it.ch); t.textContent = it.t; mid.appendChild(t);
+        if (it.note) mid.appendChild(el('div', 'note', it.note));
+        r.appendChild(mid);
+        var b = el('button', ''); b.type = 'button';
+        b.textContent = placing === it.id ? 'Отмена' : 'В план';
+        b.onclick = function () { placing = placing === it.id ? null : it.id; if (placing) toast('Коснись дня слева'); render(); };
+        r.appendChild(b);
+        sec.appendChild(r);
+      });
+      box.appendChild(sec);
     });
     if (lumosEmpty) {
       var n = el('p', 'hint', 'У Luminous и Unicorn идей в листе пока нет — они появятся, когда ты их внесёшь.');
