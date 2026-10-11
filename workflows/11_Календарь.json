@@ -1031,6 +1031,368 @@
         0,
         720
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ /^\\s*собер/i.test(String($json.message?.text || '')) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Это автосбор?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        330,
+        -160
+      ],
+      "id": "f00722be-c6e4-44b4-9bdd-774ce090a927"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "name": "Первого числа",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        1900
+      ],
+      "id": "269aa880-c448-4adc-bc6c-5146c5dbec8e"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Автосбор",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "name": "Читаем, что искать",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        440,
+        1900
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "id": "fe90f769-c56a-48b2-908e-eb6ebce1d300"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Автосбор: какой месяц и что искать. Месяц — из команды («собери ноябрь»), иначе следующий.\n// Что искать для каждого канала — лист «Автосбор» (Канал | Что искать | Модель): здесь только механика.\nconst MON = [['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];\nconst MON_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];\nconst MON_RU = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];\nlet msg = null;\ntry { msg = $('Telegram Trigger').first().json.message || null; } catch (e) {}\nconst text = String((msg && msg.text) || '').toLowerCase();\nconst now = new Date();\nlet y = now.getFullYear(), m = now.getMonth() + 2;            // следующий месяц, 1..13\nconst w = (text.match(/собер\\S*\\s+(\\S+)/) || [])[1] || '';\nconst mi = MON.findIndex(ks => ks.some(k => w.startsWith(k)));\nif (mi >= 0) { m = mi + 1; if (m < now.getMonth() + 1) y++; }\nif (m > 12) { m -= 12; y++; }\nconst hints = $('Читаем, что искать').all().map(i => i.json)\n  .map(r => ({ key: String(r['Канал'] || '').trim(), what: String(r['Что искать'] || '').trim(), model: String(r['Модель'] || '').trim() }))\n  .filter(r => r.key && r.what);\nconst model = (hints.find(h => h.model) || {}).model || 'gpt-5';\nconst chatId = msg ? msg.chat.id : 285577543;\nif (!hints.length) return [{ json: { need: false, chatId, text: 'Лист «Автосбор» пуст: не знаю, что искать.' } }];\nconst instructions = 'You collect occasions for a YouTube content plan. Find holidays, observances, \"national/world ... days\", '\n  + 'seasonal and astronomical events that fall in ' + MON_EN[m - 1] + ' ' + y + '. Use web search to check the dates for this year. '\n  + 'What is useful for each channel (key: description):\\n' + hints.map(h => '- ' + h.key + ': ' + h.what).join('\\n') + '\\n\\n'\n  + 'Answer with JSON only, no other text: {\"items\": [{\"date\": \"YYYY-MM-DD\", \"title\": \"the original name, as it is known (usually English)\", '\n  + '\"title_ru\": \"Russian translation of the name\", \"channels\": [\"channel keys it fits\"], \"idea_ru\": \"one short line in Russian: how it could fit\", '\n  + '\"source\": \"site name\"}]}. Only occasions that fit at least one channel. Never invent a date; skip an occasion you cannot date for '\n  + y + '. Up to 60 items, sorted by date.';\nconst requestBody = { model, instructions, tools: [{ type: 'web_search' }],\n  input: [{ role: 'user', content: 'Collect the occasions for ' + MON_EN[m - 1] + ' ' + y + ' as JSON.' }] };\nif (/^(gpt-5|o\\d)/.test(model)) requestBody.reasoning = { effort: 'low' };\nreturn [{ json: { need: true, chatId, y, m, monthRu: MON_RU[m - 1], keys: hints.map(h => h.key), requestBody,\n  text: '🔎 Ищу поводы на ' + MON_RU[m - 1] + ' ' + y + '. Это займёт несколько минут.' } }];"
+      },
+      "name": "Автосбор: задание",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1900
+      ],
+      "id": "978c50cd-132f-4ee6-a977-a8d0e541439a"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "name": "Автосбор: начали",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        1740
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "90df751c-e24d-4a99-97df-57b65727e7cc"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Автосбор: задание').first().json.need }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Есть что искать?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        1900
+      ],
+      "id": "87f39814-3bab-4125-bdc4-7d688f937673"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Автосбор: задание').first().json.requestBody) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "name": "OpenAI: ищем поводы",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        1900
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "3c8750b5-8bf2-4044-bd61-faadcccc44af"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "name": "Читаем календарь (автосбор)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1320,
+        1900
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "be01bd10-2502-4b53-a1e8-fd120dd93870"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ответ ИИ → строки листа «Календарь». Повторы (тот же день и то же название) с листом и внутри\n// ответа не добавляются. Новые — статус «Идея», источник «автосбор dd.mm».\nconst z = $('Автосбор: задание').first().json;\nconst resp = $('OpenAI: ищем поводы').first().json || {};\nconst MON_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst out = (resp.output || []).filter(i => i.type === 'message')\n  .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('\\n');\nlet items = [];\ntry {\n  const a = out.indexOf('{'), b = out.lastIndexOf('}');\n  items = (JSON.parse(out.slice(a, b + 1)).items) || [];\n} catch (e) { items = null; }\nif (resp.error || !Array.isArray(items)) {\n  const why = resp.error ? (resp.error.message || JSON.stringify(resp.error)).slice(0, 200) : 'ответ не разобрался';\n  return [{ json: { rows: [], text: '⚠️ Автосбор на ' + z.monthRu + ' не получился: ' + esc(why) } }];\n}\nconst norm = s => String(s || '').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, ' ').trim();\nconst seen = new Set();\nfor (const r of $('Читаем календарь (автосбор)').all().map(i => i.json)) {\n  if (!r || !r.id) continue;\n  seen.add(Number(r.month) + '-' + Number(r.day) + '|' + norm(r.title));\n}\nconst now = new Date().toISOString();\nconst stamp = new Date().toISOString().slice(8, 10) + '.' + new Date().toISOString().slice(5, 7);\nconst rows = []; let found = 0;\nfor (const it of items) {\n  const md = String(it.date || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  if (!md || Number(md[1]) !== z.y || Number(md[2]) !== z.m) continue;\n  const title = String(it.title || '').trim();\n  if (!title) continue;\n  found++;\n  const k = z.m + '-' + Number(md[3]) + '|' + norm(title);\n  if (seen.has(k)) continue;\n  seen.add(k);\n  const ch = (Array.isArray(it.channels) ? it.channels : [it.channels]).map(c => String(c || '').trim()).filter(c => z.keys.includes(c));\n  rows.push({ id: 'a' + Date.now().toString(36) + rows.length.toString(36) + Math.random().toString(36).slice(2, 5),\n    year: String(z.y), month: String(z.m), day: String(Number(md[3])), title, channel: (ch.length ? ch : [z.keys[0]]).join(', '),\n    status: 'Идея', project: '', note: String(it.idea_ru || '').trim(), sources: 'автосбор ' + stamp + (it.source ? '; ' + String(it.source).trim() : ''),\n    createdAt: now, updatedAt: now, title_ru: String(it.title_ru || '').trim() });\n}\nrows.sort((a, b) => Number(a.day) - Number(b.day));\nlet text = '🗓 Автосбор на ' + z.monthRu + ' ' + z.y + ': найдено ' + found + ', новых ' + rows.length + '.';\nfor (const r of rows) {\n  const line = '\\n' + r.day + ' ' + MON_GEN[z.m - 1].slice(0, 3) + ' — <b>' + esc(r.title) + '</b>' + (r.title_ru ? ' — ' + esc(r.title_ru) : '') + ' · ' + esc(r.channel);\n  if ((text + line).length > 3900) { text += '\\n…и ещё, всё — в листе «Календарь».'; break; }\n  text += line;\n}\nreturn [{ json: { rows, text } }];"
+      },
+      "name": "Автосбор: разбор",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        1900
+      ],
+      "notes": "вход — ответ OpenAI (через чтение календаря он не проходит: читаем $('OpenAI: ищем поводы'))",
+      "id": "3227d171-21c8-4978-8efd-75b46184a2c9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// по строке на элемент — для записи в лист\nreturn $('Автосбор: разбор').first().json.rows.map(r => ({ json: r }));"
+      },
+      "name": "Автосбор: строки",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        1740
+      ],
+      "id": "5792d7e8-d2d3-4583-bde4-7502e2f9592e"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "year": "={{ $json.year }}",
+            "month": "={{ $json.month }}",
+            "day": "={{ $json.day }}",
+            "title": "={{ $json.title }}",
+            "channel": "={{ $json.channel }}",
+            "status": "={{ $json.status }}",
+            "project": "={{ $json.project }}",
+            "note": "={{ $json.note }}",
+            "sources": "={{ $json.sources }}",
+            "createdAt": "={{ $json.createdAt }}",
+            "updatedAt": "={{ $json.updatedAt }}",
+            "title_ru": "={{ $json.title_ru }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "Автосбор: записываем",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1980,
+        1740
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "id": "7cc44092-8cb4-428f-8586-47e4a7c9e47d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const z = $('Автосбор: задание').first().json;\nreturn [{ json: { chatId: z.chatId, text: $('Автосбор: разбор').first().json.text } }];"
+      },
+      "name": "Автосбор: итог",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        2000
+      ],
+      "id": "027712de-f583-4516-956e-9127f42f864c"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "name": "Автосбор: сообщаем",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1980,
+        2000
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "d77fac9c-daae-4e3a-8304-d7f2956b32a2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "name": "Автосбор: нечего искать",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        2100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "85781637-e704-432c-a6eb-9517da51dc32"
     }
   ],
   "connections": {
@@ -1126,7 +1488,7 @@
       "main": [
         [
           {
-            "node": "Читаем календарь",
+            "node": "Это автосбор?",
             "type": "main",
             "index": 0
           }
@@ -1264,6 +1626,140 @@
         [
           {
             "node": "Закрываем часики на кнопке",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Это автосбор?": {
+      "main": [
+        [
+          {
+            "node": "Читаем, что искать",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Читаем календарь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Первого числа": {
+      "main": [
+        [
+          {
+            "node": "Читаем, что искать",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем, что искать": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: задание",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: задание": {
+      "main": [
+        [
+          {
+            "node": "Есть что искать?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть что искать?": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: начали",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OpenAI: ищем поводы",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Автосбор: нечего искать",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: ищем поводы": {
+      "main": [
+        [
+          {
+            "node": "Читаем календарь (автосбор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем календарь (автосбор)": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: разбор",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: разбор": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: строки",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Автосбор: итог",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: строки": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: записываем",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: итог": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: сообщаем",
             "type": "main",
             "index": 0
           }
