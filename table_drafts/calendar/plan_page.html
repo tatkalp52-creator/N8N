@@ -84,6 +84,31 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .idea .note { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .idea button { min-height: 34px; font-size: 13px; white-space: nowrap; }
 .label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+@media (orientation: landscape) {
+  .col:first-child > .card { flex: 1; min-height: 0; }
+  .col:first-child .grid { flex: 1; min-height: 0; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); }
+}
+header { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 4px; }
+header .sub { flex-basis: 100%; order: 3; }
+.col:first-child .grid .wd { align-self: end; }
+.day { min-height: 0; overflow: hidden; }
+#ghint:empty { display: none; }
+@media (orientation: landscape) and (max-height: 600px) {
+  body { padding-block: 6px; padding-inline: 10px; font-size: 13.5px; }
+  .wrap { gap: 6px; }
+  header .sub { display: none; }
+  h1 { font-size: 16px; }
+  .chip { min-height: 28px; padding: 2px 8px; font-size: 12.5px; }
+  .card { padding: 6px 8px; gap: 6px; }
+  .monthbar h2 { font-size: 14px; }
+  .monthbar button { min-height: 28px; padding: 0 8px; }
+  .grid { gap: 2px; }
+  .wd { font-size: 9.5px; padding: 0; }
+  .day { padding: 1px 3px; border-radius: 6px; }
+  .day .n { font-size: 10.5px; }
+  .pill { font-size: 9px; padding: 0 3px; }
+  .dayhead { font-size: 15px; }
+}
 .toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
 .toast.on { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
@@ -110,9 +135,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   <header>
     <h1>Контент-план <span class="save" id="savest"></span></h1>
     <p class="sub">Слева план выпусков, справа поводы из листа «Календарь». Всё сохраняется в таблицу сразу.</p>
+    <div class="row" id="chans" role="group" aria-label="Каналы"></div>
   </header>
-
-  <div class="row" id="chans" role="group" aria-label="Каналы"></div>
 
   <div class="cols">
   <div class="col">
@@ -123,13 +147,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <button id="next" type="button" aria-label="Следующий месяц">›</button>
     </div>
     <div class="grid" id="grid"></div>
-    <p class="hint" id="ghint">Цвет в дне — выпуск канала. Коснись дня — внизу покажу, что в нём.</p>
+    <p class="hint" id="ghint"></p>
   </section>
 
-  <section class="card" aria-label="Выбранный день" id="daycard"></section>
   </div>
 
   <div class="col">
+  <section class="card" aria-label="Выбранный день" id="daycard"></section>
   <section class="card" aria-label="Копилка">
     <div class="row" style="justify-content: space-between">
       <div class="label">Копилка идей — <span id="kcount"></span></div>
@@ -257,7 +281,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       var p = slot(sel.y, sel.m, sel.d, ch.key);
       var s = el('div', 'slot'); s.style.color = color(ch.key);
       s.appendChild(el('div', 'label', ch.name));
-      if (!p) { s.appendChild(el('p', 'empty', 'Выпуска нет. Справа нажми «В план» у повода, потом этот день.')); c.appendChild(s); return; }
+      if (!p) { s.appendChild(el('p', 'empty', 'пусто')); c.appendChild(s); return; }
       var t = el('div', 't', p.title); if (p.ru) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + p.ru)); } s.appendChild(t);
       if (p.d !== p.pd || p.m !== p.pm) s.appendChild(el('div', 'note', 'Повод — ' + p.d + ' ' + MGEN[p.m - 1]));
       if (p.note) s.appendChild(el('div', 'note', p.note));
@@ -282,7 +306,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     var show = list.filter(function (it) { return it.y === view.y && it.m === view.m; });
     $('kcount').textContent = MONTHS[view.m - 1] + ', ' + show.length;
     $('khint').textContent = placing ? 'теперь коснись дня слева' : '';
-    $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + placing.it.title.slice(0, 50) : 'Цвет в дне — выпуск канала. Коснись дня — внизу покажу, что в нём.';
+    $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + placing.it.title.slice(0, 50) : '';
     if (!show.length) box.appendChild(el('p', 'empty', 'На этот месяц поводов нет. В боте календаря напиши «собери ' + MONTHS[view.m - 1] + '».'));
     var groups = [];
     show.forEach(function (it) { var g = groups[groups.length - 1]; if (!g || g.d !== it.d) { g = { d: it.d, m: it.m, list: [] }; groups.push(g); } g.list.push(it); });
@@ -291,7 +315,6 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       g.list.forEach(function (it) {
         var r = el('div', 'idea'), mid = el('div', '');
         var t = el('div', 't', it.title); if (it.ru) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + it.ru)); } mid.appendChild(t);
-        if (it.note) mid.appendChild(el('div', 'note', it.note));
         r.appendChild(mid);
         var btns = el('div', 'row'); btns.style.flexDirection = 'column'; btns.style.gap = '4px';
         var on = placing && placing.it === it;
