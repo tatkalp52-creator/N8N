@@ -511,5 +511,18 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('12 перевод для автора — переводчиком, с текста для таблицы OK');
 
+  // ── 13. «3 согласовано», а этап ответил памяткой без пунктов — следующий этап начинает сам ──
+  {
+    const A = { ai_ImageVariants: V, ai_ApprovedImageUrl: 'U2', sys_Status: 'Картинка согласована', ai_UserBrief: 'Пингви на кухне' };
+    const u = await turn(DIRECT, A, { kind: 'stageStart', event: 'Картинка согласована (вариант 2).' },
+      call('propose_items', { items: [{ n: 3, text: 'Pengui baked a pie.' }], message: 'Вот история.' }));
+    const v = await turn(DIRECT, { ...A, sys_EditorState: u.r.editorState }, { text: '3 согласовано' },
+      call('save_note', { notes: 'Автор любит короткие финалы.', message: 'Отлично, спасибо. Сохранил пометки.' }));
+    assert.ok(JSON.parse(v.r.editorState).agreed[3], 'пункт 3 согласован');
+    assert.equal(v.r.transition, 'next', 'переход без подпинывания');
+    assert.equal(v.next, 'next');
+  }
+  console.log('13 согласовала, этап ответил репликой — следующий этап сам OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
