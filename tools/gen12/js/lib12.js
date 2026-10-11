@@ -341,13 +341,44 @@ function kbForStage(tmpl, icon, taskText, opts) {
 }
 
 // ── Пункты: показ и запись в таблицу ──
-function itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '' }; }
-function itShow(state, item) {
+function itValue(state, n) { const v = state.items[n]; return v && typeof v === 'object' ? v : { text: '', ru: '', ruOf: '' }; }
+// (11.10) Перевод для автора делает отдельный переводчик по готовому тексту пункта (узел «Перевод для
+// автора»), а не сам этап: этап «переводил» свои намерения и пометки автора, а в таблицу шёл другой текст.
+// Перевод действителен, только пока текст тот же, с которого он сделан (ruOf).
+function itNeedsRu(text) {
+  const t = String(text || '');
+  return (t.match(/[a-zA-Z]/g) || []).length > (t.match(/[а-яёА-ЯЁ]/g) || []).length;
+}
+function itShow(state, item, forModel) {
   const v = itValue(state, item.n);
   if (!(item.n in state.items)) return '';
   if (!v.text) return '— пусто';
-  if (!v.ru) return v.text;
-  return v.text.includes('\n') || v.text.length > 200 ? `${v.text}\n\n— Перевод для автора —\n${v.ru}` : `${v.text} (${v.ru})`;
+  if (forModel || !itNeedsRu(v.text)) return v.text;
+  const long = v.text.includes('\n') || v.text.length > 200;
+  if (!v.ru || v.ruOf !== v.text) return long ? `${v.text}\n\n— Перевод для автора не получен —` : `${v.text} (перевод не получен)`;
+  return long ? `${v.text}\n\n— Перевод для автора —\n${v.ru}` : `${v.text} (${v.ru})`;
+}
+// Пункты, которым нужен свежий перевод: текст не по-русски, а перевода с этого текста ещё нет.
+function itRuTodo(state) {
+  return Object.keys(state.items || {}).map(n => ({ n: Number(n), v: itValue(state, n) }))
+    .filter(x => x.v.text && itNeedsRu(x.v.text) && !(x.v.ru && x.v.ruOf === x.v.text))
+    .map(x => ({ n: x.n, text: x.v.text }));
+}
+// Кладём в состояние ответ переводчика — только тем пунктам, чей текст не изменился с тех пор.
+function itApplyRu(state) {
+  let todo = [], resp = null;
+  try { todo = $('Перевод для автора: что').first().json.todo || []; } catch (e) { return; }
+  try { resp = $('OpenAI: перевод для автора').first().json || null; } catch (e) { return; }
+  if (!resp || !todo.length) return;
+  const out = (resp.output || []).filter(i => i.type === 'message')
+    .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('').trim();
+  let map = {};
+  try { map = JSON.parse(out.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch (e) { return; }
+  for (const t of todo) {
+    const v = state.items[t.n];
+    const ru = String(map[String(t.n)] == null ? '' : map[String(t.n)]).trim();
+    if (v && typeof v === 'object' && v.text === t.text && ru) { v.ru = ru; v.ruOf = t.text; }
+  }
 }
 
 // Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;
@@ -419,11 +450,11 @@ function itApply(state, items, scope, args, autoAgree) {
     if (!inScope(n)) continue;
     let text = String(p.text == null ? '' : p.text).trim();
     if (text === '-') text = '';
-    const ru = String(p.ru == null ? '' : p.ru).trim();
     const old = state.items[n];
-    if (!old || old.text !== text || (ru && old.ru !== ru)) {
-      if (!old || old.text !== text) { state.agreed[n] = false; changed.push(n); }
-      state.items[n] = { text, ru: ru || (old && old.text === text ? old.ru || '' : '') };
+    // перевод этапа не берём: перевод для автора делает отдельный переводчик по готовому тексту (itApplyRu)
+    if (!old || old.text !== text) {
+      state.agreed[n] = false; changed.push(n);
+      state.items[n] = { text, ru: '', ruOf: '' };
     }
     if (autoAgree) state.agreed[n] = true;
   }
@@ -435,7 +466,7 @@ function itApply(state, items, scope, args, autoAgree) {
     const n = parseInt(raw, 10);
     if (!inScope(n)) continue;
     const it = items.find(i => i.n === n);
-    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '' };
+    if (!(n in state.items) && it.canEmpty) state.items[n] = { text: '', ru: '', ruOf: '' };
     if (n in state.items) state.agreed[n] = true;
   }
   return changed;

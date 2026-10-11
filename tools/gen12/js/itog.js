@@ -105,6 +105,9 @@ if (action === 'done') {
   }
 }
 
+// Перевод для автора — от отдельного переводчика (второй проход этого узла; в черновике его ещё нет)
+itApplyRu(state);
+
 // ── Что показать автору ──
 const prefix = speaker ? `${speaker.icon} <b>${escapeHtml(speaker.name)}</b>: ` : '';
 let text = prefix + escapeHtml(message || '');

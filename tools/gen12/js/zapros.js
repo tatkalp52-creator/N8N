@@ -50,7 +50,7 @@ const who = n => { const s = stages.find(x => x.items.includes(n)); return s ? s
 const itemLines = items.map(it => {
   const status = state.agreed[it.n] ? 'СОГЛАСОВАНО' : (it.n in state.items ? 'предложено, ждёт согласования' : 'ещё не предлагалось');
   const mine = sc.items.includes(it.n) ? 'твой пункт' : 'делает ' + who(it.n);
-  const text = itShow(state, it);
+  const text = itShow(state, it, true);
   return `  ${it.n}. ${it.name} [${status}; ${mine}]` + (text ? '\n' + text.split('\n').map(l => '     ' + l).join('\n') : '');
 }).join('\n');
 const stageLines = stages.map(s => `  ${s.icon} ${s.name}: ${stComplete(stages, items, state, approvedUrl, s) ? 'готово' : 'в работе'}`).join('\n');
@@ -80,7 +80,6 @@ if (myItems.length) {
       items: { type: 'array', description: 'Только пункты, которые предлагаешь или меняешь сейчас', items: { type: 'object', properties: {
         n: { type: 'integer', description: 'Номер пункта' },
         text: { type: 'string', description: 'Текст пункта — ровно то, что уйдёт в таблицу; "-" если пункт не нужен' },
-        ru: { type: 'string', description: 'Русский перевод для показа автору, если пункт не по-русски; в таблицу не идёт' },
       }, required: ['n', 'text'] } },
       agreed: { type: 'array', items: { type: 'integer' }, description: 'Номера пунктов, которые автор ЯВНО одобрила' },
       reopen: { type: 'array', items: { type: 'integer' }, description: 'Номера согласованных пунктов, которые автор решила пересмотреть' },
