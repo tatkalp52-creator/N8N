@@ -572,52 +572,65 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     }
     cc.putImageData(d, 0, 0); return c;
   }
-  // Пробный пар над гладью: как у сборщика — дымка непрерывно течёт вверх со всей обведённой глади
-  // (шум, сдвигаемый по кругу, — бесшовная петля) и редеет кверху. Маска — гладь, вытянутая вверх.
+  // Пробный пар над гладью — как у сборщика: у глади лежит низкая дымка, а над ней клубится —
+  // круглые пушистые клубы рождаются вразнобой, чуть поднимаются, растут, вращаются и тают.
+  // Каждый клуб проживает целое число раз за петлю — шва нет, общая густота ровная (не пульсирует).
   var surfCache = {};
   function surfPrep(m, dw, dh) {
-    var k = dh / 864, rise = 70 * k * mult(m.k['высота']);
-    var key = [dw, dh, m.k['высота'], m.pts.map(function (q) { return q.x + ',' + q.y; }).join(';')].join('|');
+    var k = dh / 864, rise = 70 * k * mult(m.k['высота']), spd = mult(m.k['скорость']);
+    var key = [dw, dh, m.k['высота'], m.k['скорость'], m.pts.map(function (q) { return q.x + ',' + q.y; }).join(';')].join('|');
     if (surfCache[key]) return surfCache[key];
     var pts = m.pts.map(function (q) { return [q.x / 100 * dw, q.y / 100 * dh]; });
     var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
-    var pad = 20 * k, x0 = Math.min.apply(null, xs) - pad, x1 = Math.max.apply(null, xs) + pad;
+    var pad = 45 * k, x0 = Math.min.apply(null, xs) - pad, x1 = Math.max.apply(null, xs) + pad;
     var y1 = Math.max.apply(null, ys) + 4 * k, y0 = Math.min.apply(null, ys) - rise * 2.2;
     var bw = Math.ceil(x1 - x0), bh = Math.ceil(y1 - y0);
+    function poly(c, up) { c.beginPath(); pts.forEach(function (q, j) { var x = q[0] - x0, y = q[1] - y0 - up; if (j) c.lineTo(x, y); else c.moveTo(x, y); }); c.closePath(); }
     var env = document.createElement('canvas'); env.width = bw; env.height = bh; var e = env.getContext('2d');
     var steps = 24;
-    for (var i = steps; i >= 0; i--) {
-      var up = rise * 2.2 * i / steps;
-      e.globalAlpha = Math.exp(-i / steps * 3.2);
-      e.fillStyle = '#fff'; e.beginPath();
-      pts.forEach(function (q, j) { var x = q[0] - x0, y = q[1] - y0 - up; if (j) e.lineTo(x, y); else e.moveTo(x, y); });
-      e.closePath(); e.fill();
-    }
+    for (var i = steps; i >= 0; i--) { e.globalAlpha = Math.exp(-i / steps * 2.0); e.fillStyle = '#fff'; poly(e, rise * 2.2 * i / steps); e.fill(); }
     var envB = document.createElement('canvas'); envB.width = bw; envB.height = bh; var eb = envB.getContext('2d');
-    if ('filter' in eb) eb.filter = 'blur(' + (8 * k).toFixed(1) + 'px)'; eb.drawImage(env, 0, 0);
-    // шум, бесшовный по вертикали: пятна рисуются ещё и со сдвигом на высоту
-    var nz = document.createElement('canvas'); nz.width = bw; nz.height = bh; var n = nz.getContext('2d');
-    var r = seeded(Math.round(xs[0] * 31 + ys[0] * 17));
-    for (var b2 = 0; b2 < Math.max(20, bw * bh / (900 * k * k)); b2++) {
-      var cx = r() * bw, cy = r() * bh, rad = (10 + r() * 22) * k, al = 0.25 + r() * 0.5;
-      [-bh, 0, bh].forEach(function (dy) {
-        var g = n.createRadialGradient(cx, cy + dy, 0, cx, cy + dy, rad);
-        g.addColorStop(0, 'rgba(244,240,232,' + al + ')'); g.addColorStop(1, 'rgba(244,240,232,0)');
-        n.fillStyle = g; n.fillRect(cx - rad, cy + dy - rad, 2 * rad, 2 * rad);
-      });
+    if ('filter' in eb) eb.filter = 'blur(' + (12 * k).toFixed(1) + 'px)'; eb.drawImage(env, 0, 0);
+    // низкая дымка у глади
+    var base = document.createElement('canvas'); base.width = bw; base.height = bh; var bc = base.getContext('2d');
+    if ('filter' in bc) bc.filter = 'blur(' + (10 * k).toFixed(1) + 'px)';
+    bc.fillStyle = 'rgba(244,240,232,0.45)'; poly(bc, 0); bc.fill(); poly(bc, rise * 0.25); bc.fill();
+    // клубы: точки рождения — внутри глади
+    var r = seeded(Math.round(xs[0] * 31 + ys[0] * 17)), probe = document.createElement('canvas').getContext('2d');
+    var gx0 = Math.min.apply(null, xs), gx1 = Math.max.apply(null, xs), gy0 = Math.min.apply(null, ys), gy1 = Math.max.apply(null, ys);
+    poly(probe, 0);
+    var n = Math.max(5, Math.min(60, Math.round((gx1 - gx0) / (16 * k)))), puffs = [], tries = 0;
+    while (puffs.length < n && tries++ < 4000) {
+      var px = gx0 + r() * (gx1 - gx0), py = gy0 + r() * (gy1 - gy0);
+      if (!probe.isPointInPath(px - x0, py - y0)) continue;
+      puffs.push({ x: px - x0, y: py - y0, ph: r(), dr: r() < 0.5 ? -1 : 1, a0: r() * 6.28,
+        r0: (10 + r() * 6) * k, r1: (22 + r() * 12) * k, up: rise * (0.45 + r() * 0.45), dx: (r() * 16 - 8) * k });
     }
     var tmp = document.createElement('canvas'); tmp.width = bw; tmp.height = bh;
-    return (surfCache[key] = { x0: x0, y0: y0, bw: bw, bh: bh, env: envB, nz: nz, tmp: tmp });
+    return (surfCache[key] = { x0: x0, y0: y0, bw: bw, bh: bh, env: envB, base: base, puffs: puffs, cyc: Math.max(1, Math.round(1.5 * spd)), tmp: tmp });
   }
   function drawSurf(now, dw, dh) {
     var all = marks.filter(function (m) { return m.eff === 'surf'; });
     if (!all.length || !dh) return;
-    var k = dh / 864, t = (now / 1000) % LOOP;
+    var t = (now / 1000) % LOOP;
     all.forEach(function (m) {
       var S = surfPrep(m, dw, dh), c = S.tmp.getContext('2d');
-      var off = (t * 40 * k * mult(m.k['скорость'])) % S.bh;
-      c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, S.bw, S.bh);
-      c.drawImage(S.nz, 0, -off); c.drawImage(S.nz, 0, S.bh - off);
+      c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.clearRect(0, 0, S.bw, S.bh);
+      c.drawImage(S.base, 0, 0);
+      S.puffs.forEach(function (q) {
+        var ph = (S.cyc * t / LOOP + q.ph) % 1, life = Math.pow(Math.sin(Math.PI * ph), 1.3) * (1 - 0.55 * ph);
+        if (life < 0.01) return;
+        var R = q.r0 + (q.r1 - q.r0) * Math.pow(ph, 0.7), cx = q.x + q.dx * ph, cy = q.y - q.up * Math.pow(ph, 0.8);
+        var ang = q.a0 + q.dr * 2.2 * ph;
+        for (var j = 0; j < 4; j++) {
+          var a = ang + j * Math.PI / 2, bx = cx + 0.42 * R * Math.cos(a), by = cy + 0.32 * R * Math.sin(a), sg = 1.5 * R * (1 - 0.12 * j);
+          var g = c.createRadialGradient(bx, by, 0, bx, by, sg);
+          g.addColorStop(0, 'rgba(244,240,232,' + (0.42 * life).toFixed(3) + ')');
+          g.addColorStop(0.45, 'rgba(244,240,232,' + (0.2 * life).toFixed(3) + ')');
+          g.addColorStop(1, 'rgba(244,240,232,0)');
+          c.fillStyle = g; c.fillRect(bx - sg, by - sg, 2 * sg, 2 * sg);
+        }
+      });
       c.globalCompositeOperation = 'destination-in'; c.drawImage(S.env, 0, 0);
       fxc.save(); fxc.globalAlpha = Math.min(1, 0.85 * mult(m.k['густота'])); fxc.drawImage(S.tmp, S.x0, S.y0); fxc.restore();
     });

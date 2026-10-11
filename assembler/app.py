@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-11-edge-span"
+ASSEMBLER_VERSION = "2026-10-11-steam-puffs"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1929,8 +1929,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             cloud = getattr(nums, "cloud", [])
             # без облака дымка низкая, у самой глади (05.10: высокая шла стеной через Пингви)
             rise = int(70 * k * steam_height * rise_k)
-            padx = int(0.12 * (sx1 - sx0) + 20 * k)
-            x0, y0 = max(0, sx0 - padx), max(0, sy0 - rise)
+            padx = int(0.12 * (sx1 - sx0) + 45 * k)
+            x0, y0 = max(0, sx0 - padx), max(0, sy0 - int(1.9 * rise))      # (11.10) место клубам над гладью
             x1, y1 = min(W, sx1 + padx), sy1
             if cloud:
                 cx0, cy0, cx1, cy1 = poly_box([p_ for q in cloud for p_ in q], W, H)
@@ -1974,10 +1974,53 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 two = np.roll(nz, -int(round(v * ((t % L) - L))) % bh, axis=0)
                 return 0.5 + (one - 0.5) * math.cos(w) + (two - 0.5) * math.sin(w)
 
-            def steam(t, x0=x0, y0=y0, env=env, nA=nA, nB=nB, v_a=v_a, v_b=v_b, dens=dens):
+            # (11.10) КЛУБЫ: над гладью пар клубится, а не течёт ровной пеленой и не струйками.
+            # Круглые пушистые клубы рождаются у глади вразнобой, чуть поднимаются, растут,
+            # клубятся внутри (комочки вращаются) и тают. Каждый живёт целое число раз за петлю.
+            if has.any():
+                xs_ = np.nonzero(has)[0]
+                pr = random.Random(int(sx0 * 7919 + sy0 * 104729))
+                n_p = int(max(5, min(60, len(xs_) / (16 * k))))
+                cyc = max(1, int(round(1.5 * spd)))
+                puffs = []
+                for _ in range(n_p):
+                    cx_ = float(xs_[pr.randrange(len(xs_))])
+                    sy_ = float(top_s[int(cx_)]) + pr.uniform(0.1, 0.6) * max(1.0, bot_s[int(cx_)] - top_s[int(cx_)])
+                    puffs.append(dict(x=cx_ + pr.uniform(-4, 4) * k, y=sy_, ph=pr.random(), dr=pr.choice((-1, 1)),
+                                      a0=pr.uniform(0, 6.28), r0=pr.uniform(10, 16) * k, r1=pr.uniform(22, 34) * k,
+                                      up=rise * pr.uniform(0.45, 0.9), dx=pr.uniform(-8, 8) * k))
+            else:
+                puffs, cyc = [], 1
+            YY, XX = np.mgrid[0:bh, 0:bw].astype(np.float32)
+
+            def steam(t, x0=x0, y0=y0, env=env, nA=nA, nB=nB, v_a=v_a, v_b=v_b, dens=dens, puffs=puffs, cyc=cyc,
+                      bw=bw, bh=bh, col=col, below=below, cloud=cloud, YY=YY, XX=XX):
                 n = 0.62 * flow(nA, v_a, t) + 0.38 * flow(nB, v_b, t)
                 haze = np.clip((n - 0.32) / 0.5, 0, 1) ** 1.4
-                al = env * (0.2 + 0.8 * haze) * 0.62 * steam_opacity / 0.62 * dens
+                S = env * (0.25 + 0.35 * haze)                       # низкая дымка, лежит на глади
+                L = EFFECTS_LOOP_SECONDS
+                for q in puffs:
+                    ph = (cyc * (t % L) / L + q["ph"]) % 1.0
+                    life = math.sin(math.pi * ph) ** 1.3             # мягко появляется и тает
+                    R = q["r0"] + (q["r1"] - q["r0"]) * ph ** 0.7
+                    cx_, cy_ = q["x"] + q["dx"] * ph, q["y"] - q["up"] * ph ** 0.8
+                    ang = q["a0"] + q["dr"] * 2.2 * ph
+                    for j in range(4):
+                        a_ = ang + j * math.pi / 2
+                        bx_, by_ = cx_ + 0.42 * R * math.cos(a_), cy_ + 0.32 * R * math.sin(a_)
+                        sg = 0.55 * R * (1.0 - 0.12 * j)
+                        xa, xb = max(0, int(bx_ - 3 * sg)), min(bw, int(bx_ + 3 * sg) + 1)
+                        ya, yb = max(0, int(by_ - 3 * sg)), min(bh, int(by_ + 3 * sg) + 1)
+                        if xa >= xb or ya >= yb:
+                            continue
+                        d2 = (XX[ya:yb, xa:xb] - bx_) ** 2 + (YY[ya:yb, xa:xb] - by_) ** 2
+                        S[ya:yb, xa:xb] += 0.42 * life * (1 - 0.55 * ph) * np.exp(-d2 / (2 * sg * sg))
+                S = S * (0.8 + 0.45 * (n - 0.5))    # пушистые края, не гладкие шары
+                mask = np.asarray(Image.fromarray((col[None, :] * below * 255).astype(np.uint8))
+                                  .filter(ImageFilter.GaussianBlur(14 * k)), np.float32) / 255
+                if cloud:
+                    mask = env.clip(0, 1) ** 0.3
+                al = (1 - np.exp(-1.6 * S)) * mask * 0.85 * steam_opacity / 0.62 * dens
                 return x0, y0, np.clip(al, 0, 0.85), np.array([244, 240, 232], np.float32)
             layers.append(steam)
 
