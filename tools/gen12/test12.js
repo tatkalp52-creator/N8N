@@ -405,6 +405,25 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('9e те же строки → превью OK');
 
+  // ── 9g. Строки со страницы разметки: модель сама отметила «согласовано» — пункт не согласуется,
+  // приходит превью, следующий этап не начинается; «ок» после превью — согласовано и в таблице ──
+  {
+    const ANIM2 = [DIRECT[0], { ...st('🎞️', 'Аниматор', 'автор', 'да', '9') }, DIRECT[1], DIRECT[2]];
+    const IT9 = [...ITEMS, { 'Канал': 'demo', '№': '9', 'Пункт': 'Оживление', 'Колонки': 'fx_Effects', 'Можно пусто': 'да', 'Превью': 'оживление' }];
+    const ROW = { ...APPROVED, sys_EditorState: JSON.stringify({ v: 2, items: { 9: { text: 'свеча: 61, 41.9' } }, agreed: { 9: false }, stages: {} }) };
+    const t = await turn(ANIM2, ROW, { text: 'Пункт 9, запиши ровно так, без изменений:\nсвеча: 58, 83; раскачка 12', __items: IT9 },
+      call('propose_items', { items: [{ n: 9, text: 'свеча: 58, 83; раскачка 12' }], agreed: [9], message: 'Записал.' }));
+    assert.equal(JSON.parse(t.r.editorState).agreed[9], false, 'новые строки — не согласованы, пока автор не увидела превью');
+    assert.ok(t.r.previewBody && t.r.previewBody.fx_Effects === 'свеча: 58, 83; раскачка 12', 'превью приходит');
+    assert.equal(t.r.transition, 'none', 'Писатель не начинается');
+    const ROW2 = { ...APPROVED, sys_EditorState: t.r.editorState };
+    const t2 = await turn(ANIM2, ROW2, { text: 'ок', __items: IT9 }, call('propose_items', { items: [{ n: 9, text: 'свеча: 58, 83; раскачка 12' }], agreed: [9], message: 'Отлично.' }));
+    assert.equal(JSON.parse(t2.r.editorState).agreed[9], true, '«ок» после превью — согласовано');
+    assert.equal(t2.r.agreedFields.fx_Effects, 'свеча: 58, 83; раскачка 12', 'и сразу в таблице');
+    assert.notEqual(t2.r.transition, 'none', 'дальше — следующий этап');
+  }
+  console.log('9g разметка ≠ согласование, «ок» после превью OK');
+
   // ── 9f. Слово «пересобери» реплаем на выпуск = сборка без новой чистки ──
   {
     const mk = text => ({ message: { chat: { id: 1 }, from: { id: 1 }, text, reply_to_message: { text: 'ID: 20261006_142515_pengui' } } });

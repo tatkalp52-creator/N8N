@@ -72,6 +72,17 @@ if (plan.mode === 'say') {
   }
 }
 
+// ── Пункт с превью автор сначала видит глазами: в тот ход, когда его строки записаны или
+// изменены, он не согласуется (даже если модель так решила). «ок» — следующим сообщением, после превью.
+if (stage && stage.approve) {
+  for (const it of items) {
+    if (!it.preview || !state.agreed[it.n]) continue;
+    const now = ((state.items[it.n] || {}).text || '').trim();
+    const was = ((before.items[it.n] || {}).text || '').trim();
+    if (now && now !== was) state.agreed[it.n] = false;
+  }
+}
+
 // ── Картинка согласована словами (через этап, который за неё отвечает) ──
 const approvedUrl = approveUrl || approvedBefore;
 
