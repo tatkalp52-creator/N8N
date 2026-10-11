@@ -65,7 +65,8 @@ async function turn(stages, row, inc, response, subResponse) {
   nodes['Перевод для автора: что'] = pv;
   if (pv.need) {
     // переводчик видит только готовый текст пункта; здесь — словарь TR, иначе «RU: текст»
-    const src = JSON.parse(pv.requestBody.input[0].content);
+    assert.ok(pv.requestBody.input[0].content.includes('JSON'), 'слово JSON — в самом запросе');
+    const src = JSON.parse(pv.requestBody.input[0].content.replace(/^[^\n]*\n/, ''));
     const outMap = {};
     for (const k of Object.keys(src)) outMap[k] = TR[src[k]] || 'RU: ' + src[k];
     nodes['OpenAI: перевод для автора'] = turn.trFail ? { error: { message: 'timeout' } }
@@ -505,6 +506,7 @@ async function turn(stages, row, inc, response, subResponse) {
     let u3 = await turn(DIRECT, row2, { text: 'поправь' }, call('propose_items', { items: [{ n: 3, text: 'New line.' }], message: 'Готово.' }));
     turn.trFail = false;
     assert.ok(u3.r.chunks[0].includes('New line. (перевод не получен)'), u3.r.chunks[0]);
+    assert.ok(u3.r.chunks[0].includes('⚠️ Перевод для автора: переводчик не ответил: timeout'));
     assert.ok(!u3.r.chunks[0].includes('Old line'));
   }
   console.log('12 перевод для автора — переводчиком, с текста для таблицы OK');

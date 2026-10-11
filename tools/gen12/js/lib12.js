@@ -369,11 +369,15 @@ function itApplyRu(state) {
   let todo = [], resp = null;
   try { todo = $('Перевод для автора: что').first().json.todo || []; } catch (e) { return; }
   try { resp = $('OpenAI: перевод для автора').first().json || null; } catch (e) { return; }
-  if (!resp || !todo.length) return;
+  if (!todo.length) return;
+  if (!resp || resp.error) {
+    const er = resp && resp.error;
+    return 'переводчик не ответил' + (er ? ': ' + String(er.message || (typeof er === 'string' ? er : JSON.stringify(er))).slice(0, 200) : '');
+  }
   const out = (resp.output || []).filter(i => i.type === 'message')
     .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('').trim();
   let map = {};
-  try { map = JSON.parse(out.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch (e) { return; }
+  try { map = JSON.parse(out.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch (e) { return 'переводчик ответил не JSON'; }
   for (const t of todo) {
     const v = state.items[t.n];
     const ru = String(map[String(t.n)] == null ? '' : map[String(t.n)]).trim();

@@ -17,7 +17,8 @@ const requestBody = {
   instructions: 'Translate each text into Russian exactly as it is written. Do not add, drop, improve or explain anything; '
     + 'keep line breaks, numbers, timestamps, hashtags and names as they are. '
     + 'Answer with JSON only: {"<key>": "<Russian translation>"} with the same keys.',
-  input: [{ role: 'user', content: JSON.stringify(src) }],
+  // слово JSON обязано стоять в самом запросе — иначе OpenAI отказывает в формате json_object
+  input: [{ role: 'user', content: 'Texts to translate (JSON):\n' + JSON.stringify(src) }],
   text: { format: { type: 'json_object' } },
   store: false,
 };
