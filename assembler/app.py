@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-11-garland"
+ASSEMBLER_VERSION = "2026-10-11-edge-span"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2638,7 +2638,7 @@ def _poly_dist(poly, x, y):
     return best
 
 
-def edge_for_leaf(path, edges_px):
+def edge_for_leaf(path, edges_px, reach=None):
     """(08.10) Линия «края» для листа: та, которую его путь пересекает первой; если не пересекает —
     ближайшая к точке, где лист кончает путь. Край может быть любым: горизонтальным (скамейка),
     вертикальным (ствол, стена)."""
@@ -2653,6 +2653,9 @@ def edge_for_leaf(path, edges_px):
     if best is None and edges_px:
         ex_, ey_ = path[-1][0], path[-1][1]
         best = min(edges_px, key=lambda pl: _poly_dist(pl, ex_, ey_))
+        # (11.10) край далеко от конца пути — он этому листу не помеха: лист ложится и растворяется
+        if reach is not None and _poly_dist(best, ex_, ey_) > reach * reach:
+            best = None
     return best
 
 
@@ -2708,6 +2711,33 @@ def edge_side(poly, X, Y):
     return sg   # расстояние до линии со знаком стороны
 
 
+def edge_visible(poly, X, Y, s0, k):
+    """(11.10) Где лист виден: на своей стороне края ИЛИ за концами линии. Край прячет лист только
+    там, где он нарисован (с небольшим запасом у концов), — короткая линия посередине не режет
+    всю картинку пополам."""
+    import numpy as np
+    X, Y = np.broadcast_arrays(np.asarray(X, np.float32), np.asarray(Y, np.float32))
+    bd = np.full(X.shape, 1e18, np.float32)
+    out_ = np.zeros(X.shape, bool)
+    segs = list(zip(poly, poly[1:]))
+    for i, ((ax, ay), (bx, by)) in enumerate(segs):
+        dx, dy = bx - ax, by - ay
+        ll = dx * dx + dy * dy or 1.0
+        tr = ((X - ax) * dx + (Y - ay) * dy) / ll
+        t = np.clip(tr, 0, 1)
+        dd = (X - ax - t * dx) ** 2 + (Y - ay - t * dy) ** 2
+        beyond = np.zeros(X.shape, bool)
+        pad = 24 * k / math.sqrt(ll)   # запас у концов: линия, проведённая на глаз, чуть короче предмета
+        if i == 0:
+            beyond |= tr < -pad
+        if i == len(segs) - 1:
+            beyond |= tr > 1 + pad
+        m = dd < bd
+        bd = np.where(m, dd, bd)
+        out_ = np.where(m, beyond, out_)
+    return (edge_side(poly, X, Y) * s0 >= 6 * k) | out_
+
+
 def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
     """Клип события: картинка + один падающий лист, и рядом маска — где лист и насколько
     он непрозрачен (поверх петли лист кладётся по этой маске, без догадок по разнице кадров).
@@ -2736,14 +2766,14 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
     P = lambda xy: (xy[0] / 100 * W, xy[1] / 100 * H)
     L0 = leaf["size"] * k
     fall = leaf["fall"]
-    rest = 0.0 if leaf["behind"] else 4.0      # на переднем плане — лежит и растворяется в листве
     (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
     via = [P(q) for q in leaf["via"]] if leaf.get("via") else None
     path = leaf_path(x0, y0, x1, y1, fall, fps, seed, L0 * 1.1, via=via)
     poly = None
     if leaf["behind"] and edge:
-        poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge])
+        poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge], reach=0.12 * 864 * k)
     s0 = (1.0 if float(edge_side(poly, [x0], [y0])[0]) >= 0 else -1.0) if poly else 1.0   # сторона, с которой лист стартует: туда он виден
+    rest = 0.0 if poly else 4.0      # на переднем плане (или края рядом нет) — лежит и растворяется в листве
     if poly:
         path = extend_path_behind(path, poly, s0, L0, fps, k)
         fall = len(path) / fps
@@ -2769,7 +2799,7 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
             h, w = al.shape
             lx0, ly0 = int(x - w / 2), int(y - h / 2)
             if poly:   # по ту сторону края от старта — за краем: не рисуем
-                al = al * (edge_side(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None]) * s0 >= 6 * k)
+                al = al * edge_visible(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None], s0, k)
             ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
             if ya < yb and xa < xb:
                 a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
@@ -3364,7 +3394,7 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
         path = leaf_path(x0, y0, x1, y1, leaf["fall"], 24, seed, L0 * 1.1, via=via)
         poly = None
         if leaf["behind"] and edge:
-            poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge])
+            poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge], reach=0.12 * 864 * k)
         s0 = (1.0 if float(edge_side(poly, [x0], [y0])[0]) >= 0 else -1.0) if poly else 1.0
         step = 8   # положение через треть секунды
         # тонкая линия пути — чтобы маленький лист было видно на превью
@@ -3372,7 +3402,7 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
         dtr = ImageDraw.Draw(trail)
         pts = [(q[0], q[1]) for q in path]
         if poly:
-            pts = [(x, y) for x, y in pts if float(edge_side(poly, [x], [y])[0]) * s0 >= 6 * k]
+            pts = [(x, y) for x, y in pts if bool(edge_visible(poly, [x], [y], s0, k)[0])]
         for i in range(0, len(pts) - 1, 2):
             dtr.line([pts[i], pts[i + 1]], fill=(200, 90, 30), width=max(1, int(1.5 * k)))
         frame = np.asarray(trail, np.float32).copy()
@@ -3384,7 +3414,7 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
             h, w = al.shape
             lx0, ly0 = int(x - w / 2), int(y - h / 2)
             if poly:
-                al = al * (edge_side(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None]) * s0 >= 6 * k)
+                al = al * edge_visible(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None], s0, k)
             ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
             if ya < yb and xa < xb:
                 a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
