@@ -40,10 +40,10 @@ const chatId = msg ? msg.chat.id : 285577543;
 if (!hints.length) return [{ json: { need: false, chatId, text: 'Лист «Автосбор» пуст: не знаю, что искать.' } }];
 const instructions = 'You collect occasions for a YouTube content plan. Find holidays, observances, "national/world ... days", '
   + 'seasonal and astronomical events that fall in ' + MON_EN[m - 1] + ' ' + y + '. Use web search to check the dates for this year. '
-  + 'What is useful for each channel (key: description):\n' + hints.map(h => '- ' + h.key + ': ' + h.what).join('\n') + '\n\n'
+  + 'What kind of occasions are useful (one shared list for all channels):\n' + hints.map(h => '- ' + h.what).join('\n') + '\n\n'
   + 'Answer with JSON only, no other text: {"items": [{"date": "YYYY-MM-DD", "title": "the original name, as it is known (usually English)", '
-  + '"title_ru": "Russian translation of the name", "channels": ["channel keys it fits"], "idea_ru": "one short line in Russian: how it could fit", '
-  + '"source": "site name"}]}. Only occasions that fit at least one channel. Never invent a date; skip an occasion you cannot date for '
+  + '"title_ru": "Russian translation of the name", "idea_ru": "one short line in Russian: how it could fit", '
+  + '"source": "site name"}]}. Only occasions that fit the description above. Never invent a date; skip an occasion you cannot date for '
   + y + '. Up to 60 items, sorted by date.';
 const requestBody = { model, instructions, tools: [{ type: 'web_search' }],
   input: [{ role: 'user', content: 'Collect the occasions for ' + MON_EN[m - 1] + ' ' + y + ' as JSON.' }] };
@@ -86,16 +86,15 @@ for (const it of items) {
   const k = z.m + '-' + Number(md[3]) + '|' + norm(title);
   if (seen.has(k)) continue;
   seen.add(k);
-  const ch = (Array.isArray(it.channels) ? it.channels : [it.channels]).map(c => String(c || '').trim()).filter(c => z.keys.includes(c));
   rows.push({ id: 'a' + Date.now().toString(36) + rows.length.toString(36) + Math.random().toString(36).slice(2, 5),
-    year: String(z.y), month: String(z.m), day: String(Number(md[3])), title, channel: (ch.length ? ch : [z.keys[0]]).join(', '),
+    year: String(z.y), month: String(z.m), day: String(Number(md[3])), title, channel: '',
     status: 'Идея', project: '', note: String(it.idea_ru || '').trim(), sources: 'автосбор ' + stamp + (it.source ? '; ' + String(it.source).trim() : ''),
     createdAt: now, updatedAt: now, title_ru: String(it.title_ru || '').trim() });
 }
 rows.sort((a, b) => Number(a.day) - Number(b.day));
 let text = '🗓 Автосбор на ' + z.monthRu + ' ' + z.y + ': найдено ' + found + ', новых ' + rows.length + '.';
 for (const r of rows) {
-  const line = '\n' + r.day + ' ' + MON_GEN[z.m - 1].slice(0, 3) + ' — <b>' + esc(r.title) + '</b>' + (r.title_ru ? ' — ' + esc(r.title_ru) : '') + ' · ' + esc(r.channel);
+  const line = '\n' + r.day + ' ' + MON_GEN[z.m - 1].slice(0, 3) + ' — <b>' + esc(r.title) + '</b>' + (r.title_ru ? ' — ' + esc(r.title_ru) : '');
   if ((text + line).length > 3900) { text += '\n…и ещё, всё — в листе «Календарь».'; break; }
   text += line;
 }

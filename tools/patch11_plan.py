@@ -36,7 +36,7 @@ out.id = id; out.month = String(m); out.day = String(d);
 if (!STATUSES.includes(out.status)) out.status = 'Идея';
 if (out.release && !/^\\d{4}-\\d{2}-\\d{2}$/.test(out.release)) out.release = '';
 if (out.step && !/^[0-5]$/.test(out.step)) out.step = '';
-out.channel = (out.channel || 'pengui').toLowerCase();
+out.channel = out.channel.toLowerCase();   // пусто — повод общий, для любого канала
 out.updatedAt = now;
 if (!out.createdAt) out.createdAt = now;
 return [{ json: out }];""" % json.dumps(COLS)
