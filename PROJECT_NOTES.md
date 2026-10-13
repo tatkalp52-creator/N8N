@@ -2570,3 +2570,4 @@ Shorts — НЕ делаем. Названия/шрифт/подвал — не 
 - 13.10 ОБВОДКА ОВЕРЛЕЯ: автор выбрала 2 (проба table_drafts/shrift_obvodka.png). Сборщик 2026-10-13-overlay-border: payload overlayBorder (из 🎬tmpl_OverlayBorder, px, 0 = как раньше) → borderw у основного текста (цвет текста) и у тени (цвет тени). Ставить на сервер ПОСЛЕ сборки супа. Колонка в Templates — с её «впиши».
 - 13.10 УСТАНОВЛЕН сборщик 2026-10-13-overlay-border (автор, /health подтвердил). Колонка 🎬tmpl_OverlayBorder ещё не вписана (ждёт её «впиши»).
 - 13.10 Templates BZ1 «🎬tmpl_OverlayBorder», BZ2 = 2 (с «впиши» автора; добавлена колонка в сетку листа). 04 → overlayBorder сам.
+- 13.10 BZ2 OverlayBorder → 1 (автор: «начнём с одного»).
