@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-11-candle-flame"
+ASSEMBLER_VERSION = "2026-10-13-overlay-border"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -97,7 +97,8 @@ def measure_text_width(text, font_path, font_size):
 
 def build_overlay_drawtext(overlay_text, position, font_path, font_size,
                             font_color, shadow_color, shadow_opacity,
-                            overlay_alpha, margin=60, line_spacing=0.875, visible_until=18):
+                            overlay_alpha, margin=60, line_spacing=0.875, visible_until=18,
+                            border=0):
     """Собирает список (shadow_filters, main_filters) для оверлея — либо
     одну строку как раньше, либо, если текст не помещается в отведённую
     по бокам зону (см. build_overlay_positions), автоматический стек из
@@ -134,9 +135,13 @@ def build_overlay_drawtext(overlay_text, position, font_path, font_size,
 
     def layer(line_text, xy_part, color, opacity=None):
         color_part = f"0x{color}@{opacity}" if opacity is not None else f"0x{color}"
+        # НОВОЕ (13.10): буквы толще — обводка тем же цветом, что и сам слой
+        # (у тени — цветом тени), шрифт не меняется. 🎬tmpl_OverlayBorder, px;
+        # 0 = как раньше.
+        border_part = f"borderw={border}:bordercolor={color_part}:" if border > 0 else ""
         return (
             f"drawtext=text='{esc(line_text)}':fontfile={font_path}:"
-            f"fontcolor={color_part}:fontsize={font_size}:{xy_part}:"
+            f"fontcolor={color_part}:fontsize={font_size}:{xy_part}:{border_part}"
             f"alpha='{overlay_alpha}':enable='between(t,0,{visible_until})'"
         )
 
@@ -3254,11 +3259,16 @@ def assemble():
             overlay_line_spacing = float(data.get("overlayLineSpacing") or 0.875)
         except (TypeError, ValueError):
             overlay_line_spacing = 0.875
+        try:
+            overlay_border = max(0, int(round(float(data.get("overlayBorder") or 0))))
+        except (TypeError, ValueError):
+            overlay_border = 0
         shadow_layers, main_layers = build_overlay_drawtext(
             overlay_text, overlay_position, font_path, font_size,
             font_color, shadow_color, shadow_opacity, overlay_alpha,
             margin=overlay_margin, line_spacing=overlay_line_spacing,
             visible_until=f"{overlay_visible_until:g}",
+            border=overlay_border,
         )
 
         # ОТКАЧЕНО (20.09): 19.09 ночью сюда добавили фейд ВСЕГО видео целиком
