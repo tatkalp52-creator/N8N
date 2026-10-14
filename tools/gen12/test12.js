@@ -555,6 +555,10 @@ async function turn(stages, row, inc, response, subResponse) {
     const c2 = (await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctx, tmpl, row: { ...row, sys_CleanState: 'готово' },
       tracksUrl: 'https://drive.google.com/uc?export=download&id=1NEWzzzzzzzzzzzzzzzzzzzzzzzzzzz' } } }))[0];
     assert.equal(c2.need, true, 'новая ссылка — чистим');
+    const c3 = (await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctx, tmpl, row: { ...row, sys_CleanState: 'идёт',
+      sys_CleanSource: 'https://drive.google.com/uc?export=download&id=1TteXvQ3jTt9uetKgKExw5GNceijPYBss' },
+      tracksUrl: 'https://drive.google.com/uc?export=download&id=1TteXvQ3jTt9uetKgKExw5GNceijPYBss' } } }))[0];
+    assert.equal(c3.need, false, 'та же ссылка уже чистится — второй чистки нет');
   }
   console.log('15 чистка и пересборка раздельно, без ложного «сначала чистка» OK');
 

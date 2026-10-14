@@ -9,13 +9,17 @@ const url = String(ctx.tracksUrl || '').trim();
 const row = ctx.row || {};
 const fileId = u => { const s = String(u || '').trim(); const m = s.match(/(?:\/d\/|[?&]id=)([a-zA-Z0-9_-]{20,})/); return m ? m[1] : s; };
 const alreadyClean = String(row.sys_CleanState || '').trim() === 'готово' && !!url && fileId(url) === fileId(row.sys_AudioZipUrl);
-const need = !!mode && !!url && !url.includes('kaggle.com/code/') && !alreadyClean;
+// эта же ссылка уже чистится (повторное нажатие / повтор сообщения) — вторую чистку не запускаем (14.10);
+// дальше «стена» скажет «Чистка ещё идёт — соберу сам»
+const alreadyRunning = String(row.sys_CleanState || '').trim() === 'идёт' && !!url && fileId(url) === fileId(row.sys_CleanSource);
+const need = !!mode && !!url && !url.includes('kaggle.com/code/') && !alreadyClean && !alreadyRunning;
 // адрес, по которому блокнот в конце «постучится» в ЭТО ожидание (у каждого запуска свой)
 const callbackUrl = typeof $execution !== 'undefined' && $execution ? ($execution.resumeUrl || '') : '';
 return [{
   json: {
     need,
     alreadyClean,
+    alreadyRunning,
     projectId: ctx.projectId,
     body: {
       projectId: ctx.projectId, tracksUrl: url, cleanMode: mode,
