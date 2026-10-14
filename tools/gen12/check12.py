@@ -24,7 +24,7 @@ for src, c in wf['connections'].items():
 # 4. orphans
 targets = {o['node'] for c in wf['connections'].values() for outs in c['main'] for o in outs}
 for n in wf['nodes']:
-    if n['name'] not in targets and n['type'] not in ('n8n-nodes-base.telegramTrigger', 'n8n-nodes-base.executeWorkflowTrigger', 'n8n-nodes-base.stickyNote'):
+    if n['name'] not in targets and n['type'] not in ('n8n-nodes-base.telegramTrigger', 'n8n-nodes-base.executeWorkflowTrigger', 'n8n-nodes-base.webhook', 'n8n-nodes-base.stickyNote'):
         print('ORPHAN', n['name']); bad += 1
 # 5. credentials
 for n in wf['nodes']:

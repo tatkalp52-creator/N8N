@@ -558,5 +558,31 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('15 чистка и пересборка раздельно, без ложного «сначала чистка» OK');
 
+  // ── 16. Метка выпуска и вход из календаря (14.10) ──
+  {
+    const st = (await run('Разбираем входящее', { nodes: { 'Из календаря': { body: { action: 'start', channel: 'pengui', calId: 'a1',
+      title: 'Кот в книжном', about: 'Всемирный день кошек.', release: '2026-10-16' } } } }))[0];
+    assert.equal(st.kind, 'channelPick'); assert.equal(st.channelKey, 'pengui'); assert.equal(st.chatId, 285577543); assert.equal(st.cal.id, 'a1');
+    const pid = (await run('Генерируем ProjectID', { nodes: { 'Разбираем входящее': st }, input: [{ SheetName: 'S', 'Значок': '🐧' }] }))[0];
+    assert.equal(pid.calId, 'a1');
+    assert.ok(pid.createdText.startsWith('<b>🐧 16.10 · Кот в книжном</b>'), pid.createdText);
+    assert.ok(pid.createdText.includes('Повод: Всемирный день кошек.') && pid.createdText.includes('ID: ' + pid.projectId));
+    assert.ok(!/reply/.test(pid.createdText), 'без напоминания про реплай');
+    const tr = (await run('Разбираем входящее', { nodes: { 'Из календаря': { body: { action: 'tracks', projectId: '20261012_092708_pengui',
+      url: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz/view?usp=sharing' } } } }))[0];
+    assert.equal(tr.kind, 'tracks'); assert.equal(tr.tracksUrl, 'https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMnOpQrStUvWxYz');
+    const bad = (await run('Разбираем входящее', { nodes: { 'Из календаря': { body: { action: 'tracks', projectId: 'x', url: 'y' } } } }))[0];
+    assert.equal(bad.kind, 'unknown');
+    // метка в контексте: из календаря, иначе значок и дата создания
+    const base = { 'Разбираем входящее': { kind: 'message', projectId: '20261012_092708_pengui', channelKey: 'pengui', chatId: 7 },
+      'Находим лист канала': { SheetName: 'S', 'Значок': '🐧' }, 'Читаем строку проекта': { sys_ProjectID: '20261012_092708_pengui' },
+      'Читаем шаблоны канала': {}, 'Читаем этапы': [], 'Читаем пункты': [], 'Читаем эффекты': [] };
+    const k1 = (await run('Контекст проекта', { nodes: { ...base, 'Читаем календарь (метка)': [{ project: '20261012_092708_pengui', release: '2026-10-16', title: 'Global Cat Day', title_ru: 'Кот в книжном' }] } }))[0];
+    assert.equal(k1.label, '🐧 16.10 · Кот в книжном'); assert.equal(k1.labelLine, '<b>🐧 16.10 · Кот в книжном</b>\n');
+    const k2 = (await run('Контекст проекта', { nodes: { ...base, 'Читаем календарь (метка)': [{}] } }))[0];
+    assert.equal(k2.label, '🐧 выпуск от 12.10');
+  }
+  console.log('16 метка выпуска и вход из календаря OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

@@ -13,8 +13,30 @@
 //   cleanStatus  — «как чистка?» / «статус»
 //   stageStart   — изнутри: этап завершён, начинает следующий
 //   message      — обычная реплика по проекту → этапу
+const OWNER_CHAT = 285577543;   // владелец бота (тот же, что в «Это владелец бота?»)
 let t = null;
 try { t = $('Telegram Trigger').first().json; } catch (e) { t = null; }
+// Из календаря (страница-контент-план): «Старт» выпуска или ссылка на треки
+let cal = null;
+if (!t) { try { cal = $('Из календаря').first().json; } catch (e) { cal = null; } }
+if (cal) {
+  const b = cal.body || {};
+  const chatId = Number(b.chatId) || OWNER_CHAT;
+  const none = { chatId, text: '', photo: null, callbackQueryId: '', variantNumber: null, tracksUrl: '', replyVariant: null, event: '', projectId: '', channelKey: '' };
+  if (b.action === 'start' && /^[a-z0-9]+$/i.test(String(b.channel || ''))) {
+    return [{ json: { ...none, kind: 'channelPick', channelKey: String(b.channel).toLowerCase(),
+      cal: { id: String(b.calId || ''), title: String(b.title || '').slice(0, 120), about: String(b.about || '').slice(0, 600),
+             release: String(b.release || ''), icon: String(b.icon || '') } } }];
+  }
+  const cm = String(b.projectId || '').match(/^(\d{8})_(\d{6})_([A-Za-z0-9]+)$/);
+  let url = String(b.url || '').trim();
+  if (b.action === 'tracks' && cm && /^https?:\/\//.test(url)) {
+    const dm = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (dm) url = 'https://drive.google.com/uc?export=download&id=' + dm[1];
+    return [{ json: { ...none, kind: 'tracks', projectId: cm[0], channelKey: cm[3], tracksUrl: url } }];
+  }
+  return [{ json: { ...none, kind: 'unknown' } }];
+}
 if (!t) {
   const inner = $('Вызов изнутри').first().json || {};
   return [{ json: {

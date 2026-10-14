@@ -1,4 +1,4 @@
-import json, uuid, copy, os
+import json, re, uuid, copy, os
 
 REPO = '/home/user/N8N'
 JS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'js')
@@ -19,6 +19,9 @@ names = set()
 
 def uid():
     return str(uuid.uuid4())
+
+# секретный адрес входа из календаря; тот же — в странице календаря (tools/patch11_plan.py)
+CAL_HOOK = 'cal12-pDjXqAmp9bfKxK9RRByEPOci'
 
 def add(node):
     assert node['name'] not in names, node['name']
@@ -157,6 +160,10 @@ code('Разбираем входящее', 'razbor.js', [X + 440, Y])
 switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown'], [X + 660, Y])
 chain('Telegram Trigger', 'Это владелец бота?', 'Разбираем входящее', 'Что пришло?')
 link('Вызов изнутри', 'Разбираем входящее')
+# Из календаря (страница контент-плана): «Старт» выпуска и ссылка на треки — тем же путём, что из Телеграма
+add({'parameters': {'httpMethod': 'POST', 'path': CAL_HOOK, 'options': {}}, 'name': 'Из календаря',
+     'type': 'n8n-nodes-base.webhook', 'typeVersion': 2, 'position': [X, Y + 400], 'webhookId': uid()})
+link('Из календаря', 'Разбираем входящее')
 
 sheets_read('Читаем каталог каналов', 'Catalog', [], [X + 900, Y - 700], always=False)
 code('Кнопка на каждый канал', 'kanaly.js', [X + 1120, Y - 700], lib=True)
@@ -179,10 +186,17 @@ add({'parameters': {'authentication': 'serviceAccount', 'operation': 'append',
      'name': 'Создаём проект', 'type': 'n8n-nodes-base.googleSheets', 'typeVersion': 4,
      'position': [X + 1560, Y - 450], 'credentials': copy.deepcopy(CRED_SHEETS)})
 tg_send('Проект создан', "={{ $('Генерируем ProjectID').first().json.chatId }}",
-        "=Проект создан ✅\nID: {{ $('Генерируем ProjectID').first().json.projectId }}\n\nОтвечайте на мои сообщения (reply) — так я понимаю, о каком проекте речь.",
-        [X + 1780, Y - 450])
+        "={{ $('Генерируем ProjectID').first().json.createdText }}", [X + 2220, Y - 450])
+if_node('Из календаря?', "!!$('Генерируем ProjectID').first().json.calId", [X + 1780, Y - 450])
+sheets_update('Привязываем к календарю', 'Календарь', {
+    'id': "={{ $('Генерируем ProjectID').first().json.calId }}",
+    'project': "={{ $('Генерируем ProjectID').first().json.projectId }}", 'status': 'В работе'}, [X + 2000, Y - 550], match='id')
+nodes[-1]['onError'] = 'continueRegularOutput'
 link('Что пришло?', 'Отвечаем на кнопку канала', 1)
-chain('Отвечаем на кнопку канала', 'Ищем канал в каталоге', 'Генерируем ProjectID', 'Создаём проект', 'Проект создан')
+chain('Отвечаем на кнопку канала', 'Ищем канал в каталоге', 'Генерируем ProjectID', 'Создаём проект', 'Из календаря?')
+link('Из календаря?', 'Привязываем к календарю', 0)
+link('Привязываем к календарю', 'Проект создан')
+link('Из календаря?', 'Проект создан', 1)
 
 if_node('Это кнопка?', "!!$('Разбираем входящее').first().json.callbackQueryId", [X + 900, Y])
 tg_answer('Отвечаем на кнопку', [X + 1120, Y - 150])
@@ -202,6 +216,9 @@ nodes[-1]['executeOnce'] = True
 nodes[-1]['onError'] = 'continueRegularOutput'
 nodes[-1]['parameters'].pop('filtersUI')           # без фильтра — весь лист
 nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
+sheets_read('Читаем календарь (метка)', 'Календарь', [('project', "={{ $('Разбираем входящее').first().json.projectId }}")], [X + 2330, Y + 200])
+nodes[-1]['executeOnce'] = True
+nodes[-1]['onError'] = 'continueRegularOutput'
 code('Контекст проекта', 'kontekst.js', [X + 2440, Y], lib=True)
 if_node('Проект найден?', '$json.found', [X + 2660, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2880, Y + 200])
@@ -210,7 +227,7 @@ tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопк�
 link('Что пришло?', 'Это кнопка?', 3)
 link('Это кнопка?', 'Отвечаем на кнопку', 0)
 link('Это кнопка?', 'Находим лист канала', 1)
-chain('Отвечаем на кнопку', 'Находим лист канала', 'Читаем строку проекта', 'Читаем шаблоны канала', 'Читаем этапы', 'Читаем пункты', 'Читаем эффекты', 'Контекст проекта', 'Проект найден?')
+chain('Отвечаем на кнопку', 'Находим лист канала', 'Читаем строку проекта', 'Читаем шаблоны канала', 'Читаем этапы', 'Читаем пункты', 'Читаем эффекты', 'Читаем календарь (метка)', 'Контекст проекта', 'Проект найден?')
 link('Проект найден?', 'Куда дальше?', 0)
 link('Проект найден?', 'Проект не найден', 1)
 link('Куда дальше?', 'Старая кнопка', 4)
@@ -709,6 +726,23 @@ def sticky(text, pos, w, h, color=7):
 sticky("## Вход\nТелеграм и «Вызов изнутри» (переход к следующему этапу) разбираются в одном месте.\n\nБот тот же, что у 10_Единый_редактор. Включён должен быть ТОЛЬКО один канвас.", [X - 40, Y - 360], 620, 260, 4)
 sticky("## Движок этапов\nКод не знает ролей, пунктов и колонок с содержанием. Кто работает, в каком порядке, с кем говорит и нужно ли согласование — лист «Этапы». Пункты и куда они пишутся — лист «Пункты». Что знает этап — колонки Templates с его значком (📍 — по словам задания, 📝 — памятка этапа).", [EX - 40, EY - 520], 1000, 260, 5)
 sticky("## Запись в таблицу\nПункты раскладываются по колонкам из листа «Пункты». Строка перечитывается и проверяется, только потом «Утверждено».", [X + 3100, FY - 260], 900, 200, 3)
+
+# МЕТКА ВЫПУСКА (14.10, автор): каждое сообщение по проекту начинается с «🐧 16.10 · Кот в книжном» —
+# при двух-трёх выпусках сразу видно, на какое отвечать. Метку считает «Контекст проекта» (календарь + Catalog).
+NO_LABEL = {'Проект создан', 'Предлагаем каналы'}
+LBL = "$('Контекст проекта').first().json"
+for n_ in nodes:
+    if n_.get('type') != 'n8n-nodes-base.telegram' or n_['name'] in NO_LABEL:
+        continue
+    p_ = n_['parameters']
+    if p_.get('operation') not in ('sendMessage', 'sendPhoto', 'sendVideo'):
+        continue
+    html = (p_.get('additionalFields') or {}).get('parse_mode') == 'HTML'
+    field = LBL + ('.labelLine' if html else '.labelPlain')
+    holder, key = (p_, 'text') if p_.get('operation') == 'sendMessage' else (p_['additionalFields'], 'caption')
+    t_ = holder.get(key, '')
+    m_ = re.fullmatch(r'=\{\{(.*)\}\}', t_, re.S)
+    holder[key] = ('={{ ' + field + ' + (' + m_.group(1).strip() + ') }}') if m_ and '{{' not in m_.group(1) else ('={{ ' + field + ' }}' + t_[1:])
 
 # Повтор при сбое Code-узлов (08.10): n8n иногда не успевает передать задачу исполнителю («Task request timed out
 # after 60 seconds»), особенно при нескольких запусках сразу. 3 попытки с паузой 25 с — сбой не доходит до автора.

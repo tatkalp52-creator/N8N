@@ -216,6 +216,15 @@ header .sub { flex-basis: 100%; order: 3; }
 (function () {
   if (window.Telegram && Telegram.WebApp) { try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {} }
   var BASE = location.pathname.replace(/\/+$/, '');
+  // вход в бота (12) из календаря: «Старт» выпуска и ссылка на треки
+  var BOT = '/webhook/cal12-pDjXqAmp9bfKxK9RRByEPOci';
+  function me() { try { return Telegram.WebApp.initDataUnsafe.user.id || null; } catch (e) { return null; } }
+  function toBot(body, ok) {
+    body.chatId = me();
+    return fetch(BOT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (x) { if (!x.ok) throw new Error(x.status); toast(ok); setTimeout(load, 6000); setTimeout(load, 20000); })
+      .catch(function () { toast('Бот не ответил — проверь связь и повтори'); });
+  }
   var COLORS = ['var(--pengui)', 'var(--lumos)', 'var(--unicorn)', 'var(--c3)', 'var(--c4)'];
   var MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
   var MGEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -383,10 +392,21 @@ header .sub { flex-basis: 100%; order: 3; }
         tk.onclick = function () { p.posted = !p.posted; save(p); render(); };
         r.appendChild(tk);
         }
+        if (st !== 'green') {
+          var tf = el('div', 'own'); var ti = el('input', ''); ti.placeholder = pp.tracks ? 'Новая ссылка на треки (заменит прежнюю)' : 'Ссылка на треки'; ti.setAttribute('aria-label', 'Ссылка на треки');
+          var tb = el('button', 'chbtn', '🎵 Отправить треки'); tb.type = 'button'; tb.style.background = 'var(--accent)';
+          tb.onclick = function () { var u = ti.value.trim(); if (!/^https?:\/\//.test(u)) { ti.focus(); toast('Вставь ссылку на треки'); return; }
+            tb.disabled = true; toBot({ action: 'tracks', projectId: p.project, url: u }, 'Треки ушли в бот — он напишет в Телеграм'); };
+          tf.appendChild(ti); tf.appendChild(tb); s.appendChild(tf);
+        }
         var un = el('button', '', 'Отвязать выпуск'); un.type = 'button';
         un.onclick = function () { p.project = ''; p.posted = false; save(p); render(); };
         r.appendChild(un);
       } else {
+        var go = el('button', 'chbtn', '▶ Старт'); go.type = 'button'; go.style.background = color(ch.key);
+        go.onclick = function () { go.disabled = true;
+          toBot({ action: 'start', calId: p.id, channel: ch.key, title: short(p), about: p.note || '', release: iso(p.py, p.pm, p.pd) }, 'Поехали! Первое сообщение — в боте'); };
+        r.appendChild(go);
         var free = PLIST.filter(function (q) { return q.ch === ch.key && !items.some(function (o) { return o.project === q.id; }); });
         if (free.length) {
           var sl = el('select', ''); sl.setAttribute('aria-label', 'Привязать начатый выпуск');
@@ -460,15 +480,17 @@ header .sub { flex-basis: 100%; order: 3; }
   $('next').onclick = function () { view.m++; if (view.m > 12) { view.m = 1; view.y++; } render(); };
 
   $('savest').textContent = '· загружаю…';
-  fetch(BASE + '/data', { cache: 'no-store' }).then(function (x) { return x.json(); }).then(function (data) {
+  function load() { return fetch(BASE + '/data', { cache: 'no-store' }).then(function (x) { return x.json(); }).then(function (data) {
     CH = (data.channels || []).map(function (c) { return { key: String(c.Channel || '').trim(), name: String(c['Кнопка'] || c.Channel || '').trim(), icon: String(c['Значок'] || '').trim() }; }).filter(function (c) { return c.key; });
     PLIST = (data.projects || []).slice().sort(function (a, b) { return a.id < b.id ? 1 : -1; });
     PLIST.forEach(function (q) { PROJ[q.id] = q; });
     if (!CH.length) CH = [{ key: 'pengui', name: 'pengui' }];
-    CH.forEach(function (c) { active[c.key] = true; });
+    CH.forEach(function (c) { if (!(c.key in active)) active[c.key] = true; });
+    PROJ = {}; PLIST.forEach(function (q) { PROJ[q.id] = q; });
     items = (data.rows || []).map(fromRow);
     $('savest').textContent = ''; render();
-  }).catch(function () { $('savest').textContent = '· не удалось загрузить таблицу'; });
+  }).catch(function () { $('savest').textContent = '· не удалось загрузить таблицу'; }); }
+  load();
 })();
 </script>
 </body>
