@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-14-intro-once"
+ASSEMBLER_VERSION = "2026-10-14-intro-flag"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -784,6 +784,7 @@ def build_audio_track(
     compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
     denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
+    intro_first=False,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -803,6 +804,9 @@ def build_audio_track(
         split_list.extend(parts)
         intro_flags.extend([is_intro] * len(parts))
     tracks_raw = split_list
+    # или так: в строке выпуска колонка fx_IntroOnce («да») — первый трек и есть тема
+    if intro_first and intro_flags and not any(intro_flags):
+        intro_flags[0] = True
 
     if not tracks_raw:
         raise RuntimeError("No .mp3/.wav files found in ZIP or folder")
@@ -1235,7 +1239,7 @@ def collect_fx_filters(data, registry, *args):
 #   оба                                    -> петля + события поверх неё
 # Петля и события должны начинаться и заканчиваться исходной картинкой
 # (так их делает блокнот Wan: первый кадр = последний = картинка).
-MEDIA_FX_KEYS = ("fx_LoopUrl", "fx_EventUrls", "fx_Effects")
+MEDIA_FX_KEYS = ("fx_LoopUrl", "fx_EventUrls", "fx_Effects", "fx_IntroOnce")
 
 
 def piece_codec_args(fps):
@@ -3208,6 +3212,7 @@ def assemble():
             limiter_release_ms=limiter_release_ms,
             denoise_amount=denoise_amount,
             highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz,
+            intro_first=str(data.get("fx_IntroOnce") or "").strip().lower() in ("да", "yes", "1", "true", "+"),
         )
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
