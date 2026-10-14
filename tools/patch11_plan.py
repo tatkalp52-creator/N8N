@@ -84,6 +84,7 @@ def main():
     conns["Читаем календарь (страница)"] = {"main": [[L("Читаем каталог (страница)")]]}
     conns["Читаем каталог (страница)"] = {"main": [[L("Читаем выпуски (страница)")]]}
     conns["Читаем выпуски (страница)"] = {"main": [[L("Собираем данные")]]}
+    wf.setdefault("settings", {})["errorWorkflow"] = "A6x2zK1xfuhc5I3E"   # «13 Сторож»
     with open(PATH, "w", encoding="utf-8") as f:
         json.dump(wf, f, ensure_ascii=False, indent=2)
     print("ok: контент-план в 11")

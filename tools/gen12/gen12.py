@@ -757,7 +757,7 @@ wf = {
     'nodes': nodes,
     'connections': conns,
     'active': False,
-    'settings': {'executionOrder': 'v1', 'binaryMode': 'separate', 'errorWorkflow': 'FIjHQQSAlggtP8ij',
+    'settings': {'executionOrder': 'v1', 'binaryMode': 'separate', 'errorWorkflow': 'A6x2zK1xfuhc5I3E',
                  'callerPolicy': 'workflowsFromSameOwner'},
     'pinData': {},
     'tags': [],
