@@ -559,6 +559,9 @@ async function turn(stages, row, inc, response, subResponse) {
       sys_CleanSource: 'https://drive.google.com/uc?export=download&id=1TteXvQ3jTt9uetKgKExw5GNceijPYBss' },
       tracksUrl: 'https://drive.google.com/uc?export=download&id=1TteXvQ3jTt9uetKgKExw5GNceijPYBss' } } }))[0];
     assert.equal(c3.need, false, 'та же ссылка уже чистится — второй чистки нет');
+    const z = (await run('Чистка: запущена?', { nodes: { 'Контекст проекта': { ...ctx, row: { ...row, sys_CleanState: 'идёт', sys_CleanTag: 'T1', sys_CleanStarted: 'S1', sys_CleanSource: 'U1' } },
+      'Чистка: нужна?': { mode: 'duo', alarmHours: 4, body: { tracksUrl: 'U2', cleanNotebook: 'NB' } } }, input: [{ ok: false, busy: true, error: 'Блокнот занят' }] }))[0];
+    assert.equal(z.tag, 'T1'); assert.equal(z.state, 'идёт'); assert.equal(z.source, 'U1');
   }
   console.log('15 чистка и пересборка раздельно, без ложного «сначала чистка» OK');
 
