@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-14-short-intro"
+ASSEMBLER_VERSION = "2026-10-14-intro-once"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -775,6 +775,9 @@ def format_loudness_report(entries, target_lufs):
 TRACK_PEAK_LIMIT = 10 ** (-1.5 / 20)
 
 
+INTRO_RE = re.compile(r"^00(?!\d)")
+
+
 def build_audio_track(
     audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
     gap_seconds=0, loop_count=None, mix_seconds=None,
@@ -790,7 +793,16 @@ def build_audio_track(
         key=lambda p: natural_sort_key(p, zip_order)
     )
 
-    tracks_raw = split_all_by_silence(tracks_raw, work_dir)
+    # НОВОЕ (14.10): файл, имя которого начинается с «00» (не «001»), — ВСТУПЛЕНИЕ
+    # (тема): играет один раз в начале, а повторы ролика начинаются со следующего трека.
+    intro_flags = []
+    split_list = []
+    for i, raw_path in enumerate(tracks_raw):
+        parts = split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}")
+        is_intro = bool(INTRO_RE.match(os.path.basename(raw_path)))
+        split_list.extend(parts)
+        intro_flags.extend([is_intro] * len(parts))
+    tracks_raw = split_list
 
     if not tracks_raw:
         raise RuntimeError("No .mp3/.wav files found in ZIP or folder")
@@ -992,27 +1004,32 @@ def build_audio_track(
     # (при ratio 1 он ничего не делает, лишний проход не нужен). Дальше:
     # замер → громкость ровно в цель → лимитер ПОСЛЕДНИМ, без автоподъёма
     # (level=disabled), чтобы он только ловил пики и не поднимал фон.
-    bus_in = concat_out
-    if float(compressor_ratio or 1) > 1:
-        bus_in = os.path.join(work_dir, "audio_compressed.wav")
+    def bus(concat_path, tag):
+        """Компрессор (если ratio > 1) → громкость в цель → лимитер. tag — чтобы файлы не перетирались."""
+        bus_in = concat_path
+        if float(compressor_ratio or 1) > 1:
+            bus_in = os.path.join(work_dir, f"audio_compressed{tag}.wav")
+            run_ffmpeg([
+                "-i", concat_path,
+                "-af", (
+                    f"acompressor=threshold={compressor_threshold_db}dB:ratio={compressor_ratio}:"
+                    f"attack={compressor_attack_sec * 1000}:release={compressor_release_sec * 1000}"
+                ),
+                bus_in
+            ])
+        out = os.path.join(work_dir, f"audio_final{tag}.wav")
+        limiter = (
+            f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms}:"
+            f"release={limiter_release_ms}:level=disabled"
+        )
         run_ffmpeg([
-            "-i", concat_out,
-            "-af", (
-                f"acompressor=threshold={compressor_threshold_db}dB:ratio={compressor_ratio}:"
-                f"attack={compressor_attack_sec * 1000}:release={compressor_release_sec * 1000}"
-            ),
-            bus_in
+            "-i", bus_in,
+            "-af", f"{gain_to_target(bus_in, target_lufs)},{limiter}",
+            out
         ])
-    normalized_out = os.path.join(work_dir, "audio_final.wav")
-    limiter = (
-        f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms}:"
-        f"release={limiter_release_ms}:level=disabled"
-    )
-    run_ffmpeg([
-        "-i", bus_in,
-        "-af", f"{gain_to_target(bus_in, target_lufs)},{limiter}",
-        normalized_out
-    ])
+        return out
+
+    normalized_out = bus(concat_out, "")
 
 
     probe_single = subprocess.run(
@@ -1042,7 +1059,21 @@ def build_audio_track(
     # причины, и без такого наблюдения дальше двигаться вслепую.
     final_out = normalized_out
     if loop_count > 1:
-        final_out = join_tracks([normalized_out] * loop_count, [single_pass_duration] * loop_count, "audio_loop")
+        body = [(t, d) for t, d, f in zip(faded_tracks, durations, intro_flags) if not f]
+        if any(intro_flags) and body:
+            # первый проход — с темой, повторы — без неё
+            body_concat = os.path.join(work_dir, "audio_concat_body.wav")
+            shutil.copy(join_tracks([t for t, _ in body], [d for _, d in body], "audio_body_step"), body_concat)
+            body_out = bus(body_concat, "_body")
+            body_probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", body_out],
+                capture_output=True, text=True)
+            body_duration = float(body_probe.stdout.strip())
+            print(f"[intro] вступление один раз, повторы ({loop_count - 1}) — со следующего трека")
+            final_out = join_tracks([normalized_out] + [body_out] * (loop_count - 1),
+                                    [single_pass_duration] + [body_duration] * (loop_count - 1), "audio_loop")
+        else:
+            final_out = join_tracks([normalized_out] * loop_count, [single_pass_duration] * loop_count, "audio_loop")
 
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries",
