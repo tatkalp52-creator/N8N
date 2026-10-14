@@ -539,5 +539,24 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('14 новый проект: одно сообщение со всеми каналами OK');
 
+  // ── 15. Чистка и пересборка раздельно (14.10) ──
+  {
+    const ctx = { chatId: 7, projectId: '20261012_092708_pengui', items: [] };
+    const row = { sys_ProjectID: ctx.projectId, sys_Status: 'Утверждено', sys_AudioZipUrl: 'https://drive.google.com/uc?export=download&id=1wun3Im-LhqCR_Z_3R53fKis4aRd4brs5' };
+    const b1 = (await run('Стена: проверяем таблицу', { nodes: { 'Контекст проекта': ctx }, input: [{ ...row, sys_CleanState: 'идёт' }] }))[0];
+    assert.equal(b1.ok, false, 'пока чистка идёт — не собираем');
+    assert.ok(b1.problemsText.startsWith('Чистка звука ещё идёт'));
+    const b2 = (await run('Стена: проверяем таблицу', { nodes: { 'Контекст проекта': ctx }, input: [{ ...row, sys_CleanState: 'готово' }] }))[0];
+    assert.ok(!/Сначала чистка/.test(b2.okText), 'нет ложного «сначала чистка»');
+    const tmpl = { '🎬tmpl_CleanMode': 'duo' };
+    const c1 = (await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctx, tmpl, row: { ...row, sys_CleanState: 'готово' },
+      tracksUrl: 'https://drive.google.com/uc?export=download&id=1wun3Im-LhqCR_Z_3R53fKis4aRd4brs5' } } }))[0];
+    assert.equal(c1.need, false, 'ссылка на уже очищенный архив — без чистки');
+    const c2 = (await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctx, tmpl, row: { ...row, sys_CleanState: 'готово' },
+      tracksUrl: 'https://drive.google.com/uc?export=download&id=1NEWzzzzzzzzzzzzzzzzzzzzzzzzzzz' } } }))[0];
+    assert.equal(c2.need, true, 'новая ссылка — чистим');
+  }
+  console.log('15 чистка и пересборка раздельно, без ложного «сначала чистка» OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

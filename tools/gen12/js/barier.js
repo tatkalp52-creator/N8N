@@ -2,16 +2,18 @@
 // не хватает — до сообщения «приступаю к сборке» и до 04_Video цепочка не доходит.
 const ctx = $('Контекст проекта').first().json;
 const fresh = $input.first().json || {};
-const cleanMode = String(findByLabel(ctx.tmpl || {}, 'tmpl_CleanMode') || '').trim();
-const tracks = String(fresh.sys_AudioZipUrl || '');
-const cleanNote = cleanMode && !tracks.includes('kaggle.com/code/')
-  ? `Сначала чистка звука в Kaggle (${cleanMode}) — это несколько часов, потом сборка. Напишу, когда видео будет на канале.`
-  : '';
+// Чистка: сюда доходят только когда она уже не нужна или закончилась. Если же она ещё идёт
+// («пересобери» или ✅ посреди чистки) — не собираем на сырых треках: соберётся сам после чистки.
+const cleanState = String(fresh.sys_CleanState || '').trim();
+const cleaning = cleanState === 'идёт';
+const cleanNote = /^ошибка/.test(cleanState) ? '⚠️ Последняя чистка не удалась — собираю на исходных треках.' : '';
 const problems = validateRow(fresh, ctx.items || [], { needApproved: true, needTracks: true });
 return [{ json: {
-  ok: problems.length === 0,
+  ok: problems.length === 0 && !cleaning,
   chatId: ctx.chatId,
   projectId: ctx.projectId,
   okText: `Треки получены, приступаю к сборке 🎬\nВсе поля в таблице на месте — передаю сборщику видео.` + (cleanNote ? `\n${cleanNote}` : '') + `\n\nID: ${ctx.projectId}`,
-  problemsText: 'Сборку НЕ запускаю — в таблице не хватает:\n• ' + problems.join('\n• ') + `\n\nID: ${ctx.projectId}`,
+  problemsText: (cleaning ? 'Чистка звука ещё идёт — соберу сам, как только она закончится. Сейчас ничего делать не нужно.' : '')
+    + (cleaning && problems.length ? '\n\n' : '')
+    + (problems.length ? 'Сборку НЕ запускаю — в таблице не хватает:\n• ' + problems.join('\n• ') : '') + `\n\nID: ${ctx.projectId}`,
 } }];

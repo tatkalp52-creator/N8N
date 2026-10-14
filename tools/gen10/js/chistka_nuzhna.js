@@ -5,12 +5,17 @@ const tmpl = ctx.tmpl || {};
 const val = l => String(findByLabel(tmpl, l) || '').trim();
 const mode = val('tmpl_CleanMode');
 const url = String(ctx.tracksUrl || '').trim();
-const need = !!mode && !!url && !url.includes('kaggle.com/code/');
+// уже очищенный архив (та же ссылка, что лежит в строке после готовой чистки) — второй раз не чистим (13.10)
+const row = ctx.row || {};
+const fileId = u => { const s = String(u || '').trim(); const m = s.match(/(?:\/d\/|[?&]id=)([a-zA-Z0-9_-]{20,})/); return m ? m[1] : s; };
+const alreadyClean = String(row.sys_CleanState || '').trim() === 'готово' && !!url && fileId(url) === fileId(row.sys_AudioZipUrl);
+const need = !!mode && !!url && !url.includes('kaggle.com/code/') && !alreadyClean;
 // адрес, по которому блокнот в конце «постучится» в ЭТО ожидание (у каждого запуска свой)
 const callbackUrl = typeof $execution !== 'undefined' && $execution ? ($execution.resumeUrl || '') : '';
 return [{
   json: {
     need,
+    alreadyClean,
     projectId: ctx.projectId,
     body: {
       projectId: ctx.projectId, tracksUrl: url, cleanMode: mode,

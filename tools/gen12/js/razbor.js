@@ -22,6 +22,15 @@ if (!t) {
     event: inner.event || '', text: '', photo: null, callbackQueryId: '', variantNumber: null, tracksUrl: '', replyVariant: null,
   } }];
 }
+// Телеграм присылает то же сообщение повторно, если бот долго отвечал (13.10 — вторая чистка).
+// Уже виденное update_id — молча пропускаем.
+if (t.update_id != null && typeof $getWorkflowStaticData === 'function') {
+  const sd = $getWorkflowStaticData('global');
+  const seen = Array.isArray(sd.seenUpdates) ? sd.seenUpdates : [];
+  if (seen.includes(t.update_id)) return [{ json: { kind: 'unknown', duplicate: true, chatId: null, text: '', photo: null, projectId: '', channelKey: '', callbackQueryId: '', variantNumber: null, tracksUrl: '', replyVariant: null, event: '' } }];
+  seen.push(t.update_id);
+  sd.seenUpdates = seen.slice(-300);
+}
 const ID_RE = /(\d{8})_?(\d{6})_?([A-Za-z0-9]+)/;
 const fromId = m => ({ projectId: m[1] + '_' + m[2] + '_' + m[3], channelKey: m[3] });
 

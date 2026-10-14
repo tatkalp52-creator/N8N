@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-13-overlay-border"
+ASSEMBLER_VERSION = "2026-10-14-guard"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -3098,6 +3098,7 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
 def assemble():
     data = request.json
     project_id = data.get("projectId", "unknown")
+    cleanup_old_temp()
     image_url = data["imageUrl"]
     audio_zip_url = data["audioZipUrl"]
     overlay_text = data.get("overlayText", "")
@@ -3916,13 +3917,50 @@ def fx_marks():
         shutil.rmtree(work_dir, ignore_errors=True)
 
 
+def _last_touch(d):
+    """Самое свежее изменение внутри папки: идущая сборка пишет файлы — значит, папка живая."""
+    t = os.path.getmtime(d)
+    for root, _, files in os.walk(d):
+        for f in files:
+            try:
+                t = max(t, os.path.getmtime(os.path.join(root, f)))
+            except OSError:
+                pass
+    return t
+
+
+def disk_report():
+    """НОВОЕ (14.10): сколько места на диске и сколько старых временных папок сборки —
+    для сторожа в n8n (13.10 сборка супа упала с «No space left on device»)."""
+    try:
+        du = shutil.disk_usage(tempfile.gettempdir())
+        free_gb = round(du.free / 1024 ** 3, 1)
+    except Exception:
+        free_gb = None
+    old = [d for d in glob.glob(os.path.join(tempfile.gettempdir(), "assemble_*"))
+           if os.path.isdir(d) and time.time() - _last_touch(d) > 3 * 3600]
+    return {"diskFreeGb": free_gb, "oldTempDirs": len(old)}
+
+
+def cleanup_old_temp(hours=3):
+    """НОВОЕ (14.10): перед новой сборкой удаляем временные папки прошлых сборок старше N часов —
+    зависшая сборка больше не держит 13 ГБ до ручной чистки."""
+    for d in glob.glob(os.path.join(tempfile.gettempdir(), "assemble_*")):
+        try:
+            if os.path.isdir(d) and time.time() - _last_touch(d) > hours * 3600:
+                shutil.rmtree(d, ignore_errors=True)
+                print(f"[cleanup] удалена старая временная папка {d}")
+        except Exception as e:
+            print(f"[cleanup] не удалось удалить {d}: {e}")
+
+
 @app.route("/health", methods=["GET"])
 def health():
     try:
         run_ffmpeg(["-version"])
-        return jsonify({"status": "ok", "ffmpeg": "reachable", "version": ASSEMBLER_VERSION})
+        return jsonify({"status": "ok", "ffmpeg": "reachable", "version": ASSEMBLER_VERSION, **disk_report()})
     except Exception as e:
-        return jsonify({"status": "error", "detail": str(e), "version": ASSEMBLER_VERSION}), 500
+        return jsonify({"status": "error", "detail": str(e), "version": ASSEMBLER_VERSION, **disk_report()}), 500
 
 
 @app.route("/trackinfo", methods=["POST"])
