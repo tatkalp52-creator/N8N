@@ -41,6 +41,25 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); font-
 .wrap { max-width: 1200px; margin-inline: auto; height: 100%; display: flex; flex-direction: column; gap: 10px; }
 .cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 10px; }
 .col { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 10px; }
+.col.side { overflow: hidden; }
+.col.side > #daycard { flex: 0 1 auto; max-height: 55%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.col.side > .kopcard { flex: 1 1 0; min-height: 120px; }
+.kopcard #kop { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* готовность выпуска: цвет — шаг, 🎵 — треки есть, ✓ — выложен */
+:root { --st-plan: transparent; --st-red: #c94a3d; --st-orange: #d9822b; --st-yellow: #e2b93b; --st-green: #4f8a4b; }
+.pill.st-plan { background: var(--paper) !important; color: var(--ink); border: 1px solid var(--line); }
+.pill.st-red { background: var(--st-red) !important; }
+.pill.st-orange { background: var(--st-orange) !important; }
+.pill.st-yellow { background: var(--st-yellow) !important; color: #2c2620; }
+.pill.st-green { background: var(--st-green) !important; }
+.stline { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; }
+.stdot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.tick[aria-pressed="true"] { background: var(--st-green); color: #fff; border-color: var(--st-green); }
+.own { display: flex; flex-direction: column; gap: 6px; }
+.own input, .own select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 10px; width: 100%; }
 h1 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; text-wrap: balance; }
 .sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 .badge { display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle; font-family: var(--body); font-weight: 700; }
@@ -63,7 +82,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .day.today { border-color: var(--accent); border-width: 2px; }
 .day.sel { background: var(--soft); outline: 2px solid var(--accent); }
 .day .n { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
-.pill { font-size: 10px; line-height: 1.2; color: #fff; border-radius: 5px; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill { font-size: 10px; line-height: 1.2; color: #fff; border-radius: 5px; padding: 2px 4px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .pill.done { opacity: .55; text-decoration: line-through; }
 .hint { font-size: 12px; color: var(--muted); }
 .dayhead { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 0; }
@@ -134,8 +153,9 @@ header .sub { flex-basis: 100%; order: 3; }
 <div class="wrap">
   <header>
     <h1>Контент-план <span class="save" id="savest"></span></h1>
-    <p class="sub">Слева план выпусков, справа поводы из листа «Календарь». Всё сохраняется в таблицу сразу.</p>
+    <p class="sub">Слева план выпусков, справа поводы из листа «Календарь». Цвет выпуска — сам, по строке выпуска в таблице.</p>
     <div class="row" id="chans" role="group" aria-label="Каналы"></div>
+    <div class="legend"><span><i style="background:var(--st-red)"></i>картинка</span><span><i style="background:var(--st-orange)"></i>описание</span><span><i style="background:var(--st-yellow)"></i>утверждено</span><span><i style="background:var(--st-green)"></i>на YouTube</span><span>🎵 треки есть</span><span>✓ выложен</span></div>
   </header>
 
   <div class="cols">
@@ -152,9 +172,9 @@ header .sub { flex-basis: 100%; order: 3; }
 
   </div>
 
-  <div class="col">
+  <div class="col side">
   <section class="card" aria-label="Выбранный день" id="daycard"></section>
-  <section class="card" aria-label="Копилка">
+  <section class="card kopcard" aria-label="Копилка">
     <div class="row" style="justify-content: space-between">
       <div class="label">Копилка идей — <span id="kcount"></span></div>
       <span class="hint" id="khint"></span>
@@ -171,13 +191,12 @@ header .sub { flex-basis: 100%; order: 3; }
   if (window.Telegram && Telegram.WebApp) { try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {} }
   var BASE = location.pathname.replace(/\/+$/, '');
   var COLORS = ['var(--pengui)', 'var(--lumos)', 'var(--unicorn)', 'var(--c3)', 'var(--c4)'];
-  var STEPS = ['запланирован', 'картинка', 'текст', 'треки', 'сборка', 'вышел'];
   var MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
   var MGEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   var WD = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
   var PLANNED = { 'Выбран': 0, 'В работе': 1, 'Вышел': 5 };
   var TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);
-  var CH = [], items = [], active = {}, placing = null, choose = null;
+  var CH = [], items = [], active = {}, placing = null, choose = null, PROJ = {}, PLIST = [], ownFor = null;
   var view = { y: TODAY.getFullYear(), m: TODAY.getMonth() + 1 };
   var sel = { y: view.y, m: view.m, d: TODAY.getDate() };
   var $ = function (id) { return document.getElementById(id); };
@@ -185,6 +204,20 @@ header .sub { flex-basis: 100%; order: 3; }
   function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { x.classList.remove('on'); }, 2200); }
   function color(k) { var i = CH.findIndex(function (c) { return c.key === k; }); return COLORS[(i < 0 ? 0 : i) % COLORS.length]; }
   function chName(k) { var c = CH.find(function (c) { return c.key === k; }); return c ? c.name : k; }
+  function chIcon(k) { var c = CH.find(function (c) { return c.key === k; }); return c && c.icon ? c.icon : ''; }
+  // шаг выпуска — из его строки в таблице (sys_Status), а не руками
+  var ST = { plan: 'не начат', red: 'картинка в работе', orange: 'описание в работе', yellow: 'утверждено — ждёт треки и сборку', green: 'на YouTube' };
+  function proj(it) { return it.project ? PROJ[it.project] || null : null; }
+  function stOf(it) {
+    var p = proj(it); if (!p) return 'plan';
+    if (p.status === 'Опубликовано') return 'green';
+    if (p.status === 'Утверждено') return 'yellow';
+    if (p.status === 'Картинка согласована') return 'orange';
+    return 'red';
+  }
+  function short(it) { return it.ru || it.title; }
+  function mark(it) { return (chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + it.pd + '.' + String(it.pm).padStart(2, '0') + ' · ' + short(it); }
+  function ptitle(p) { var t = String(p.title || ''); var m = t.match(/·\s*([^|]+)/); return (m ? m[1] : t).trim() || p.id; }
   function iso(y, m, d) { return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
 
   function fromRow(r) {
@@ -196,6 +229,7 @@ header .sub { flex-basis: 100%; order: 3; }
     return { row: r, id: String(r.id), y: y, m: m, d: d, chs: chs, orig: chs.slice(),
       title: String(r.title || ''), ru: String(r.title_ru || ''), note: String(r.note || '').replace(/\n?#+ [^\n]*/g, '').trim(),
       planned: r.status in PLANNED, step: step == null ? 0 : step,
+      project: String(r.project || '').trim(), posted: String(r.posted || '').trim() === 'да',
       py: rel ? +rel[1] : y, pm: rel ? +rel[2] : m, pd: rel ? +rel[3] : d };
   }
   function slot(y, m, d, ch) { return items.find(function (it) { return it.planned && it.py === y && it.pm === m && it.pd === d && it.chs[0] === ch; }); }
@@ -203,10 +237,12 @@ header .sub { flex-basis: 100%; order: 3; }
   var queue = Promise.resolve(), pending = 0;
   function save(it) {
     var r = it.row;
-    r.status = it.planned ? (it.step >= 5 ? 'Вышел' : it.step >= 1 ? 'В работе' : 'Выбран') : 'Идея';
+    r.status = it.planned ? (stOf(it) === 'green' ? 'Вышел' : it.project ? 'В работе' : 'Выбран') : 'Идея';
     r.step = it.planned ? String(it.step) : '';
     r.release = it.planned ? iso(it.py, it.pm, it.pd) : '';
     r.channel = it.chs.join(', ');
+    r.project = it.project || '';
+    r.posted = it.posted ? 'да' : '';
     pending++; $('savest').textContent = '· сохраняю…';
     queue = queue.then(function () {
       return fetch(BASE + '/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ row: r }) })
@@ -231,7 +267,7 @@ header .sub { flex-basis: 100%; order: 3; }
     CH.forEach(function (c) {
       var b = el('button', 'chip'); b.type = 'button'; b.style.color = color(c.key);
       b.setAttribute('aria-pressed', active[c.key] ? 'true' : 'false');
-      var d = el('span', 'dot'); d.style.background = color(c.key); b.appendChild(d); b.appendChild(document.createTextNode(c.name));
+      var d = el('span', 'dot'); d.style.background = color(c.key); b.appendChild(d); b.appendChild(document.createTextNode((c.icon ? c.icon + ' ' : '') + c.name));
       b.onclick = function () { active[c.key] = !active[c.key]; render(); };
       box.appendChild(b);
     });
@@ -251,7 +287,8 @@ header .sub { flex-basis: 100%; order: 3; }
       CH.forEach(function (c) {
         var p = slot(view.y, view.m, d, c.key);
         if (!p || !active[c.key]) return;
-        var pl = el('span', 'pill' + (p.step >= 5 ? ' done' : ''), p.title); pl.style.background = color(c.key); b.appendChild(pl);
+        var pp = proj(p), txt = (c.icon || '') + (pp && pp.tracks ? '🎵' : '') + (p.posted ? '✓' : '') + ' ' + short(p);
+        var pl = el('span', 'pill st-' + stOf(p), txt); b.appendChild(pl);
       });
       b.setAttribute('aria-label', d + ' ' + MGEN[view.m - 1]);
       b.onclick = function () {
@@ -281,21 +318,55 @@ header .sub { flex-basis: 100%; order: 3; }
       var p = slot(sel.y, sel.m, sel.d, ch.key);
       var s = el('div', 'slot'); s.style.color = color(ch.key);
       s.appendChild(el('div', 'label', ch.name));
-      if (!p) { s.appendChild(el('p', 'empty', 'пусто')); c.appendChild(s); return; }
-      var t = el('div', 't', p.title); if (p.ru) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + p.ru)); } s.appendChild(t);
+      if (!p) {
+        if (ownFor === ch.key) {
+          var f = el('div', 'own'); var inp = el('input', ''); inp.placeholder = 'Тема, например: Пингви читает под дождём'; inp.setAttribute('aria-label', 'Своя тема');
+          var rr = el('div', 'row'); var ok = el('button', 'chbtn', 'Поставить'); ok.type = 'button'; ok.style.background = 'var(--accent)';
+          var cn = el('button', '', 'Отмена'); cn.type = 'button';
+          ok.onclick = function () {
+            var tt = inp.value.trim(); if (!tt) { inp.focus(); return; }
+            var row = { id: 'i' + Date.now().toString(36), year: String(sel.y), month: String(sel.m), day: String(sel.d), title: tt, channel: ch.key, status: 'Выбран', sources: 'своя идея' };
+            var it = fromRow(row); it.planned = true; it.step = 0; it.chs = [ch.key]; it.orig = [ch.key]; items.push(it); ownFor = null; save(it); toast('Поставлено: ' + tt.slice(0, 40)); render();
+          };
+          cn.onclick = function () { ownFor = null; render(); };
+          rr.appendChild(ok); rr.appendChild(cn); f.appendChild(inp); f.appendChild(rr); s.appendChild(f); c.appendChild(s);
+          setTimeout(function () { inp.focus(); }, 0); return;
+        }
+        s.appendChild(el('p', 'empty', 'пусто'));
+        var add = el('button', '', '+ Своя идея'); add.type = 'button'; add.onclick = function () { ownFor = ch.key; render(); };
+        var ra = el('div', 'row'); ra.appendChild(add); s.appendChild(ra);
+        c.appendChild(s); return;
+      }
+      var t = el('div', 't', mark(p)); if (p.ru && p.title && p.ru !== p.title) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + p.title)); } s.appendChild(t);
       if (p.d !== p.pd || p.m !== p.pm) s.appendChild(el('div', 'note', 'Повод — ' + p.d + ' ' + MGEN[p.m - 1]));
       if (p.note) s.appendChild(el('div', 'note', p.note));
-      var stp = el('div', 'steps');
-      STEPS.forEach(function (name, i) {
-        var b = el('button', 'step'); b.type = 'button'; b.style.color = color(ch.key);
-        b.setAttribute('aria-pressed', i <= p.step ? 'true' : 'false'); b.appendChild(el('span', '', name));
-        b.onclick = function () { p.step = i; save(p); render(); };
-        stp.appendChild(b);
-      });
-      s.appendChild(stp);
+      var pp = proj(p), st = stOf(p);
+      var line = el('div', 'stline'); var dot = el('span', 'stdot'); if (st !== 'plan') dot.style.background = 'var(--st-' + st + ')';
+      line.appendChild(dot); line.appendChild(el('span', '', ST[st] + (pp && pp.tracks ? ' · 🎵 треки есть' : '') + (p.posted ? ' · ✓ выложен' : '')));
+      s.appendChild(line);
+      var r = el('div', 'row');
+      if (pp) {
+        if (st === 'green' || p.posted) {
+        var tk = el('button', 'tick', p.posted ? '✓ Выложен' : 'Отметить: выложен'); tk.type = 'button'; tk.setAttribute('aria-pressed', p.posted ? 'true' : 'false');
+        tk.onclick = function () { p.posted = !p.posted; save(p); render(); };
+        r.appendChild(tk);
+        }
+        var un = el('button', '', 'Отвязать выпуск'); un.type = 'button';
+        un.onclick = function () { p.project = ''; p.posted = false; save(p); render(); };
+        r.appendChild(un);
+      } else {
+        var free = PLIST.filter(function (q) { return q.ch === ch.key && !items.some(function (o) { return o.project === q.id; }); });
+        if (free.length) {
+          var sl = el('select', ''); sl.setAttribute('aria-label', 'Привязать начатый выпуск');
+          var o0 = el('option', '', 'Привязать начатый выпуск…'); o0.value = ''; sl.appendChild(o0);
+          free.forEach(function (q) { var o = el('option', '', ptitle(q) + ' · ' + q.id.slice(6, 8) + '.' + q.id.slice(4, 6)); o.value = q.id; sl.appendChild(o); });
+          sl.onchange = function () { if (!sl.value) return; p.project = sl.value; save(p); toast('Выпуск привязан'); render(); };
+          r.appendChild(sl);
+        }
+      }
       var rm = el('button', '', 'Убрать из плана'); rm.type = 'button';
-      rm.onclick = function () { p.planned = false; p.chs = p.orig.slice(); save(p); toast('Вернулось в копилку'); render(); };
-      var r = el('div', 'row'); r.appendChild(rm); s.appendChild(r);
+      rm.onclick = function () { p.planned = false; p.project = ''; p.posted = false; p.chs = p.orig.slice(); save(p); toast('Вернулось в копилку'); render(); };
+      r.appendChild(rm); s.appendChild(r);
       c.appendChild(s);
     });
   }
@@ -332,7 +403,9 @@ header .sub { flex-basis: 100%; order: 3; }
 
   $('savest').textContent = '· загружаю…';
   fetch(BASE + '/data', { cache: 'no-store' }).then(function (x) { return x.json(); }).then(function (data) {
-    CH = (data.channels || []).map(function (c) { return { key: String(c.Channel || '').trim(), name: String(c['Кнопка'] || c.Channel || '').trim() }; }).filter(function (c) { return c.key; });
+    CH = (data.channels || []).map(function (c) { return { key: String(c.Channel || '').trim(), name: String(c['Кнопка'] || c.Channel || '').trim(), icon: String(c['Значок'] || '').trim() }; }).filter(function (c) { return c.key; });
+    PLIST = (data.projects || []).slice().sort(function (a, b) { return a.id < b.id ? 1 : -1; });
+    PLIST.forEach(function (q) { PROJ[q.id] = q; });
     if (!CH.length) CH = [{ key: 'pengui', name: 'pengui' }];
     CH.forEach(function (c) { active[c.key] = true; });
     items = (data.rows || []).map(fromRow);

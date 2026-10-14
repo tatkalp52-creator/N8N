@@ -14,12 +14,19 @@ PATH = os.path.join(ROOT, "workflows", "11_Календарь.json")
 PAGE = os.path.join(ROOT, "table_drafts", "calendar", "plan_page.html")
 DOC = {"__rl": True, "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs", "mode": "id"}
 GS = {"googleApi": {"id": "1uQkgKbOPhjKOB2l", "name": "Google Sheets account 2"}}
-COLS = ['id', 'year', 'month', 'day', 'title', 'channel', 'status', 'project', 'note', 'sources', 'createdAt', 'updatedAt', 'title_ru', 'release', 'step']
+COLS = ['id', 'year', 'month', 'day', 'title', 'channel', 'status', 'project', 'note', 'sources', 'createdAt', 'updatedAt', 'title_ru', 'release', 'step', 'posted']
 
-SOBIRAEM = """// все строки листа и каналы (Catalog) одним JSON для страницы
+SOBIRAEM = """// все строки листа, каналы (Catalog) и выпуски каналов (только шаг и треки) одним JSON для страницы
 const rows = $('Читаем календарь (страница)').all().map(i => i.json).filter(r => r && String(r.id || '').trim());
-const channels = $input.all().map(i => i.json).filter(c => c && String(c.Channel || '').trim());
-return [{ json: { body: JSON.stringify({ rows, channels }) } }];"""
+const channels = $('Читаем каталог (страница)').all().map(i => i.json).filter(c => c && String(c.Channel || '').trim());
+let raw = [];
+try { raw = $('Читаем выпуски (страница)').all().map(i => i.json); } catch (e) {}
+const projects = raw.filter(p => p && /^\\d{8}_\\d{6}_[a-z0-9]+$/i.test(String(p.sys_ProjectID || '').trim())).map(p => {
+  const id = String(p.sys_ProjectID).trim();
+  return { id, ch: id.split('_').slice(2).join('_').toLowerCase(), status: String(p.sys_Status || '').trim(),
+    tracks: !!String(p.sys_AudioZipUrl || '').trim(), title: String(p.ai_Title || '').slice(0, 160) };
+});
+return [{ json: { body: JSON.stringify({ rows, channels, projects }) } }];"""
 
 STROKA = """// строка, которую прислала страница: берём только известные колонки
 const COLS = %s;
@@ -36,6 +43,8 @@ out.id = id; out.month = String(m); out.day = String(d);
 if (!STATUSES.includes(out.status)) out.status = 'Идея';
 if (out.release && !/^\\d{4}-\\d{2}-\\d{2}$/.test(out.release)) out.release = '';
 if (out.step && !/^[0-5]$/.test(out.step)) out.step = '';
+if (out.posted !== 'да') out.posted = '';
+if (out.project && !/^\\d{8}_\\d{6}_[a-z0-9]+$/i.test(out.project)) out.project = '';
 out.channel = out.channel.toLowerCase();   // пусто — повод общий, для любого канала
 out.updatedAt = now;
 if (!out.createdAt) out.createdAt = now;
@@ -57,9 +66,17 @@ def main():
              "id": str(uuid.uuid4()), "name": "Читаем каталог (страница)", "type": "n8n-nodes-base.googleSheets", "typeVersion": 4,
              "position": [x + 110, y + 160], "credentials": GS, "alwaysOutputData": True, "executeOnce": True}
         wf["nodes"].append(n)
+    if "Читаем выпуски (страница)" not in nodes:
+        x, y = nodes["Читаем каталог (страница)"]["position"]
+        n = {"parameters": {"authentication": "serviceAccount", "documentId": DOC,
+             "sheetName": {"__rl": True, "value": "={{ $json.SheetName }}", "mode": "name"}, "filtersUI": {"values": []}, "options": {}},
+             "id": str(uuid.uuid4()), "name": "Читаем выпуски (страница)", "type": "n8n-nodes-base.googleSheets", "typeVersion": 4,
+             "position": [x + 110, y + 160], "credentials": GS, "alwaysOutputData": True, "onError": "continueRegularOutput"}
+        wf["nodes"].append(n)
     L = lambda b: {"node": b, "type": "main", "index": 0}
     conns["Читаем календарь (страница)"] = {"main": [[L("Читаем каталог (страница)")]]}
-    conns["Читаем каталог (страница)"] = {"main": [[L("Собираем данные")]]}
+    conns["Читаем каталог (страница)"] = {"main": [[L("Читаем выпуски (страница)")]]}
+    conns["Читаем выпуски (страница)"] = {"main": [[L("Собираем данные")]]}
     with open(PATH, "w", encoding="utf-8") as f:
         json.dump(wf, f, ensure_ascii=False, indent=2)
     print("ok: контент-план в 11")
