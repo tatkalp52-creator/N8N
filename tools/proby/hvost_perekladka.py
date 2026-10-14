@@ -19,7 +19,15 @@ d2 = ((P[:, :, None, :] - seg[None, None]) ** 2).sum(-1)
 S = sof[d2.argmin(-1)]; dist = np.sqrt(d2.min(-1))
 # маска хвоста = где стёрто (разница оригинала и чистого фона), рядом с осью
 diff = np.abs(O - C).sum(-1)
-m = ((diff > 28) & (dist < 22)).astype(np.float32)
+lum = O @ np.array([0.299, 0.587, 0.114], np.float32)
+# хвост чёрный: берём только тёмное, что стёрто, рядом с осью — светлый корешок книги не цепляем
+INS = np.load(sys.argv[4])[y0:y1, x0:x1] if len(sys.argv) > 4 else (dist < 20)
+# обводка автора: внутри неё — только то, что стёрто; книга вокруг не цепляется
+core = np.asarray(Image.fromarray((INS * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(9))) > 0   # глубоко внутри обводки — хвост целиком
+near = np.asarray(Image.fromarray((INS * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(11))) > 0
+lum = O @ np.array([0.299, 0.587, 0.114], np.float32)
+# у самой обводки: тёмный стёртый край хвоста, если линия прошла чуть внутри
+m = (core | (INS & (diff > 20)) | (near & (diff > 35) & (lum < 60))).astype(np.float32)
 mi = Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(1.2))
 M = np.asarray(mi).astype(np.float32) / 255
 # шарниры по длине хвоста
