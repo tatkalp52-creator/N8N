@@ -53,6 +53,19 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); font-
   .col.side > .kopcard { min-height: 0; }
 }
 .idea .where { font-size: 12px; color: var(--muted); }
+/* поводы облачками: дата слева, поводы дня рядом; касание — суть и кнопки каналов */
+.erow { display: flex; gap: 10px; align-items: flex-start; border-top: 1px solid var(--line); padding: 6px 0; }
+.erow:first-child { border-top: 0; }
+.edate { flex: none; width: 40px; text-align: center; font-family: var(--display); font-weight: 600; font-size: 19px; line-height: 1.1; }
+.edate small { display: block; font-family: var(--body); font-size: 11px; font-weight: 400; color: var(--muted); }
+.edate.today { color: var(--accent); }
+.chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.ev { min-height: 32px; border-radius: 999px; padding: 3px 10px; font-size: 13px; background: var(--bg); text-align: left; max-width: 100%; overflow-wrap: anywhere; }
+.ev[aria-expanded="true"] { border-color: var(--accent); background: var(--soft); font-weight: 700; }
+.ev.inplan { color: var(--muted); border-style: dashed; }
+.about { flex-basis: 100%; background: var(--soft); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.about .ru { font-weight: 600; color: var(--ink); }
+.about p { margin: 0; font-size: 13.5px; }
 .idea.planned .t { color: var(--muted); }
 /* готовность выпуска: цвет — шаг, 🎵 — треки есть, ✓ — выложен */
 :root { --st-plan: transparent; --st-red: #c94a3d; --st-orange: #d9822b; --st-yellow: #e2b93b; --st-green: #4f8a4b; }
@@ -205,7 +218,7 @@ header .sub { flex-basis: 100%; order: 3; }
   var WD = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
   var PLANNED = { 'Выбран': 0, 'В работе': 1, 'Вышел': 5 };
   var TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);
-  var CH = [], items = [], active = {}, placing = null, choose = null, PROJ = {}, PLIST = [], ownFor = null;
+  var CH = [], items = [], active = {}, placing = null, choose = null, PROJ = {}, PLIST = [], ownFor = null, openEv = null;
   var view = { y: TODAY.getFullYear(), m: TODAY.getMonth() + 1 };
   var sel = { y: view.y, m: view.m, d: TODAY.getDate() };
   var $ = function (id) { return document.getElementById(id); };
@@ -238,7 +251,7 @@ header .sub { flex-basis: 100%; order: 3; }
     return { row: r, id: String(r.id), y: y, m: m, d: d, chs: chs, orig: chs.slice(),
       title: String(r.title || ''), ru: String(r.title_ru || ''), note: String(r.note || '').replace(/\n?#+ [^\n]*/g, '').trim(),
       planned: r.status in PLANNED, step: step == null ? 0 : step,
-      project: String(r.project || '').trim(), posted: String(r.posted || '').trim() === 'да',
+      project: String(r.project || '').trim(), posted: String(r.posted || '').trim() === 'да', tag: String(r.tag || '').trim(),
       py: rel ? +rel[1] : y, pm: rel ? +rel[2] : m, pd: rel ? +rel[3] : d };
   }
   function slot(y, m, d, ch) { return items.find(function (it) { return it.planned && it.py === y && it.pm === m && it.pd === d && it.chs[0] === ch; }); }
@@ -302,7 +315,8 @@ header .sub { flex-basis: 100%; order: 3; }
       b.setAttribute('aria-label', d + ' ' + MGEN[view.m - 1]);
       b.onclick = function () {
         sel = { y: view.y, m: view.m, d: d };
-        if (placing) {
+        if (placing && placing.ch) { place(placing.it, sel, placing.ch); placing = null; choose = null; }
+        else if (placing) {
           var opts = (placing.it.chs.length ? placing.it.chs : CH.map(function (c) { return c.key; })).filter(function (c) { return active[c]; });
           if (opts.length === 1) { place(placing.it, sel, opts[0]); placing = null; choose = null; }
           else { choose = { it: placing.it, opts: opts }; placing = null; }
@@ -381,37 +395,53 @@ header .sub { flex-basis: 100%; order: 3; }
   }
   function renderKop() {
     var box = $('kop'); box.innerHTML = '';
-    // все поводы месяца (кроме отклонённых): свободные — «В план», стоящие в плане — где стоят
-    var list = items.filter(function (it) { return it.row.status !== 'Отклонён' && (!it.chs.length || it.chs.some(function (c) { return active[c]; })); })
-      .sort(function (a, b) { return (a.y - b.y) || (a.m - b.m) || (a.d - b.d); });
-    var show = list.filter(function (it) { return it.y === view.y && it.m === view.m; });
+    // все поводы месяца, кроме отклонённых, без фильтра по каналам: канал выбирается при постановке
+    var show = items.filter(function (it) { return it.row.status !== 'Отклонён' && it.y === view.y && it.m === view.m; })
+      .sort(function (a, b) { return a.d - b.d; });
     $('kcount').textContent = MONTHS[view.m - 1] + ', ' + show.length;
-    $('khint').textContent = placing ? 'теперь коснись дня в календаре' : '';
-    $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + placing.it.title.slice(0, 50) : '';
+    $('khint').textContent = placing ? 'коснись дня в календаре' : '';
+    $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + placing.it.title.slice(0, 50) + (placing.ch ? ' (' + chName(placing.ch) + ')' : '') : '';
     if (!show.length) box.appendChild(el('p', 'empty', 'На этот месяц поводов нет. В боте календаря напиши «собери ' + MONTHS[view.m - 1] + '».'));
-    var groups = [];
-    show.forEach(function (it) { var g = groups[groups.length - 1]; if (!g || g.d !== it.d) { g = { d: it.d, m: it.m, list: [] }; groups.push(g); } g.list.push(it); });
-    groups.forEach(function (g) {
-      var sec = el('div', 'dgroup'); sec.appendChild(el('h4', '', g.d + ' ' + MGEN[g.m - 1]));
+    var days = [];
+    show.forEach(function (it) { var g = days[days.length - 1]; if (!g || g.d !== it.d) { g = { d: it.d, list: [] }; days.push(g); } g.list.push(it); });
+    days.forEach(function (g) {
+      var row = el('div', 'erow'), dt = el('div', 'edate', g.d);
+      var wd = (new Date(view.y, view.m - 1, g.d).getDay() + 6) % 7; dt.appendChild(el('small', '', WD[wd]));
+      if (view.y === TODAY.getFullYear() && view.m === TODAY.getMonth() + 1 && g.d === TODAY.getDate()) dt.classList.add('today');
+      row.appendChild(dt);
+      var chips = el('div', 'chips');
       g.list.forEach(function (it) {
-        var r = el('div', 'idea' + (it.planned ? ' planned' : '')), mid = el('div', '');
-        var t = el('div', 't', it.title); if (it.ru) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + it.ru)); } mid.appendChild(t);
-        if (it.planned) mid.appendChild(el('div', 'where', 'в плане: ' + (chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + it.pd + ' ' + MGEN[it.pm - 1]));
-        r.appendChild(mid);
-        var btns = el('div', 'row'); btns.style.flexDirection = 'column'; btns.style.gap = '4px';
-        if (it.planned) {
-          var go = el('button', '', 'Открыть'); go.type = 'button';
-          go.onclick = function () { view = { y: it.py, m: it.pm }; sel = { y: it.py, m: it.pm, d: it.pd }; placing = null; choose = null; render(); };
-          btns.appendChild(go);
-        } else {
-          var on = placing && placing.it === it;
-          var b = el('button', 'chbtn', on ? 'Отмена' : 'В план'); b.type = 'button'; b.style.background = it.chs.length === 1 ? color(it.chs[0]) : 'var(--accent)';
-          b.onclick = function () { placing = on ? null : { it: it }; choose = null; if (placing) toast('Коснись дня в календаре'); render(); };
-          btns.appendChild(b);
-        }
-        r.appendChild(btns); sec.appendChild(r);
+        var b = el('button', 'ev' + (it.planned ? ' inplan' : '')); b.type = 'button';
+        b.textContent = (it.planned && chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + (it.tag ? it.tag + ' ' : '') + it.title;
+        b.setAttribute('aria-expanded', openEv === it.id ? 'true' : 'false');
+        b.onclick = function () { openEv = openEv === it.id ? null : it.id; render(); };
+        chips.appendChild(b);
       });
-      box.appendChild(sec);
+      var op = g.list.find(function (it) { return it.id === openEv; });
+      if (op) {
+        var ab = el('div', 'about');
+        if (op.ru) ab.appendChild(el('div', 'ru', op.ru));
+        ab.appendChild(el('p', '', op.note || 'Сути пока нет — она придёт со следующим автосбором.'));
+        var rr = el('div', 'row');
+        if (op.planned) {
+          rr.appendChild(el('span', 'hint', 'в плане: ' + (chIcon(op.chs[0]) ? chIcon(op.chs[0]) + ' ' : '') + op.pd + ' ' + MGEN[op.pm - 1]));
+          var go = el('button', '', 'Открыть день'); go.type = 'button';
+          go.onclick = function () { view = { y: op.py, m: op.pm }; sel = { y: op.py, m: op.pm, d: op.pd }; render(); };
+          rr.appendChild(go);
+        } else {
+          CH.forEach(function (c) {
+            var cb = el('button', 'chbtn', (c.icon ? c.icon + ' ' : '') + c.name); cb.type = 'button'; cb.style.background = color(c.key);
+            cb.title = 'В план ' + c.name + ' на ' + op.d + ' ' + MGEN[op.m - 1];
+            cb.onclick = function () { sel = { y: op.y, m: op.m, d: op.d }; place(op, sel, c.key); openEv = null; render(); };
+            rr.appendChild(cb);
+          });
+          var other = el('button', '', 'В другой день…'); other.type = 'button';
+          other.onclick = function () { placing = { it: op }; choose = null; toast('Коснись дня в календаре'); render(); };
+          rr.appendChild(other);
+        }
+        ab.appendChild(rr); chips.appendChild(ab);
+      }
+      row.appendChild(chips); box.appendChild(row);
     });
   }
   function render() { renderChans(); renderGrid(); renderDay(); renderKop(); }

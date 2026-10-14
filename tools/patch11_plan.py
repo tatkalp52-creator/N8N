@@ -14,10 +14,17 @@ PATH = os.path.join(ROOT, "workflows", "11_Календарь.json")
 PAGE = os.path.join(ROOT, "table_drafts", "calendar", "plan_page.html")
 DOC = {"__rl": True, "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs", "mode": "id"}
 GS = {"googleApi": {"id": "1uQkgKbOPhjKOB2l", "name": "Google Sheets account 2"}}
-COLS = ['id', 'year', 'month', 'day', 'title', 'channel', 'status', 'project', 'note', 'sources', 'createdAt', 'updatedAt', 'title_ru', 'release', 'step', 'posted']
+COLS = ['id', 'year', 'month', 'day', 'title', 'channel', 'status', 'project', 'note', 'sources', 'createdAt', 'updatedAt', 'title_ru', 'release', 'step', 'posted', 'tag']
 
 SOBIRAEM = """// все строки листа, каналы (Catalog) и выпуски каналов (только шаг и треки) одним JSON для страницы
-const rows = $('Читаем календарь (страница)').all().map(i => i.json).filter(r => r && String(r.id || '').trim());
+// только соседние месяцы (прошлый … +3 вперёд) — страница не тяжелеет с годами
+const now = new Date(), base = now.getFullYear() * 12 + now.getMonth();
+const ym = (y, m) => { y = Number(y) || 0; m = Number(m) || 0; if (!m) return -1; if (!y) { y = now.getFullYear(); if (y * 12 + m - 1 < base - 2) y++; } return y * 12 + m - 1; };
+const near = k => k >= base - 1 && k <= base + 3;
+const rows = $('Читаем календарь (страница)').all().map(i => i.json).filter(r => r && String(r.id || '').trim()).filter(r => {
+  const rel = String(r.release || '').match(/^(\\d{4})-(\\d{2})/);
+  return near(ym(r.year, r.month)) || (rel && near(ym(rel[1], rel[2])));
+});
 const channels = $('Читаем каталог (страница)').all().map(i => i.json).filter(c => c && String(c.Channel || '').trim());
 let raw = [];
 try { raw = $('Читаем выпуски (страница)').all().map(i => i.json); } catch (e) {}

@@ -16,7 +16,7 @@ PATH = os.path.join(os.path.dirname(__file__), "..", "workflows", "11_Кален
 DOC = {"__rl": True, "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs", "mode": "id"}
 GS = {"googleApi": {"id": "1uQkgKbOPhjKOB2l", "name": "Google Sheets account 2"}}
 AI = {"openAiApi": {"id": "HvMLVgMnS8OU4ebj", "name": "OpenAi account"}}
-COLS = ['id', 'year', 'month', 'day', 'title', 'channel', 'status', 'project', 'note', 'sources', 'createdAt', 'updatedAt', 'title_ru']
+COLS = ['id', 'year', 'month', 'day', 'title', 'channel', 'status', 'project', 'note', 'sources', 'createdAt', 'updatedAt', 'title_ru', 'tag']
 
 ZADANIE = r"""// Автосбор: какой месяц и что искать. Месяц — из команды («собери ноябрь»), иначе следующий.
 // Что искать для каждого канала — лист «Автосбор» (Канал | Что искать | Модель): здесь только механика.
@@ -32,42 +32,37 @@ const w = (text.match(/собер\S*\s+(\S+)/) || [])[1] || '';
 const mi = MON.findIndex(ks => ks.some(k => w.startsWith(k)));
 if (mi >= 0) { m = mi + 1; if (m < now.getMonth() + 1) y++; }
 if (m > 12) { m -= 12; y++; }
-const hints = $('Читаем, что искать').all().map(i => i.json)
-  .map(r => ({ key: String(r['Канал'] || '').trim(), what: String(r['Что искать'] || '').trim(), model: String(r['Модель'] || '').trim() }))
-  .filter(r => r.key && r.what);
-const model = (hints.find(h => h.model) || {}).model || 'gpt-5';
+const srows = $('Читаем, что искать').all().map(i => i.json || {});
+// что искать — общий текст листа «Автосбор» (без каналов); страны — для официальных праздников
+const what = srows.map(r => String(r['Что искать'] || '').trim()).filter(Boolean).join('\n');
+const model = srows.map(r => String(r['Модель'] || '').trim()).find(Boolean) || 'gpt-5';
+const countries = [...new Set((srows.map(r => String(r['Страны'] || '')).join(',').toUpperCase().match(/\b[A-Z]{2}\b/g) || []))];
 const chatId = msg ? msg.chat.id : 285577543;
-if (!hints.length) return [{ json: { need: false, chatId, text: 'Лист «Автосбор» пуст: не знаю, что искать.' } }];
-const instructions = 'You collect occasions for a YouTube content plan. Find holidays, observances, "national/world ... days", '
-  + 'seasonal and astronomical events that fall in ' + MON_EN[m - 1] + ' ' + y + '. Use web search to check the dates for this year. '
-  + 'What kind of occasions are useful (one shared list for all channels):\n' + hints.map(h => '- ' + h.what).join('\n') + '\n\n'
-  + 'Answer with JSON only, no other text: {"items": [{"date": "YYYY-MM-DD", "title": "the original name, as it is known (usually English)", '
-  + '"title_ru": "Russian translation of the name", "idea_ru": "one short line in Russian: how it could fit", '
-  + '"source": "site name"}]}. Only occasions that fit the description above. Never invent a date; skip an occasion you cannot date for '
-  + y + '. Up to 60 items, sorted by date.';
-const requestBody = { model, instructions, tools: [{ type: 'web_search' }],
-  input: [{ role: 'user', content: 'Collect the occasions for ' + MON_EN[m - 1] + ' ' + y + ' as JSON.' }] };
-if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: 'low' };
-return [{ json: { need: true, chatId, y, m, monthRu: MON_RU[m - 1], keys: hints.map(h => h.key), requestBody,
-  text: '🔎 Ищу поводы на ' + MON_RU[m - 1] + ' ' + y + '. Это займёт несколько минут.' } }];"""
+if (!what) return [{ json: { need: false, chatId, text: 'Лист «Автосбор» пуст: не знаю, что искать.' } }];
+const last = new Date(y, m, 0).getDate();
+const ranges = [[1, 10], [11, 20], [21, last]];   // три запроса по ~10 дней — ответы не гигантские
+return [{ json: { need: true, chatId, y, m, monthRu: MON_RU[m - 1], monthEn: MON_EN[m - 1], what, model, countries, ranges,
+  text: '🔎 Ищу поводы на ' + MON_RU[m - 1] + ' ' + y + ' — три части по десять дней, это 5–15 минут.' } }];"""
 
-RAZBOR = r"""// Ответ ИИ → строки листа «Календарь». Повторы (тот же день и то же название) с листом и внутри
-// ответа не добавляются. Новые — статус «Идея», источник «автосбор dd.mm».
+RAZBOR = r"""// Ответы ИИ (три части месяца) → строки листа «Календарь». Повторы (тот же день и то же название) с листом
+// и между частями не добавляются. Новые — «Идея», без канала, суть — в note, значок — в tag.
 const z = $('Автосбор: задание').first().json;
-const resp = $json || {};
-const MON_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const out = (resp.output || []).filter(i => i.type === 'message')
-  .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('\n');
-let items = [];
-try {
-  const a = out.indexOf('{'), b = out.lastIndexOf('}');
-  items = (JSON.parse(out.slice(a, b + 1)).items) || [];
-} catch (e) { items = null; }
-if (resp.error || !Array.isArray(items)) {
-  const why = resp.error ? (resp.error.message || JSON.stringify(resp.error)).slice(0, 200) : 'ответ не разобрался';
-  return [{ json: { rows: [], text: '⚠️ Автосбор на ' + z.monthRu + ' не получился: ' + esc(why) } }];
-}
+const parts = $('OpenAI: ищем поводы').all().map(i => i.json || {});
+let items = []; const bad = [];
+parts.forEach((resp, n) => {
+  const out = (resp.output || []).filter(i => i.type === 'message')
+    .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('\n');
+  try {
+    const a = out.indexOf('{'), b = out.lastIndexOf('}');
+    const arr = JSON.parse(out.slice(a, b + 1)).items;
+    if (!Array.isArray(arr)) throw new Error('no items');
+    items = items.concat(arr);
+  } catch (e) {
+    bad.push('часть ' + (n + 1) + ': ' + (resp.error ? String(resp.error.message || JSON.stringify(resp.error)).slice(0, 150) : 'ответ не разобрался'));
+  }
+});
+if (!items.length) return [{ json: { rows: [], text: '⚠️ Автосбор на ' + z.monthRu + ' не получился: ' + esc(bad.join('; ') || 'пусто') } }];
 const norm = s => String(s || '').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, ' ').trim();
 const seen = new Set();
 for (const r of $('Читаем календарь (автосбор)').all().map(i => i.json)) {
@@ -75,7 +70,7 @@ for (const r of $('Читаем календарь (автосбор)').all().ma
   seen.add(Number(r.month) + '-' + Number(r.day) + '|' + norm(r.title));
 }
 const now = new Date().toISOString();
-const stamp = new Date().toISOString().slice(8, 10) + '.' + new Date().toISOString().slice(5, 7);
+const stamp = now.slice(8, 10) + '.' + now.slice(5, 7);
 const rows = []; let found = 0;
 for (const it of items) {
   const md = String(it.date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -88,17 +83,51 @@ for (const it of items) {
   seen.add(k);
   rows.push({ id: 'a' + Date.now().toString(36) + rows.length.toString(36) + Math.random().toString(36).slice(2, 5),
     year: String(z.y), month: String(z.m), day: String(Number(md[3])), title, channel: '',
-    status: 'Идея', project: '', note: String(it.idea_ru || '').trim(), sources: 'автосбор ' + stamp + (it.source ? '; ' + String(it.source).trim() : ''),
-    createdAt: now, updatedAt: now, title_ru: String(it.title_ru || '').trim() });
+    status: 'Идея', project: '', note: String(it.about_ru || '').trim().slice(0, 1200),
+    sources: 'автосбор ' + stamp + (it.source ? '; ' + String(it.source).trim() : ''),
+    createdAt: now, updatedAt: now, title_ru: String(it.title_ru || '').trim(), tag: String(it.tag || '').trim().slice(0, 8) });
 }
 rows.sort((a, b) => Number(a.day) - Number(b.day));
-let text = '🗓 Автосбор на ' + z.monthRu + ' ' + z.y + ': найдено ' + found + ', новых ' + rows.length + '.';
-for (const r of rows) {
-  const line = '\n' + r.day + ' ' + MON_GEN[z.m - 1].slice(0, 3) + ' — <b>' + esc(r.title) + '</b>' + (r.title_ru ? ' — ' + esc(r.title_ru) : '');
-  if ((text + line).length > 3900) { text += '\n…и ещё, всё — в листе «Календарь».'; break; }
-  text += line;
-}
+let text = '🗓 Автосбор на ' + z.monthRu + ' ' + z.y + ': найдено ' + found + ', новых ' + rows.length + '. Всё — в календаре, у каждого повода суть.';
+if (bad.length) text += '\n⚠️ Не получилось: ' + esc(bad.join('; ')) + '. Можно повторить: «собери ' + z.monthRu + '».';
 return [{ json: { rows, text } }];"""
+
+
+
+STRANY = r"""// по элементу на страну — официальные праздники из бесплатного календаря (date.nager.at)
+const z = $('Автосбор: задание').first().json;
+const list = (z.countries && z.countries.length) ? z.countries : ['US'];
+return list.map(cc => ({ json: { cc, y: z.y } }));"""
+
+CHASTI = r"""// три запроса к ИИ (дни 1–10, 11–20, 21–конец); в каждый — официальные праздники стран этих дней
+const z = $('Автосбор: задание').first().json;
+const pad = n => String(n).padStart(2, '0');
+const pref = z.y + '-' + pad(z.m) + '-';
+const hol = {};
+for (const it of $input.all()) {
+  const h = it.json || {};
+  const d = String(h.date || '');
+  const name = String(h.name || h.localName || '').trim();
+  if (!d.startsWith(pref) || !name) continue;
+  const key = d + '|' + name.toLowerCase();
+  (hol[key] = hol[key] || { date: d, name, local: String(h.localName || '').trim(), cc: [] }).cc.push(String(h.countryCode || ''));
+}
+const hl = Object.values(hol);
+const FORMAT = 'Answer with JSON only, no other text: {"items": [{"date": "YYYY-MM-DD", "title": "the original name as it is known (English if it has one)", '
+  + '"title_ru": "Russian name", "about_ru": "2-3 sentences in Russian: what this day is, where it comes from, how it is marked", '
+  + '"tag": "one emoji: the country flag for a national or local occasion, 🌍 for international or world days, 🕯 for religious, 🌙 for seasonal or astronomical, 🎗 for memorial", '
+  + '"source": "site name"}]}. Never invent a date; skip what you cannot date for ' + z.y + '. Do not assign channels and do not suggest episode ideas.';
+return z.ranges.map(([a, b]) => {
+  const inR = hl.filter(h => { const d = Number(h.date.slice(8, 10)); return d >= a && d <= b; });
+  const off = inR.length ? '\n\nOfficial public holidays in this period (include every one, each as its own item; name the countries in about_ru):\n'
+    + inR.map(h => '- ' + h.date + ' ' + h.name + (h.local && h.local !== h.name ? ' (' + h.local + ')' : '') + ' — ' + [...new Set(h.cc)].join(', ')).join('\n') : '';
+  const instructions = 'You collect occasions for a content calendar. Period: ' + z.monthEn + ' ' + a + '-' + b + ', ' + z.y
+    + '. Use web search to check the dates for this year.\nWhat to collect:\n' + z.what + off + '\n\n' + FORMAT + ' Up to 120 items, sorted by date.';
+  const requestBody = { model: z.model, instructions, tools: [{ type: 'web_search' }],
+    input: [{ role: 'user', content: 'Collect the occasions for ' + z.monthEn + ' ' + a + '-' + b + ', ' + z.y + ' as JSON.' }] };
+  if (/^(gpt-5|o\d)/.test(z.model)) requestBody.reasoning = { effort: 'low' };
+  return { json: { a, b, requestBody } };
+});"""
 
 
 def main():
@@ -140,9 +169,14 @@ def main():
     put({"parameters": {"jsCode": ZADANIE}, "name": "Автосбор: задание", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [X + 220, Y]})
     put(send("Автосбор: начали", [X + 440, Y - 160]))
     put(iff("Есть что искать?", "$('Автосбор: задание').first().json.need", [X + 440, Y]))
+    put({"parameters": {"jsCode": STRANY}, "name": "Автосбор: страны", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [X + 660, Y - 320]})
+    put({"parameters": {"url": "={{ 'https://date.nager.at/api/v3/PublicHolidays/' + $json.y + '/' + $json.cc }}", "options": {"timeout": 30000}},
+         "name": "Праздники стран", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [X + 880, Y - 320],
+         "onError": "continueRegularOutput", "alwaysOutputData": True})
+    put({"parameters": {"jsCode": CHASTI}, "name": "Автосбор: части", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [X + 1100, Y - 320]})
     put({"parameters": {"method": "POST", "url": "https://api.openai.com/v1/responses", "authentication": "predefinedCredentialType",
          "nodeCredentialType": "openAiApi", "sendBody": True, "specifyBody": "json",
-         "jsonBody": "={{ JSON.stringify($('Автосбор: задание').first().json.requestBody) }}", "options": {"timeout": 600000}},
+         "jsonBody": "={{ JSON.stringify($json.requestBody) }}", "options": {"timeout": 600000}},
          "name": "OpenAI: ищем поводы", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [X + 660, Y],
          "credentials": AI, "onError": "continueRegularOutput"})
     put({"parameters": {"authentication": "serviceAccount", "documentId": DOC,
@@ -152,7 +186,6 @@ def main():
     put({"parameters": {"jsCode": RAZBOR}, "name": "Автосбор: разбор", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [X + 1100, Y],
          "notes": "вход — ответ OpenAI (через чтение календаря он не проходит: читаем $('OpenAI: ищем поводы'))"})
     # разбор читает ответ ИИ по имени узла, а не $json (вход — строки календаря)
-    nodes["Автосбор: разбор"]["parameters"]["jsCode"] = RAZBOR.replace("const resp = $json || {};", "const resp = $('OpenAI: ищем поводы').first().json || {};")
     put({"parameters": {"jsCode": "// по строке на элемент — для записи в лист\nreturn $('Автосбор: разбор').first().json.rows.map(r => ({ json: r }));"},
          "name": "Автосбор: строки", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [X + 1320, Y - 160]})
     put({"parameters": {"authentication": "serviceAccount", "operation": "append", "documentId": DOC,
@@ -170,7 +203,10 @@ def main():
     conns["Первого числа"] = {"main": [[L("Читаем, что искать")]]}
     conns["Читаем, что искать"] = {"main": [[L("Автосбор: задание")]]}
     conns["Автосбор: задание"] = {"main": [[L("Есть что искать?")]]}
-    conns["Есть что искать?"] = {"main": [[L("Автосбор: начали"), L("OpenAI: ищем поводы")], [L("Автосбор: нечего искать")]]}
+    conns["Есть что искать?"] = {"main": [[L("Автосбор: начали"), L("Автосбор: страны")], [L("Автосбор: нечего искать")]]}
+    conns["Автосбор: страны"] = {"main": [[L("Праздники стран")]]}
+    conns["Праздники стран"] = {"main": [[L("Автосбор: части")]]}
+    conns["Автосбор: части"] = {"main": [[L("OpenAI: ищем поводы")]]}
     conns["OpenAI: ищем поводы"] = {"main": [[L("Читаем календарь (автосбор)")]]}
     conns["Читаем календарь (автосбор)"] = {"main": [[L("Автосбор: разбор")]]}
     conns["Автосбор: разбор"] = {"main": [[L("Автосбор: строки"), L("Автосбор: итог")]]}
