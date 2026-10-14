@@ -45,6 +45,15 @@ body { background: var(--bg); color: var(--ink); font-family: var(--body); font-
 .col.side > #daycard { flex: 0 1 auto; max-height: 55%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .col.side > .kopcard { flex: 1 1 0; min-height: 120px; }
 .kopcard #kop { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* широкий экран (планшет лёжа): три колонки — месяц | день | поводы, у каждой своя прокрутка */
+@media (min-width: 1000px) {
+  .cols { grid-template-columns: minmax(0, 1.15fr) minmax(0, .9fr) minmax(0, .8fr); }
+  .col.side { display: contents; }
+  .col.side > #daycard { max-height: none; min-height: 0; overflow-y: auto; }
+  .col.side > .kopcard { min-height: 0; }
+}
+.idea .where { font-size: 12px; color: var(--muted); }
+.idea.planned .t { color: var(--muted); }
 /* готовность выпуска: цвет — шаг, 🎵 — треки есть, ✓ — выложен */
 :root { --st-plan: transparent; --st-red: #c94a3d; --st-orange: #d9822b; --st-yellow: #e2b93b; --st-green: #4f8a4b; }
 .pill.st-plan { background: var(--paper) !important; color: var(--ink); border: 1px solid var(--line); }
@@ -176,7 +185,7 @@ header .sub { flex-basis: 100%; order: 3; }
   <section class="card" aria-label="Выбранный день" id="daycard"></section>
   <section class="card kopcard" aria-label="Копилка">
     <div class="row" style="justify-content: space-between">
-      <div class="label">Копилка идей — <span id="kcount"></span></div>
+      <div class="label">Поводы — <span id="kcount"></span></div>
       <span class="hint" id="khint"></span>
     </div>
     <div id="kop"></div>
@@ -372,11 +381,12 @@ header .sub { flex-basis: 100%; order: 3; }
   }
   function renderKop() {
     var box = $('kop'); box.innerHTML = '';
-    var list = items.filter(function (it) { return !it.planned && it.row.status !== 'Отклонён' && (!it.chs.length || it.chs.some(function (c) { return active[c]; })); })
+    // все поводы месяца (кроме отклонённых): свободные — «В план», стоящие в плане — где стоят
+    var list = items.filter(function (it) { return it.row.status !== 'Отклонён' && (!it.chs.length || it.chs.some(function (c) { return active[c]; })); })
       .sort(function (a, b) { return (a.y - b.y) || (a.m - b.m) || (a.d - b.d); });
     var show = list.filter(function (it) { return it.y === view.y && it.m === view.m; });
     $('kcount').textContent = MONTHS[view.m - 1] + ', ' + show.length;
-    $('khint').textContent = placing ? 'теперь коснись дня слева' : '';
+    $('khint').textContent = placing ? 'теперь коснись дня в календаре' : '';
     $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + placing.it.title.slice(0, 50) : '';
     if (!show.length) box.appendChild(el('p', 'empty', 'На этот месяц поводов нет. В боте календаря напиши «собери ' + MONTHS[view.m - 1] + '».'));
     var groups = [];
@@ -384,14 +394,21 @@ header .sub { flex-basis: 100%; order: 3; }
     groups.forEach(function (g) {
       var sec = el('div', 'dgroup'); sec.appendChild(el('h4', '', g.d + ' ' + MGEN[g.m - 1]));
       g.list.forEach(function (it) {
-        var r = el('div', 'idea'), mid = el('div', '');
+        var r = el('div', 'idea' + (it.planned ? ' planned' : '')), mid = el('div', '');
         var t = el('div', 't', it.title); if (it.ru) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + it.ru)); } mid.appendChild(t);
+        if (it.planned) mid.appendChild(el('div', 'where', 'в плане: ' + (chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + it.pd + ' ' + MGEN[it.pm - 1]));
         r.appendChild(mid);
         var btns = el('div', 'row'); btns.style.flexDirection = 'column'; btns.style.gap = '4px';
-        var on = placing && placing.it === it;
-        var b = el('button', 'chbtn', on ? 'Отмена' : 'В план'); b.type = 'button'; b.style.background = it.chs.length === 1 ? color(it.chs[0]) : 'var(--accent)';
-        b.onclick = function () { placing = on ? null : { it: it }; choose = null; if (placing) toast('Коснись дня слева'); render(); };
-        btns.appendChild(b);
+        if (it.planned) {
+          var go = el('button', '', 'Открыть'); go.type = 'button';
+          go.onclick = function () { view = { y: it.py, m: it.pm }; sel = { y: it.py, m: it.pm, d: it.pd }; placing = null; choose = null; render(); };
+          btns.appendChild(go);
+        } else {
+          var on = placing && placing.it === it;
+          var b = el('button', 'chbtn', on ? 'Отмена' : 'В план'); b.type = 'button'; b.style.background = it.chs.length === 1 ? color(it.chs[0]) : 'var(--accent)';
+          b.onclick = function () { placing = on ? null : { it: it }; choose = null; if (placing) toast('Коснись дня в календаре'); render(); };
+          btns.appendChild(b);
+        }
         r.appendChild(btns); sec.appendChild(r);
       });
       box.appendChild(sec);
