@@ -167,7 +167,7 @@ def main():
          "name": "Читаем, что искать", "type": "n8n-nodes-base.googleSheets", "typeVersion": 4, "position": [X, Y],
          "credentials": GS, "alwaysOutputData": True})
     put({"parameters": {"jsCode": ZADANIE}, "name": "Автосбор: задание", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [X + 220, Y]})
-    put(send("Автосбор: начали", [X + 440, Y - 160]))
+    put(send("Автосбор: начали", [X + 440, Y - 520]))
     put(iff("Есть что искать?", "$('Автосбор: задание').first().json.need", [X + 440, Y]))
     put({"parameters": {"jsCode": STRANY}, "name": "Автосбор: страны", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [X + 660, Y - 320]})
     put({"parameters": {"url": "={{ 'https://date.nager.at/api/v3/PublicHolidays/' + $json.y + '/' + $json.cc }}", "options": {"timeout": 30000}},
