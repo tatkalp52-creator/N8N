@@ -87,7 +87,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .tile[aria-pressed="true"] { border-color: var(--accent); background: var(--soft); box-shadow: inset 0 0 0 2px var(--accent); }
 .tile.word { grid-column: span 3; font-size: 13px; }
 .tonebox { grid-column: 1 / -1; display: grid; gap: 6px; }
-.swatch { width: 300px; max-width: 100%; height: 64px; }
+.swatch { width: 300px; max-width: 100%; height: 100px; }
+.tonescale { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); padding-left: 78px; }
 .mark select { font: inherit; min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 4px 8px; }
 .out { font-family: var(--mono); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 96px; margin: 0; }
 .primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
@@ -189,18 +190,15 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     var im = new Image(); im.onload = function () { cb(im); }; im.src = 'leaves/t' + (n < 10 ? '0' : '') + n + '.png'; thumbCache[n] = im;
   }
   // как у сборщика: штриховка сохраняется, тон меняется (яркость пикселя / светлая часть листа × новый цвет)
-  // Образец цвета: выбранный лист (первый из выбранных) в пяти оттенках от «цвет от» до «цвет до» —
-  // каждый падающий лист возьмёт какой-то оттенок из этого промежутка. Без цвета — лист как нарисован.
+  // Образец: выбранные листья (до трёх) крупно, перекрашенные в цвет ползунка — так, как упадут в ролике.
   function paintSwatch(cv, m) {
     var c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height);
-    var n = m.crooked ? 0 : (m.samples && m.samples.length ? m.samples[0] : 1);
-    if (!n) return;
-    var steps = m.tone ? [0, 0.25, 0.5, 0.75, 1].map(function (u) { return m.tone[0] + (m.tone[1] - m.tone[0]) * u; }) : [null];
-    if (m.tone && m.tone[0] === m.tone[1]) steps = [m.tone[0]];
-    thumb(n, function (im) {
-      c.clearRect(0, 0, cv.width, cv.height);
-      steps.forEach(function (tn, k) {
-        var w = 52, x = 4 + k * 58, tmp = document.createElement('canvas'); tmp.width = w; tmp.height = w;
+    if (m.crooked) return;
+    var list = (m.samples && m.samples.length ? m.samples : [1]).slice(0, 3);
+    var tn = m.tone ? (m.tone[0] + m.tone[1]) / 2 : null;
+    list.forEach(function (n, k) {
+      thumb(n, function (im) {
+        var w = 96, x = k * 100, tmp = document.createElement('canvas'); tmp.width = w; tmp.height = w;
         var tc = tmp.getContext('2d'); tc.drawImage(im, 0, 0, w, w);
         if (tn != null) try {
           var d = tc.getImageData(0, 0, w, w), px = d.data, lums = [];
@@ -210,12 +208,11 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
             for (var ch = 0; ch < 3; ch++) px[q2 + ch] = Math.min(255, rgb[ch] * kk * 0.85 + px[q2 + ch] * 0.15); }
           tc.putImageData(d, 0, 0);
         } catch (e) { /* картинка с другого адреса — показываем без перекраски */ }
-        c.drawImage(tmp, x, 0);
-        c.fillStyle = getComputedStyle(document.body).color; c.font = '11px sans-serif'; c.textAlign = 'center';
-        c.fillText(tn == null ? 'как нарисован' : String(Math.round(tn * 10) / 10), x + w / 2, 62);
+        c.clearRect(x, 0, 100, 100); c.drawImage(tmp, x + 2, 2);
       });
     });
   }
+
 
   var $ = function (id) { return document.getElementById(id); };
   var img = $('img'), ov = $('ov'), pic = $('pic');
@@ -397,30 +394,35 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         [['', 'размер средний'], ['мелкий', 'мелкий (далеко)'], ['крупный', 'крупный (близко)']].forEach(function (v) { var o = document.createElement('option'); o.value = v[0]; o.textContent = v[1]; if ((m.size || '') === v[0] || (v[0] === 'мелкий' && m.size === 'маленький')) o.selected = true; sz.appendChild(o); });
         sz.onchange = function () { m.size = sz.value; t.textContent = lineOf(m); renderOut(); };
         kb2.appendChild(sz);
-        // цвет: два ползунка «от» и «до» (1 бурый … 4–5 красный … 7 оранжевый … 10 жёлтый); галочка — свои цвета листа
+        // цвет: ОДИН ползунок (1 бурый … 4–5 красный … 7 оранжевый … 10 жёлтый) и сразу видно,
+        // как перекрашивается выбранный лист; галочки — «как нарисован» и «каждый чуть по-своему»
         var tw = document.createElement('div'); tw.className = 'tonebox';
         var own = document.createElement('label'); own.style.display = 'flex'; own.style.gap = '8px'; own.style.alignItems = 'center';
         var ocb = document.createElement('input'); ocb.type = 'checkbox'; ocb.checked = !m.tone;
-        var otx = document.createElement('span'); otx.textContent = 'цвета как нарисованы';
+        var otx = document.createElement('span'); otx.textContent = 'цвет как нарисован';
         own.appendChild(ocb); own.appendChild(otx); tw.appendChild(own);
-        var sw = document.createElement('canvas'); sw.className = 'swatch'; sw.width = 300; sw.height = 66;
-        var swn = document.createElement('p'); swn.className = 'note'; swn.textContent = 'Так будет выглядеть твой лист: каждый раз, падая, он берёт какой-то оттенок из этого ряда.';
-        function slider(label, idx) {
-          var lab = document.createElement('label');
-          var sp = document.createElement('span'); sp.textContent = label;
-          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 1; inp.max = 10; inp.step = 0.5; inp.value = m.tone ? m.tone[idx] : (idx ? 9 : 3);
-          var ou = document.createElement('span'); ou.textContent = inp.value;
-          inp.disabled = !m.tone;
-          inp.oninput = function () {
-            var v = Number(inp.value); m.tone[idx] = v;
-            if (m.tone[0] > m.tone[1]) { m.tone[1 - idx] = v; }
-            ou.textContent = inp.value; t.textContent = lineOf(m); renderOut(); paintSwatch(sw, m);
-          };
-          lab.appendChild(sp); lab.appendChild(inp); lab.appendChild(ou); return lab;
+        var mid = m.tone ? (m.tone[0] + m.tone[1]) / 2 : 6, spread = !!(m.tone && m.tone[1] > m.tone[0]);
+        var lab = document.createElement('label');
+        var sp = document.createElement('span'); sp.textContent = 'цвет';
+        var inp = document.createElement('input'); inp.type = 'range'; inp.min = 1; inp.max = 10; inp.step = 0.5; inp.value = mid; inp.disabled = !m.tone;
+        inp.setAttribute('aria-label', 'Цвет листа: 1 бурый, 10 жёлтый');
+        var ou = document.createElement('span'); ou.textContent = inp.value;
+        lab.appendChild(sp); lab.appendChild(inp); lab.appendChild(ou); tw.appendChild(lab);
+        var scale = document.createElement('div'); scale.className = 'tonescale';
+        scale.innerHTML = '<span>бурый</span><span>красный</span><span>оранжевый</span><span>жёлтый</span>'; tw.appendChild(scale);
+        var vary = document.createElement('label'); vary.style.display = 'flex'; vary.style.gap = '8px'; vary.style.alignItems = 'center';
+        var vcb = document.createElement('input'); vcb.type = 'checkbox'; vcb.checked = spread; vcb.disabled = !m.tone;
+        var vtx = document.createElement('span'); vtx.textContent = 'каждый лист чуть по-своему (оттенок рядом)';
+        vary.appendChild(vcb); vary.appendChild(vtx); tw.appendChild(vary);
+        var sw = document.createElement('canvas'); sw.className = 'swatch'; sw.width = 300; sw.height = 100;
+        tw.appendChild(sw);
+        function setTone() {
+          var v = Number(inp.value), d = vcb.checked ? 1 : 0;
+          m.tone = [Math.max(1, v - d), Math.min(10, v + d)];
+          ou.textContent = inp.value; t.textContent = lineOf(m); renderOut(); paintSwatch(sw, m);
         }
-        var s1 = slider('цвет от', 0), s2 = slider('цвет до', 1);
-        ocb.onchange = function () { m.tone = ocb.checked ? null : [3, 9]; refresh(); };
-        tw.appendChild(s1); tw.appendChild(s2); tw.appendChild(sw); tw.appendChild(swn);
+        inp.oninput = setTone; vcb.onchange = setTone;
+        ocb.onchange = function () { m.tone = ocb.checked ? null : [6, 6]; refresh(); };
         kb2.appendChild(tw);
         setTimeout(function () { paintSwatch(sw, m); }, 0);
         [['deep', 'вглубь: уменьшается, пока падает'], ['behind', 'за край: скрывается за линией «Край»']].forEach(function (c) {
