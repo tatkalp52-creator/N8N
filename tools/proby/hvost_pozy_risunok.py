@@ -1,6 +1,6 @@
 # Позы хвоста по рисунку автора (красное — вверх, белое — вниз). Линии сняты с её рисунка на кадре кота
 # (кусок x880 y385 w544 → 1920), переведены в размер картинки. Хвост гнётся по форме линии, длина и толщина — его собственные;
-# на сколько линия короче хвоста — столько перспективы (до −20 %).
+# длину линии не берём (автор рисовала только изгибы): длина — хвоста, перспектива своя — поднятый хвост на экране чуть короче.
 import sys, math, numpy as np
 from PIL import Image, ImageDraw, ImageFont
 OUT_ = sys.argv[1]
@@ -25,11 +25,11 @@ def pose(pts):
     th = np.interp(s, np.linspace(0, 1, len(ang)), ang)
     th += th0[0] - th[0] if abs(th[0] - th0[0]) < 0.6 else 0      # начало — по нарисованному хвосту
     th = np.unwrap(np.r_[th0[0], th])[1:]
-    sc = max(0.8, min(1.0, Lh / L_rest))
-    return th, sc
+    return th
 if __name__ == '__main__':
     f = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
-    items = [('лежит', th0, 1.0)] + [(k,) + pose(v) for k, v in LINES.items()] + [('лежит', th0, 1.0)]
+    PERSP = [0.98, 0.94, 0.88, 0.88, 0.92, 0.97]
+    items = [('лежит', th0, 1.0)] + [(k, pose(v), PERSP[i]) for i, (k, v) in enumerate(LINES.items())] + [('лежит', th0, 1.0)]
     cv = Image.new('RGB', (4 * 345, 2 * 375))
     for i, (nm, th, sc) in enumerate(items):
         F = frame_p(th, np.full(len(s), sc))
