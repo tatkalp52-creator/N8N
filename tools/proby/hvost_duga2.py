@@ -6,12 +6,12 @@ argv = sys.argv[:]
 exec(open('kadry5.py').read().split("FR = ")[0])
 out = argv[1]; mode = argv[2] if len(argv) > 2 else 'video'
 th0 = TH[0]; rest_total = math.degrees(th0[-1] - th0[0])
-TOTALS = [0.0, 10.0, 75.0, 165.0]           # поворот кончика относительно основания; гнётся сильнее к кончику (кривизна растёт к концу)
+TOTALS = [0.0, 30.0, 80.0, 165.0]           # поворот кончика относительно основания; гнётся сильнее к кончику (кривизна растёт к концу)
 BASEROT = [0.0, 4.0, 10.0, 16.0]            # основание жёсткое: поворачивается чуть-чуть
 def shape(level, persp):
     tot = math.radians(np.interp(level, [0, 1, 2, 3], TOTALS)); br = math.radians(np.interp(level, [0, 1, 2, 3], BASEROT))
     arc = th0[0] + br + tot * s ** 2                # у попы почти не гнётся, к кончику всё сильнее
-    w = min(1.0, level)
+    w = np.interp(level, [0, 1, 2], [0, 0.7, 1])     # на втором кадре — в основном нарисованный изгиб: мягкая кривая, не палка
     return th0 * (1 - w) + arc * w
 _build = build
 def build_p(thv, scale):
@@ -41,13 +41,13 @@ def at(t):
     # каждое звено своё время: импульс от попы к кончику
     ls = np.array([lvl(t - LAG * x) for x in s])
     shapes = np.array([shape(l, 0)[j] for j, l in enumerate(ls)])
-    scale = 1 - 0.18 * (ls / 3) * s                 # перспектива: поднятые звенья на экране короче, сильнее к кончику
+    scale = 1 - 0.18 * np.clip((ls - 1) / 2, 0, 1) * s                 # перспектива: поднятые звенья на экране короче, сильнее к кончику
     return shapes, scale
 if mode == 'stills':
     from PIL import ImageDraw, ImageFont
     f = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 22); ims = []
     for k in range(4):
-        sc = 1 - 0.18 * (k / 3) * s
+        sc = 1 - 0.18 * max(0, (k - 1) / 2) * s
         F = frame_p(shape(k, 0), sc); im = Image.fromarray(np.clip(F, 0, 255).astype(np.uint8)).resize((460, 500), Image.LANCZOS)
         ImageDraw.Draw(im).text((10, 6), str(k + 1), fill=(255, 230, 170), font=f, stroke_width=3, stroke_fill=(0, 0, 0)); ims.append(im)
     cv = Image.new('RGB', (920, 1000))
