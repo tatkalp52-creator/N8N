@@ -6,12 +6,10 @@ src = open('kadry4.py').read().split("FR = ")[0]
 sys_argv = sys.argv[:]
 exec(src)
 out = sys_argv[1]
-ramp = np.clip((s - 0.15) / 0.85, 0, 1)                 # ровная кривизна от 15 % длины до кончика
-bend = np.cumsum(ramp); bend /= bend[-1]
+bend = s.copy()                                         # позвонки: каждый поворачивается на одинаковый угол, от самой попы
 LEVELS = [-4, 28, 56, 84]                               # градусы на кончике: синий, красный, бирюзовый, жёлтый
-def thv(u):                                             # u 0…3 по кадрам, плавно
-    i = min(int(u), 2); f = u - i; f = f * f * (3 - 2 * f)
-    return TH[0] + math.radians(LEVELS[i] + (LEVELS[i + 1] - LEVELS[i]) * f) * bend
+def thv(u):                                             # u 0…3 — одним плавным движением, без остановок на кадрах
+    return TH[0] + math.radians(np.interp(u, [0, 1, 2, 3], LEVELS)) * bend
 def ss(x): return x * x * (3 - 2 * x)
 fps = 24; HOLD, UP, TOP, DOWN = 5.0, 2.0, 0.6, 2.4
 seq = [0.0] * int(HOLD * fps) + [3 * ss(t / (UP * fps)) for t in range(int(UP * fps))] + [3.0] * int(TOP * fps) + [3 * (1 - ss(t / (DOWN * fps))) for t in range(int(DOWN * fps))]
