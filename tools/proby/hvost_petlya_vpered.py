@@ -32,8 +32,9 @@ def move(a, b):                   # a → b вперёд по петле
     n = int(round((b - a) / FPS * SLOW * FPS * 1.25))   # плавный разгон/торможение съедают скорость — даём чуть больше времени
     return [a + (b - a) * ease(t / n) for t in range(1, n + 1)]
 REST_HOLD = float(sys.argv[5]) if len(sys.argv) > 5 else 8.0   # пауза у лап между взмахами, секунд
+SWEEP_SEC = float(sys.argv[6]) if len(sys.argv) > 6 else 2.75   # сколько длится взмах туда-обратно (было 5.5)
 def sweep(a):                     # один полный круг вперёд из позы a в неё же
-    n = int(round(L / FPS * SLOW * FPS * 1.25))
+    n = int(round(SWEEP_SEC * FPS))
     return [a + L * ease(t / n) for t in range(1, n + 1)]
 REST = LOOP_B                     # покой — хвост обнимает лапы (это же и стык петли: стык прячется в паузе)
 seq = [float(REST)] * int(REST_HOLD * FPS) + sweep(REST)
