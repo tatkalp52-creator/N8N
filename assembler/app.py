@@ -2845,7 +2845,7 @@ def edge_for_leaf(path, edges_px, reach=None):
     return best
 
 
-def extend_path_behind(path, poly, s0, L0, fps, k):
+def extend_path_behind(path, poly, s0, L0, fps, k, limit=0.12):
     """Лист «за край» обязан дойти до края и скрыться целиком: путь по физике кончается чуть выше точки
     «куда» (парение у конца дуги), поэтому, если до линии не дошёл, дотягиваем его прямо к ближайшей точке
     линии и дальше — на размер листа за неё."""
@@ -2863,7 +2863,7 @@ def extend_path_behind(path, poly, s0, L0, fps, k):
         if best is None or d < best[0]:
             best = (d, qx, qy)
     d, qx, qy = best
-    if d > 0.12 * 864 * k or d < 1e-6:
+    if d > limit * 864 * k or d < 1e-6:
         return path
     ux, uy = (qx - x) / d, (qy - y) / d
     total = d + 1.2 * L0
@@ -2924,10 +2924,51 @@ def edge_visible(poly, X, Y, s0, k):
     return (edge_side(poly, X, Y) * s0 >= 6 * k) | out_
 
 
-def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
+LEAF_LIE_SECONDS = 12.0   # (15.10) сколько лист лежит и медленно тает (🎬 leafLieSeconds)
+LEAF_NEAR_EDGE = 0.045    # (15.10) конец пути ближе этого (доля высоты кадра) к линии «край» — лист уходит за неё сам
+
+
+def leaf_finish(path, leaf, edge_px, occ_px, W, H, L0, fps, k):
+    """(15.10) Чем кончается полёт: «за край» (линия), «за предмет» (обводка) или «лежит».
+    Лист за край ОБЯЗАН долететь до линии и уйти за неё целиком — путь дотягивается сколько нужно."""
+    import numpy as np
+    ex, ey = path[-1][0], path[-1][1]
+    if occ_px and bool(inside_any(occ_px, [ex], [ey])[0]):
+        # кончает путь внутри предмета: чуть дальше по ходу — и целиком за ним
+        bx, by = path[max(0, len(path) - 6)][0], path[max(0, len(path) - 6)][1]
+        d = math.hypot(ex - bx, ey - by) or 1.0
+        ux, uy = (ex - bx) / d, (ey - by) / d
+        n = max(2, int(0.4 * fps))
+        last = path[-1]
+        path = list(path) + [(ex + ux * 1.2 * L0 * i / n, ey + uy * 1.2 * L0 * i / n) + tuple(last[2:]) for i in range(1, n + 1)]
+        return path, None, 1.0, "object"
+    poly = None
+    if edge_px:
+        near = min(edge_px, key=lambda pl: _poly_dist(pl, ex, ey))
+        if leaf["behind"]:
+            poly = edge_for_leaf(path, edge_px) or near
+        elif _poly_dist(near, ex, ey) <= (LEAF_NEAR_EDGE * H) ** 2:
+            poly = near
+    if poly is None:
+        return path, None, 1.0, "lie"
+    # сторона, откуда лист подлетает (по пути у самого конца, а не по точке старта: линия бывает короткой и косой)
+    s0 = None
+    for q in reversed(path):
+        sd = float(edge_side(poly, [q[0]], [q[1]])[0])
+        if abs(sd) > 2.0 * L0:
+            s0 = 1.0 if sd >= 0 else -1.0
+            break
+    if s0 is None:
+        s0 = 1.0 if float(edge_side(poly, [path[0][0]], [path[0][1]])[0]) >= 0 else -1.0
+    path = extend_path_behind(path, poly, s0, L0, fps, k, limit=0.35)
+    return path, poly, s0, "edge"
+
+
+def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path, occluders=None, lie=None):
     """Клип события: картинка + один падающий лист, и рядом маска — где лист и насколько
     он непрозрачен (поверх петли лист кладётся по этой маске, без догадок по разнице кадров).
-    Начинается и кончается чистой картинкой."""
+    Начинается и кончается чистой картинкой. (15.10) Кадры идут в ffmpeg трубой, без файлов;
+    лежащий лист тает медленно; лист за краем или предметом исчезает только за ними."""
     import sys as _sys
     if "/app/pylibs" not in _sys.path:
         _sys.path.insert(0, "/app/pylibs")
@@ -2955,49 +2996,64 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path):
     (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
     via = [P(q) for q in leaf["via"]] if leaf.get("via") else None
     path = leaf_path(x0, y0, x1, y1, fall, fps, seed, L0 * 1.1, via=via)
-    poly = None
-    if leaf["behind"] and edge:
-        poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge], reach=0.12 * 864 * k)
-    s0 = (1.0 if float(edge_side(poly, [x0], [y0])[0]) >= 0 else -1.0) if poly else 1.0   # сторона, с которой лист стартует: туда он виден
-    rest = 0.0 if poly else 4.0      # на переднем плане (или края рядом нет) — лежит и растворяется в листве
-    if poly:
-        path = extend_path_behind(path, poly, s0, L0, fps, k)
-        fall = len(path) / fps
-    frames_dir = out_path + "_frames"
-    masks_dir = out_path + "_masks"
-    os.makedirs(frames_dir, exist_ok=True)
-    os.makedirs(masks_dir, exist_ok=True)
+    edge_px = [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in (edge or [])]
+    occ_px = [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in (occluders or [])]
+    path, poly, s0, finish = leaf_finish(path, leaf, edge_px, occ_px, W, H, L0, fps, k)
+    fall = len(path) / fps
+    rest = (LEAF_LIE_SECONDS if lie is None else float(lie)) if finish == "lie" else 0.0
+    base8 = np.clip(base, 0, 255).astype(np.uint8)
+    frame = base8.copy()
+    mask8 = np.zeros((H, W), np.uint8)
+    enc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p"]
+    pf = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
+                           "-r", str(fps), "-i", "-"] + enc + [out_path], stdin=subprocess.PIPE)
+    pm = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{W}x{H}",
+                           "-r", str(fps), "-i", "-"] + enc + [mask_path], stdin=subprocess.PIPE)
+    prev = None
+    lie_spr = None
     n = int((fall + rest + 0.5) * fps)
-    for f in range(n):
-        age = f / fps
-        out = base.copy()
-        mask = np.zeros((H, W), np.float32)
-        if age <= fall + rest:
-            x, y, ang, flip = path[min(len(path) - 1, int(age * fps))]
-            lying = age > fall
-            if lying:
-                ang, flip = 0.35, 1.0
-            L = L0 * (1 + (leaf["shrink"] - 1) * min(1.0, age / fall))
-            spr = leaf_sprite(leaf["shape"], color, ang, flip, L)
-            al = spr[..., 3] / 255 * min(1, age / 0.3)
-            if lying:
-                al = al * (1 - (age - fall) / rest) ** 1.6
-            h, w = al.shape
-            lx0, ly0 = int(x - w / 2), int(y - h / 2)
-            if poly:   # по ту сторону края от старта — за краем: не рисуем
-                al = al * edge_visible(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None], s0, k)
-            ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
-            if ya < yb and xa < xb:
-                a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
-                c = spr[ya - ly0:yb - ly0, xa - lx0:xb - lx0, :3]
-                out[ya:yb, xa:xb] = out[ya:yb, xa:xb] * (1 - a) + c * a
-                mask[ya:yb, xa:xb] = a[..., 0]
-        Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(os.path.join(frames_dir, f"{f:04d}.png"))
-        Image.fromarray(np.clip(mask * 255, 0, 255).astype(np.uint8)).save(os.path.join(masks_dir, f"{f:04d}.png"))
-    for d_, o_ in ((frames_dir, out_path), (masks_dir, mask_path)):
-        run_ffmpeg(["-framerate", str(fps), "-i", os.path.join(d_, "%04d.png"),
-                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p", o_])
-        shutil.rmtree(d_, ignore_errors=True)
+    try:
+        for f in range(n):
+            age = f / fps
+            if prev:   # стираем лист прошлого кадра
+                ya, yb, xa, xb = prev
+                frame[ya:yb, xa:xb] = base8[ya:yb, xa:xb]
+                mask8[ya:yb, xa:xb] = 0
+                prev = None
+            if age <= fall + rest:
+                lying = age > fall
+                x, y, ang, flip = path[min(len(path) - 1, int(age * fps))]
+                L = L0 * (1 + (leaf["shrink"] - 1) * min(1.0, age / fall))
+                if lying:
+                    if lie_spr is None:
+                        lie_spr = leaf_sprite(leaf["shape"], color, 0.35, 1.0, L)
+                    spr = lie_spr
+                else:
+                    spr = leaf_sprite(leaf["shape"], color, ang, flip, L)
+                al = spr[..., 3] / 255 * min(1, age / 0.3)
+                if lying:   # тает медленно и плавно, глазу почти незаметно
+                    u = (age - fall) / rest
+                    al = al * (1 - u * u * (3 - 2 * u))
+                h, w = al.shape
+                lx0, ly0 = int(x - w / 2), int(y - h / 2)
+                if poly:   # по ту сторону края — за краем: не рисуем
+                    al = al * edge_visible(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None], s0, k)
+                if occ_px:   # за предметом: не рисуем
+                    al = al * ~inside_any(occ_px, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None])
+                ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
+                if ya < yb and xa < xb:
+                    a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
+                    c = spr[ya - ly0:yb - ly0, xa - lx0:xb - lx0, :3]
+                    frame[ya:yb, xa:xb] = np.clip(base[ya:yb, xa:xb] * (1 - a) + c * a, 0, 255).astype(np.uint8)
+                    mask8[ya:yb, xa:xb] = np.clip(a[..., 0] * 255, 0, 255).astype(np.uint8)
+                    prev = (ya, yb, xa, xb)
+            pf.stdin.write(frame.tobytes())
+            pm.stdin.write(mask8.tobytes())
+    finally:
+        for p_ in (pf, pm):
+            p_.stdin.close(); p_.wait()
+    if pf.returncode or pm.returncode:
+        raise RuntimeError("ffmpeg не собрал клип листа")
     return out_path
 
 
@@ -3077,21 +3133,32 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
         events.append((ev, ln))
         periods.append(None)
     leaves, edge = parse_leaves(data.get("fx_Effects"), data)
+    occluders = parse_occluders(data.get("fx_Effects"))
+    # (15.10) у каждого листа несколько разных полётов между теми же точками; в ролике они чередуются,
+    # поэтому каждый раз лист летит по-новому, а частота падений остаётся прежней
+    variants = max(1, min(6, int(_f("leafVariants", 3))))
+    lie = _f("leafLieSeconds", LEAF_LIE_SECONDS)
+    t_leaves = time.time()
     for j, leaf in enumerate(leaves):
-        try:
-            raw = render_leaf_event(image_path, leaf, edge, fps, 1.3 + 2.9 * j,
-                                    os.path.join(pdir, f"leaf{j}_src.mp4"), os.path.join(pdir, f"leaf{j}_mask_src.mp4"))
-            mask = normalize_clip(os.path.join(pdir, f"leaf{j}_mask_src.mp4"), os.path.join(pdir, f"leaf{j}_mask.mp4"), fps)
-        except Exception as leaf_error:  # лист — украшение, сборку не роняем
-            print(f"[leaves] лист {j + 1} не получился: {leaf_error}")
-            continue
-        ev = normalize_clip(raw, os.path.join(pdir, f"leaf{j}_norm.mp4"), fps)
-        ln = media_duration(ev)
-        if loop_len:
-            ln = loop_len * max(1, -(-ln // loop_len))
-        events.append((ev, ln))
-        masks[len(events) - 1] = mask
-        periods.append(leaf["period"] or (gap_min + gap_max) / 2)
+        for v in range(variants):
+            tag = f"leaf{j}v{v}"
+            try:
+                raw = render_leaf_event(image_path, leaf, edge, fps, 1.3 + 2.9 * j + 17.3 * v,
+                                        os.path.join(pdir, f"{tag}_src.mp4"), os.path.join(pdir, f"{tag}_mask_src.mp4"),
+                                        occluders=occluders, lie=lie)
+                mask = normalize_clip(os.path.join(pdir, f"{tag}_mask_src.mp4"), os.path.join(pdir, f"{tag}_mask.mp4"), fps)
+            except Exception as leaf_error:  # лист — украшение, сборку не роняем
+                print(f"[leaves] лист {j + 1} (полёт {v + 1}) не получился: {leaf_error}")
+                continue
+            ev = normalize_clip(raw, os.path.join(pdir, f"{tag}_norm.mp4"), fps)
+            ln = media_duration(ev)
+            if loop_len:
+                ln = loop_len * max(1, -(-ln // loop_len))
+            events.append((ev, ln))
+            masks[len(events) - 1] = mask
+            periods.append((leaf["period"] or (gap_min + gap_max) / 2) * variants)
+    if leaves:
+        print(f"[leaves] клипы листьев: {len(leaves)} × {variants} полёта за {time.time() - t_leaves:.0f} с")
     if blink_spec and not loop_url:
         try:
             from PIL import Image as _Im
@@ -3576,6 +3643,8 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
     H, W = frame.shape[:2]
     k = H / 864.0
     leaves, edge = parse_leaves(fx_text, data)
+    occ = parse_occluders(fx_text)
+    occ_px = [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in occ]
     for j, leaf in enumerate(leaves):
         seed = 1.3 + 2.9 * j
         rng = np.random.default_rng(int(seed * 1000) + 7)
@@ -3585,10 +3654,8 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
         L0 = leaf["size"] * k
         via = [P(q) for q in leaf["via"]] if leaf.get("via") else None
         path = leaf_path(x0, y0, x1, y1, leaf["fall"], 24, seed, L0 * 1.1, via=via)
-        poly = None
-        if leaf["behind"] and edge:
-            poly = edge_for_leaf(path, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge], reach=0.12 * 864 * k)
-        s0 = (1.0 if float(edge_side(poly, [x0], [y0])[0]) >= 0 else -1.0) if poly else 1.0
+        path, poly, s0, _fin = leaf_finish(path, leaf, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge],
+                                           occ_px, W, H, L0, 24, k)
         step = 8   # положение через треть секунды
         # тонкая линия пути — чтобы маленький лист было видно на превью
         trail = Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8))
@@ -3608,14 +3675,16 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
             lx0, ly0 = int(x - w / 2), int(y - h / 2)
             if poly:
                 al = al * edge_visible(poly, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None], s0, k)
+            if occ_px:
+                al = al * ~inside_any(occ_px, (np.arange(w) + lx0)[None, :], (np.arange(h) + ly0)[:, None])
             ya, yb, xa, xb = max(0, ly0), min(H, ly0 + h), max(0, lx0), min(W, lx0 + w)
             if ya < yb and xa < xb:
                 a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
                 frame[ya:yb, xa:xb] = frame[ya:yb, xa:xb] * (1 - a) + spr[ya - ly0:yb - ly0, xa - lx0:xb - lx0, :3] * a
     im = Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8))
-    if edge:
+    if edge or occ:
         d = ImageDraw.Draw(im)
-        for pl in edge:
+        for pl in list(edge) + [list(o) + [o[0]] for o in occ]:
             pts = [(e[0] / 100 * W, e[1] / 100 * H) for e in pl]
             for (ax, ay), (bx, by) in zip(pts, pts[1:]):
                 n = max(1, int(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5 / (12 * k)))
@@ -3631,13 +3700,15 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
 # ролике (с ручками листа «Эффекты»), дважды подряд, на кадре поменьше — чтобы было быстро.
 # Пути листьев и край нарисованы на кадре, как на картинке-превью.
 FX_PREVIEW_VIDEO_WIDTH = 1024
+PREVIEW_LIE_SECONDS = 3.0   # (15.10) на превью лежащий лист тает быстрее, чем в ролике
 
 
 def draw_fx_preview_video(image_path, fx_text, data, out_path):
     from PIL import Image
     work = os.path.dirname(out_path)
     events_only = "\n".join(l for l in str(fx_text or "").splitlines()
-                             if l.strip().lower().startswith(EVENT_EFFECT_WORDS))
+                             if l.strip().lower().startswith(EVENT_EFFECT_WORDS)
+                             and not l.strip().lower().startswith(("листья", "лист", "leaves", "leaf")))   # (15.10) на видео — только линии края и обводки, листья летят по-настоящему
     base = os.path.join(work, "pv_base.jpg")
     draw_fx_preview(image_path, events_only, data, base)          # листья и край — линиями
     im = Image.open(base).convert("RGB")
@@ -3653,8 +3724,36 @@ def draw_fx_preview_video(image_path, fx_text, data, out_path):
     else:
         run_ffmpeg(["-loop", "1", "-i", small, "-t", str(EFFECTS_LOOP_SECONDS), "-r", "24",
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", loop])
-    run_ffmpeg(["-stream_loop", "1", "-i", loop, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-                "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out_path])
+    # (15.10) листья — настоящим полётом, а не штрихами: каждый лист падает по разу, друг за другом,
+    # поверх петли эффектов; лежащий лист на превью тает быстрее, чем в ролике
+    leaves, edge = parse_leaves(fx_text, data)
+    occ = parse_occluders(fx_text)
+    clips, t, total = [], 0.6, 0.0
+    for j, leaf in enumerate(leaves[:8]):
+        ev, mk = os.path.join(work, f"pv_leaf{j}.mp4"), os.path.join(work, f"pv_leaf{j}_m.mp4")
+        try:
+            render_leaf_event(small, leaf, edge, 24, 1.3 + 2.9 * j, ev, mk, occluders=occ, lie=PREVIEW_LIE_SECONDS)
+        except Exception as e:
+            print(f"[preview] лист {j + 1} не получился: {e}")
+            continue
+        ln = media_duration(ev)
+        clips.append((ev, mk, t)); t += ln + 0.3
+    total = max(2 * media_duration(loop), t + 0.5)
+    if not clips:
+        run_ffmpeg(["-stream_loop", "1", "-i", loop, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                    "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out_path])
+        return out_path
+    args = ["-stream_loop", "-1", "-t", f"{total:.2f}", "-i", loop]
+    graph, last = [], "[0:v]"
+    for i, (ev, mk, t0) in enumerate(clips):
+        args += ["-itsoffset", f"{t0:.2f}", "-i", ev, "-itsoffset", f"{t0:.2f}", "-i", mk]
+        a, b = 1 + 2 * i, 2 + 2 * i
+        graph.append(f"[{b}:v]format=gray[m{i}];[{a}:v]format=yuv420p[e{i}];[e{i}][m{i}]alphamerge[l{i}];"
+                     f"{last}[l{i}]overlay=0:0:eof_action=pass[o{i}]")
+        last = f"[o{i}]"
+    run_ffmpeg(args + ["-filter_complex", ";".join(graph), "-map", last, "-t", f"{total:.2f}",
+                       "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+                       "-movflags", "+faststart", "-an", out_path])
     return out_path
 
 
