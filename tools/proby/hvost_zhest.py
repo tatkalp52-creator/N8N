@@ -5,6 +5,10 @@ args = sys.argv[1:]
 sys.argv = ['x', '../font/cat.img', 'erased.jpg', 'x', 'inside.npy']
 exec(open('poses.py').read().split("if __name__")[0])
 TIGHT = np.load('tight.npy')[y0:y1, x0:x1]   # маска точно по чёрной линии хвоста (без тени снаружи)
+# сверху (где хвост касается тела) — строго внутри красной линии автора, без самой линии
+INNER = np.asarray(Image.fromarray((INS * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(3))) > 0
+TIGHT = np.where(below | (ir > N * 0.85), TIGHT, INNER)
+TIGHT[:, 1203 - x0:] = False    # за основанием — тело кота
 M = np.asarray(Image.fromarray((TIGHT * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.6))).astype(np.float32) / 255
 rest = frame(TH[0])
 _w = Image.fromarray((M > 0.02).astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.GaussianBlur(4))
