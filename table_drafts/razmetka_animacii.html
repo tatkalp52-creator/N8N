@@ -174,7 +174,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['пламя', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5], ['разлив', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
-    { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
+    { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6], ['ореол', 5]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
   // (15.10) лист образцов, нарисованный автором (номера — как в сборщике)
@@ -248,7 +248,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         (m.tone ? '; цвет ' + (m.tone[0] === m.tone[1] ? m.tone[0] : m.tone[0] + '–' + m.tone[1]) : '') +
         (m.size ? '; ' + m.size : '') + (m.deep ? '; вглубь' : '') + (m.behind ? '; за край' : '');
     }
-    else if (m.eff === 'lights') s = 'гирлянда: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join('; ') + '; яркость ' + m.k['яркость'] + '; мерцание ' + m.k['мерцание'] + (m.exact ? '; точно' : '');
+    else if (m.eff === 'lights') s = 'гирлянда: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join('; ') + '; яркость ' + m.k['яркость'] + '; мерцание ' + m.k['мерцание'] + '; ореол ' + (m.k['ореол'] == null ? 5 : m.k['ореол']) + (m.exact ? '; точно' : '');
     else if (m.eff === 'rain') s = 'дождь: ' + fmt(Math.min(p[0].x, p[1].x)) + ', ' + fmt(Math.min(p[0].y, p[1].y)) + ', ' + fmt(Math.max(p[0].x, p[1].x)) + ', ' + fmt(Math.max(p[0].y, p[1].y));
     return s;
   }
@@ -924,10 +924,11 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (!all.length || !dh) return;
     var k = dh / 864, t = (now / 1000) % LOOP, dpr = Math.min(2, window.devicePixelRatio || 1);
     all.forEach(function (m) {
-      var bright = mult(m.k['яркость']), flick = mult(m.k['мерцание']);
+      var bright = mult(m.k['яркость']), flick = mult(m.k['мерцание']), glowk = mult(m.k['ореол'] == null ? 5 : m.k['ореол']);
       var R = Math.max(2, Math.round(30 * k * Math.sqrt(Math.max(1, bright)) * dpr));
+      var Rg = Math.max(2, Math.round(R * 3.2 * Math.sqrt(glowk)));
       m.pts.forEach(function (q, idx) {
-        var key = [q.x, q.y, m.exact ? 1 : 0, R, m.k['мерцание']].join('|');
+        var key = [q.x, q.y, m.exact ? 1 : 0, R, Rg, m.k['мерцание']].join('|');
         var L = lightCache[key];
         if (!L) {
           var r = seeded(Math.round(q.x * 7919 + q.y * 104729) + idx);
@@ -935,6 +936,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
             at: m.exact ? { x: q.x, y: q.y } : snapBulb(q.x, q.y),
             halo: sprite(R, function (rr) { return Math.exp(-rr / (2 * 0.35 * 0.35)) * Math.pow(Math.max(0, 1 - rr), 2); }, false),
             core: sprite(R, function (rr) { return Math.exp(-rr / (2 * 0.09 * 0.09)); }, true),
+            outer: sprite(Rg, function (rr) { return Math.exp(-rr / (2 * 0.32 * 0.32)) * Math.pow(Math.max(0, 1 - rr), 2); }, false),
             ph: [r() * 6.283, r() * 6.283],
             n1: Math.max(1, Math.round(2 * flick)) + Math.floor(r() * 2),
             n2: Math.max(2, Math.round(9 * flick)) + Math.floor(r() * 4)
@@ -942,6 +944,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         }
         var f = 0.65 * Math.sin(2 * Math.PI * L.n1 * t / LOOP + L.ph[0]) + 0.35 * Math.sin(2 * Math.PI * L.n2 * t / LOOP + L.ph[1]);
         var cx = L.at.x / 100 * dw, cy = L.at.y / 100 * dh, rd = R / dpr;
+        var rgd = Rg / dpr;
+        fxc.globalAlpha = Math.min(0.9, (0.24 + 0.06 * f) * glowk); fxc.drawImage(L.outer, cx - rgd, cy - rgd, 2 * rgd, 2 * rgd);
         fxc.globalAlpha = Math.min(0.9, (0.34 + 0.16 * f) * bright); fxc.drawImage(L.halo, cx - rd, cy - rd, 2 * rd, 2 * rd);
         fxc.globalAlpha = Math.min(0.9, 0.55 + 0.25 * f); fxc.drawImage(L.core, cx - rd, cy - rd, 2 * rd, 2 * rd);
         fxc.globalAlpha = 1;

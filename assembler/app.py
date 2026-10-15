@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-15-leaves-reach"
+ASSEMBLER_VERSION = "2026-10-15-garland-halo"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2221,6 +2221,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # «точно» — верить точке как есть.
             bright = kn(kind, nums, "яркость")
             flick = kn(kind, nums, "мерцание")
+            glowk = kn(kind, nums, "ореол")
             gray = base.mean(axis=2)
             pts = [(nums[i] / 100 * W, nums[i + 1] / 100 * H) for i in range(0, len(nums) - 1, 2)]
             for lx, ly in pts:
@@ -2233,22 +2234,29 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                         iy, ix = np.unravel_index(np.argmax(win), win.shape)
                         lx, ly = xa + ix, ya + iy
                 R = int(30 * k * max(1.0, bright) ** 0.5)
-                gx0, gy0 = int(lx - R), int(ly - R)
-                yy, xx = np.mgrid[0:2 * R, 0:2 * R].astype(np.float32)
-                rr = ((xx - R) ** 2 + (yy - R) ** 2) / (R * R)
+                # (15.10) ореол — широкое мягкое тёплое свечение вокруг лампочки, как у свечи; ручка «ореол»
+                Rg = int(R * 3.2 * glowk ** 0.5)
+                Rb = max(R, Rg)
+                gx0, gy0 = int(lx - Rb), int(ly - Rb)
+                yy, xx = np.mgrid[0:2 * Rb, 0:2 * Rb].astype(np.float32)
+                d2 = (xx - Rb) ** 2 + (yy - Rb) ** 2
+                rr = d2 / (R * R)
                 halo = np.exp(-rr / (2 * 0.35 ** 2)) * np.clip(1 - rr, 0, 1) ** 2
                 core = np.exp(-rr / (2 * 0.09 ** 2))
+                rg = d2 / (Rg * Rg)
+                outer = np.exp(-rg / (2 * 0.32 ** 2)) * np.clip(1 - rg, 0, 1) ** 2
                 ph = rng.uniform(0, 2 * math.pi, 3)
                 n1 = max(1, int(round(2 * flick))) + int(rng.integers(0, 2))   # медленное дыхание
                 n2 = max(2, int(round(9 * flick))) + int(rng.integers(0, 4))   # лёгкое дрожание
-                col = np.empty((2 * R, 2 * R, 3), np.float32)
+                col = np.empty((2 * Rb, 2 * Rb, 3), np.float32)
                 col[...] = (255, 228, 168)                                   # светлее фона — свет, а не пятно краски
+                col[(rr < 1) & (outer > halo)] = (255, 214, 150)             # широкий ореол — теплее
                 col[core > 0.25] = (255, 246, 214)
 
-                def light(t, gx0=gx0, gy0=gy0, halo=halo, core=core, ph=ph, n1=n1, n2=n2, col=col, bright=bright):
+                def light(t, gx0=gx0, gy0=gy0, halo=halo, core=core, outer=outer, ph=ph, n1=n1, n2=n2, col=col, bright=bright):
                     L = EFFECTS_LOOP_SECONDS
                     f = 0.65 * math.sin(2 * math.pi * n1 * t / L + ph[0]) + 0.35 * math.sin(2 * math.pi * n2 * t / L + ph[1])
-                    a = halo * (0.34 + 0.16 * f) * bright + core * (0.55 + 0.25 * f)
+                    a = halo * (0.34 + 0.16 * f) * bright + core * (0.55 + 0.25 * f) + outer * (0.24 + 0.06 * f) * glowk
                     return gx0, gy0, np.clip(a, 0, 0.9), col
                 layers.append(light)
 
