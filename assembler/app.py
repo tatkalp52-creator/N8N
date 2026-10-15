@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-15-garland-halo"
+ASSEMBLER_VERSION = "2026-10-15-leaf-light"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2661,6 +2661,23 @@ def leaf_sample(n):
     return im
 
 
+def leaf_light_match(c, a, base, ya, yb, xa, xb):
+    """(15.10) Лист не ярче места, где летит: образцы нарисованы на светлой бумаге, и на тёмной сцене
+    (дождь, вечер) перекрашенный лист «светился». Средняя яркость листа — не выше яркости картинки
+    вокруг (окно втрое больше листа) с запасом 15 %; темнее — не трогаем."""
+    import numpy as np
+    w_ = a.sum()
+    if w_ < 1:
+        return 1.0
+    lum = (c @ np.array([0.299, 0.587, 0.114], np.float32) * a).sum() / w_
+    h, w = yb - ya, xb - xa
+    H, W = base.shape[:2]
+    y0, y1, x0, x1 = max(0, ya - h), min(H, yb + h), max(0, xa - w), min(W, xb + w)
+    bg = float((base[y0:y1, x0:x1] @ np.array([0.299, 0.587, 0.114], np.float32)).mean())
+    lim = bg * 1.15 + 12
+    return min(1.0, lim / max(lum, 1.0))
+
+
 def leaf_look(leaf, color, rng):
     """(15.10) Чем рисовать этот полёт: образец из библиотеки (свой на каждый полёт) и его цвет.
     Возвращает функцию (ang, flip, L) → RGBA."""
@@ -3184,6 +3201,7 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path, oc
                 if ya < yb and xa < xb:
                     a = al[ya - ly0:yb - ly0, xa - lx0:xb - lx0][..., None]
                     c = spr[ya - ly0:yb - ly0, xa - lx0:xb - lx0, :3]
+                    c = c * leaf_light_match(c, a[..., 0], base, ya, yb, xa, xb)
                     frame[ya:yb, xa:xb] = np.clip(base[ya:yb, xa:xb] * (1 - a) + c * a, 0, 255).astype(np.uint8)
                     mask8[ya:yb, xa:xb] = np.clip(a[..., 0] * 255, 0, 255).astype(np.uint8)
                     prev = (ya, yb, xa, xb)
