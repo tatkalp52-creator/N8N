@@ -20,15 +20,17 @@ def on_surface(th):
             a += math.radians(1) if math.cos(a) < 0 else -math.radians(1)
         out[j] = a; p = q
     return out
-UPP = [5, 6, 7]; DOWNP = [1, 2, 3]
+UPP = [5, 6, 1]; DOWNP = [2, 3]
+OURS = [('1', None), ('2', 5), ('3', 6), ('4', 1), ('5', 2), ('6', 3)]   # наш номер — его поза; 1 = нарисованный хвост
 SP = {k: on_surface(POSE[k]) for k in UPP + DOWNP}
 if MODE9_ == 'lines':
     Z = 4; im = Image.fromarray(np.clip(O, 0, 255).astype(np.uint8)).resize(((x1 - x0) * Z, (y1 - y0) * Z), Image.LANCZOS)
     d = ImageDraw.Draw(im); fnt = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 26)
-    for k in UPP + DOWNP:
-        col = (255, 60, 60) if k in UPP else (255, 255, 255)
-        Pp = (build_p(SP[k], np.ones(len(s))) - [x0, y0]) * Z
+    for nm, k in OURS:
+        th_ = th0 if k is None else SP[k]
+        col = (120, 220, 255) if k is None else (255, 60, 60) if k in UPP else (255, 255, 255)
+        Pp = (build_p(th_, np.ones(len(s))) - [x0, y0]) * Z
         d.line([tuple(p) for p in Pp], fill=col, width=5, joint='curve')
-        d.text(tuple(Pp[-1] + [-12, -30]), str(k), fill=col, font=fnt, stroke_width=3, stroke_fill=(0, 0, 0))
-    d.text((14, 10), 'его кривые, хвост не ниже книги: вверх 5-6-7, вниз 1-2-3', fill=(255, 240, 200), font=fnt, stroke_width=3, stroke_fill=(0, 0, 0))
+        d.text(tuple(Pp[-1] + [-12, -30]), nm, fill=col, font=fnt, stroke_width=3, stroke_fill=(0, 0, 0))
+    d.text((14, 10), '1 = нарисованный (голубой); вверх 2-3-4, вниз 5-6, потом снова 1', fill=(255, 240, 200), font=fnt, stroke_width=3, stroke_fill=(0, 0, 0))
     im.save(OUT9_)
