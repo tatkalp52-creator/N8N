@@ -3920,17 +3920,50 @@ def make_edit_mask(orig_path, marked_path, out_path, margin_pct=2.0):
     r, g, bl = a[..., 0], a[..., 1], a[..., 2]
     red = (r > 140) & (g < 100) & (bl < 100) & (r - g > 90) & (np.abs(a - b).max(axis=2) > 50)
     if int(red.sum()) < 30:
+        # (15.10) Телеграм ужимает фото до 1280 px и смягчает цвета: тонкая линия бледнеет — ищем мягче
+        # «краснота выросла» по сравнению с исходной (размыто — шум сжатия не считается)
+        ab = np.asarray(marked.filter(ImageFilter.GaussianBlur(1.5)), np.float32)
+        bb = np.asarray(orig.filter(ImageFilter.GaussianBlur(1.5)), np.float32)
+        ra = ab[..., 0] - np.maximum(ab[..., 1], ab[..., 2])
+        rb = bb[..., 0] - np.maximum(bb[..., 1], bb[..., 2])
+        red = (ra - rb > 30) & (ra > 35)
+    if int(red.sum()) < 30:
         raise ValueError("красной обводки не нашлось")
     # считаем на уменьшенной копии: заливаем то, что внутри замкнутой обводки
     S = max(1, W // 512)
     w, h = W // S, H // S
     small = Image.fromarray((red * 255).astype(np.uint8)).resize((w, h), Image.BOX).point(lambda v: 255 if v > 0 else 0)
-    small = small.filter(ImageFilter.MaxFilter(5))          # закрываем мелкие разрывы штриха
-    canvas = Image.new("L", (w + 2, h + 2), 0)
-    canvas.paste(small, (1, 1))
-    ImageDraw.floodfill(canvas, (0, 0), 128)                 # всё, до чего можно дойти снаружи
-    c = np.asarray(canvas)[1:-1, 1:-1]
-    area = (c != 128)                                        # штрих + то, что внутри него
+    stroke = np.asarray(small) > 0
+    area = None
+    for k_ in (5, 9, 15):                                    # закрываем разрывы штриха: сначала мелкие, потом крупнее
+        closed = small.filter(ImageFilter.MaxFilter(k_))
+        canvas = Image.new("L", (w + 2, h + 2), 0)
+        canvas.paste(closed, (1, 1))
+        ImageDraw.floodfill(canvas, (0, 0), 128)             # всё, до чего можно дойти снаружи
+        c = np.asarray(canvas)[1:-1, 1:-1]
+        cand = (c != 128)                                    # штрих + то, что внутри него
+        if cand.sum() > 2.5 * np.asarray(closed).astype(bool).sum():   # внутри что-то закрасилось — обводка замкнута
+            area = cand
+            break
+    if area is None:   # (15.10) разрыв большой — берём выпуклую оболочку штриха
+        ys_, xs_ = np.nonzero(stroke)
+        pts = sorted(set(zip(xs_.tolist(), ys_.tolist())))
+        def _cross(o, a_, b_):
+            return (a_[0] - o[0]) * (b_[1] - o[1]) - (a_[1] - o[1]) * (b_[0] - o[0])
+        lower, upper = [], []
+        for p_ in pts:
+            while len(lower) >= 2 and _cross(lower[-2], lower[-1], p_) <= 0:
+                lower.pop()
+            lower.append(p_)
+        for p_ in reversed(pts):
+            while len(upper) >= 2 and _cross(upper[-2], upper[-1], p_) <= 0:
+                upper.pop()
+            upper.append(p_)
+        hull = lower[:-1] + upper[:-1]
+        hm = Image.new("L", (w, h), 0)
+        if len(hull) >= 3:
+            ImageDraw.Draw(hm).polygon(hull, fill=255)
+        area = (np.asarray(hm) > 0) | stroke
     m = Image.fromarray((area * 255).astype(np.uint8))
     pad = max(1, int(round(margin_pct / 100.0 * h)))
     m = m.filter(ImageFilter.MaxFilter(2 * pad + 1)).resize((W, H), Image.BILINEAR)
