@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-15-leaves-library"
+ASSEMBLER_VERSION = "2026-10-15-leaves-reach"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2694,7 +2694,7 @@ def sample_sprite(n, rgb, ang, flip, L):
         k_ = np.clip(lum / max(ref, 1.0), 0, 1.25)[..., None]
         a[..., :3] = np.clip(np.array(rgb, np.float32) * k_ * 0.85 + a[..., :3] * 0.15, 0, 255)
     im = Image.fromarray(a.astype(np.uint8), "RGBA")
-    scale = L * 1.25 / max(im.size)
+    scale = L * 1.6 / max(im.size)   # (15.10) образцы рисованы с черенком и полями — на 1.25 выходили мелкими
     sq = 0.22 + 0.78 * abs(flip)
     w_, h_ = max(2, int(im.width * scale * sq)), max(2, int(im.height * scale))
     im = im.resize((w_, h_), Image.LANCZOS)
@@ -2843,6 +2843,17 @@ def leaf_path(x0, y0, x1, y1, seconds, fps, seed, swing, half=1.15, via=None):
         ang = dirn * 0.55 * math.sin(math.pi * s_) + 0.15
         flip = side * (0.3 + 0.7 * math.sin(math.pi * s_) ** 0.6)
         path.append((x, y, ang, flip))
+    # (15.10) лист обязан прийти туда, куда показала автор: физика дуг кончает путь чуть выше и в стороне —
+    # плавно доводим последние 40 % пути точно в точку «куда» (иначе до линии края он не долетает)
+    ex_, ey_ = (via[-1] if via else (x1, y1))
+    dx_, dy_ = ex_ - path[-1][0], ey_ - path[-1][1]
+    n_ = len(path)
+    for i_ in range(n_):
+        u_ = (i_ / max(1, n_ - 1) - 0.6) / 0.4
+        if u_ > 0:
+            w_ = u_ * u_ * (3 - 2 * u_)
+            x_, y_, a_, f_ = path[i_]
+            path[i_] = (x_ + dx_ * w_, y_ + dy_ * w_, a_, f_)
     return path
 
 
