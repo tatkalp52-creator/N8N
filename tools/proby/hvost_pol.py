@@ -36,9 +36,14 @@ LAGP = 0.12                                          # запаздывание 
 fps = 24; sec = int(PERIOD)
 sN = np.linspace(0, 1, 40)
 AMP = np.array([ss((x - 0.03) / 0.6) for x in sN])   # у тела почти 0, к середине и кончику — полный мах
+CURL = float(args[5]) if len(args) > 5 else 30.0       # насколько кончик обнимает лапы на возврате, градусы
+BTIP = np.array([ss((x - 0.5) / 0.45) for x in sN])   # загибается только конец хвоста
+def bump(x): return math.sin(math.pi * min(max(x, 0.0), 1.0)) ** 2
 def off_at(t):
-    ph = 2 * math.pi * (t / PERIOD - LAGP * sN)
-    return math.radians(SWEEP) * AMP * (0.5 - 0.5 * np.cos(ph))
+    x = (t % PERIOD) / PERIOD
+    u = 0.5 - 0.5 * math.cos(2 * math.pi * x)          # туда и обратно, ровно
+    hug = bump((x - 0.45) / 0.55)                        # на возврате кончик заворачивается к лапам и отпускает
+    return math.radians(SWEEP) * (AMP - 1.2 * BTIP) * u - math.radians(CURL) * BTIP * hug   # отъезд: конец распрямляется; возврат: кончик к лапам
 offs = [off_at(f / fps) for f in range(fps * sec)]
 sS = np.linspace(0, 1, NSEG)
 restC = frame_curve(curve(np.zeros(NSEG)))
