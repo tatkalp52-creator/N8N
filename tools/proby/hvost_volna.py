@@ -8,11 +8,13 @@ exec(open('poses.py').read().split("if __name__")[0])
 _sw = open('sway.py').read(); exec(_sw[_sw.index("TIGHT = np.load"):_sw.index("ALPHA =")])
 TIP = float(args[1]) if len(args) > 1 else 14.0     # наибольшее отклонение кончика, градусы
 PERIOD = float(args[2]) if len(args) > 2 else 6.0
+CURL_BIAS = float(args[3]) if len(args) > 3 else 0.45   # волна смещена в сторону загиба: вниз почти не уходит
+SIGN = float(args[4]) if len(args) > 4 else 1.0
 LAMBDA = 1.1                                         # длина волны ≈ длина хвоста → одна S
 s = np.linspace(0, 1, N - 1); ds = 1.0 / (N - 1)
-A = np.array([ss(x / 0.35) for x in s])               # у тела кривизна почти не меняется
+A = np.array([ss(x / 0.35) * (0.4 + 1.2 * x) for x in s])   # у тела почти ноль, к концу — сильнее (крючок)
 def dtheta(t):
-    k = A * np.sin(2 * math.pi * (t / PERIOD - s / LAMBDA))
+    k = A * (CURL_BIAS + (1 - CURL_BIAS) * np.sin(2 * math.pi * (t / PERIOD - s / LAMBDA))) * SIGN
     return np.cumsum(k) * ds
 _mx = max(abs(dtheta(t)[-1]) for t in np.linspace(0, PERIOD, 60))
 GAIN = math.radians(TIP) / _mx
