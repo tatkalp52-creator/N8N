@@ -29,29 +29,17 @@ def frame_curve(Pimg):
     a = (sample(M, src) * (np.sqrt(d2.min(-1)) < 16))[..., None]
     return C * (1 - a) + sample(O, src) * a
 def ss(x): x = min(max(x, 0.0), 1.0); return x * x * (3 - 2 * x)
-def drive(t):   # раз — быстро, два-три-четыре — медленно обратно
-    if t < 0.3: return 0.0
-    if t < 0.9: x = (t - 0.3) / 0.6; return 1 - (1 - x) ** 3
-    if t < 1.2: return 1.0
-    if t < 3.2: return 1 - ss((t - 1.2) / 2.0)
-    return 0.0
-# цепочка: 10 звеньев, мягкая (без щелчка): ζ≈0.95
-NS = 10; PIN = 2
-sN = (np.arange(NS) + 0.5) / NS
-ZETA = np.full(NS, 0.95); W = 2 * ZETA / (LAGT / (NS - PIN)); KK = W ** 2; DD = 2 * ZETA * W
-pin_w = np.array([ss((x - 0.05) / 0.25) for x in sN])          # у самого тела мах меньше
-def simulate(T, fps):
-    dt = 1 / 4800; off = np.zeros(NS); vel = np.zeros(NS); res = []; every = int(round(1 / (fps * dt)))
-    for k in range(int(T / dt)):
-        b = math.radians(SWEEP) * drive(k * dt)
-        prev = off[:PIN].copy(); off[:PIN] = b * pin_w[:PIN] / max(pin_w[PIN - 1], 1e-6) * np.array([0.5, 1.0])[:PIN]
-        vel[:PIN] = (off[:PIN] - prev) / dt
-        acc = np.zeros(NS); acc[PIN:] = KK[PIN:] * (off[PIN - 1:-1] - off[PIN:]) - DD[PIN:] * (vel[PIN:] - vel[PIN - 1:-1])
-        vel += acc * dt; off[PIN:] += vel[PIN:] * dt
-        if k % every == 0: res.append(off.copy())
-    return res
-fps = 24; sec = 4
-offs = simulate(sec + 0.1, fps)
+# плавное ровное движение без пружин: хвост метёт по полу вперёд и так же плавно обратно (косинус),
+# изгиб нарастает от тела к кончику, кончик чуть запаздывает — только сдвигом фазы
+PERIOD = float(args[4]) if len(args) > 4 else 5.0
+LAGP = 0.12                                          # запаздывание кончика, доля периода
+fps = 24; sec = int(PERIOD)
+sN = np.linspace(0, 1, 40)
+AMP = np.array([ss((x - 0.03) / 0.6) for x in sN])   # у тела почти 0, к середине и кончику — полный мах
+def off_at(t):
+    ph = 2 * math.pi * (t / PERIOD - LAGP * sN)
+    return math.radians(SWEEP) * AMP * (0.5 - 0.5 * np.cos(ph))
+offs = [off_at(f / fps) for f in range(fps * sec)]
 sS = np.linspace(0, 1, NSEG)
 restC = frame_curve(curve(np.zeros(NSEG)))
 zoom = 'z' in out
@@ -66,4 +54,4 @@ for rep in range(2):
             fr = orig.copy(); fr[y0:y1, x0:x1] = img; im = Image.fromarray(np.clip(fr, 0, 255).astype(np.uint8)).resize(size, Image.LANCZOS)
         p.stdin.write(np.asarray(im).tobytes())
 p.stdin.close(); p.wait()
-print('tip', [round(math.degrees(o[-1]), 1) for o in offs[::6]])
+print('tip', [round(math.degrees(o[-1]), 1) for o in offs[::12]])
