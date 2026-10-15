@@ -7,7 +7,12 @@ from PIL import Image, ImageDraw, ImageFont
 J_LINE = [(1168,765),(1080,782),(1000,786),(960,776),(900,750),(870,725),(856,690),(852,640)]   # её «вниз 2 (J)»
 MID_J = tang([(OXk + x * Kk, OYk + y * Kk) for x, y in J_LINE]); MID_J += th0[0] - MID_J[0]
 xx = np.clip((s - 0.45) / 0.55, 0, 1); LAYB = th0 + math.radians(115) * xx * xx * (3 - 2 * xx)   # основание легло, кончик поднят
-DOWN_KEYS = [(0.0, TH_UP), (0.45, MID_J), (0.75, LAYB), (1.0, th0)]
+HALF = th0 + math.radians(50) * xx * xx * (3 - 2 * xx)          # основание лежит, кончик опущен наполовину (её просьба)
+DOWN_POSES = [TH_UP, MID_J, LAYB, HALF, th0]
+def _pts(th): return build_p(th0 + pchip(KN, np.interp(KN, s, th - th0), s), np.ones(len(s)))
+_dist = [0.5 * np.hypot(*(_pts(a) - _pts(b)).T).mean() + 0.5 * np.hypot(*(_pts(a) - _pts(b)).T).max() for a, b in zip(DOWN_POSES[:-1], DOWN_POSES[1:])]
+_ts = np.r_[0, np.cumsum(_dist)] / sum(_dist)                    # моменты поз — по пройденному пути: скорость ровная, без затыка
+DOWN_KEYS = list(zip(_ts, DOWN_POSES))
 def shape_down(t):
     u = ease(t); dks = [np.interp(KN, s, P_ - th0) for _, P_ in DOWN_KEYS]; ts = [k for k, _ in DOWN_KEYS]
     i = min(np.searchsorted(ts, u, side='right') - 1, len(ts) - 2); a = (u - ts[i]) / (ts[i + 1] - ts[i])
