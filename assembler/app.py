@@ -3052,7 +3052,7 @@ def edge_visible(poly, X, Y, s0, k):
         m = dd < bd
         bd = np.where(m, dd, bd)
         out_ = np.where(m, beyond, out_)
-    return (edge_side(poly, X, Y) * s0 >= 6 * k) | out_
+    return (edge_side(poly, X, Y) * s0 >= 1 * k) | out_   # (15.10) линия — точный срез: что перешло за неё, не видно
 
 
 LEAF_LIE_SECONDS = 12.0   # (15.10) сколько лист лежит и медленно тает (🎬 leafLieSeconds)
