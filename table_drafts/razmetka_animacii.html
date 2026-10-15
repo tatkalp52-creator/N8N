@@ -80,6 +80,14 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .knobs { grid-column: 2 / 4; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; }
 .knobs label { display: grid; grid-template-columns: 72px 1fr 24px; align-items: center; gap: 6px; font-size: 14px; }
 .knobs input { min-width: 0; accent-color: var(--accent); }
+.tiles { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+.tile { position: relative; min-height: 64px; padding: 4px; display: grid; place-items: center; }
+.tile img { width: 52px; height: 52px; object-fit: contain; pointer-events: none; }
+.tile span { position: absolute; left: 4px; top: 2px; font-size: 11px; color: var(--muted); }
+.tile[aria-pressed="true"] { border-color: var(--accent); background: var(--soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.tile.word { grid-column: span 3; font-size: 13px; }
+.tonebox { grid-column: 1 / -1; display: grid; gap: 6px; }
+.swatch { width: 300px; max-width: 100%; height: 64px; }
 .mark select { font: inherit; min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 4px 8px; }
 .out { font-family: var(--mono); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 96px; margin: 0; }
 .primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
@@ -160,13 +168,47 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'surf', name: 'Пар над поверхностью', taps: 99, knobs: [['густота', 5], ['высота', 5], ['скорость', 5]], hint: 'Обведи гладь жидкости точками по кругу — по краю супа в кастрюле: передний край, бок, задний край, другой бок, — потом «Готово». Пар поднимется со всей обведённой глади: где край ниже, там и касание ниже.' },
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'edge', name: 'Край (за него листья скрываются)', taps: 99, hint: 'Проведи линию вдоль скамейки, забора или другого края, за которым лист скрывается: точки слева направо, потом «Готово». Нужно листьям с отметкой «за край».' },
-    { id: 'leaves', name: 'Листья', taps: 99, hint: 'Коснись места, откуда летит лист, потом проведи путь падения точками сверху вниз (одной, двумя, тремя) и нажми «Готово». Лист качается вокруг твоей линии.', kinds: ['продолговатый', 'круглый', 'клён'] },
+    { id: 'leaves', name: 'Листья', taps: 99, hint: 'Коснись места, откуда лист срывается, потом — куда он падает (можно добавить точки пути посередине) и нажми «Готово». Полёт каждый раз новый, вокруг твоей линии. Кончаешь у линии «Край» — лист уйдёт за неё; кончаешь на земле — ляжет и медленно растает. Потом выбери листья, размер и цвет.' },
     { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['пламя', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5], ['разлив', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
+  // (15.10) лист образцов, нарисованный автором (номера — как в сборщике)
+  var LEAF_NAMES = ['клён красный', 'клён жёлтый', 'клён оранжевый', 'дуб', 'дуб тёмный', 'берёза жёлтая', 'берёза рыжая', 'липа', 'липа', 'ясень', 'сухой скрученный', 'рваный'];
+  var TONES = [[1, [112, 72, 42]], [3, [150, 72, 42]], [4.5, [176, 62, 42]], [7, [204, 112, 46]], [8.5, [214, 148, 54]], [10, [222, 176, 62]]];
+  function toneRgb(t) {
+    for (var i = 0; i < TONES.length - 1; i++) { var a = TONES[i], b = TONES[i + 1]; if (t <= b[0]) { var u = (t - a[0]) / (b[0] - a[0]); return a[1].map(function (v, k) { return v + (b[1][k] - v) * u; }); } }
+    return TONES[TONES.length - 1][1];
+  }
+  var thumbCache = {};
+  function thumb(n, cb) {
+    if (thumbCache[n] && thumbCache[n].complete) return cb(thumbCache[n]);
+    var im = new Image(); im.onload = function () { cb(im); }; im.src = 'leaves/t' + (n < 10 ? '0' : '') + n + '.png'; thumbCache[n] = im;
+  }
+  // как у сборщика: штриховка сохраняется, тон меняется (яркость пикселя / светлая часть листа × новый цвет)
+  function paintSwatch(cv, m) {
+    var c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height);
+    var list = m.crooked ? [] : (m.samples && m.samples.length ? m.samples : [1, 6, 8]);
+    var tones = m.tone ? [m.tone[0], (m.tone[0] + m.tone[1]) / 2, m.tone[1]] : [null, null, null];
+    tones.forEach(function (tn, k) {
+      var n = list.length ? list[k % list.length] : 1;
+      thumb(n, function (im) {
+        var w = 64, x = 8 + k * 96, tmp = document.createElement('canvas'); tmp.width = w; tmp.height = w;
+        var tc = tmp.getContext('2d'); tc.drawImage(im, 0, 0, w, w);
+        if (tn != null) try {
+          var d = tc.getImageData(0, 0, w, w), px = d.data, lums = [];
+          for (var q = 0; q < px.length; q += 4) if (px[q + 3] > 128) lums.push(0.299 * px[q] + 0.587 * px[q + 1] + 0.114 * px[q + 2]);
+          lums.sort(function (a, b) { return a - b; }); var ref = lums.length ? lums[Math.floor(lums.length * 0.7)] : 128, rgb = toneRgb(tn);
+          for (var q2 = 0; q2 < px.length; q2 += 4) { var l = 0.299 * px[q2] + 0.587 * px[q2 + 1] + 0.114 * px[q2 + 2], kk = Math.min(1.25, l / Math.max(ref, 1));
+            for (var ch = 0; ch < 3; ch++) px[q2 + ch] = Math.min(255, rgb[ch] * kk * 0.85 + px[q2 + ch] * 0.15); }
+          tc.putImageData(d, 0, 0);
+        } catch (e) { /* картинка с другого адреса — показываем без перекраски */ }
+        c.drawImage(tmp, x, 0);
+      });
+    });
+  }
   var $ = function (id) { return document.getElementById(id); };
   var img = $('img'), ov = $('ov'), pic = $('pic');
 
@@ -193,7 +235,13 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       EFFECTS.filter(function (e) { return e.id === 'surf'; })[0].knobs.forEach(function (k) { var v = m.k[k[0]]; if (v != null) s += '; ' + k[0] + ' ' + v; });
     } else if (m.eff === 'bubbles') s = 'пузыри: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + ', ' + fmt(p[1].y);
     else if (m.eff === 'edge') s = 'край: ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
-    else if (m.eff === 'leaves') s = 'листья: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join(' → ') + (m.kind ? '; ' + m.kind : '') + (m.size ? '; ' + m.size : '') + (m.deep ? '; вглубь' : '') + (m.behind ? '; за край' : '');
+    else if (m.eff === 'leaves') {
+      var sm = m.samples || [];
+      s = 'листья: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join(' → ') +
+        (m.crooked ? '; кривой' : sm.length ? '; образец ' + sm.join(', ') : (m.kind ? '; ' + m.kind : '')) +
+        (m.tone ? '; цвет ' + (m.tone[0] === m.tone[1] ? m.tone[0] : m.tone[0] + '–' + m.tone[1]) : '') +
+        (m.size ? '; ' + m.size : '') + (m.deep ? '; вглубь' : '') + (m.behind ? '; за край' : '');
+    }
     else if (m.eff === 'lights') s = 'гирлянда: ' + p.map(function (q) { return fmt(q.x) + ', ' + fmt(q.y); }).join('; ') + '; яркость ' + m.k['яркость'] + '; мерцание ' + m.k['мерцание'] + (m.exact ? '; точно' : '');
     else if (m.eff === 'rain') s = 'дождь: ' + fmt(Math.min(p[0].x, p[1].x)) + ', ' + fmt(Math.min(p[0].y, p[1].y)) + ', ' + fmt(Math.max(p[0].x, p[1].x)) + ', ' + fmt(Math.max(p[0].y, p[1].y));
     return s;
@@ -315,14 +363,52 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       }
       if (m.eff === 'leaves' && m.open) {
         var kb2 = document.createElement('div'); kb2.className = 'knobs';
-        var sel = document.createElement('select'); sel.id = 'kind' + i; sel.setAttribute('aria-label', 'Вид листа');
-        ['', 'продолговатый', 'круглый', 'клён'].forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v || 'вид листа по умолчанию'; if (m.kind === v) o.selected = true; sel.appendChild(o); });
-        sel.onchange = function () { m.kind = sel.value; t.textContent = lineOf(m); renderOut(); };
-        kb2.appendChild(sel);
+        // (15.10) листья-образцы: плитки (можно несколько — каждый полёт берёт свой), размер, цвет от–до
+        var tiles = document.createElement('div'); tiles.className = 'tiles'; tiles.setAttribute('role', 'group'); tiles.setAttribute('aria-label', 'Какие листья падают');
+        if (!m.samples) m.samples = [];
+        LEAF_NAMES.forEach(function (nm, j) {
+          var n = j + 1, bt = document.createElement('button'); bt.type = 'button'; bt.className = 'tile';
+          bt.setAttribute('aria-pressed', m.samples.indexOf(n) >= 0 && !m.crooked ? 'true' : 'false'); bt.title = nm + ' (' + n + ')';
+          var im = document.createElement('img'); im.src = 'leaves/t' + (n < 10 ? '0' : '') + n + '.png'; im.alt = nm; bt.appendChild(im);
+          var cap = document.createElement('span'); cap.textContent = n; bt.appendChild(cap);
+          bt.onclick = function () { m.crooked = false; var k_ = m.samples.indexOf(n); if (k_ >= 0) m.samples.splice(k_, 1); else m.samples.push(n); m.samples.sort(function (a, b) { return a - b; }); refresh(); };
+          tiles.appendChild(bt);
+        });
+        var cr = document.createElement('button'); cr.type = 'button'; cr.className = 'tile word'; cr.setAttribute('aria-pressed', m.crooked ? 'true' : 'false');
+        cr.textContent = 'кривой (смешной, для дальних)'; cr.onclick = function () { m.crooked = !m.crooked; refresh(); };
+        tiles.appendChild(cr);
+        var tnote = document.createElement('p'); tnote.className = 'note'; tnote.style.gridColumn = '1 / -1';
+        tnote.textContent = m.crooked ? 'Падает старый «кривой» лист.' : m.samples.length ? 'Каждый полёт возьмёт один из выбранных.' : 'Ничего не выбрано — сборщик возьмёт клён, берёзу или липу.';
+        kb2.appendChild(tiles); kb2.appendChild(tnote);
         var sz = document.createElement('select'); sz.id = 'size' + i; sz.setAttribute('aria-label', 'Размер листа');
-        [['', 'размер обычный'], ['маленький', 'маленький (далеко)'], ['крупный', 'крупный (близко)']].forEach(function (v) { var o = document.createElement('option'); o.value = v[0]; o.textContent = v[1]; if ((m.size || '') === v[0]) o.selected = true; sz.appendChild(o); });
+        [['', 'размер средний'], ['мелкий', 'мелкий (далеко)'], ['крупный', 'крупный (близко)']].forEach(function (v) { var o = document.createElement('option'); o.value = v[0]; o.textContent = v[1]; if ((m.size || '') === v[0] || (v[0] === 'мелкий' && m.size === 'маленький')) o.selected = true; sz.appendChild(o); });
         sz.onchange = function () { m.size = sz.value; t.textContent = lineOf(m); renderOut(); };
         kb2.appendChild(sz);
+        // цвет: два ползунка «от» и «до» (1 бурый … 4–5 красный … 7 оранжевый … 10 жёлтый); галочка — свои цвета листа
+        var tw = document.createElement('div'); tw.className = 'tonebox';
+        var own = document.createElement('label'); own.style.display = 'flex'; own.style.gap = '8px'; own.style.alignItems = 'center';
+        var ocb = document.createElement('input'); ocb.type = 'checkbox'; ocb.checked = !m.tone;
+        var otx = document.createElement('span'); otx.textContent = 'цвета как нарисованы';
+        own.appendChild(ocb); own.appendChild(otx); tw.appendChild(own);
+        var sw = document.createElement('canvas'); sw.className = 'swatch'; sw.width = 300; sw.height = 64;
+        function slider(label, idx) {
+          var lab = document.createElement('label');
+          var sp = document.createElement('span'); sp.textContent = label;
+          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 1; inp.max = 10; inp.step = 0.5; inp.value = m.tone ? m.tone[idx] : (idx ? 9 : 3);
+          var ou = document.createElement('span'); ou.textContent = inp.value;
+          inp.disabled = !m.tone;
+          inp.oninput = function () {
+            var v = Number(inp.value); m.tone[idx] = v;
+            if (m.tone[0] > m.tone[1]) { m.tone[1 - idx] = v; }
+            ou.textContent = inp.value; t.textContent = lineOf(m); renderOut(); paintSwatch(sw, m);
+          };
+          lab.appendChild(sp); lab.appendChild(inp); lab.appendChild(ou); return lab;
+        }
+        var s1 = slider('цвет от', 0), s2 = slider('цвет до', 1);
+        ocb.onchange = function () { m.tone = ocb.checked ? null : [3, 9]; refresh(); };
+        tw.appendChild(s1); tw.appendChild(s2); tw.appendChild(sw);
+        kb2.appendChild(tw);
+        setTimeout(function () { paintSwatch(sw, m); }, 0);
         [['deep', 'вглубь: уменьшается, пока падает'], ['behind', 'за край: скрывается за линией «Край»']].forEach(function (c) {
           var lb = document.createElement('label'); lb.style.display = 'flex'; lb.style.gap = '8px'; lb.style.alignItems = 'center'; lb.style.minHeight = '36px'; lb.style.gridTemplateColumns = 'none';
           var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = c[0] + i; cb.checked = !!m[c[0]];

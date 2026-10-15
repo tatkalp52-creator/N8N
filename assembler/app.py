@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-15-leaves-finish"
+ASSEMBLER_VERSION = "2026-10-15-leaves-library"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
