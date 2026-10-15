@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-14-intro-flag"
+ASSEMBLER_VERSION = "2026-10-15-leaves-finish"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1452,7 +1452,7 @@ EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", 
                 "гирлянда": "lights", "гирлянды": "lights", "лампочки": "lights", "lights": "lights",
                 "дождь": "rain", "rain": "rain"}
 # Строки листьев и края — не петля, а события (см. ЛИСТЬЯ ниже)
-EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge")
+EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge", "за:", "за ", "предмет", "behind")
 
 
 # Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
@@ -2553,6 +2553,41 @@ def parse_leaves(text, data):
             leaf["fall"] = fall0 * (0.8 + 0.7 * ((len(leaves) * 0.618 + 0.3) % 1.0))
         leaves.append(leaf)
     return leaves, edge
+
+
+def parse_occluders(text):
+    """(15.10) Строки «за: x y, x y, …» — обводка предмета (голова Пингви, хвост кота, ваза): лист,
+    пролетая там, прячется за ним; если кончает путь внутри обводки — исчезает за предметом."""
+    out = []
+    for line in str(text or "").splitlines():
+        low = line.strip().lower()
+        if not re.match(r"^(за|предмет|behind)\s*:", low):
+            continue
+        pts = []
+        for pair in low.split(":", 1)[-1].split(","):
+            nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", pair)]
+            if len(nums) >= 2:
+                pts.append((nums[0], nums[1]))
+        if len(pts) >= 3:
+            out.append(pts)
+    return out
+
+
+def inside_any(polys, X, Y):
+    """Маска «внутри какой-нибудь обводки» (чётно-нечётное правило), X, Y — массивы пикселей."""
+    import numpy as np
+    X, Y = np.broadcast_arrays(np.asarray(X, np.float32), np.asarray(Y, np.float32))
+    res = np.zeros(X.shape, bool)
+    for poly in polys:
+        ins = np.zeros(X.shape, bool)
+        n = len(poly)
+        for i in range(n):
+            (ax, ay), (bx, by) = poly[i], poly[(i + 1) % n]
+            cond = (ay > Y) != (by > Y)
+            xc = ax + (Y - ay) * (bx - ax) / ((by - ay) or 1e-6)
+            ins ^= cond & (X < xc)
+        res |= ins
+    return res
 
 
 def _leaf_outline_long(L):
