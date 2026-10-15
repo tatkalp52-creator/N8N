@@ -29,7 +29,9 @@ def pose(pts):
 if __name__ == '__main__':
     f = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
     PERSP = [0.98, 0.94, 0.88, 0.88, 0.92, 0.97]
-    items = [('лежит', th0, 1.0)] + [(k, pose(v), PERSP[i]) for i, (k, v) in enumerate(LINES.items())] + [('лежит', th0, 1.0)]
+    def lying_base(up_deg, start=0.45):            # основание уже лежит на книге (как нарисован), кончик ещё поднят
+        x = np.clip((s - start) / (1 - start), 0, 1); return th0 + math.radians(up_deg) * x * x * (3 - 2 * x)
+    items = [('лежит', th0, 1.0)] + [(k, pose(v), PERSP[i]) for i, (k, v) in enumerate(LINES.items()) if k != 'вниз 3'] + [('вниз 3: основание легло', lying_base(115), 0.97), ('лежит', th0, 1.0)]
     cv = Image.new('RGB', (4 * 345, 2 * 375))
     for i, (nm, th, sc) in enumerate(items):
         F = frame_p(th, np.full(len(s), sc))
