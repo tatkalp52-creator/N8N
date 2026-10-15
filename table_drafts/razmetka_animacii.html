@@ -170,7 +170,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
     { id: 'edge', name: 'Край (за него листья скрываются)', taps: 99, hint: 'Нарисуй линию пальцем или стилусом прямо по верху забора или перил — одним движением. Или проведи по верху забора, перил, скамейки — точками слева направо, сколько угодно точек, повторяя все изгибы (увеличь картинку для точности), потом «Готово». Лист, долетевший до линии, уходит за неё. Для отдельных предметов (велосипед, табличка) удобнее «Предмет».' },
     { id: 'occ', name: 'Предмет (лист прячется за ним)', taps: 99, hint: 'Обведи предмет пальцем или стилусом одним движением (или точками по кругу — велосипед, табличку, голову Пингви, хвост кота, и «Готово»). Лист, пролетая там, скрывается за ним; если путь кончается внутри — исчезает за предметом.' },
-    { id: 'leaves', name: 'Листья', taps: 99, hint: 'Коснись места, откуда лист срывается, потом — куда он падает (можно добавить точки пути посередине) и нажми «Готово». Полёт каждый раз новый, вокруг твоей линии. Кончаешь у линии «Край» — лист уйдёт за неё; кончаешь на земле — ляжет и медленно растает. Потом выбери листья, размер и цвет.' },
+    { id: 'leaves', name: 'Листья', taps: 99, hint: 'Проведи пальцем линию от места, где лист срывается, до места, куда он падает — прямую или кривую, как получится. Можно и касаниями: откуда, потом куда. Коснись места, откуда лист срывается, потом — куда он падает (можно добавить точки пути посередине) и нажми «Готово». Полёт каждый раз новый, вокруг твоей линии. Кончаешь у линии «Край» — лист уйдёт за неё; кончаешь на земле — ляжет и медленно растает. Потом выбери листья, размер и цвет.' },
     { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['пламя', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5], ['разлив', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
@@ -593,6 +593,11 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       drag.pts.push({ x: r1((ev.clientX - r0.left) / r0.width * 100), y: r1((ev.clientY - r0.top) / r0.height * 100) });
       return;
     }
+    if (!h && !outlining && cur.id === 'leaves' && !pending.length) {   // (15.10) лист: можно просто провести линию
+      var r1_ = ov.getBoundingClientRect();
+      drag = { maybeDraw: true, sx: ev.clientX, sy: ev.clientY, id: ev.pointerId, pts: [{ x: r1((ev.clientX - r1_.left) / r1_.width * 100), y: r1((ev.clientY - r1_.top) / r1_.height * 100) }] };
+      return;
+    }
     if (h) { drag = { m: h.m, k: h.k, moved: false }; suppress = true; ov.setPointerCapture(ev.pointerId); ev.preventDefault(); }
     else { drag = { maybe: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop, id: ev.pointerId }; }   // потянет — поедет картинка
   });
@@ -601,6 +606,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (drag.maybe) {
       if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) <= 6) return;
       drag.maybe = false; drag.pan = true; ov.setPointerCapture(drag.id); ov.style.cursor = 'grabbing';
+    }
+    if (drag.maybeDraw) {
+      if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) <= 6) return;
+      drag.maybeDraw = false; drag.draw = true; suppress = true; ov.setPointerCapture(drag.id);
     }
     if (drag.draw) {
       var rd = ov.getBoundingClientRect();
@@ -623,11 +632,23 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (drag.draw) {
       var pts = drag.pts; drag = null;
       if (pts.length < (cur.id === 'occ' ? 3 : 2)) { refresh(); return; }
+      if (cur.id === 'leaves') {
+        if (pts[0].y > pts[pts.length - 1].y) pts.reverse();                 // лист падает сверху вниз
+        if (pts[pts.length - 1].y - pts[0].y < 3) { refresh(); $('hint').textContent = 'Лист падает вниз: проведи линию сверху вниз, подлиннее.'; return; }
+        // из нарисованной линии — начало, две точки по пути и конец; каждая следующая ниже предыдущей
+        var keep = [pts[0]];
+        [1 / 3, 2 / 3].forEach(function (u) { var q = pts[Math.round(u * (pts.length - 1))]; if (q.y > keep[keep.length - 1].y + 1.5) keep.push(q); });
+        var end = pts[pts.length - 1]; if (end.y <= keep[keep.length - 1].y + 1.5) keep.pop(); keep.push(end);
+        var ml = { eff: 'leaves', pts: keep, kind: '' };
+        marks.forEach(function (o) { o.open = false; }); ml.open = true;
+        marks.push(ml); pending = []; refresh(); return;
+      }
       if (cur.id === 'edge' && pts[0].x > pts[pts.length - 1].x) pts.reverse();   // край — слева направо
       var m = { eff: cur.id, pts: pts, kind: '', drawn: true };
       marks.forEach(function (o) { o.open = false; }); m.open = false;
       marks.push(m); pending = []; refresh(); return;
     }
+    if (drag.maybeDraw) { drag = null; return; }   // просто касание — сработает как точка
     if (drag.pan) ov.style.cursor = panMode ? 'grab' : '';
     drag = null;
   }
