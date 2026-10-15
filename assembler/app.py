@@ -2523,7 +2523,8 @@ def parse_leaves(text, data):
             print(f"[leaves] лист без падения (вторая точка не ниже первой), пропускаю: {line!r}")
             continue
         leaf = dict(frm=pairs[0], to=pairs[-1], via=pairs if len(pairs) > 2 else None, shape="long", colors=[],
-                    size=size0, fall=fall0, shrink=1.0, behind=False, period=None)
+                    size=size0, fall=fall0, shrink=1.0, behind=False, period=None,
+                    samples=list(LEAF_DEFAULT_SAMPLES), tone=None)
         fall_set = False
         for w in parts[1:]:
             if "кругл" in w or "round" in w:
@@ -2532,7 +2533,23 @@ def parse_leaves(text, data):
                 leaf["shape"] = "maple"
             elif "продолг" in w or "long" in w:
                 leaf["shape"] = "long"
-            if "маленьк" in w or "small" in w:
+            # (15.10) образцы из библиотеки листьев: по названию дерева или номером («образец 3», «лист 3, 7»)
+            picked = [n_ for key, ns in LEAF_SAMPLE_NAMES.items() if key in w for n_ in ns]
+            mnum = re.match(r"\s*(?:образ\w*|лист\w*|sample)\s*([\d,\s]+)$", w)
+            if mnum:
+                picked = [int(v) for v in re.findall(r"\d+", mnum.group(1)) if 1 <= int(v) <= 99]
+            if picked:
+                leaf["samples"] = picked if not leaf.get("_named") else leaf["samples"] + picked
+                leaf["_named"] = True
+            if "крив" in w or "козявк" in w or "формул" in w:   # старый нарисованный формулой лист — для дальних, «смешных»
+                leaf["samples"] = []
+            mt = re.search(r"цвет\w*\s*(\d+(?:\.\d+)?)\s*(?:[–—-]\s*(\d+(?:\.\d+)?))?", w)
+            if mt:
+                lo = float(mt.group(1)); hi = float(mt.group(2) or lo)
+                leaf["tone"] = (max(1.0, min(lo, hi)), min(10.0, max(lo, hi)))
+            if "средн" in w or "medium" in w:
+                leaf["size"] = size0
+            if "маленьк" in w or "мелк" in w or "small" in w:
                 leaf["size"] = size0 * 0.63
             if "крупн" in w or "больш" in w or "big" in w:
                 leaf["size"] = size0 * 1.3
@@ -2588,6 +2605,109 @@ def inside_any(polys, X, Y):
             ins ^= cond & (X < xc)
         res |= ins
     return res
+
+
+LEAF_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leaves")
+LEAF_LIB_URL = "https://raw.githubusercontent.com/tatkalp52-creator/N8N/ccr-592d85a5-ljre1x/assembler/leaves/"
+LEAF_LIB_COUNT = 12
+# (15.10) лист образцов, нарисованный автором: 1–3 клён, 4–5 дуб, 6–7 берёза, 8–9 липа, 10 ясень, 11 сухой, 12 рваный
+LEAF_SAMPLE_NAMES = {"клён": [1, 2, 3], "клен": [1, 2, 3], "maple": [1, 2, 3], "дуб": [4, 5], "oak": [4, 5],
+                     "берёз": [6, 7], "берез": [6, 7], "birch": [6, 7], "лип": [8, 9], "linden": [8, 9],
+                     "ясен": [10], "ash": [10], "сух": [11], "скруч": [11], "рван": [12], "torn": [12],
+                     "кругл": [8, 9], "продолг": [6, 7]}
+LEAF_DEFAULT_SAMPLES = [1, 2, 3, 6, 7, 8, 9]
+# шкала цвета 1…10: бурый → ржавый → красный → оранжевый → жёлтый
+LEAF_TONES = [(1, (112, 72, 42)), (3, (150, 72, 42)), (4.5, (176, 62, 42)), (7, (204, 112, 46)),
+              (8.5, (214, 148, 54)), (10, (222, 176, 62))]
+_leaf_lib_cache = {}
+
+
+def leaf_tone_rgb(t):
+    t = max(1.0, min(10.0, float(t)))
+    for (a, ca), (b, cb) in zip(LEAF_TONES, LEAF_TONES[1:]):
+        if t <= b:
+            u = (t - a) / (b - a)
+            return tuple(ca[i] + (cb[i] - ca[i]) * u for i in range(3))
+    return LEAF_TONES[-1][1]
+
+
+def leaf_sample(n):
+    """Образец из библиотеки (RGBA, лист стеблем вниз). Нет на диске — скачиваем один раз с GitHub."""
+    from PIL import Image
+    if n in _leaf_lib_cache:
+        return _leaf_lib_cache[n]
+    path = os.path.join(LEAF_LIB_DIR, f"list_{n:02d}.png")
+    if not os.path.exists(path):
+        try:
+            import urllib.request
+            os.makedirs(LEAF_LIB_DIR, exist_ok=True)
+            urllib.request.urlretrieve(LEAF_LIB_URL + f"list_{n:02d}.png", path + ".part")
+            os.replace(path + ".part", path)
+        except Exception as e:
+            print(f"[leaves] образец {n} не скачался: {e}")
+            _leaf_lib_cache[n] = None
+            return None
+    im = Image.open(path).convert("RGBA")
+    im.thumbnail((220, 220), Image.LANCZOS)
+    _leaf_lib_cache[n] = im
+    return im
+
+
+def leaf_look(leaf, color, rng):
+    """(15.10) Чем рисовать этот полёт: образец из библиотеки (свой на каждый полёт) и его цвет.
+    Возвращает функцию (ang, flip, L) → RGBA."""
+    rgb = None
+    if leaf.get("tone"):
+        lo, hi = leaf["tone"]
+        rgb = leaf_tone_rgb(lo + (hi - lo) * float(rng.random()))
+    elif leaf.get("colors"):
+        rgb = tuple(color)
+    sample = None
+    if leaf.get("samples"):
+        sample = leaf["samples"][int(rng.integers(len(leaf["samples"])))]
+        if leaf_sample(sample) is None:
+            sample = None
+    col = rgb if rgb is not None else color
+
+    def draw(ang, flip, L):
+        if sample is not None:
+            spr = sample_sprite(sample, rgb, ang, flip, L)
+            if spr is not None:
+                return spr
+        return leaf_sprite(leaf["shape"], col, ang, flip, L)
+    return draw
+
+
+def sample_sprite(n, rgb, ang, flip, L):
+    """Лист-образец: размер L (длина листа), поворот ang, переворот flip (−1…1: сужается, на изнанке светлее),
+    rgb — перекрасить в этот тон, сохранив штриховку и контур (None — свои цвета)."""
+    import numpy as np
+    from PIL import Image
+    im = leaf_sample(n)
+    if im is None:
+        return None
+    a = np.asarray(im, np.float32)
+    if rgb is not None:
+        lum = a[..., :3] @ np.array([0.299, 0.587, 0.114], np.float32)
+        al = a[..., 3] > 128
+        ref = float(np.percentile(lum[al], 70)) if al.any() else 128.0
+        k_ = np.clip(lum / max(ref, 1.0), 0, 1.25)[..., None]
+        a[..., :3] = np.clip(np.array(rgb, np.float32) * k_ * 0.85 + a[..., :3] * 0.15, 0, 255)
+    im = Image.fromarray(a.astype(np.uint8), "RGBA")
+    scale = L * 1.25 / max(im.size)
+    sq = 0.22 + 0.78 * abs(flip)
+    w_, h_ = max(2, int(im.width * scale * sq)), max(2, int(im.height * scale))
+    im = im.resize((w_, h_), Image.LANCZOS)
+    if flip < 0:
+        im = im.transpose(Image.FLIP_LEFT_RIGHT)
+        b = np.asarray(im, np.float32).copy(); b[..., :3] = np.clip(b[..., :3] * 1.12 + 10, 0, 255)
+        im = Image.fromarray(b.astype(np.uint8), "RGBA")
+    im = im.rotate(-math.degrees(ang) + 90 - 60, resample=Image.BICUBIC, expand=True)
+    R = int(L * 0.8) + 2
+    side = max(2 * R, im.width, im.height)
+    can = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    can.paste(im, ((side - im.width) // 2, (side - im.height) // 2), im)
+    return np.asarray(can, np.float32)
 
 
 def _leaf_outline_long(L):
@@ -3000,6 +3120,7 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path, oc
     occ_px = [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in (occluders or [])]
     path, poly, s0, finish = leaf_finish(path, leaf, edge_px, occ_px, W, H, L0, fps, k)
     fall = len(path) / fps
+    look = leaf_look(leaf, color, rng)
     rest = (LEAF_LIE_SECONDS if lie is None else float(lie)) if finish == "lie" else 0.0
     base8 = np.clip(base, 0, 255).astype(np.uint8)
     frame = base8.copy()
@@ -3026,10 +3147,10 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path, oc
                 L = L0 * (1 + (leaf["shrink"] - 1) * min(1.0, age / fall))
                 if lying:
                     if lie_spr is None:
-                        lie_spr = leaf_sprite(leaf["shape"], color, 0.35, 1.0, L)
+                        lie_spr = look(0.35, 1.0, L)
                     spr = lie_spr
                 else:
-                    spr = leaf_sprite(leaf["shape"], color, ang, flip, L)
+                    spr = look(ang, flip, L)
                 al = spr[..., 3] / 255 * min(1, age / 0.3)
                 if lying:   # тает медленно и плавно, глазу почти незаметно
                     u = (age - fall) / rest
@@ -3656,6 +3777,7 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
         path = leaf_path(x0, y0, x1, y1, leaf["fall"], 24, seed, L0 * 1.1, via=via)
         path, poly, s0, _fin = leaf_finish(path, leaf, [[(q[0] / 100 * W, q[1] / 100 * H) for q in pl] for pl in edge],
                                            occ_px, W, H, L0, 24, k)
+        look = leaf_look(leaf, color, rng)
         step = 8   # положение через треть секунды
         # тонкая линия пути — чтобы маленький лист было видно на превью
         trail = Image.fromarray(np.clip(frame, 0, 255).astype(np.uint8))
@@ -3669,7 +3791,7 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
         for i in range(0, len(path), step):
             x, y, ang, flip = path[i]
             L = L0 * (1 + (leaf["shrink"] - 1) * i / max(1, len(path) - 1))
-            spr = leaf_sprite(leaf["shape"], color, ang, flip, L)
+            spr = look(ang, flip, L)
             al = spr[..., 3] / 255 * (0.55 + 0.45 * i / max(1, len(path) - 1))
             h, w = al.shape
             lx0, ly0 = int(x - w / 2), int(y - h / 2)
