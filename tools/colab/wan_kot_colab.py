@@ -3,12 +3,12 @@
 # размере и не мылится. Первый и последний кадр — сама картинка: петля бесшовная.
 # Вклейку в наш кадр, паузы и остановки делает потом наш код (tools/proby/hvost_petlya_vpered.py).
 #
-# В Colab: Среда выполнения → Сменить среду → T4 GPU. Потом одна ячейка:
-#   !wget -q -O /content/wan.py https://raw.githubusercontent.com/tatkalp52-creator/N8N/ccr-592d85a5-ljre1x/tools/colab/wan_kot_colab.py
-#   exec(open('/content/wan.py').read())
+# В Colab: Среда выполнения → Сменить среду → T4 GPU. Файл и картинка лежат в корне Google Диска. Одна ячейка:
+#   from google.colab import drive; drive.mount('/content/drive')
+#   exec(open('/content/drive/MyDrive/wan_kot_colab.py').read())
 
 # ===== НАСТРОЙКИ (можно переопределить перед exec) =====
-IMAGE_URL = globals().get('IMAGE_URL', 'https://raw.githubusercontent.com/tatkalp52-creator/N8N/ccr-592d85a5-ljre1x/table_drafts/kot_dlya_ozhivleniya.jpg')
+IMAGE = globals().get('IMAGE', '/content/drive/MyDrive/kot_dlya_ozhivleniya.jpg')   # путь на Диске (или ссылка http…)
 PROMPT = globals().get('PROMPT', 'a black cat sits still with eyes closed; only its tail moves: the tail sweeps softly along the top of the book, swings out and curls back around its front paws. Static camera, still illustration, pencil drawing, nothing else moves')
 SECONDS = globals().get('SECONDS', 4)       # длина петли, секунд (больше — дольше считать)
 SEED = globals().get('SEED', 42)
@@ -39,8 +39,10 @@ snapshot_download('alibaba-pai/Wan2.1-Fun-1.3B-InP', local_dir=MODEL)
 # 3. Картинка
 import urllib.request
 from PIL import Image
-urllib.request.urlretrieve(IMAGE_URL, '/content/src.jpg')
-orig = Image.open('/content/src.jpg').convert('RGB')
+if IMAGE.startswith('http'):
+    urllib.request.urlretrieve(IMAGE, '/content/src.jpg'); IMAGE = '/content/src.jpg'
+assert os.path.exists(IMAGE), f'Нет картинки {IMAGE} — положи kot_dlya_ozhivleniya.jpg в корень Диска'
+orig = Image.open(IMAGE).convert('RGB')
 W, H = orig.size
 mw = WIDTH // 16 * 16; mh = int(H * WIDTH / W) // 16 * 16
 orig.resize((mw, mh), Image.LANCZOS).save('/content/start.png')
@@ -77,7 +79,11 @@ sh(f'cd /content/VideoX-Fun && PYTORCH_ALLOC_CONF=expandable_segments:True PYTHO
 vids = sorted(glob.glob('/content/wan_raw/**/*.mp4', recursive=True), key=os.path.getmtime)
 assert vids, 'Видео не появилось — пришли Клоду последние строки лога'
 shutil.copy(vids[-1], f'{OUT}/wan_kot.mp4')
-print(f'ГОТОВО за {int((time.time() - t0) / 60)} мин: /content/wan_out/wan_kot.mp4 — скачивается само; пришли его Клоду')
+try:
+    shutil.copy(f'{OUT}/wan_kot.mp4', '/content/drive/MyDrive/wan_kot.mp4'); print('Копия на Диске: wan_kot.mp4')
+except Exception:
+    pass
+print(f'ГОТОВО за {int((time.time() - t0) / 60)} мин: wan_kot.mp4 — скачивается само и лежит на Диске; пришли его Клоду')
 try:
     from google.colab import files
     files.download(f'{OUT}/wan_kot.mp4')
