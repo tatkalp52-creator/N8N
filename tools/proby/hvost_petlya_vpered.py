@@ -31,7 +31,11 @@ def move(a, b):                   # a → b вперёд по петле
     if b <= a: b += L
     n = int(round((b - a) / FPS * SLOW * FPS * 1.25))   # плавный разгон/торможение съедают скорость — даём чуть больше времени
     return [a + (b - a) * ease(t / n) for t in range(1, n + 1)]
-seq = [float(STOP1)] * int(HOLD1 * FPS) + move(STOP1, STOP2) + [float(STOP2)] * int(HOLD2 * FPS) + move(STOP2, STOP1)
+REST_HOLD = float(sys.argv[5]) if len(sys.argv) > 5 else 8.0   # пауза у лап между взмахами, секунд
+def sweep(a):                     # один полный круг вперёд из позы a в неё же
+    n = int(round(L / FPS * SLOW * FPS * 1.25))
+    return [a + L * ease(t / n) for t in range(1, n + 1)]
+seq = [float(STOP2)] * int(REST_HOLD * FPS) + sweep(STOP2)
 p = subprocess.Popen(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{OW}x{OH}', '-r', str(FPS), '-i', '-',
                       '-c:v', 'libx264', '-crf', '17', '-pix_fmt', 'yuv420p', out], stdin=subprocess.PIPE)
 full = np.asarray(orig).copy()
