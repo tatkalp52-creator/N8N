@@ -167,7 +167,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'steam',  name: 'Пар',        taps: 1, hint: 'Коснись места, откуда идёт пар (над кружкой, тарелкой). На картинке появится пробный пар; пунктирная рамка — где он живёт, овал внизу — где «сидит».', knobs: [['густота', 5], ['высота', 5], ['толщина', 5], ['скорость', 5], ['завитки', 5], ['прозрачность', 5]] },
     { id: 'surf', name: 'Пар над поверхностью', taps: 99, knobs: [['густота', 5], ['высота', 5], ['скорость', 5]], hint: 'Обведи гладь жидкости точками по кругу — по краю супа в кастрюле: передний край, бок, задний край, другой бок, — потом «Готово». Пар поднимется со всей обведённой глади: где край ниже, там и касание ниже.' },
     { id: 'bubbles',name: 'Пузыри',     taps: 2, hint: 'Сначала коснись места, откуда идут пузыри, потом уровня воды.' },
-    { id: 'edge', name: 'Край (за него листья скрываются)', taps: 99, hint: 'Проведи линию вдоль скамейки, забора или другого края, за которым лист скрывается: точки слева направо, потом «Готово». Нужно листьям с отметкой «за край».' },
+    { id: 'edge', name: 'Край (за него листья скрываются)', taps: 99, hint: 'Проведи линию по верху забора, перил, скамейки — точками слева направо, сколько угодно точек, повторяя все изгибы (увеличь картинку для точности), потом «Готово». Лист, долетевший до линии, уходит за неё. Для отдельных предметов (велосипед, табличка) удобнее «Предмет».' },
+    { id: 'occ', name: 'Предмет (лист прячется за ним)', taps: 99, hint: 'Обведи предмет точками по кругу — велосипед, табличку, голову Пингви, хвост кота, — потом «Готово». Лист, пролетая там, скрывается за ним; если путь кончается внутри — исчезает за предметом.' },
     { id: 'leaves', name: 'Листья', taps: 99, hint: 'Коснись места, откуда лист срывается, потом — куда он падает (можно добавить точки пути посередине) и нажми «Готово». Полёт каждый раз новый, вокруг твоей линии. Кончаешь у линии «Край» — лист уйдёт за неё; кончаешь на земле — ляжет и медленно растает. Потом выбери листья, размер и цвет.' },
     { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['пламя', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5], ['разлив', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
@@ -241,6 +242,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       s = 'пар: область ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
       EFFECTS.filter(function (e) { return e.id === 'surf'; })[0].knobs.forEach(function (k) { var v = m.k[k[0]]; if (v != null) s += '; ' + k[0] + ' ' + v; });
     } else if (m.eff === 'bubbles') s = 'пузыри: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + ', ' + fmt(p[1].y);
+    else if (m.eff === 'occ') s = 'за: ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
     else if (m.eff === 'edge') s = 'край: ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
     else if (m.eff === 'leaves') {
       var sm = m.samples || [];
@@ -305,6 +307,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'rgba(255,255,255,0.18)', stroke: 'var(--mark2)', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }));
         for (var si = 1; si < p.length; si++) drawDot(p[si].x, p[si].y, '', true);
       }
+      if (m.eff === 'occ') {
+        ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'rgba(217,119,6,0.15)', stroke: '#d97706', 'stroke-width': 3, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }));
+        for (var oi = 1; oi < p.length; oi++) drawDot(p[oi].x, p[oi].y, '', true);
+      }
       if (m.eff === 'edge') {
         ov.appendChild(svgEl('polyline', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#d97706', 'stroke-width': 3, 'vector-effect': 'non-scaling-stroke' }));
         for (var ei = 1; ei < p.length; ei++) drawDot(p[ei].x, p[ei].y, '', true);
@@ -325,7 +331,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       }
       drawDot(p[0].x, p[0].y, n, false);
     });
-    if ((outlining || cur.id === 'leaves' || cur.id === 'edge' || cur.id === 'surf') && pending.length > 1) {
+    if ((outlining || cur.id === 'leaves' || cur.id === 'edge' || cur.id === 'surf' || cur.id === 'occ') && pending.length > 1) {
       ov.appendChild(svgEl('polyline', { points: pending.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
     }
     pending.forEach(function (p) { drawDot(p.x, p.y, '', true); });
@@ -535,9 +541,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       $('done').hidden = pending.length < 3; $('done').textContent = outlining.kind === 'cuts' ? 'Готово: прорезь обведена' : 'Готово: отсвет обведён';
       return;
     }
-    $('hint').textContent = pending.length ? (cur.id === 'surf' ? 'Точек: ' + pending.length + '. Обходи край глади по кругу' + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'lights' ? 'Отмечено лампочек: ' + pending.length + '. Коснись следующей или нажми «Готово».' : cur.id === 'edge' ? 'Добавь ещё точки вправо вдоль края или нажми «Готово».' : cur.id === 'leaves' ? (pending.length < 2 ? 'Теперь коснись, куда лист падает (ниже первой точки).' : 'Можно добавить ещё точку пути ниже или нажать «Готово».') : second[cur.id]) : cur.hint;
-    $('done').hidden = !(((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) || (cur.id === 'lights' && pending.length >= 1) || (cur.id === 'surf' && pending.length >= 3));
-    $('done').textContent = cur.id === 'edge' ? 'Готово: край нарисован' : cur.id === 'lights' ? 'Готово: лампочки отмечены' : cur.id === 'surf' ? 'Готово: гладь обведена' : 'Готово: лист нарисован';
+    $('hint').textContent = pending.length ? (cur.id === 'occ' ? 'Точек: ' + pending.length + '. Обходи предмет по кругу' + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'surf' ? 'Точек: ' + pending.length + '. Обходи край глади по кругу' + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'lights' ? 'Отмечено лампочек: ' + pending.length + '. Коснись следующей или нажми «Готово».' : cur.id === 'edge' ? 'Добавь ещё точки вправо вдоль края или нажми «Готово».' : cur.id === 'leaves' ? (pending.length < 2 ? 'Теперь коснись, куда лист падает (ниже первой точки).' : 'Можно добавить ещё точку пути ниже или нажать «Готово».') : second[cur.id]) : cur.hint;
+    $('done').hidden = !(((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) || (cur.id === 'lights' && pending.length >= 1) || ((cur.id === 'surf' || cur.id === 'occ') && pending.length >= 3));
+    $('done').textContent = cur.id === 'occ' ? 'Готово: предмет обведён' : cur.id === 'edge' ? 'Готово: край нарисован' : cur.id === 'lights' ? 'Готово: лампочки отмечены' : cur.id === 'surf' ? 'Готово: гладь обведена' : 'Готово: лист нарисован';
   }
   function refresh() { redrawOverlay(); renderList(); renderOut(); setHint(); drawLoupe(); }
 
@@ -635,7 +641,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       if (outlining.kind === 'cuts') om.cuts = (om.cuts || []).concat([pending.slice()]); else om.spill = pending.slice();
       outlining = null; pending = []; om.open = true; refresh(); return;
     }
-    if (!((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) && !(cur.id === 'lights' && pending.length >= 1) && !(cur.id === 'surf' && pending.length >= 3)) return;
+    if (!((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) && !(cur.id === 'lights' && pending.length >= 1) && !((cur.id === 'surf' || cur.id === 'occ') && pending.length >= 3)) return;
     var m = { eff: cur.id, pts: pending.slice(), kind: '' };
     if (cur.id === 'lights' || cur.id === 'surf') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
     marks.forEach(function (o) { o.open = false; }); m.open = true;
