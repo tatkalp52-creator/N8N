@@ -8,18 +8,18 @@ ALPHA = float(args[1]) if len(args) > 1 else 0.6
 s = np.linspace(0, 1, N - 1)
 pin = np.array([ss((x - 0.08) / 0.4) for x in s])        # у тела не двигается, дальше — плавно сильнее
 TARGET = TH[0] + pin * ALPHA * (TH[1] - TH[0])
-def k_at(t):   # туда 1.6 с, задержка 0.6, обратно 2.2 с, пауза
+def k_at(t):   # «раз» — быстро вверх (0.45 с, мягко в конце), «два-три-четыре» — медленно вниз (1.9 с)
     if t < 0.4: return 0.0
-    if t < 2.0: return ss((t - 0.4) / 1.6)
-    if t < 2.6: return 1.0
-    if t < 4.8: return 1 - ss((t - 2.6) / 2.2)
+    if t < 0.85: x = (t - 0.4) / 0.45; return 1 - (1 - x) ** 3
+    if t < 1.0: return 1.0
+    if t < 2.9: return 1 - ss((t - 1.0) / 1.9)
     return 0.0
-LAG = 0.45
+LAG = 0.25
 def th(t):
     k = np.array([k_at(t - LAG * x) for x in s])
     return TH[0] * (1 - k) + TARGET * k
 out = args[0]; zoom = 'z' in out
-fps, sec = 24, 6
+fps, sec = 24, 4
 size = (660, 420) if zoom else (1920, 1080)
 p = subprocess.Popen(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{size[0]}x{size[1]}', '-r', str(fps), '-i', '-',
                       '-c:v', 'libx264', '-crf', '16', '-pix_fmt', 'yuv420p', out], stdin=subprocess.PIPE)
