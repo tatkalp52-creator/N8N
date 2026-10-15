@@ -22,13 +22,9 @@ diff = np.abs(O - C).sum(-1)
 lum = O @ np.array([0.299, 0.587, 0.114], np.float32)
 # хвост чёрный: берём только тёмное, что стёрто, рядом с осью — светлый корешок книги не цепляем
 INS = np.load(sys.argv[4])[y0:y1, x0:x1] if len(sys.argv) > 4 else (dist < 20)
-# обводка автора: внутри неё — только то, что стёрто; книга вокруг не цепляется
-core = np.asarray(Image.fromarray((INS * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(9))) > 0   # глубоко внутри обводки — хвост целиком
-near = np.asarray(Image.fromarray((INS * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(11))) > 0
-lum = O @ np.array([0.299, 0.587, 0.114], np.float32)
-# у самой обводки: тёмный стёртый край хвоста, если линия прошла чуть внутри
-m = (core | (INS & (diff > 20)) | (near & (diff > 35) & (lum < 60))).astype(np.float32)
-mi = Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(1.2))
+# точная обводка автора: хвост = всё внутри неё (плюс полоска под самой линией)
+m = np.asarray(Image.fromarray((INS * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(7))) > 0
+mi = Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
 M = np.asarray(mi).astype(np.float32) / 255
 # шарниры по длине хвоста
 J = [0.28, 0.5, 0.7, 0.86]
@@ -60,6 +56,10 @@ def frame(angles):
         acc = acc * (1 - a) + sample(O, q) * a
     return acc
 rest = frame([0] * len(J))
+# вокруг хвоста берём кадр целиком (хвост поверх стёртого фона) — без тёмных точек на краю;
+# дальше от хвоста — оригинал плюс сдвиг, чтобы рамка вырезки не была видна
+_w = Image.fromarray((M > 0.02).astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.GaussianBlur(4))
+WN = (np.asarray(_w).astype(np.float32) / 255)[..., None]
 fps, sec = 24, 12
 def bump(t, c, w):
     x = (t - c) / w
@@ -76,7 +76,7 @@ p = subprocess.Popen(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-
                       '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-crf', '17', '-pix_fmt', 'yuv420p', out], stdin=subprocess.PIPE)
 for rep in range(2):
     for f in range(fps * sec):
-        fr = orig.copy(); fr[y0:y1, x0:x1] = O + (frame(angles_at(f / (fps * sec))) - rest)
+        fr = orig.copy(); fr[y0:y1, x0:x1] = (lambda F: F * WN + (O + F - rest) * (1 - WN))(frame(angles_at(f / (fps * sec))))
         p.stdin.write(np.clip(fr, 0, 255).astype(np.uint8).tobytes())
 p.stdin.close(); p.wait()
 Image.fromarray((M * 255).astype(np.uint8)).resize(((x1 - x0) * 3, (y1 - y0) * 3)).save(out.rsplit('.', 1)[0] + '_mask.png')
