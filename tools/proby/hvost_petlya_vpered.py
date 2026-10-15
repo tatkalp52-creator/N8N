@@ -35,7 +35,8 @@ REST_HOLD = float(sys.argv[5]) if len(sys.argv) > 5 else 8.0   # пауза у �
 def sweep(a):                     # один полный круг вперёд из позы a в неё же
     n = int(round(L / FPS * SLOW * FPS * 1.25))
     return [a + L * ease(t / n) for t in range(1, n + 1)]
-seq = [float(STOP2)] * int(REST_HOLD * FPS) + sweep(STOP2)
+REST = LOOP_B                     # покой — хвост обнимает лапы (это же и стык петли: стык прячется в паузе)
+seq = [float(REST)] * int(REST_HOLD * FPS) + sweep(REST)
 p = subprocess.Popen(['ffmpeg', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{OW}x{OH}', '-r', str(FPS), '-i', '-',
                       '-c:v', 'libx264', '-crf', '17', '-pix_fmt', 'yuv420p', out], stdin=subprocess.PIPE)
 full = np.asarray(orig).copy()
