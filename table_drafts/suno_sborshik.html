@@ -78,6 +78,8 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
 .chip { font-size: 13.5px; border-radius: 999px; padding: 4px 11px; min-height: 34px; background: var(--paper); user-select: none; touch-action: manipulation; }
 .chip.used { opacity: .45; }
 .chip.neg { border-color: var(--warn); color: var(--warn); }
+.alt { display: inline-flex; align-items: center; gap: 4px; border: 1.5px dashed var(--muted); border-radius: 999px; padding: 2px 4px; }
+.alt .slash { color: var(--muted); font-weight: 700; }
 .styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
 .style { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px; min-height: 0; border-radius: 12px; }
 .style b { font-size: 14px; }
@@ -196,14 +198,17 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
   function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { x.classList.remove('on'); }, 1800); }
 
+  // Инструмент — строка (Suno обычно понимает) или массив вариантов названия (необычный инструмент:
+  // не уверены, что Suno его знает, — пробуй варианты и оставляй тот, что звучит). [группа, оттенки, список]
   var INSTR = [
-    ['Клавишные', ['felt piano', 'upright piano', 'grand piano', 'Rhodes', 'Wurlitzer', 'celesta', 'music box', 'harpsichord', 'clavichord', 'chamber organ', 'pipe organ', 'harmonium', 'accordion']],
-    ['Струнные', ['upright bass', 'nylon guitar', 'archtop guitar', 'gypsy jazz guitar', 'violin', 'viola', 'cello', 'string quartet', 'soft strings', 'string ensemble', 'harp', 'lute', 'viola da gamba', 'mandolin', 'hurdy-gurdy']],
-    ['Духовые', ['soft clarinet', 'flute', 'alto flute', 'recorder', 'oboe', 'bassoon', 'muted trumpet', 'flugelhorn', 'tenor sax', 'soprano sax', 'french horn', 'tin whistle']],
-    ['Ударные', ['brushed drums', 'soft brushes', 'light ride cymbal', 'shaker', 'bossa percussion', 'frame drum', 'soft hand drums', 'tambourine', 'glockenspiel', 'vibraphone', 'marimba', 'handbells', 'no drums']],
-    ['Голоса без слов', ['wordless choir', 'humming', 'soft oohs', 'a cappella mixed choir', 'soft male and female humming', 'angelic female vocalise', 'ethereal humming', 'madrigal voices', 'bright medieval polyphony', 'boys choir', 'female choir', 'male choir', 'gregorian chant', 'solo soprano vocalise']],
-    ['Фон и свет', ['warm ambient pads', 'ethereal floating textures', 'distant choral texture', 'soft vinyl crackle', 'warm antique textures']]
+    ['Клавишные', ['felt', 'soft', 'distant'], ['piano', 'upright piano', 'grand piano', 'Rhodes', 'Wurlitzer', 'celesta', 'music box', 'harpsichord', ['clavichord', 'soft early keyboard'], 'chamber organ', 'pipe organ', 'harmonium', 'accordion']],
+    ['Струнные', ['muted', 'soft', 'distant'], ['upright bass', 'nylon guitar', 'archtop guitar', 'gypsy jazz guitar', 'violin', 'viola', 'cello', 'soft strings', 'string ensemble', 'harp', 'lute', ['viola da gamba', 'baroque viol'], 'mandolin', ['hurdy-gurdy', 'medieval drone fiddle']]],
+    ['Духовые', ['muted', 'soft', 'distant'], ['clarinet', 'flute', 'alto flute', 'recorder', 'wooden recorder', 'oboe', 'bassoon', 'trumpet', ['natural trumpet', 'baroque trumpet', 'medieval trumpet'], 'flugelhorn', 'tenor sax', 'soprano sax', 'french horn', 'tin whistle']],
+    ['Ударные', ['soft', 'distant'], ['brushed drums', 'soft brushes', 'light ride cymbal', 'shaker', 'bossa percussion', 'frame drum', 'hand drums', ['tabor', 'medieval drum'], 'tambourine', 'glockenspiel', 'vibraphone', 'marimba', 'handbells', 'no drums']],
+    ['Голоса без слов', ['soft', 'distant'], ['wordless choir', 'humming', 'soft oohs', 'a cappella mixed choir', 'soft male and female humming', 'angelic female vocalise', 'madrigal voices', 'bright medieval polyphony', 'boys choir', 'female choir', 'male choir', 'gregorian chant', 'solo soprano vocalise']],
+    ['Составы', [], ['solo', 'duet', 'trio', 'piano trio', 'quartet', 'string quartet', 'quintet', 'wind quintet', 'sextet', 'chamber ensemble']]
   ];
+  var MODS = ['soft', 'distant', 'muted', 'felt'];
   var STYLES = [
     ['Café jazz', 'спокойный акустический джаз маленьким составом, как в кафе', 'acoustic café jazz, small ensemble'],
     ['Cool jazz', 'приглушённый, ровный, без напора; мягкие духовые', 'cool jazz, mellow, laid-back'],
@@ -229,10 +234,27 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['A cappella light', 'светлый смешанный хор без инструментов, мажор, не церковно', 'a cappella mixed choir, warm harmonies, major key, luminous'],
     ['Renaissance madrigal', 'мадригал: голоса переплетаются, лютня, мягкие барабаны', 'renaissance madrigal, lute, soft hand drums'],
     ['Medieval folk', 'тёплый средневековый фолк, фоновый, не боевой', 'acoustic medieval folk, warm antique textures, gentle rhythmic background'],
-    ['Baroque chamber', 'клавесин, лютня, барочные струнные — замок, гобелены', 'baroque chamber music, harpsichord, lute, cozy castle ambience']
+    ['Baroque chamber', 'клавесин, лютня, барочные струнные — замок, гобелены', 'baroque chamber music, harpsichord, lute, cozy castle ambience'],
+    ['Allemande', 'аллеманда · 4/4 · около 70–80 · плавная, «шагом», открывает сюиту', 'allemande, baroque dance, 4/4, moderate'],
+    ['Courante', 'куранта · 3/4 или 3/2 · около 90–110 · бегущая', 'courante, baroque dance, 3/4, flowing'],
+    ['Sarabande', 'сарабанда · 3/4 · около 50–60 · медленная, ударение на 2-й доле, торжественно-нежная', 'sarabande, slow baroque dance, 3/4, stately'],
+    ['Gigue', 'жига · 6/8 или 12/8 · около 110–140 · весёлая, финал сюиты', 'gigue, lively baroque dance, 6/8'],
+    ['Minuet', 'менуэт · 3/4 · около 100–120 · изящный, придворный', 'minuet, elegant courtly dance, 3/4'],
+    ['Gavotte', 'гавот · 2/2 · умеренно · начинается с середины такта', 'gavotte, baroque dance, 2/2'],
+    ['Bourrée', 'бурре · 2/2 · живо', 'bourrée, lively baroque dance'],
+    ['Pavane', 'павана · 2/2 · медленно · торжественное шествие', 'pavane, slow renaissance processional dance'],
+    ['Galliard', 'гальярда · на три · живо · с прыжками, пара к паване', 'galliard, lively renaissance dance, triple meter'],
+    ['Chaconne / Passacaglia', 'чакона, пассакалья · 3/4 · вариации на повторяющемся басу', 'chaconne, variations over a ground bass, 3/4'],
+    ['Madrigal', 'мадригал · светская многоголосная песня о любви и природе · темп свободный', 'renaissance madrigal, polyphonic, secular'],
+    ['Romance', 'романс · около 60–80 · песенная мелодия', 'romance, lyrical song-like melody'],
+    ['Prelude', 'прелюдия · короткая, свободная', 'prelude, short free-flowing piece'],
+    ['Serenade', 'серенада · вечерняя, лёгкая · струнные или гитара', 'serenade, light evening music'],
+    ['Barcarolle', 'баркарола · 6/8 · около 60–70 · покачивание лодки', 'barcarolle, gentle rocking, 6/8'],
+    ['Song without words', 'песня без слов, как у Мендельсона · мелодия поёт на фортепиано', 'song without words, lyrical romantic piano'],
+    ['Impromptu', 'экспромт · свободная, будто сочинённая на ходу', 'impromptu, romantic, spontaneous']
   ];
   var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'sunlit', 'sunny afternoon', 'daylight', 'luminous', 'uplifting', 'peaceful', 'magical', 'passionate yet gentle', 'intimate', 'airy', 'spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'medieval resonance', 'castle ambience', 'major key', 'minor key', 'modal', 'instrumental'];
-  var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo', 'dark', 'gothic', 'ominous', 'church organ', 'battle drums'];
+  var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo', 'dark', 'gothic', 'ominous', 'church organ', 'battle drums', 'symphony orchestra', 'orchestral pads', 'cinematic', 'epic', 'trailer music', 'orchestral swell', 'big drums', 'epic choir'];
   // Формы: раздел = [метка, тактов]. Короткая и полная версии.
   var FORMS = [
     ['Песенная AABA', 'классика джаза: тема, повтор, мост, тема', [['Intro', 4], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Outro', 4]], [['Intro', 8], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Solo — piano', 16], ['Solo — sax', 16], ['Bridge B', 8], ['Theme A', 8], ['Outro', 8]]],
@@ -334,13 +356,20 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
 
   // ── палитры ──
   var TABS = ['Инструменты', 'Стили', 'Настроение', 'Exclude', 'Формы Lyrics'];
-  function chip(w, neg) {
-    var b = el('button', 'chip' + (neg ? ' neg' : '') + ((st.s.concat(st.x)).indexOf(w) >= 0 ? ' used' : ''), w); b.type = 'button'; b.draggable = true;
-    b.ondragstart = function (e) { e.dataTransfer.setData('text/plain', JSON.stringify({ w: w })); };
+  // mods — какие оттенки (muted, felt…) подходят этому слову; выбранный оттенок встаёт перед словом
+  function chip(w, neg, mods) {
+    var used = st.s.concat(st.x).some(function (t) { return t === w || t.slice(-(w.length + 1)) === ' ' + w; });
+    var b = el('button', 'chip' + (neg ? ' neg' : '') + (used ? ' used' : ''), w); b.type = 'button'; b.draggable = true;
+    function word() { return !neg && st.mod && mods && mods.indexOf(st.mod) >= 0 ? st.mod + ' ' + w : w; }
+    b.ondragstart = function (e) { e.dataTransfer.setData('text/plain', JSON.stringify({ w: word() })); };
     var hold = null, long = false;
     b.onpointerdown = function () { long = false; hold = setTimeout(function () { long = true; add('x', w); toast('В Exclude: ' + w); }, 550); };
     b.onpointerup = b.onpointerleave = function () { clearTimeout(hold); };
-    b.onclick = function () { if (long) return; add(neg ? 'x' : 's', w); toast((neg ? 'В Exclude: ' : 'В Style: ') + w); };
+    b.onclick = function () {
+      if (long) return;
+      var v = word(); add(neg ? 'x' : 's', v);
+      toast((neg ? 'В Exclude: ' : 'В Style: ') + v + (st.mod && !neg && v === w ? ' (' + st.mod + ' сюда не подходит)' : ''));
+    };
     return b;
   }
   function renderTabs() {
@@ -349,7 +378,28 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   }
   function renderPane() {
     var p = $('pane'); p.innerHTML = '';
-    if (st.tab === 0) INSTR.forEach(function (g) { var d = el('div', 'group'); d.appendChild(el('h3', '', g[0])); var c = el('div', 'chips'); g[1].forEach(function (w) { c.appendChild(chip(w)); }); d.appendChild(c); p.appendChild(d); });
+    if (st.tab === 0) {
+      var mr = el('div', 'row'); mr.appendChild(el('span', 'label', 'Оттенок'));
+      [''].concat(MODS).forEach(function (m) {
+        var b = el('button', 'tab mini', m || 'нет'); b.type = 'button'; b.setAttribute('aria-pressed', (st.mod || '') === m ? 'true' : 'false');
+        if ((st.mod || '') === m) b.setAttribute('aria-selected', 'true');
+        b.onclick = function () { st.mod = m; renderPane(); save(); };
+        mr.appendChild(b);
+      });
+      p.appendChild(mr);
+      p.appendChild(el('p', 'hint', 'Оттенок встаёт перед инструментом: «distant oboe». Только туда, где подходит: felt — клавишные, muted — духовые и струнные.'));
+      INSTR.forEach(function (g) {
+        var d = el('div', 'group'); d.appendChild(el('h3', '', g[0])); var c = el('div', 'chips');
+        g[2].forEach(function (w) {
+          if (typeof w === 'string') { c.appendChild(chip(w, false, g[1])); return; }
+          var alt = el('span', 'alt'); alt.title = 'Не уверены, что Suno знает это название, — пробуй варианты';
+          w.forEach(function (v, i) { if (i) alt.appendChild(el('span', 'slash', '/')); alt.appendChild(chip(v, false, g[1])); });
+          c.appendChild(alt);
+        });
+        d.appendChild(c); p.appendChild(d);
+      });
+      p.appendChild(el('p', 'hint', 'В пунктирной рамке — необычные инструменты в нескольких названиях через «/»: Suno может знать одно и не знать другое. Какое сработало — скажи, отмечу как проверенное.'));
+    }
     if (st.tab === 1) {
       var g = el('div', 'styles');
       STYLES.forEach(function (s) {
