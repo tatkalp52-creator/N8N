@@ -675,6 +675,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (drag.pan) ov.style.cursor = panMode ? 'grab' : '';
     drag = null;
   }
+  // (16.10) в приложении (телефон, планшет) жест пальца перехватывала прокрутка окна: линия
+  // обрывалась на первых миллиметрах и оставались только «тычки». Пока рисуешь — прокрутку держим.
+  ov.addEventListener('touchmove', function (ev) { if (drag && (drag.draw || drag.maybeDraw)) ev.preventDefault(); }, { passive: false });
+  ov.addEventListener('touchstart', function (ev) { if (!outlining && !panMode && (cur.id === 'edge' || cur.id === 'occ' || cur.id === 'sky')) ev.preventDefault(); }, { passive: false });
   ov.addEventListener('pointerup', endDrag);
   ov.addEventListener('pointercancel', endDrag);
 
