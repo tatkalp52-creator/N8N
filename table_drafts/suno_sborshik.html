@@ -80,6 +80,8 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
 .chip.neg { border-color: var(--warn); color: var(--warn); }
 .alt { display: inline-flex; align-items: center; gap: 4px; border: 1.5px dashed var(--muted); border-radius: 999px; padding: 2px 4px; }
 .alt .slash { color: var(--muted); font-weight: 700; }
+.stepmark { font-size: 11px; font-weight: 700; color: var(--accent); align-self: center; margin: 0 2px 0 6px; white-space: nowrap; }
+.stepmark:first-child { margin-left: 2px; }
 .styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
 .style { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px; min-height: 0; border-radius: 12px; }
 .style b { font-size: 14px; }
@@ -253,7 +255,8 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['Song without words', 'песня без слов, как у Мендельсона · мелодия поёт на фортепиано', 'song without words, lyrical romantic piano'],
     ['Impromptu', 'экспромт · свободная, будто сочинённая на ходу', 'impromptu, romantic, spontaneous']
   ];
-  var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'sunlit', 'sunny afternoon', 'daylight', 'luminous', 'uplifting', 'peaceful', 'magical', 'passionate yet gentle', 'intimate', 'airy', 'spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'medieval resonance', 'castle ambience', 'major key', 'minor key', 'modal', 'instrumental'];
+  var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'sunlit', 'sunny afternoon', 'daylight', 'luminous', 'uplifting', 'peaceful', 'magical', 'passionate yet gentle', 'intimate', 'airy', 'major key', 'minor key', 'modal', 'instrumental'];
+  var SPACE = ['spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'medieval resonance', 'castle ambience'];
   var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo', 'dark', 'gothic', 'ominous', 'church organ', 'battle drums', 'symphony orchestra', 'orchestral pads', 'cinematic', 'epic', 'trailer music', 'orchestral swell', 'big drums', 'epic choir'];
   // Формы: раздел = [метка, тактов]. Короткая и полная версии.
   var FORMS = [
@@ -320,11 +323,30 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     renderTrays(); renderPane(); save();
   }
   function remove(where, w) { st[where] = st[where].filter(function (t) { return t !== w; }); renderTrays(); renderPane(); save(); }
+  // Строгий порядок в Style, в каком бы порядке ни добавляла: 1 стиль, 2 настроение, 3 инструменты
+  // (в порядке касания — первым ведущий), 4 состав, 5 темп, 6 пространство и звук, 7 свои слова.
+  var STEP_NAMES = { 1: 'стиль', 2: 'настроение', 3: 'инструменты', 4: 'состав', 5: 'темп', 6: 'пространство', 7: 'свои слова' };
+  function step(w) {
+    var l = w.toLowerCase();
+    if (/^\d+\s*bpm$/.test(l)) return 5;
+    if (STYLES.some(function (s) { return s[2].toLowerCase() === l; })) return 1;
+    if (MOOD.indexOf(w) >= 0) return 2;
+    if (SPACE.indexOf(w) >= 0) return 6;
+    var parts = w.split(' '), base = MODS.indexOf(parts[0]) >= 0 ? parts.slice(1).join(' ') : w;
+    for (var i = 0; i < INSTR.length; i++) {
+      var flat = [].concat.apply([], INSTR[i][2]);
+      if (flat.indexOf(base) >= 0 || flat.indexOf(w) >= 0) return INSTR[i][0] === 'Составы' ? 4 : 3;
+    }
+    return 7;
+  }
+  function ordered(list) { return list.map(function (w, i) { return [step(w), i, w]; }).sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; }).map(function (x) { return x[2]; }); }
   function renderTrays() {
     [['s', 'trayS', 'Пусто. Касайся слов в палитре — они встанут сюда.'], ['x', 'trayX', 'Пусто. Сюда — то, чего в треке быть не должно.']].forEach(function (z) {
       var box = $(z[1]); box.innerHTML = '';
       if (!st[z[0]].length) box.appendChild(el('p', 'empty', z[2]));
-      st[z[0]].forEach(function (w) {
+      var lastStep = 0;
+      (z[0] === 's' ? ordered(st.s) : st.x).forEach(function (w) {
+        if (z[0] === 's' && step(w) !== lastStep) { lastStep = step(w); box.appendChild(el('span', 'stepmark', lastStep + ' ' + STEP_NAMES[lastStep])); }
         var t = el('span', 'tag'); t.draggable = true; t.appendChild(document.createTextNode(w));
         t.ondragstart = function (e) { e.dataTransfer.setData('text/plain', JSON.stringify({ w: w, from: z[0] })); };
         var x = el('button', '', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Убрать ' + w); x.onclick = function () { remove(z[0], w); };
@@ -333,7 +355,7 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     });
     renderOut();
   }
-  function styleText() { return (st.bpmToStyle ? [st.bpm + ' BPM'] : []).concat(st.s).join(', '); }
+  function styleText() { return ordered(st.s.concat(st.bpmToStyle ? [st.bpm + ' BPM'] : [])).join(', '); }
   function renderOut() {
     var s = styleText(), x = st.x.join(', ');
     $('outS').textContent = s || '—'; $('outX').textContent = x || '—';
@@ -355,12 +377,13 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   $('clrX').onclick = function () { st.x = []; renderTrays(); renderPane(); save(); };
 
   // ── палитры ──
-  var TABS = ['Инструменты', 'Стили', 'Настроение', 'Exclude', 'Формы Lyrics'];
+  var TABS = ['3–4 Инструменты, состав', '1 Стили', '2 Настроение · 6 Звук', 'Exclude', 'Формы Lyrics'];
+  var TAB_ORDER = [1, 2, 0, 3, 4];   // вкладки по шагам Style: 1, 2, 3…
   // mods — какие оттенки (muted, felt…) подходят этому слову; выбранный оттенок встаёт перед словом
   function chip(w, neg, mods) {
     var used = st.s.concat(st.x).some(function (t) { return t === w || t.slice(-(w.length + 1)) === ' ' + w; });
     var b = el('button', 'chip' + (neg ? ' neg' : '') + (used ? ' used' : ''), w); b.type = 'button'; b.draggable = true;
-    function word() { return !neg && st.mod && mods && mods.indexOf(st.mod) >= 0 ? st.mod + ' ' + w : w; }
+    function word() { var ok = !neg && st.mod && mods && mods.indexOf(st.mod) >= 0 && (st.mod !== 'felt' || /piano/.test(w)); return ok ? st.mod + ' ' + w : w; }   // felt — только фортепиано
     b.ondragstart = function (e) { e.dataTransfer.setData('text/plain', JSON.stringify({ w: word() })); };
     var hold = null, long = false;
     b.onpointerdown = function () { long = false; hold = setTimeout(function () { long = true; add('x', w); toast('В Exclude: ' + w); }, 550); };
@@ -374,7 +397,7 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   }
   function renderTabs() {
     var box = $('tabs'); box.innerHTML = '';
-    TABS.forEach(function (t, i) { var b = el('button', 'tab', t); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', i === st.tab ? 'true' : 'false'); b.onclick = function () { st.tab = i; renderTabs(); renderPane(); save(); }; box.appendChild(b); });
+    TAB_ORDER.forEach(function (i) { var t = TABS[i]; var b = el('button', 'tab', t); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', i === st.tab ? 'true' : 'false'); b.onclick = function () { st.tab = i; renderTabs(); renderPane(); save(); }; box.appendChild(b); });
   }
   function renderPane() {
     var p = $('pane'); p.innerHTML = '';
@@ -387,7 +410,7 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
         mr.appendChild(b);
       });
       p.appendChild(mr);
-      p.appendChild(el('p', 'hint', 'Оттенок встаёт перед инструментом: «distant oboe». Только туда, где подходит: felt — клавишные, muted — духовые и струнные.'));
+      p.appendChild(el('p', 'hint', 'Оттенок встаёт перед инструментом: «distant oboe». Только туда, где подходит: felt — фортепиано, muted — духовые и струнные.'));
       INSTR.forEach(function (g) {
         var d = el('div', 'group'); d.appendChild(el('h3', '', g[0])); var c = el('div', 'chips');
         g[2].forEach(function (w) {
@@ -411,7 +434,12 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
       });
       p.appendChild(g); p.appendChild(el('p', 'hint', 'Под названием — что это на слух, ниже — слова, которые уйдут в Style.'));
     }
-    if (st.tab === 2) { var c2 = el('div', 'chips'); MOOD.forEach(function (w) { c2.appendChild(chip(w)); }); p.appendChild(c2); }
+    if (st.tab === 2) {
+      [['2 Настроение', MOOD], ['6 Пространство и звук', SPACE]].forEach(function (g) {
+        var d = el('div', 'group'); d.appendChild(el('h3', '', g[0])); var c2 = el('div', 'chips');
+        g[1].forEach(function (w) { c2.appendChild(chip(w)); }); d.appendChild(c2); p.appendChild(d);
+      });
+    }
     if (st.tab === 3) { var c3 = el('div', 'chips'); EXCL.forEach(function (w) { c3.appendChild(chip(w, true)); }); p.appendChild(c3); p.appendChild(el('p', 'hint', 'Касание — сразу в Exclude.')); }
     if (st.tab === 4) {
       var f = el('div', 'forms');
