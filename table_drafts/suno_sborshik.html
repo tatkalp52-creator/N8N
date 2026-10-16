@@ -197,11 +197,12 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { x.classList.remove('on'); }, 1800); }
 
   var INSTR = [
-    ['Клавишные', ['felt piano', 'upright piano', 'grand piano', 'Rhodes', 'Wurlitzer', 'celesta', 'harpsichord', 'clavichord', 'chamber organ', 'pipe organ', 'harmonium', 'accordion']],
-    ['Струнные', ['upright bass', 'nylon guitar', 'archtop guitar', 'gypsy jazz guitar', 'violin', 'viola', 'cello', 'string quartet', 'harp', 'lute', 'mandolin', 'hurdy-gurdy']],
+    ['Клавишные', ['felt piano', 'upright piano', 'grand piano', 'Rhodes', 'Wurlitzer', 'celesta', 'music box', 'harpsichord', 'clavichord', 'chamber organ', 'pipe organ', 'harmonium', 'accordion']],
+    ['Струнные', ['upright bass', 'nylon guitar', 'archtop guitar', 'gypsy jazz guitar', 'violin', 'viola', 'cello', 'string quartet', 'soft strings', 'string ensemble', 'harp', 'lute', 'viola da gamba', 'mandolin', 'hurdy-gurdy']],
     ['Духовые', ['soft clarinet', 'flute', 'alto flute', 'recorder', 'oboe', 'bassoon', 'muted trumpet', 'flugelhorn', 'tenor sax', 'soprano sax', 'french horn', 'tin whistle']],
-    ['Ударные', ['brushed drums', 'soft brushes', 'light ride cymbal', 'shaker', 'bossa percussion', 'frame drum', 'tambourine', 'glockenspiel', 'vibraphone', 'marimba', 'handbells', 'no drums']],
-    ['Голоса без слов', ['wordless choir', 'humming', 'soft oohs', 'boys choir', 'female choir', 'male choir', 'gregorian chant', 'solo soprano vocalise']]
+    ['Ударные', ['brushed drums', 'soft brushes', 'light ride cymbal', 'shaker', 'bossa percussion', 'frame drum', 'soft hand drums', 'tambourine', 'glockenspiel', 'vibraphone', 'marimba', 'handbells', 'no drums']],
+    ['Голоса без слов', ['wordless choir', 'humming', 'soft oohs', 'a cappella mixed choir', 'soft male and female humming', 'angelic female vocalise', 'ethereal humming', 'madrigal voices', 'bright medieval polyphony', 'boys choir', 'female choir', 'male choir', 'gregorian chant', 'solo soprano vocalise']],
+    ['Фон и свет', ['warm ambient pads', 'ethereal floating textures', 'distant choral texture', 'soft vinyl crackle', 'warm antique textures']]
   ];
   var STYLES = [
     ['Café jazz', 'спокойный акустический джаз маленьким составом, как в кафе', 'acoustic café jazz, small ensemble'],
@@ -219,10 +220,19 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['Ambient', 'без мелодии на первом плане, тянущиеся звуки, сон', 'ambient, slow evolving'],
     ['Lullaby', 'колыбельная: простая мелодия, челеста, музыкальная шкатулка', 'lullaby, music box'],
     ['Celtic', 'кельтские мотивы: арфа, вистл, мягкий бодран', 'celtic, harp, tin whistle'],
-    ['Classical crossover', 'классическая тема в джазовой обработке', 'classical crossover, jazz arrangement']
+    ['Classical crossover', 'классическая тема в джазовой обработке', 'classical crossover, jazz arrangement'],
+    ['Romantic', 'Шопен, Элгар: певучая мелодия, тёплое фортепиано и струнные', 'romantic period classical style, piano and strings'],
+    ['Neoromantic', 'светлая современная романтика: фортепиано и струнные, мажор', 'neoromantic piano and strings, passionate yet gentle melody, major key'],
+    ['Neoclassical ambient', 'войлочное фортепиано и тянущийся свет, без ударных', 'warm neoclassical ambient, soft felt piano, no drums'],
+    ['Fantasy ambient', 'сказочный женский вокализ в большом эхе, без слов', 'ethereal fantasy ambient, angelic female vocalise, heavy reverb'],
+    ['Cozy acoustic', 'нейлоновая гитара и фортепиано, солнечная комната', 'cozy acoustic, warm nylon guitar, soft piano, sunny room'],
+    ['A cappella light', 'светлый смешанный хор без инструментов, мажор, не церковно', 'a cappella mixed choir, warm harmonies, major key, luminous'],
+    ['Renaissance madrigal', 'мадригал: голоса переплетаются, лютня, мягкие барабаны', 'renaissance madrigal, lute, soft hand drums'],
+    ['Medieval folk', 'тёплый средневековый фолк, фоновый, не боевой', 'acoustic medieval folk, warm antique textures, gentle rhythmic background'],
+    ['Baroque chamber', 'клавесин, лютня, барочные струнные — замок, гобелены', 'baroque chamber music, harpsichord, lute, cozy castle ambience']
   ];
-  var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'sunlit', 'intimate', 'airy', 'spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'major key', 'minor key', 'modal', 'instrumental'];
-  var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo'];
+  var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'sunlit', 'sunny afternoon', 'daylight', 'luminous', 'uplifting', 'peaceful', 'magical', 'passionate yet gentle', 'intimate', 'airy', 'spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'medieval resonance', 'castle ambience', 'major key', 'minor key', 'modal', 'instrumental'];
+  var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo', 'dark', 'gothic', 'ominous', 'church organ', 'battle drums'];
   // Формы: раздел = [метка, тактов]. Короткая и полная версии.
   var FORMS = [
     ['Песенная AABA', 'классика джаза: тема, повтор, мост, тема', [['Intro', 4], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Outro', 4]], [['Intro', 8], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Solo — piano', 16], ['Solo — sax', 16], ['Bridge B', 8], ['Theme A', 8], ['Outro', 8]]],
@@ -236,7 +246,10 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['Хорал', 'медленные аккорды-строфы, как в соборе', [['Verse 1', 8], ['Verse 2', 8]], [['Intro', 4], ['Verse 1', 8], ['Verse 2', 8], ['Interlude', 4], ['Verse 3', 8], ['Verse 4', 8], ['Amen', 4]]],
     ['Эстампи', 'средневековый танец из повторяющихся «пунктов»', [['Punctus 1', 8], ['Punctus 2', 8]], [['Intro drone', 4], ['Punctus 1', 8], ['Punctus 1', 8], ['Punctus 2', 8], ['Punctus 2', 8], ['Punctus 3', 8], ['Punctus 3', 8], ['Outro', 4]]],
     ['Колыбельная', 'простая мелодия по кругу, всё тише', [['Melody', 8], ['Melody', 8], ['Fade', 4]], [['Intro — music box', 4], ['Melody', 8], ['Melody', 8], ['Middle', 8], ['Melody — softer', 8], ['Melody — softest', 8], ['Fade', 8]]],
-    ['Эмбиент', 'без формы: медленно меняющиеся слои', [['Drift', 16], ['Drift', 16]], [['Drift — start', 16], ['Drift — layers enter', 16], ['Drift — fullest', 16], ['Drift — thinning', 16], ['Drift — end', 16]]]
+    ['Эмбиент', 'без формы: медленно меняющиеся слои', [['Drift', 16], ['Drift', 16]], [['Drift — start', 16], ['Drift — layers enter', 16], ['Drift — fullest', 16], ['Drift — thinning', 16], ['Drift — end', 16]]],
+    // пятый элемент — строки напева под разделом (голоса без слов: тогда без [Instrumental])
+    ['Вокализ', 'голоса без слов: напев, светлое нарастание, затихание', [['Humming intro', 4], ['Vocalise', 8], ['Warm choral swell', 8], ['Humming outro', 4]], [['Humming intro', 4], ['Vocalise', 8], ['Soft male and female humming', 8], ['Warm choral swell', 8], ['Vocalise', 8], ['Humming outro', 8]],
+      { 'Humming intro': 'Mm-mm-mm...', 'Vocalise': 'Ooh... Aah... Lumina...', 'Soft male and female humming': 'Mm-mm... Ooh...', 'Warm choral swell': 'Aah... Ooh-la-ti...', 'Humming outro': 'Mm-mm...' }]
   ];
 
   var st = { bpm: 90, s: [], x: [], lyr: '', tab: 0, bpmToStyle: true };
@@ -358,7 +371,7 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
         var two = el('div', 'two');
         [['Коротко', fm[2]], ['Полностью', fm[3]]].forEach(function (v) {
           var bt = el('button', '', v[0] + ' ≈ ' + mmss(secs(v[1]))); bt.type = 'button';
-          bt.onclick = function () { $('lyr').value = lyrics(v[1]); st.lyr = $('lyr').value; calcDur(); save(); toast(fm[0] + ': ' + v[0].toLowerCase()); };
+          bt.onclick = function () { $('lyr').value = lyrics(v[1], fm[4]); st.lyr = $('lyr').value; calcDur(); save(); toast(fm[0] + ': ' + v[0].toLowerCase()); };
           two.appendChild(bt);
         });
         b.appendChild(two); f.appendChild(b);
@@ -368,7 +381,10 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   }
 
   // ── Lyrics и длительность ──
-  function lyrics(secsList) { return ['[Instrumental]'].concat(secsList.map(function (s) { return '[' + s[0] + ' — ' + s[1] + ' bars]'; })).concat(['[End]']).join('\n'); }
+  function lyrics(secsList, sung) {
+    var body = secsList.map(function (s) { var line = '[' + s[0] + ' — ' + s[1] + ' bars]'; return sung && sung[s[0]] ? line + '\n' + sung[s[0]] : line; });
+    return (sung ? [] : ['[Instrumental]']).concat(body).concat(['[End]']).join('\n');
+  }
   function secs(list) { return list.reduce(function (a, s) { return a + s[1]; }, 0) * 4 * 60 / st.bpm; }
   function mmss(t) { t = Math.round(t); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
   function calcDur() {
