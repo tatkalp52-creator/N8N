@@ -819,6 +819,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     drawLights(now, dw, dh);
     drawSurf(now, dw, dh);
     drawCandles(now, dw, dh);
+    drawStars(now, dw, dh);
     requestAnimationFrame(drawSteam);
   }
 
@@ -997,6 +998,85 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
           fxc.save(); fxc.strokeStyle = 'rgba(37,99,235,0.9)'; fxc.lineWidth = 1.2; fxc.beginPath(); fxc.arc(cx, cy, 3, 0, 7); fxc.stroke(); fxc.restore();
         }
       });
+    });
+  }
+  // ── Пробные звёзды (16.10): те же правила, что у сборщика — внутри обводки неба ищем мелкие
+  // светлые точки (ярче фона на 20 и ярче 80; крупные пятна — луна, окна — не берём, до 80 звёзд),
+  // каждая мерцает холодным светом в своём ритме.
+  var starCache = {};
+  function findStars(m) {
+    var P = pixels(); if (!P) return [];
+    var key = pixSrc.length + '|' + m.pts.map(function (q) { return q.x + ',' + q.y; }).join(';');
+    if (starCache[key]) return starCache[key];
+    var W = P.width, H = P.height, k = H / 864;
+    var xs = m.pts.map(function (q) { return q.x / 100 * W; }), ys = m.pts.map(function (q) { return q.y / 100 * H; });
+    var x0 = Math.max(0, Math.floor(Math.min.apply(null, xs))), x1 = Math.min(W, Math.ceil(Math.max.apply(null, xs)) + 1);
+    var y0 = Math.max(0, Math.floor(Math.min.apply(null, ys))), y1 = Math.min(H, Math.ceil(Math.max.apply(null, ys)) + 1);
+    var w = x1 - x0, h = y1 - y0; if (w < 3 || h < 3) return (starCache[key] = []);
+    var mc = document.createElement('canvas'); mc.width = w; mc.height = h; var mcc = mc.getContext('2d');
+    mcc.beginPath(); xs.forEach(function (x, j) { if (j) mcc.lineTo(x - x0, ys[j] - y0); else mcc.moveTo(x - x0, ys[j] - y0); }); mcc.closePath(); mcc.fill();
+    var mask = mcc.getImageData(0, 0, w, h).data;
+    var g = new Float32Array(w * h);
+    for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) { var o = ((y0 + yy) * W + x0 + xx) * 4; g[yy * w + xx] = (P.data[o] + P.data[o + 1] + P.data[o + 2]) / 3; }
+    // фон — размытие (как гаусс 5k у сборщика): три прохода скользящего среднего
+    var bg = Float32Array.from(g), tmp = new Float32Array(w * h), rad = Math.max(1, Math.round(4 * k));
+    for (var pass = 0; pass < 3; pass++) {
+      for (var y = 0; y < h; y++) { var acc = 0, n = 0; for (var x = -rad; x < w; x++) { if (x + rad < w) { acc += bg[y * w + x + rad]; n++; } if (x - rad - 1 >= 0) { acc -= bg[y * w + x - rad - 1]; n--; } if (x >= 0) tmp[y * w + x] = acc / n; } }
+      for (var x2 = 0; x2 < w; x2++) { var acc2 = 0, n2 = 0; for (var y2 = -rad; y2 < h; y2++) { if (y2 + rad < h) { acc2 += tmp[(y2 + rad) * w + x2]; n2++; } if (y2 - rad - 1 >= 0) { acc2 -= tmp[(y2 - rad - 1) * w + x2]; n2--; } if (y2 >= 0) bg[y2 * w + x2] = acc2 / n2; } }
+    }
+    var cand = new Uint8Array(w * h);
+    for (var i = 0; i < w * h; i++) cand[i] = mask[i * 4 + 3] > 127 && g[i] - bg[i] > 20 && g[i] > 80 ? 1 : 0;
+    var seen = new Uint8Array(w * h), maxa = Math.round(Math.pow(5 * k, 2) * 3), found = [];
+    for (var s0 = 0; s0 < w * h; s0++) {
+      if (!cand[s0] || seen[s0]) continue;
+      var st = [s0], comp = 0, best = s0; seen[s0] = 1;
+      while (st.length) {
+        var c = st.pop(); comp++; if (g[c] > g[best]) best = c;
+        var cx = c % w, cy = (c - cx) / w;
+        for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+          var nx = cx + dx, ny = cy + dy, ni = ny * w + nx;
+          if (nx >= 0 && ny >= 0 && nx < w && ny < h && cand[ni] && !seen[ni]) { seen[ni] = 1; st.push(ni); }
+        }
+      }
+      if (comp <= maxa) found.push({ x: (x0 + best % w) / W * 100, y: (y0 + Math.floor(best / w)) / H * 100, c: g[best] - bg[best] });
+    }
+    found.sort(function (a, b) { return b.c - a.c; });
+    return (starCache[key] = found.slice(0, 80));
+  }
+  function drawStars(now, dw, dh) {
+    var all = marks.filter(function (m) { return m.eff === 'sky' && m.pts.length >= 3; });
+    if (!all.length || !dh) return;
+    var P = pixels(); if (!P) return;
+    var t = (now / 1000) % LOOP, sc = dw / P.width, k = P.height / 864;
+    all.forEach(function (m) {
+      var kk = m.k || {}, bright = mult(kk['яркость'] == null ? 5 : kk['яркость']), depth = mult(kk['мерцание'] == null ? 5 : kk['мерцание']), spd = mult(kk['скорость'] == null ? 5 : kk['скорость']);
+      var stars = findStars(m), R = Math.max(3, Math.round(6 * k * Math.sqrt(Math.max(1, bright))));
+      var key = 'star|' + R, spr = lightCache[key];
+      if (!spr) {
+        spr = lightCache[key] = document.createElement('canvas'); spr.width = spr.height = 2 * R;
+        var sc2 = spr.getContext('2d'), d = sc2.createImageData(2 * R, 2 * R);
+        for (var yy = 0; yy < 2 * R; yy++) for (var xx = 0; xx < 2 * R; xx++) {
+          var rr = ((xx - R) * (xx - R) + (yy - R) * (yy - R)) / (R * R), o = (yy * 2 * R + xx) * 4;
+          d.data[o] = 236; d.data[o + 1] = 242; d.data[o + 2] = 255; d.data[o + 3] = Math.round(255 * Math.exp(-rr / (2 * 0.22 * 0.22)) * Math.max(0, 1 - rr));
+        }
+        sc2.putImageData(d, 0, 0);
+      }
+      stars.forEach(function (q, idx) {
+        var r = seeded(Math.round(q.x * 7919 + q.y * 104729) + idx);
+        var ph0 = r() * 6.283, ph1 = r() * 6.283;
+        var n1 = Math.max(1, Math.round((1 + Math.floor(r() * 3)) * spd)), n2 = Math.max(2, Math.round((4 + Math.floor(r() * 5)) * spd));
+        var f = 0.6 * Math.sin(2 * Math.PI * n1 * t / LOOP + ph0) + 0.4 * Math.sin(2 * Math.PI * n2 * t / LOOP + ph1);
+        var u = Math.max(0, 0.42 + 0.30 * depth * f);
+        fxc.globalAlpha = Math.min(0.85, u * bright);
+        var rd = R * sc; fxc.drawImage(spr, q.x / 100 * dw - rd, q.y / 100 * dh - rd, 2 * rd, 2 * rd);
+      });
+      fxc.globalAlpha = 1;
+      if (!m.fixed) {
+        var lx = Math.min.apply(null, m.pts.map(function (q) { return q.x; })) / 100 * dw, ly = Math.min.apply(null, m.pts.map(function (q) { return q.y; })) / 100 * dh;
+        fxc.save(); fxc.font = '600 13px Onest, sans-serif'; fxc.fillStyle = 'rgba(15,23,42,0.75)';
+        var txt = 'звёзд: ' + stars.length, tw = fxc.measureText(txt).width;
+        fxc.fillRect(lx + 4, ly + 4, tw + 12, 20); fxc.fillStyle = '#fff'; fxc.fillText(txt, lx + 10, ly + 19); fxc.restore();
+      }
     });
   }
   requestAnimationFrame(drawSteam);
