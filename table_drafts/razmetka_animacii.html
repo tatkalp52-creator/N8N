@@ -174,6 +174,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'candle', name: 'Свеча',      taps: 1, knobs: [['яркость', 5], ['пламя', 5], ['ореол', 5], ['мерцание', 5], ['скорость', 5], ['раскачка', 5], ['отсвет', 5], ['разлив', 5]], hint: 'Коснись пламени свечи. Потом в списке «Настроить»: ползунки, а для тыквы или камина — «Обвести прорезь» (свет только внутри) и «Обвести отсвет» (стол, пол).' },
     { id: 'smoke',  name: 'Дымок',      taps: 1, hint: 'Коснись места, откуда идёт дымок.' },
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
+    { id: 'sky', name: 'Звёзды', taps: 99, knobs: [['яркость', 5], ['мерцание', 5], ['скорость', 5]], hint: 'Обведи небо в окне пальцем или стилусом одним движением (или точками по кругу и «Готово») — только небо над домами, без рамы. Звёзды внутри сборщик найдёт сам, и каждая замерцает в своём ритме; луну и окна домов он не трогает. Потом в списке «Настроить» — яркость, мерцание, скорость.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6], ['ореол', 5]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
@@ -239,6 +240,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       s = 'пар: область ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
       EFFECTS.filter(function (e) { return e.id === 'surf'; })[0].knobs.forEach(function (k) { var v = m.k[k[0]]; if (v != null) s += '; ' + k[0] + ' ' + v; });
     } else if (m.eff === 'bubbles') s = 'пузыри: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + ', ' + fmt(p[1].y);
+    else if (m.eff === 'sky') {
+      s = 'звёзды: область ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
+      EFFECTS.filter(function (e) { return e.id === 'sky'; })[0].knobs.forEach(function (k) { var v = m.k && m.k[k[0]]; if (v != null) s += '; ' + k[0] + ' ' + v; });
+    }
     else if (m.eff === 'occ') s = 'за: ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
     else if (m.eff === 'edge') s = 'край: ' + p.map(function (q) { return fmt(q.x) + ' ' + fmt(q.y); }).join(', ');
     else if (m.eff === 'leaves') {
@@ -308,6 +313,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'rgba(217,119,6,0.15)', stroke: '#d97706', 'stroke-width': 3, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }));
         if (!m.drawn) for (var oi = 1; oi < p.length; oi++) drawDot(p[oi].x, p[oi].y, '', true);
       }
+      if (m.eff === 'sky') {
+        ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'rgba(191,219,254,0.18)', stroke: '#93c5fd', 'stroke-width': 3, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }));
+        if (!m.drawn) for (var ki = 1; ki < p.length; ki++) drawDot(p[ki].x, p[ki].y, '', true);
+      }
       if (m.eff === 'edge') {
         ov.appendChild(svgEl('polyline', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#d97706', 'stroke-width': 3, 'vector-effect': 'non-scaling-stroke' }));
         if (!m.drawn) for (var ei = 1; ei < p.length; ei++) drawDot(p[ei].x, p[ei].y, '', true);
@@ -328,7 +337,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       }
       drawDot(p[0].x, p[0].y, n, false);
     });
-    if ((outlining || cur.id === 'leaves' || cur.id === 'edge' || cur.id === 'surf' || cur.id === 'occ') && pending.length > 1) {
+    if ((outlining || cur.id === 'leaves' || cur.id === 'edge' || cur.id === 'surf' || cur.id === 'occ' || cur.id === 'sky') && pending.length > 1) {
       ov.appendChild(svgEl('polyline', { points: pending.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
     }
     pending.forEach(function (p) { drawDot(p.x, p.y, '', true); });
@@ -351,10 +360,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var ok = document.createElement('button'); ok.type = 'button';
       ok.className = m.fixed ? '' : 'primary'; ok.textContent = m.fixed ? '✓ Изменить' : 'ОК';
       ok.setAttribute('aria-label', (m.fixed ? 'Изменить отметку ' : 'Зафиксировать отметку ') + (i + 1));
-      ok.onclick = function () { m.fixed = !m.fixed; m.open = !m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf' || m.eff === 'candle'); if (m.fixed && outlining && outlining.m === m) { outlining = null; pending = []; } refresh(); };
+      ok.onclick = function () { m.fixed = !m.fixed; m.open = !m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf' || m.eff === 'candle' || m.eff === 'sky'); if (m.fixed && outlining && outlining.m === m) { outlining = null; pending = []; } refresh(); };
       d.appendChild(num); d.appendChild(t);
       var side = document.createElement('div'); side.className = 'row'; side.style.flexWrap = 'nowrap';
-      if (!m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf' || m.eff === 'candle')) side.appendChild(tog);
+      if (!m.fixed && (m.eff === 'steam' || m.eff === 'leaves' || m.eff === 'blink' || m.eff === 'lights' || m.eff === 'surf' || m.eff === 'candle' || m.eff === 'sky')) side.appendChild(tog);
       side.appendChild(ok);
       if (!m.fixed) side.appendChild(del);
       d.appendChild(side);
@@ -445,6 +454,19 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         var auto3 = document.createElement('button'); auto3.type = 'button'; auto3.textContent = 'Авто';
         auto3.onclick = function () { m.r = null; refresh(); };
         kb3.appendChild(auto3); d.appendChild(kb3);
+      }
+      if (m.eff === 'sky' && m.open) {
+        if (!m.k) { m.k = {}; EFFECTS.filter(function (e) { return e.id === 'sky'; })[0].knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
+        var kb7 = document.createElement('div'); kb7.className = 'knobs';
+        EFFECTS.filter(function (e) { return e.id === 'sky'; })[0].knobs.forEach(function (k) {
+          var lab = document.createElement('label');
+          var sp = document.createElement('span'); sp.textContent = k[0];
+          var inp = document.createElement('input'); inp.type = 'range'; inp.min = 1; inp.max = 10; inp.step = 1; inp.value = m.k[k[0]]; inp.id = 'Z' + i + '_' + k[0];
+          var ou = document.createElement('span'); ou.textContent = m.k[k[0]];
+          inp.oninput = function () { m.k[k[0]] = Number(inp.value); ou.textContent = inp.value; t.textContent = lineOf(m); renderOut(); };
+          lab.appendChild(sp); lab.appendChild(inp); lab.appendChild(ou); kb7.appendChild(lab);
+        });
+        d.appendChild(kb7);
       }
       if (m.eff === 'surf' && m.open) {
         var kb5 = document.createElement('div'); kb5.className = 'knobs';
@@ -543,9 +565,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       $('done').hidden = pending.length < 3; $('done').textContent = outlining.kind === 'cuts' ? 'Готово: прорезь обведена' : 'Готово: отсвет обведён';
       return;
     }
-    $('hint').textContent = pending.length ? (cur.id === 'occ' ? 'Точек: ' + pending.length + '. Обходи предмет по кругу' + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'surf' ? 'Точек: ' + pending.length + '. Обходи край глади по кругу' + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'lights' ? 'Отмечено лампочек: ' + pending.length + '. Коснись следующей или нажми «Готово».' : cur.id === 'edge' ? 'Добавь ещё точки вправо вдоль края или нажми «Готово».' : cur.id === 'leaves' ? (pending.length < 2 ? 'Теперь коснись, куда лист падает (ниже первой точки).' : 'Можно добавить ещё точку пути ниже или нажать «Готово».') : second[cur.id]) : cur.hint;
-    $('done').hidden = !(((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) || (cur.id === 'lights' && pending.length >= 1) || ((cur.id === 'surf' || cur.id === 'occ') && pending.length >= 3));
-    $('done').textContent = cur.id === 'occ' ? 'Готово: предмет обведён' : cur.id === 'edge' ? 'Готово: край нарисован' : cur.id === 'lights' ? 'Готово: лампочки отмечены' : cur.id === 'surf' ? 'Готово: гладь обведена' : 'Готово: лист нарисован';
+    $('hint').textContent = pending.length ? (cur.id === 'occ' || cur.id === 'sky' ? 'Точек: ' + pending.length + (cur.id === 'sky' ? '. Обходи небо по кругу' : '. Обходи предмет по кругу') + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'surf' ? 'Точек: ' + pending.length + '. Обходи край глади по кругу' + (pending.length >= 3 ? ' или нажми «Готово».' : '.') : cur.id === 'lights' ? 'Отмечено лампочек: ' + pending.length + '. Коснись следующей или нажми «Готово».' : cur.id === 'edge' ? 'Добавь ещё точки вправо вдоль края или нажми «Готово».' : cur.id === 'leaves' ? (pending.length < 2 ? 'Теперь коснись, куда лист падает (ниже первой точки).' : 'Можно добавить ещё точку пути ниже или нажать «Готово».') : second[cur.id]) : cur.hint;
+    $('done').hidden = !(((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) || (cur.id === 'lights' && pending.length >= 1) || ((cur.id === 'surf' || cur.id === 'occ' || cur.id === 'sky') && pending.length >= 3));
+    $('done').textContent = cur.id === 'sky' ? 'Готово: небо обведено' : cur.id === 'occ' ? 'Готово: предмет обведён' : cur.id === 'edge' ? 'Готово: край нарисован' : cur.id === 'lights' ? 'Готово: лампочки отмечены' : cur.id === 'surf' ? 'Готово: гладь обведена' : 'Готово: лист нарисован';
   }
   function refresh() { redrawOverlay(); renderList(); renderOut(); setHint(); drawLoupe(); }
 
@@ -586,7 +608,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (ev.button !== 0) return;
     var h = outlining ? null : hitPoint(ev);      // пока обводишь, точки отметок не хватаются
     // (15.10) край и предмет можно РИСОВАТЬ: ведёшь пальцем или стилусом — линия ложится как нарисована
-    if (!h && !outlining && (cur.id === 'edge' || cur.id === 'occ')) {
+    if (!h && !outlining && (cur.id === 'edge' || cur.id === 'occ' || cur.id === 'sky')) {
       pending = [];
       drag = { draw: true, pts: [] }; suppress = true; ov.setPointerCapture(ev.pointerId); ev.preventDefault();
       var r0 = ov.getBoundingClientRect();
@@ -631,7 +653,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (!drag) return;
     if (drag.draw) {
       var pts = drag.pts; drag = null;
-      if (pts.length < (cur.id === 'occ' ? 3 : 2)) { refresh(); return; }
+      if (pts.length < (cur.id === 'occ' || cur.id === 'sky' ? 3 : 2)) { refresh(); return; }
       if (cur.id === 'leaves') {
         if (pts[0].y > pts[pts.length - 1].y) pts.reverse();                 // лист падает сверху вниз
         if (pts[pts.length - 1].y - pts[0].y < 3) { refresh(); $('hint').textContent = 'Лист падает вниз: проведи линию сверху вниз, подлиннее.'; return; }
@@ -646,6 +668,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       if (cur.id === 'edge' && pts[0].x > pts[pts.length - 1].x) pts.reverse();   // край — слева направо
       var m = { eff: cur.id, pts: pts, kind: '', drawn: true };
       marks.forEach(function (o) { o.open = false; }); m.open = false;
+      if (cur.id === 'sky') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); m.open = true; }
       marks.push(m); pending = []; refresh(); return;
     }
     if (drag.maybeDraw) { drag = null; return; }   // просто касание — сработает как точка
@@ -691,9 +714,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       if (outlining.kind === 'cuts') om.cuts = (om.cuts || []).concat([pending.slice()]); else om.spill = pending.slice();
       outlining = null; pending = []; om.open = true; refresh(); return;
     }
-    if (!((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) && !(cur.id === 'lights' && pending.length >= 1) && !((cur.id === 'surf' || cur.id === 'occ') && pending.length >= 3)) return;
+    if (!((cur.id === 'leaves' || cur.id === 'edge') && pending.length >= 2) && !(cur.id === 'lights' && pending.length >= 1) && !((cur.id === 'surf' || cur.id === 'occ' || cur.id === 'sky') && pending.length >= 3)) return;
     var m = { eff: cur.id, pts: pending.slice(), kind: '' };
-    if (cur.id === 'lights' || cur.id === 'surf') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
+    if (cur.id === 'lights' || cur.id === 'surf' || cur.id === 'sky') { m.k = {}; cur.knobs.forEach(function (k) { m.k[k[0]] = k[1]; }); }
     marks.forEach(function (o) { o.open = false; }); m.open = true;
     marks.push(m); pending = []; refresh();
   };
