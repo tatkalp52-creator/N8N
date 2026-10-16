@@ -146,11 +146,17 @@ ${fxCatalogText(ctx.effects)}
 ${card}`;
 
 // ── Сообщение ──
+// (16.10) ответ автору у этапа с пунктами — всегда пунктами: модель могла прислать текст пункта просто
+// сообщением (черновик «посмотри голос») — тогда он не записывался, не переводился автору, и выпуск стоял.
+// Начало этапа и согласование — как раньше (свободный ответ: предложить, попрощаться, памятка).
+const forceItems = !plan.isStart && !(plan.approveNums || []).length && myItems.some(it => !state.agreed[it.n]);
 const text = plan.isStart
   ? `[Служебное сообщение] ${plan.event || 'Предыдущий этап завершён.'} Сейчас твой этап — начни по своим правилам.`
   : (plan.userText || '(пустое сообщение)') + ((plan.approveNums || []).length
     ? `\n\n[Система: пункты ${plan.approveNums.join(', ')} уже отмечены согласованными. Если все твои пункты согласованы, этап завершён и выпуск идёт дальше — просто коротко попрощайся или сохрани памятку.]`
-    : '');
+    : forceItems && !plan.silent
+      ? '\n\n[Система: отвечай через propose_items — предложи сразу все свои пункты, которые ещё не согласованы, готовым текстом; реплика автору — в message. Автор видит пункты с переводом.]'
+      : '');
 let marksText = '';
 try { marksText = ($('Сервер: разметка').first().json || {}).text || ''; } catch (e) {}
 const content = [{ type: 'input_text', text: text + (marksText
@@ -175,7 +181,7 @@ const requestBody = {
   tools,
   // молчаливый этап и разметка автора — это всегда работа над пунктами: ответ инструментом, тогда придёт и превью
   // пункт с превью (оживление): автор проверяет его глазами — на любое не-одобрение отвечаем строками, тогда придёт видео
-  tool_choice: (plan.silent || marksText || (previewStage && !(plan.approveNums || []).length)) && myItems.length
+  tool_choice: (plan.silent || marksText || forceItems || (previewStage && !(plan.approveNums || []).length)) && myItems.length
     ? { type: 'function', name: 'propose_items' } : 'auto',
   parallel_tool_calls: false,
   truncation: 'auto',
