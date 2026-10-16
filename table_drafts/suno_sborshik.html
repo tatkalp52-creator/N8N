@@ -256,7 +256,12 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['Impromptu', 'экспромт · свободная, будто сочинённая на ходу', 'impromptu, romantic, spontaneous']
   ];
   var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'warm sunlight', 'sunny afternoon', 'warm glow', 'uplifting', 'peaceful', 'magical', 'passionate yet gentle', 'intimate', 'mellow', 'soft highs', 'major key', 'minor key', 'modal', 'instrumental'];
-  var SPACE = ['spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'medieval resonance', 'castle ambience'];
+  // акустика: близко → комната → зал → издалека → запись (без слов, добавляющих резкости; звуки вокруг — не в Suno, а в сборщике)
+  var SPACE = ['close mic', 'intimate close mic', 'dry close mic', 'bedroom recording', 'home recording',
+    'small room', 'warm room', 'living room', 'wooden room', 'library room', 'soft room reverb',
+    'chamber hall', 'small concert hall', 'stone hall', 'church acoustics', 'cathedral reverb', 'castle ambience', 'medieval resonance', 'spacious',
+    'distant', 'far away', 'from the next room',
+    'analog warmth', 'vintage recording', 'warm tape saturation'];
   var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo', 'dark', 'gothic', 'ominous', 'church organ', 'battle drums', 'symphony orchestra', 'orchestral pads', 'cinematic', 'epic', 'trailer music', 'orchestral swell', 'big drums', 'epic choir', 'bright', 'harsh', 'shrill', 'piercing', 'sibilant', 'crisp highs', 'sparkly'];
   // Формы: раздел = [метка, тактов]. Короткая и полная версии.
   var FORMS = [
