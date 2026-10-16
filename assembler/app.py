@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-16-font-tight"
+ASSEMBLER_VERSION = "2026-10-16-stars"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1475,6 +1475,7 @@ EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", 
                 "дымок": "smoke", "дым": "smoke", "smoke": "smoke",
                 "свеча": "candle", "свечи": "candle", "candle": "candle",
                 "гирлянда": "lights", "гирлянды": "lights", "лампочки": "lights", "lights": "lights",
+                "звёзды": "stars", "звезды": "stars", "звезда": "stars", "звёзда": "stars", "stars": "stars",
                 "дождь": "rain", "rain": "rain"}
 # Строки листьев и края — не петля, а события (см. ЛИСТЬЯ ниже)
 EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge", "за:", "за ", "предмет", "behind")
@@ -2278,7 +2279,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 col[(rr < 1) & (outer > halo)] = (255, 214, 150)             # широкий ореол — теплее
                 col[core > 0.25] = (255, 246, 214)
 
-                def light(t, gx0=gx0, gy0=gy0, halo=halo, core=core, outer=outer, ph=ph, n1=n1, n2=n2, col=col, bright=bright):
+                def light(t, gx0=gx0, gy0=gy0, halo=halo, core=core, outer=outer, ph=ph, n1=n1, n2=n2, col=col, bright=bright, glowk=glowk):
                     L = EFFECTS_LOOP_SECONDS
                     f = 0.65 * math.sin(2 * math.pi * n1 * t / L + ph[0]) + 0.35 * math.sin(2 * math.pi * n2 * t / L + ph[1])
                     a = halo * (0.34 + 0.16 * f) * bright + core * (0.55 + 0.25 * f) + outer * (0.24 + 0.06 * f) * glowk
@@ -2312,7 +2313,9 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             halo = np.exp(-rr / (2 * 0.42 ** 2)) * np.clip(1 - rr, 0, 1) ** 2   # к краю — ровно в ноль, без квадрата
             fw, fh = 3.0 * k * flame_k, 11.0 * k * flame_k
 
-            def flick(t, ph=ph, fq=fq):
+            # (16.10) своё имя и привязка по умолчанию: у гирлянды есть число «flick» — свеча вместе
+            # с гирляндой падала «'float' object is not callable», превью не приходило
+            def candle_flick(t, ph=ph, fq=fq):
                 L = EFFECTS_LOOP_SECONDS
                 return (0.55 * math.sin(2 * math.pi * fq[0] * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * fq[1] * t / L + ph[1])
                         + 0.15 * math.sin(2 * math.pi * fq[2] * t / L + ph[2]))
@@ -2324,7 +2327,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                                     np.float32) / 255
 
             def candle(t, gx0=gx0, gy0=gy0, halo=halo, R=R, ph=ph, fq=fq, glow=glow, fw=fw, fh=fh, px=px, py=py,
-                       swing=swing, bright=bright, depth=depth, clip_m=clip_m):
+                       swing=swing, bright=bright, depth=depth, clip_m=clip_m, flick=candle_flick):
                 L = EFFECTS_LOOP_SECONDS
                 f = flick(t)
                 # (11.10) раскачка была в пару пикселей — глазом не видно; теперь кончик ходит заметно
@@ -2366,7 +2369,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 dist = np.hypot(X_ - px, Y_ - py)
                 m_ = m_ * np.exp(-dist / max(1.0, fall))
 
-                def lay(t, bx0=bx0, by0=by0, m_=m_):
+                def lay(t, bx0=bx0, by0=by0, m_=m_, flick=candle_flick, bright=bright, depth=depth):
                     f = flick(t)
                     if warm is None:     # прорези: свет и разгорается, и притухает (к тёмно-оранжевому)
                         u = float(np.clip(0.5 + 0.5 * depth * f, 0, 1))
@@ -2383,6 +2386,86 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 sb_ = poly_box([p_ for q in spill for p_ in q], W, H)
                 fall = 0.45 * math.hypot(sb_[2] - sb_[0], sb_[3] - sb_[1]) * reach_k
                 layers.append(glow_layer(spill, 0.32 * spill_k, 10 * k, fall, (255, 168, 88)))
+
+        elif kind == "stars":
+            # ЗВЁЗДЫ (16.10): «звёзды: область x y, x y, …» — обвести небо, звёзды сборщик находит сам
+            # (маленькие светлые точки на тёмном, луна и окна домов — крупные пятна — не берутся);
+            # или «звёзды: x, y; x, y; …» — по точке на звезду. Каждая тихо мерцает в своём ритме,
+            # холодный свет без ореола гирлянды; частоты кратны петле — шва нет.
+            # Ручки: яркость, мерцание (глубина), скорость.
+            s_bright = kn(kind, nums, "яркость")
+            s_depth = kn(kind, nums, "мерцание")
+            s_spd = kn(kind, nums, "скорость")
+            gray = base.mean(axis=2)
+            found = []
+            if nums.area:
+                poly = list(zip(nums[0::2], nums[1::2]))
+                bx0, by0, bx1, by1 = poly_box(poly, W, H)
+                m_ = polygon_mask(poly, W, H, (bx0, by0, bx1, by1)) > 0.5
+                g_ = gray[by0:by1, bx0:bx1]
+                bg = np.asarray(Image.fromarray(g_.astype(np.uint8)).filter(ImageFilter.GaussianBlur(5 * k)), np.float32)
+                cand = m_ & ((g_ - bg) > 20) & (g_ > 80)   # проба 16.10: звёзды спальни — 20/80
+                # связные пятна построчно: крупное (луна, окно) отбрасываем, у мелкого — самая светлая точка
+                seen = np.zeros_like(cand)
+                ys, xs = np.nonzero(cand)
+                maxa = int((5 * k) ** 2 * 3)
+                for y_, x_ in zip(ys, xs):
+                    if seen[y_, x_]:
+                        continue
+                    stack, comp = [(y_, x_)], []
+                    seen[y_, x_] = True
+                    while stack and len(comp) <= maxa:
+                        cy_, cx_ = stack.pop()
+                        comp.append((cy_, cx_))
+                        for dy_, dx_ in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)):
+                            ny_, nx_ = cy_ + dy_, cx_ + dx_
+                            if 0 <= ny_ < cand.shape[0] and 0 <= nx_ < cand.shape[1] and cand[ny_, nx_] and not seen[ny_, nx_]:
+                                seen[ny_, nx_] = True
+                                stack.append((ny_, nx_))
+                    if len(comp) > maxa:
+                        while stack:                      # дочищаем крупное пятно, чтобы не взять его кусками
+                            cy_, cx_ = stack.pop()
+                            for dy_, dx_ in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                                ny_, nx_ = cy_ + dy_, cx_ + dx_
+                                if 0 <= ny_ < cand.shape[0] and 0 <= nx_ < cand.shape[1] and cand[ny_, nx_] and not seen[ny_, nx_]:
+                                    seen[ny_, nx_] = True
+                                    stack.append((ny_, nx_))
+                        continue
+                    cy_, cx_ = max(comp, key=lambda q: g_[q])
+                    found.append((bx0 + cx_, by0 + cy_, float(g_[cy_, cx_] - bg[cy_, cx_])))
+                found.sort(key=lambda q: -q[2])
+                found = found[:80]
+            else:
+                for i in range(0, len(nums) - 1, 2):
+                    lx, ly = nums[i] / 100 * W, nums[i + 1] / 100 * H
+                    if not getattr(nums, "exact", False):
+                        r0 = max(2, int(0.006 * W))
+                        xa, xb = max(0, int(lx) - r0), min(W, int(lx) + r0 + 1)
+                        ya, yb = max(0, int(ly) - r0), min(H, int(ly) + r0 + 1)
+                        win = gray[ya:yb, xa:xb]
+                        if win.size:
+                            iy, ix = np.unravel_index(np.argmax(win), win.shape)
+                            lx, ly = xa + ix, ya + iy
+                    found.append((lx, ly, 60.0))
+            print(f"[effects] звёзд: {len(found)}")
+            for sx, sy, _c in found:
+                Rs = max(3, int(round(6 * k * max(1.0, s_bright) ** 0.5)))
+                yy, xx = np.mgrid[0:2 * Rs, 0:2 * Rs].astype(np.float32)
+                rr = ((xx - Rs) ** 2 + (yy - Rs) ** 2) / (Rs * Rs)
+                glow_s = np.exp(-rr / (2 * 0.22 ** 2)) * np.clip(1 - rr, 0, 1)
+                ph = rng.uniform(0, 2 * math.pi, 2)
+                n1 = max(1, int(round((1 + int(rng.integers(0, 3))) * s_spd)))
+                n2 = max(2, int(round((4 + int(rng.integers(0, 5))) * s_spd)))
+                col = np.empty((2 * Rs, 2 * Rs, 3), np.float32)
+                col[...] = (236, 242, 255)
+
+                def star(t, gx0=int(sx - Rs), gy0=int(sy - Rs), glow_s=glow_s, ph=ph, n1=n1, n2=n2, col=col,
+                         s_bright=s_bright, s_depth=s_depth):
+                    L = EFFECTS_LOOP_SECONDS
+                    f = 0.6 * math.sin(2 * math.pi * n1 * t / L + ph[0]) + 0.4 * math.sin(2 * math.pi * n2 * t / L + ph[1])
+                    u = max(0.0, 0.42 + 0.30 * s_depth * f)          # то разгорается, то почти гаснет
+                    return gx0, gy0, np.clip(glow_s * u * s_bright, 0, 0.85), col
+                layers.append(star)
 
         elif kind == "rain" and len(nums) >= 4:
             # ДОЖДЬ ЗА ОКНОМ (04.10): прямоугольник стекла (левый верх → правый низ). За стеклом
