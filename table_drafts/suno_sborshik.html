@@ -207,7 +207,7 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['Струнные', ['muted', 'soft', 'distant'], ['upright bass', 'nylon guitar', 'archtop guitar', 'gypsy jazz guitar', 'violin', 'viola', 'cello', 'soft strings', 'string ensemble', 'harp', 'lute', ['viola da gamba', 'baroque viol'], 'mandolin', ['hurdy-gurdy', 'medieval drone fiddle']]],
     ['Духовые', ['muted', 'soft', 'distant'], ['clarinet', 'flute', 'alto flute', 'recorder', 'wooden recorder', 'oboe', 'bassoon', 'trumpet', ['natural trumpet', 'baroque trumpet', 'medieval trumpet'], 'flugelhorn', 'tenor sax', 'soprano sax', 'french horn', 'tin whistle']],
     ['Ударные', ['soft', 'distant'], ['brushed drums', 'soft brushes', 'light ride cymbal', 'shaker', 'bossa percussion', 'frame drum', 'hand drums', ['tabor', 'medieval drum'], 'tambourine', 'glockenspiel', 'vibraphone', 'marimba', 'handbells', 'no drums']],
-    ['Голоса без слов', ['soft', 'distant'], ['wordless choir', 'humming', 'soft oohs', 'a cappella mixed choir', 'soft male and female humming', 'angelic female vocalise', 'madrigal voices', 'bright medieval polyphony', 'boys choir', 'female choir', 'male choir', 'gregorian chant', 'solo soprano vocalise']],
+    ['Голоса без слов', ['soft', 'distant'], ['wordless choir', 'humming', 'soft oohs', 'a cappella mixed choir', 'soft male and female humming', 'angelic female vocalise', 'madrigal voices', 'warm medieval polyphony', 'boys choir', 'female choir', 'male choir', 'gregorian chant', 'solo soprano vocalise']],
     ['Составы', [], ['solo', 'duet', 'trio', 'piano trio', 'quartet', 'string quartet', 'quintet', 'wind quintet', 'sextet', 'chamber ensemble']]
   ];
   var MODS = ['soft', 'distant', 'muted', 'felt'];
@@ -233,7 +233,7 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['Neoclassical ambient', 'войлочное фортепиано и тянущийся свет, без ударных', 'warm neoclassical ambient, soft felt piano, no drums'],
     ['Fantasy ambient', 'сказочный женский вокализ в большом эхе, без слов', 'ethereal fantasy ambient, angelic female vocalise, heavy reverb'],
     ['Cozy acoustic', 'нейлоновая гитара и фортепиано, солнечная комната', 'cozy acoustic, warm nylon guitar, soft piano, sunny room'],
-    ['A cappella light', 'светлый смешанный хор без инструментов, мажор, не церковно', 'a cappella mixed choir, warm harmonies, major key, luminous'],
+    ['A cappella light', 'светлый смешанный хор без инструментов, мажор, не церковно', 'a cappella mixed choir, warm harmonies, major key, soft'],
     ['Renaissance madrigal', 'мадригал: голоса переплетаются, лютня, мягкие барабаны', 'renaissance madrigal, lute, soft hand drums'],
     ['Medieval folk', 'тёплый средневековый фолк, фоновый, не боевой', 'acoustic medieval folk, warm antique textures, gentle rhythmic background'],
     ['Baroque chamber', 'клавесин, лютня, барочные струнные — замок, гобелены', 'baroque chamber music, harpsichord, lute, cozy castle ambience'],
@@ -255,9 +255,9 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
     ['Song without words', 'песня без слов, как у Мендельсона · мелодия поёт на фортепиано', 'song without words, lyrical romantic piano'],
     ['Impromptu', 'экспромт · свободная, будто сочинённая на ходу', 'impromptu, romantic, spontaneous']
   ];
-  var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'sunlit', 'sunny afternoon', 'daylight', 'luminous', 'uplifting', 'peaceful', 'magical', 'passionate yet gentle', 'intimate', 'airy', 'major key', 'minor key', 'modal', 'instrumental'];
+  var MOOD = ['cozy', 'warm', 'gentle', 'calm', 'tender', 'playful', 'nostalgic', 'dreamy', 'wistful', 'rainy evening', 'autumn', 'winter', 'morning', 'late night', 'candlelit', 'warm sunlight', 'sunny afternoon', 'warm glow', 'uplifting', 'peaceful', 'magical', 'passionate yet gentle', 'intimate', 'mellow', 'soft highs', 'major key', 'minor key', 'modal', 'instrumental'];
   var SPACE = ['spacious', 'dry close mic', 'warm room', 'cathedral reverb', 'medieval resonance', 'castle ambience'];
-  var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo', 'dark', 'gothic', 'ominous', 'church organ', 'battle drums', 'symphony orchestra', 'orchestral pads', 'cinematic', 'epic', 'trailer music', 'orchestral swell', 'big drums', 'epic choir'];
+  var EXCL = ['vocals', 'singing', 'lyrics', 'spoken word', 'rap', 'autotune', 'electronic', 'synth', 'EDM', 'trap', 'heavy drums', 'loud drums', 'drum machine', '808', 'distortion', 'electric guitar', 'lo-fi', 'vinyl crackle', 'tape hiss', 'noise', 'static', 'heavy reverb', 'orchestral hits', 'dubstep', 'pop', 'rock', 'metal', 'fast tempo', 'dark', 'gothic', 'ominous', 'church organ', 'battle drums', 'symphony orchestra', 'orchestral pads', 'cinematic', 'epic', 'trailer music', 'orchestral swell', 'big drums', 'epic choir', 'bright', 'harsh', 'shrill', 'piercing', 'sibilant', 'crisp highs', 'sparkly'];
   // Формы: раздел = [метка, тактов]. Короткая и полная версии.
   var FORMS = [
     ['Песенная AABA', 'классика джаза: тема, повтор, мост, тема', [['Intro', 4], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Outro', 4]], [['Intro', 8], ['Theme A', 8], ['Theme A', 8], ['Bridge B', 8], ['Theme A', 8], ['Solo — piano', 16], ['Solo — sax', 16], ['Bridge B', 8], ['Theme A', 8], ['Outro', 8]]],
