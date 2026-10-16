@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-15-leaf-light"
+ASSEMBLER_VERSION = "2026-10-16-font-tight"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -42,6 +42,31 @@ FONT_MAP = {
     "Pengui Hand": "/usr/share/fonts/truetype/pengui-hand/PenguiHand.ttf",
 }
 DEFAULT_FONT_PATH = FONT_MAP["Pengui Hand"]
+# (16.10) Плотные копии шрифта: буквы ближе друг к другу на 5,5 / 6,5 / 8 % (пробелы прежние).
+# В таблице — «font:Pengui Hand 55» и т.п. Файлы лежат рядом со сборщиком (/app/fonts, Deploy их
+# не трогает); нет на диске — скачиваем один раз из репозитория, как образцы листьев.
+FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+FONT_URL = "https://raw.githubusercontent.com/tatkalp52-creator/N8N/ccr-592d85a5-ljre1x/assembler/fonts/"
+FONT_FILES = {"Pengui Hand 55": "PenguiHand55.ttf", "Pengui Hand 65": "PenguiHand65.ttf", "Pengui Hand 80": "PenguiHand80.ttf"}
+
+
+def font_path_for(name):
+    name = str(name or "").strip()
+    if name in FONT_MAP:
+        return FONT_MAP[name]
+    if name not in FONT_FILES:
+        return DEFAULT_FONT_PATH
+    path = os.path.join(FONT_DIR, FONT_FILES[name])
+    if not os.path.exists(path):
+        try:
+            import urllib.request
+            os.makedirs(FONT_DIR, exist_ok=True)
+            urllib.request.urlretrieve(FONT_URL + FONT_FILES[name], path + ".part")
+            os.replace(path + ".part", path)
+        except Exception as e:
+            print(f"[overlay] шрифт {name} не скачался ({e}) — беру обычный")
+            return DEFAULT_FONT_PATH
+    return path
 
 
 # Раньше отступ от края (60px) был жёстко зашит в каждую строку ниже.
@@ -3513,7 +3538,7 @@ def assemble():
         overlay_margin = int(data.get("overlayMargin", 60))
 
         font_name = data.get("overlayFont")
-        font_path = FONT_MAP.get(font_name, DEFAULT_FONT_PATH)
+        font_path = font_path_for(font_name)
         font_size = data.get("overlaySize", "44")
         font_color = data.get("overlayColor", "#FFFFFF").lstrip("#")
 
