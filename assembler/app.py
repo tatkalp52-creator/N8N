@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-16-stars"
+ASSEMBLER_VERSION = "2026-10-16-stars-cold"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -2389,7 +2389,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
 
         elif kind == "stars":
             # ЗВЁЗДЫ (16.10): «звёзды: область x y, x y, …» — обвести небо, звёзды сборщик находит сам
-            # (маленькие светлые точки на тёмном, луна и окна домов — крупные пятна — не берутся);
+            # (маленькие холодные светлые точки на тёмном; луна — крупное пятно, окна домов — тёплые, не берутся);
             # или «звёзды: x, y; x, y; …» — по точке на звезду. Каждая тихо мерцает в своём ритме,
             # холодный свет без ореола гирлянды; частоты кратны петле — шва нет.
             # Ручки: яркость, мерцание (глубина), скорость.
@@ -2430,6 +2430,11 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                                 if 0 <= ny_ < cand.shape[0] and 0 <= nx_ < cand.shape[1] and cand[ny_, nx_] and not seen[ny_, nx_]:
                                     seen[ny_, nx_] = True
                                     stack.append((ny_, nx_))
+                        continue
+                    # (16.10) звезда холодная (синее красного), окно дома тёплое — окна не берём
+                    cyc_, cxc_ = zip(*comp)
+                    px_ = base[by0 + np.array(cyc_), bx0 + np.array(cxc_)]
+                    if float(px_[:, 0].mean() - px_[:, 2].mean()) > -15:
                         continue
                     cy_, cx_ = max(comp, key=lambda q: g_[q])
                     found.append((bx0 + cx_, by0 + cy_, float(g_[cy_, cx_] - bg[cy_, cx_])))
