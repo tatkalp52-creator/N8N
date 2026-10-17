@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-16-stars-2"
+ASSEMBLER_VERSION = "2026-10-17-fire"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1476,7 +1476,8 @@ EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", 
                 "свеча": "candle", "свечи": "candle", "candle": "candle",
                 "гирлянда": "lights", "гирлянды": "lights", "лампочки": "lights", "lights": "lights",
                 "звёзды": "stars", "звезды": "stars", "звезда": "stars", "звёзда": "stars", "stars": "stars",
-                "дождь": "rain", "rain": "rain"}
+                "дождь": "rain", "rain": "rain",
+                "огонь": "fire", "камин": "fire", "костёр": "fire", "костер": "fire", "fire": "fire"}
 # Строки листьев и края — не петля, а события (см. ЛИСТЬЯ ниже)
 EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge", "за:", "за ", "предмет", "behind")
 
@@ -2386,6 +2387,100 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 sb_ = poly_box([p_ for q in spill for p_ in q], W, H)
                 fall = 0.45 * math.hypot(sb_[2] - sb_[0], sb_[3] - sb_[1]) * reach_k
                 layers.append(glow_layer(spill, 0.32 * spill_k, 10 * k, fall, (255, 168, 88)))
+
+        elif kind == "fire" and nums.area:
+            # ОГОНЬ (17.10): «огонь: область x y, …» — обвести нарисованное пламя камина или костра.
+            # Оживает сам рисунок: языки текут вверх (струи шума сдвигают пиксели снизу вверх, у основания
+            # почти неподвижно, к верху сильнее), пламя разгорается и притухает, вокруг дышит тёплый ореол.
+            # «пятно …» — отсвет на полу/стене. Ручки: яркость, высота (сила языков), скорость, отсвет.
+            # Петля без шва: два сдвинутых слоя шума перетекают друг в друга за петлю, частоты мерцания кратны ей.
+            f_bright = kn(kind, nums, "яркость")
+            f_lick = kn(kind, nums, "высота")
+            f_spd = kn(kind, nums, "скорость")
+            f_spill = kn(kind, nums, "отсвет")
+            poly = list(zip(nums[0::2], nums[1::2]))
+            bx0, by0, bx1, by1 = poly_box(poly, W, H, pad=int(6 * k))
+            bw_, bh_ = bx1 - bx0, by1 - by0
+            m_ = polygon_mask(poly, W, H, (bx0, by0, bx1, by1))
+            m_ = np.asarray(Image.fromarray((m_ * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2.0 * k)),
+                            np.float32) / 255
+            ys_ = np.nonzero(m_.max(axis=1) > 0.5)[0]
+            ftop, fbot = (ys_.min(), ys_.max()) if len(ys_) else (0, bh_ - 1)
+            ramp = np.clip((fbot - np.arange(bh_, dtype=np.float32)) / max(1, fbot - ftop), 0, 1)[:, None] ** 0.9
+            patch = base[by0:by1, bx0:bx1].copy()
+            lum_ = patch.mean(axis=2) / 255.0
+            hot = np.clip((lum_ - 0.35) / 0.5, 0, 1)            # светлое внутри обводки — само пламя
+            # двигается только пламя и воздух рядом с ним: края топки, решётка, поленья стоят
+            hotw = np.asarray(Image.fromarray((hot * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6 * k)),
+                              np.float32) / 255
+            ramp = ramp * np.clip(hotw * 2.5, 0, 1)
+            nX = periodic_noise(bh_, bw_, 5 * k, 31)
+            nY = periodic_noise(bh_, bw_, 7 * k, 32)
+            nF = periodic_noise(bh_, bw_, 9 * k, 33)
+            v1, v2 = 70 * k * f_spd, 110 * k * f_spd           # пикселей в секунду вверх
+            amp = 7.0 * k * f_lick
+            YY_, XX_ = np.mgrid[0:bh_, 0:bw_].astype(np.float32)
+            ph_ = rng.uniform(0, 2 * math.pi, 3)
+            fq_ = [max(1, int(round(n_ * f_spd))) for n_ in (5, 11, 17)]
+
+            def flow_up(nz, v, t, bh=bh_):
+                L = EFFECTS_LOOP_SECONDS
+                w = 0.5 * math.pi * (t % L) / L
+                one = np.roll(nz, -int(round(v * (t % L))) % bh, axis=0)
+                two = np.roll(nz, -int(round(v * ((t % L) - L))) % bh, axis=0)
+                return 0.5 + (one - 0.5) * math.cos(w) + (two - 0.5) * math.sin(w)
+
+            def fire_flick(t, ph=ph_, fq=fq_):
+                L = EFFECTS_LOOP_SECONDS
+                return (0.5 * math.sin(2 * math.pi * fq[0] * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * fq[1] * t / L + ph[1])
+                        + 0.2 * math.sin(2 * math.pi * fq[2] * t / L + ph[2]))
+
+            def fire(t, bx0=bx0, by0=by0, m_=m_, ramp=ramp, patch=patch, hot=hot, nX=nX, nY=nY, nF=nF,
+                     v1=v1, v2=v2, amp=amp, YY_=YY_, XX_=XX_, bw_=bw_, bh_=bh_, flick=fire_flick, bright=f_bright):
+                dx = (flow_up(nX, v1, t) - 0.5) * 2 * amp * ramp
+                dy = (flow_up(nY, v2, t) - 0.5) * 2 * amp * 1.4 * ramp + amp * 0.6 * ramp   # берём снизу: языки тянутся вверх
+                sx = np.clip(XX_ + dx, 0, bw_ - 1.001)
+                sy = np.clip(YY_ + dy, 0, bh_ - 1.001)
+                x0_, y0_ = sx.astype(np.int32), sy.astype(np.int32)
+                fx_, fy_ = (sx - x0_)[..., None], (sy - y0_)[..., None]
+                c = (patch[y0_, x0_] * (1 - fx_) * (1 - fy_) + patch[y0_, x0_ + 1] * fx_ * (1 - fy_)
+                     + patch[y0_ + 1, x0_] * (1 - fx_) * fy_ + patch[y0_ + 1, x0_ + 1] * fx_ * fy_)
+                f = flick(t)
+                flame = flow_up(nF, v2, t)
+                g = 1 + (0.10 * f + 0.22 * (flame - 0.5)) * bright * hot
+                c = c * g[..., None] + np.array((40, 18, 0), np.float32) * (0.25 * bright * hot * max(0.0, f))[..., None]
+                return bx0, by0, m_, np.clip(c, 0, 255)
+            layers.append(fire)
+
+            # тёплый ореол вокруг пламени (на стенках камина, поленьях) — дышит в такт
+            gpad = int(40 * k)
+            gx0, gy0, gx1, gy1 = poly_box(poly, W, H, pad=gpad)
+            gm = polygon_mask(poly, W, H, (gx0, gy0, gx1, gy1))
+            gm = np.asarray(Image.fromarray((gm * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(16 * k)),
+                            np.float32) / 255
+            gm = gm * (1 - polygon_mask(poly, W, H, (gx0, gy0, gx1, gy1)) * 0.6)
+
+            def fire_glow(t, gx0=gx0, gy0=gy0, gm=gm, flick=fire_flick, bright=f_bright):
+                f = flick(t)
+                return gx0, gy0, np.clip(gm * 0.22 * bright * (1 + 0.45 * f), 0, 0.6), np.array((255, 160, 80), np.float32)
+            layers.append(fire_glow)
+
+            spill = list(getattr(nums, "spill", []))
+            if spill:
+                cxf = sum(q[0] for q in poly) / len(poly) / 100 * W
+                cyf = sum(q[1] for q in poly) / len(poly) / 100 * H
+                sb_ = poly_box([p_ for q in spill for p_ in q], W, H, pad=int(30 * k))
+                sm_ = np.max([polygon_mask(q, W, H, sb_) for q in spill], axis=0)
+                sm_ = np.asarray(Image.fromarray((sm_ * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(10 * k)),
+                                 np.float32) / 255
+                Ys, Xs = np.mgrid[sb_[1]:sb_[3], sb_[0]:sb_[2]].astype(np.float32)
+                fall = 0.45 * math.hypot(sb_[2] - sb_[0], sb_[3] - sb_[1])
+                sm_ = sm_ * np.exp(-np.hypot(Xs - cxf, Ys - cyf) / max(1.0, fall))
+
+                def fire_spill(t, sb_=sb_, sm_=sm_, flick=fire_flick, bright=f_bright, sk=f_spill):
+                    f = flick(t)
+                    return sb_[0], sb_[1], np.clip(sm_ * 0.3 * sk * bright * (1 + 0.4 * f), 0, 0.7), np.array((255, 168, 88), np.float32)
+                layers.append(fire_spill)
 
         elif kind == "stars":
             # ЗВЁЗДЫ (16.10): «звёзды: область x y, x y, …» — обвести небо, звёзды сборщик находит сам
