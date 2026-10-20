@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-20-subcut"
+ASSEMBLER_VERSION = "2026-10-21-theme"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -805,6 +805,23 @@ TRACK_PEAK_LIMIT = 10 ** (-1.5 / 20)
 INTRO_RE = re.compile(r"^00(?!\d)")
 
 
+def intro_mode(v):
+    """fx_IntroOnce: «да» — тема есть, «нет» — темы нет, пусто — сборщик решает сам по длине первого трека."""
+    t = str(v or "").strip().lower()
+    if t in ("да", "yes", "1", "true", "+"):
+        return True
+    if t in ("нет", "no", "0", "false", "-"):
+        return False
+    return None
+
+
+def _float_or(v, default):
+    try:
+        return float(str(v).replace(",", ".")) if str(v or "").strip() else default
+    except (TypeError, ValueError):
+        return default
+
+
 def build_audio_track(
     audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
     gap_seconds=0, loop_count=None, mix_seconds=None,
@@ -812,7 +829,7 @@ def build_audio_track(
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
     denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
     bass_db=0.0, bass_hz=160.0, bass_cut_hz=30.0,
-    intro_first=False,
+    intro_first=False, intro_max_seconds=90.0,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -826,8 +843,11 @@ def build_audio_track(
     # (тема): играет один раз в начале, а повторы ролика начинаются со следующего трека.
     intro_flags = []
     split_list = []
+    first_parts = 0
     for i, raw_path in enumerate(tracks_raw):
         parts = split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}")
+        if i == 0:
+            first_parts = len(parts)
         is_intro = bool(INTRO_RE.match(os.path.basename(raw_path)))
         split_list.extend(parts)
         intro_flags.extend([is_intro] * len(parts))
@@ -835,6 +855,16 @@ def build_audio_track(
     # или так: в строке выпуска колонка fx_IntroOnce («да») — первый трек и есть тема
     if intro_first and intro_flags and not any(intro_flags):
         intro_flags[0] = True
+    # (20.10) сама: первый файл — один короткий кусок (тема обычно ~40 с), а треков больше одного —
+    # это тема, она звучит один раз. fx_IntroOnce «нет» — выключить; 🎬 IntroMaxSeconds — порог (90 с).
+    if intro_first is None and intro_flags and not any(intro_flags) and first_parts == 1 and len(split_list) > 1:
+        try:
+            d0 = media_duration(split_list[0])
+        except Exception:
+            d0 = None
+        if d0 is not None and d0 < intro_max_seconds:
+            intro_flags[0] = True
+            print(f"[intro] первый трек {d0:.0f} с — тема: один раз, повторы со следующего")
 
     if not tracks_raw:
         raise RuntimeError("No .mp3/.wav files found in ZIP or folder")
@@ -2405,26 +2435,41 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             f_spd = kn(kind, nums, "скорость")
             f_spill = kn(kind, nums, "отсвет")
             poly = list(zip(nums[0::2], nums[1::2]))
-            bx0, by0, bx1, by1 = poly_box(poly, W, H, pad=int(6 * k))
+            # (21.10) языки выходят за обводку: рамка с запасом вверх, рисунок над огнём берётся снизу —
+            # кончики пламени тянутся вверх и опадают; над обводкой видно только светлое (само пламя),
+            # тёмная топка остаётся как нарисована.
+            p0 = poly_box(poly, W, H)
+            fh_ = max(8, p0[3] - p0[1])
+            ext = int(0.45 * fh_ * min(2.0, f_lick))
+            bx0, by0, bx1, by1 = p0[0] - int(6 * k), max(0, p0[1] - ext), min(W, p0[2] + int(6 * k)), min(H, p0[3] + int(6 * k))
+            bx0 = max(0, bx0)
             bw_, bh_ = bx1 - bx0, by1 - by0
-            m_ = polygon_mask(poly, W, H, (bx0, by0, bx1, by1))
-            m_ = np.asarray(Image.fromarray((m_ * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2.0 * k)),
-                            np.float32) / 255
-            ys_ = np.nonzero(m_.max(axis=1) > 0.5)[0]
+            m_in = polygon_mask(poly, W, H, (bx0, by0, bx1, by1))
+            m_in = np.asarray(Image.fromarray((m_in * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5 * k)),
+                              np.float32) / 255
+            # зона над огнём: обводка, «вытянутая» вверх и тающая к верху
+            m_up = m_in.copy()
+            for d_ in range(1, ext + 1, max(1, ext // 24)):
+                sh = np.zeros_like(m_in)
+                sh[:-d_] = m_in[d_:]
+                m_up = np.maximum(m_up, sh * (1 - d_ / (ext + 1)) ** 1.3)
+            m_up = np.asarray(Image.fromarray((m_up * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3 * k)),
+                              np.float32) / 255
+            ys_ = np.nonzero(m_in.max(axis=1) > 0.5)[0]
             ftop, fbot = (ys_.min(), ys_.max()) if len(ys_) else (0, bh_ - 1)
-            ramp = np.clip((fbot - np.arange(bh_, dtype=np.float32)) / max(1, fbot - ftop), 0, 1)[:, None] ** 0.9
+            ramp = np.clip((fbot - np.arange(bh_, dtype=np.float32)) / max(1, fbot - ftop), 0, 1.4)[:, None] ** 0.9
             patch = base[by0:by1, bx0:bx1].copy()
             lum_ = patch.mean(axis=2) / 255.0
-            hot = np.clip((lum_ - 0.35) / 0.5, 0, 1)            # светлое внутри обводки — само пламя
-            # двигается только пламя и воздух рядом с ним: края топки, решётка, поленья стоят
-            hotw = np.asarray(Image.fromarray((hot * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6 * k)),
+            hot = np.clip((lum_ - 0.35) / 0.5, 0, 1)            # светлое — само пламя
+            hotw = np.asarray(Image.fromarray((hot * m_in * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(8 * k)),
                               np.float32) / 255
-            ramp = ramp * np.clip(hotw * 2.5, 0, 1)
-            nX = periodic_noise(bh_, bw_, 5 * k, 31)
-            nY = periodic_noise(bh_, bw_, 7 * k, 32)
-            nF = periodic_noise(bh_, bw_, 9 * k, 33)
-            v1, v2 = 70 * k * f_spd, 110 * k * f_spd           # пикселей в секунду вверх
-            amp = 7.0 * k * f_lick
+            # двигается пламя и воздух над ним; края топки, решётка, поленья стоят
+            ramp = ramp * np.clip(np.maximum(hotw * 2.5, (m_up - m_in).clip(0, 1) * 1.5), 0, 1)
+            nX = periodic_noise(bh_, bw_, 4 * k, 31)
+            nY = periodic_noise(bh_, bw_, 9 * k, 32)
+            nF = periodic_noise(bh_, bw_, 7 * k, 33)
+            v1, v2 = 90 * k * f_spd, 140 * k * f_spd           # пикселей в секунду вверх
+            amp = 9.0 * k * f_lick
             YY_, XX_ = np.mgrid[0:bh_, 0:bw_].astype(np.float32)
             ph_ = rng.uniform(0, 2 * math.pi, 3)
             fq_ = [max(1, int(round(n_ * f_spd))) for n_ in (5, 11, 17)]
@@ -2441,10 +2486,11 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 return (0.5 * math.sin(2 * math.pi * fq[0] * t / L + ph[0]) + 0.3 * math.sin(2 * math.pi * fq[1] * t / L + ph[1])
                         + 0.2 * math.sin(2 * math.pi * fq[2] * t / L + ph[2]))
 
-            def fire(t, bx0=bx0, by0=by0, m_=m_, ramp=ramp, patch=patch, hot=hot, nX=nX, nY=nY, nF=nF,
+            def fire(t, bx0=bx0, by0=by0, m_in=m_in, m_up=m_up, ramp=ramp, patch=patch, nX=nX, nY=nY, nF=nF,
                      v1=v1, v2=v2, amp=amp, YY_=YY_, XX_=XX_, bw_=bw_, bh_=bh_, flick=fire_flick, bright=f_bright):
-                dx = (flow_up(nX, v1, t) - 0.5) * 2 * amp * ramp
-                dy = (flow_up(nY, v2, t) - 0.5) * 2 * amp * 1.4 * ramp + amp * 0.6 * ramp   # берём снизу: языки тянутся вверх
+                dx = (flow_up(nX, v1, t) - 0.5) * 2 * amp * 0.8 * ramp
+                ny = flow_up(nY, v2, t)
+                dy = (np.clip(ny - 0.35, 0, None) * 2.2 * amp * 2.0 + amp * 0.3) * ramp   # только снизу: языки тянутся вверх
                 sx = np.clip(XX_ + dx, 0, bw_ - 1.001)
                 sy = np.clip(YY_ + dy, 0, bh_ - 1.001)
                 x0_, y0_ = sx.astype(np.int32), sy.astype(np.int32)
@@ -2452,10 +2498,13 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 c = (patch[y0_, x0_] * (1 - fx_) * (1 - fy_) + patch[y0_, x0_ + 1] * fx_ * (1 - fy_)
                      + patch[y0_ + 1, x0_] * (1 - fx_) * fy_ + patch[y0_ + 1, x0_ + 1] * fx_ * fy_)
                 f = flick(t)
+                hot_c = np.clip((c.mean(axis=2) / 255.0 - 0.35) / 0.5, 0, 1)
                 flame = flow_up(nF, v2, t)
-                g = 1 + (0.10 * f + 0.22 * (flame - 0.5)) * bright * hot
-                c = c * g[..., None] + np.array((40, 18, 0), np.float32) * (0.25 * bright * hot * max(0.0, f))[..., None]
-                return bx0, by0, m_, np.clip(c, 0, 255)
+                g = 1 + (0.10 * f + 0.22 * (flame - 0.5)) * bright * hot_c
+                c = c * g[..., None] + np.array((40, 18, 0), np.float32) * (0.25 * bright * hot_c * max(0.0, f))[..., None]
+                # внутри обводки — весь сдвинутый рисунок; над ней — только светлые кончики языков
+                al = np.maximum(m_in, (m_up - m_in).clip(0, 1) * hot_c ** 0.7)
+                return bx0, by0, al, np.clip(c, 0, 255)
             layers.append(fire)
 
             # тёплый ореол вокруг пламени (на стенках камина, поленьях) — дышит в такт
@@ -3694,7 +3743,8 @@ def assemble():
             limiter_release_ms=limiter_release_ms,
             denoise_amount=denoise_amount,
             highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz, bass_db=bass_db, bass_hz=bass_hz, bass_cut_hz=bass_cut_hz,
-            intro_first=str(data.get("fx_IntroOnce") or "").strip().lower() in ("да", "yes", "1", "true", "+"),
+            intro_first=intro_mode(data.get("fx_IntroOnce")),
+            intro_max_seconds=_float_or(data.get("introMaxSeconds"), 90.0),
         )
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
