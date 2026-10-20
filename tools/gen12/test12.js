@@ -44,7 +44,7 @@ async function context(stages, row, inc) {
 }
 
 // Один ход: Кто отвечает → (модель: запрос → ответ → разбор → поручение) → Итог хода
-const TR = { 'Pengui baked a pie.': 'Пингви испёк пирог.' };
+const TR = { 'Pengui baked a pie.': 'Пингви испёк пирог.', 'светлее': 'brighter', 'убрать кота': 'remove the cat' };
 async function turn(stages, row, inc, response, subResponse) {
   const ctx = await context(stages, row, inc);
   const nodes = { 'Контекст проекта': ctx };
@@ -88,6 +88,8 @@ async function turn(stages, row, inc, response, subResponse) {
   // ── 2. Сообщение автора — задание художнику (без префикса): знания 🎨 + место по слову ──
   t = await turn(DIRECT, {}, { text: 'Пингви на кухне печёт пирог' });
   assert.equal(t.next, 'draw');
+  assert.ok(t.r.dallePrompt.endsWith('RU: Пингви на кухне печёт пирог'), 'художнику — перевод задания');
+  assert.ok(t.r.chunks.join('').includes('По-английски:'), 'автор видит английское задание');
   assert.ok(t.r.dallePrompt.includes('Рисованная иллюстрация.'));
   assert.ok(t.r.dallePrompt.includes('Уютная кухня с окном.'), 'место по слову «кухне»');
   assert.ok(!t.r.dallePrompt.includes('KITCHEN:'), 'строка с триггерами — механика, художнику не идёт');
@@ -100,9 +102,9 @@ async function turn(stages, row, inc, response, subResponse) {
   // ответ на картинку «Вариант 1» — правка
   const V = JSON.stringify([{ n: 1, url: 'U1' }, { n: 2, url: 'U2' }]);
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'светлее', replyVariant: 1 });
-  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U1'); assert.equal(t.r.revisionInstruction, 'светлее');
+  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U1'); assert.equal(t.r.revisionInstruction, 'brighter', 'художнику — по-английски');
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'правка 2: убрать кота' });
-  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U2'); assert.equal(t.r.revisionInstruction, 'убрать кота');
+  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U2'); assert.equal(t.r.revisionInstruction, 'remove the cat');
   // правка с фото-обводкой: план просит маску; маска — к первой картинке; подпись честно говорит, сработала ли
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'шторка на штанге', replyVariant: 2, photo: [{ file_id: 'S' }, { file_id: 'B' }] });
   assert.equal(t.plan.mode, 'edit'); assert.equal(t.plan.needMask, true); assert.equal(t.plan.maskPhoto[1].file_id, 'B');
@@ -548,6 +550,10 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.ok(b1.problemsText.startsWith('Чистка звука ещё идёт'));
     const b2 = (await run('Стена: проверяем таблицу', { nodes: { 'Контекст проекта': ctx }, input: [{ ...row, sys_CleanState: 'готово' }] }))[0];
     assert.ok(!/Сначала чистка/.test(b2.okText), 'нет ложного «сначала чистка»');
+    const b3 = (await run('Стена: проверяем таблицу', { nodes: { 'Контекст проекта': ctx }, input: [{ ...row, ai_ApprovedImageUrl: 'U1', sys_Status: 'Опубликовано', sys_CleanState: 'готово' }] }))[0];
+    assert.equal(b3.ok, true, '«пересобери» вышедшего выпуска — стена пропускает (статус вернётся в «Утверждено»)');
+    const b4 = (await run('Стена: проверяем таблицу', { nodes: { 'Контекст проекта': ctx }, input: [{ ...row, ai_ApprovedImageUrl: 'U1', sys_Status: 'Картинка согласована', sys_CleanState: 'готово' }] }))[0];
+    assert.equal(b4.ok, false, 'несогласованный — нет');
     const tmpl = { '🎬tmpl_CleanMode': 'duo' };
     const c1 = (await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctx, tmpl, row: { ...row, sys_CleanState: 'готово' },
       tracksUrl: 'https://drive.google.com/uc?export=download&id=1wun3Im-LhqCR_Z_3R53fKis4aRd4brs5' } } }))[0];

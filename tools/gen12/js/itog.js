@@ -46,6 +46,14 @@ if (plan.mode === 'say') {
   autoApprove = !stage.approve || stage.talks === 'none';
   action = art.action;
   message = art.action === 'chat' ? art.messageToUser : (plan.mode === 'edit' ? 'поправляю 🎨' : 'рисую 🎨');
+  // (20.10) художник получает задание по-английски; места 📍 уже подобраны по русским словам автора
+  const en = art.action !== 'chat' ? artEnBrief() : '';
+  if (en) {
+    const task = String(plan.userText || '').trim();
+    if (art.dallePrompt) art.dallePrompt = art.dallePrompt.endsWith(task) ? art.dallePrompt.slice(0, art.dallePrompt.length - task.length) + en : art.dallePrompt + '\n\n' + en;
+    if (art.revisionInstruction) art.revisionInstruction = en;
+    message += `\n\nПо-английски: ${en}`;
+  }
 } else if (plan.mode === 'model') {
   const r = $('Разбираем ответ этапа').first().json;
   state = stParseState(r.editorState);

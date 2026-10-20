@@ -6,8 +6,27 @@ const draft = $('Итог хода: черновик').first().json;
 const ctx = $('Контекст проекта').first().json;
 const state = stParseState(draft.editorState);
 const todo = itRuTodo(state);
-if (!todo.length) return [{ json: { need: false, todo: [] } }];
 const stages = ctx.stages || [];
+const textModel = s => s && s.model && !/image|dall/i.test(s.model) ? s.model : '';
+// (20.10) Задание художнику — наоборот, на английский: по-русски модель картинок дорисовывает
+// «русский дух» (сани, гобелен с тройкой). Переводится только смысл задания, ничего не добавляется.
+const plan = $('Кто отвечает').first().json;
+const artTask = ['ready_to_draw', 'revise_point'].includes(draft.action) ? String(plan.userText || '').trim() : '';
+if (artTask && /[а-яё]/i.test(artTask)) {
+  const model = stages.map(textModel).find(Boolean) || 'gpt-5';
+  const requestBody = {
+    model,
+    instructions: 'Translate the author\'s picture brief into clear, natural English for an image model. '
+      + 'Keep its meaning exactly: add no objects, details, styles or cultural elements and drop none; keep names as they are. '
+      + 'Answer with JSON only: {"brief": "<English brief>"}.',
+    input: [{ role: 'user', content: 'Brief to translate (JSON):\n' + JSON.stringify({ brief: artTask }) }],
+    text: { format: { type: 'json_object' } },
+    store: false,
+  };
+  if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: 'low' };
+  return [{ json: { need: true, todo: [], art: true, artTask, requestBody } }];
+}
+if (!todo.length) return [{ json: { need: false, todo: [] } }];
 const stage = stages.find(s => bareIcon(s.icon) === bareIcon(draft.stageIcon)) || stages.find(s => s.model) || {};
 const model = stage.model || 'gpt-5';
 const src = {};

@@ -385,6 +385,18 @@ function itApplyRu(state) {
   }
 }
 
+// (20.10) Английский перевод задания художнику (второй проход «Итог хода»); пусто — рисуем по исходному.
+function artEnBrief() {
+  let pv = null, resp = null;
+  try { pv = $('Перевод для автора: что').first().json; } catch (e) { return ''; }
+  if (!pv || !pv.art) return '';
+  try { resp = $('OpenAI: перевод для автора').first().json || null; } catch (e) { return ''; }
+  if (!resp || resp.error) return '';
+  const out = (resp.output || []).filter(i => i.type === 'message')
+    .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('').trim();
+  try { return String(JSON.parse(out.replace(/^```(?:json)?\s*|\s*```$/g, '')).brief || '').trim(); } catch (e) { return ''; }
+}
+
 // Колонки пункта: «a, b» — одно значение в обе; «a | b» — значение делится по «|»;
 // одна колонка у нескольких пунктов — значения склеиваются через пустую строку по порядку.
 function itFields(items, state) {
@@ -423,7 +435,9 @@ function validateRow(row, items, opts) {
   if (val('ai_TimecodeNames') && val('ai_Description') && !/\[?Timecodes\]?/i.test(val('ai_Description'))) {
     problems.push('в ai_Description нет метки [Timecodes]');
   }
-  if (o.needApproved && val('sys_Status') !== 'Утверждено') problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);
+  // (20.10) пересборка вышедшего выпуска: «Опубликовано» тоже годится — статус вернётся в «Утверждено» сразу после стены
+  const okStatus = o.allowPublished ? ['Утверждено', 'Опубликовано'] : ['Утверждено'];
+  if (o.needApproved && !okStatus.includes(val('sys_Status'))) problems.push(`статус «${val('sys_Status') || 'пусто'}», а не «Утверждено»`);
   if (o.needTracks && !val('sys_AudioZipUrl')) problems.push('sys_AudioZipUrl пустая (нет ссылки на треки)');
   return problems;
 }

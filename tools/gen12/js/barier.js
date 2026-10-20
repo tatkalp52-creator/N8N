@@ -7,7 +7,7 @@ const fresh = $input.first().json || {};
 const cleanState = String(fresh.sys_CleanState || '').trim();
 const cleaning = cleanState === 'идёт';
 const cleanNote = /^ошибка/.test(cleanState) ? '⚠️ Последняя чистка не удалась — собираю на исходных треках.' : '';
-const problems = validateRow(fresh, ctx.items || [], { needApproved: true, needTracks: true });
+const problems = validateRow(fresh, ctx.items || [], { needApproved: true, allowPublished: true, needTracks: true });
 return [{ json: {
   ok: problems.length === 0 && !cleaning,
   chatId: ctx.chatId,
