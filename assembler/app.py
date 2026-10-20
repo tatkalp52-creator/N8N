@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-20-bass"
+ASSEMBLER_VERSION = "2026-10-20-subcut"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -556,11 +556,13 @@ def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration
 # будто через подушку — не как осознанный лоуфай-эффект, а именно как
 # потеря яркости. 19кГц — уже на самом краю слышимого диапазона у
 # взрослого человека, куда генерация обычно и мусорит сильнее всего.
-def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_duration=1.0):
+def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_duration=1.0, bass_cut_hz=30.0):
     content_start, content_end = get_content_bounds(input_path, noise_threshold, min_silence_duration)
     run_ffmpeg([
         "-i", input_path, "-ss", str(content_start), "-to", str(content_end),
-        "-af", "highpass=f=30,lowpass=f=19000",
+        # (20.10) самый глубокий низ: 🎬 BassCutHz (пусто — 30 Гц, как было). Выше 30 — срез круче
+        # (два фильтра подряд): динамик планшета не дребезжит, а контрабас слышен как был.
+        "-af", (f"highpass=f={bass_cut_hz:.0f},highpass=f={bass_cut_hz:.0f}" if bass_cut_hz > 30 else "highpass=f=30") + ",lowpass=f=19000",
         out_path
     ])
     probe = subprocess.run(
@@ -809,7 +811,7 @@ def build_audio_track(
     compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
     denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
-    bass_db=0.0, bass_hz=160.0,
+    bass_db=0.0, bass_hz=160.0, bass_cut_hz=30.0,
     intro_first=False,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
@@ -849,7 +851,7 @@ def build_audio_track(
         # стыке треков: fade вправду применялся, но накладывался поверх уже
         # испорченного стыка от неточного стрим-копи реза. Реальная (не
         # теоретическая) длина — см. комментарий у trim_to_content выше.
-        real_duration = trim_to_content(raw_path, trimmed_path)
+        real_duration = trim_to_content(raw_path, trimmed_path, bass_cut_hz=bass_cut_hz)
         tracks.append(trimmed_path)
         durations.append(real_duration)
 
@@ -3671,6 +3673,10 @@ def assemble():
             bass_hz = float(data.get("bassHz", 160) or 160)
         except (TypeError, ValueError):
             bass_hz = 160.0
+        try:
+            bass_cut_hz = min(120.0, max(30.0, float(str(data.get("bassCutHz") or 30).replace(",", "."))))
+        except (TypeError, ValueError):
+            bass_cut_hz = 30.0
         loudness_report = []
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir, loudness_report=loudness_report,
@@ -3687,7 +3693,7 @@ def assemble():
             limiter_attack_ms=limiter_attack_ms,
             limiter_release_ms=limiter_release_ms,
             denoise_amount=denoise_amount,
-            highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz, bass_db=bass_db, bass_hz=bass_hz,
+            highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz, bass_db=bass_db, bass_hz=bass_hz, bass_cut_hz=bass_cut_hz,
             intro_first=str(data.get("fx_IntroOnce") or "").strip().lower() in ("да", "yes", "1", "true", "+"),
         )
 
