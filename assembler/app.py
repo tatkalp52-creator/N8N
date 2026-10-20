@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-17-fire"
+ASSEMBLER_VERSION = "2026-10-20-bass"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -809,6 +809,7 @@ def build_audio_track(
     compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
     denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
+    bass_db=0.0, bass_hz=160.0,
     intro_first=False,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
@@ -913,9 +914,12 @@ def build_audio_track(
         # НОВОЕ (05.10): мягко приглушить верха (стеклянное пианино Suno) — 🎬 HighsDb / HighsHz.
         # Полка с пологим наклоном: переход широкий, без ступеньки; громкость дальше меряется уже после неё.
         # (08.10) второй срез — только самый верх (шипение выше ~9 кГц): 🎬 HissDb / HissHz.
-        if highs_db or hiss_db:
+        # (20.10) низы: приглушить гудящий контрабас Suno — 🎬 BassDb / BassHz (канал) или fx_Bass (выпуск).
+        if highs_db or hiss_db or bass_db:
             eq_path = os.path.join(faded_dir, f"highs_{i}.wav")
             eq_parts = []
+            if bass_db:
+                eq_parts.append(f"bass=g={bass_db:.2f}:f={bass_hz:.0f}:t=s:w=0.5")
             if highs_db:
                 eq_parts.append(f"treble=g={highs_db:.2f}:f={highs_hz:.0f}:t=s:w=0.35")
             if hiss_db:
@@ -3658,6 +3662,15 @@ def assemble():
             hiss_hz = float(data.get("hissHz", 9500) or 9500)
         except (TypeError, ValueError):
             hiss_hz = 9500.0
+        # (20.10) низы: fx_Bass строки выпуска («6» — на 6 дБ тише) важнее 🎬 BassDb канала
+        try:
+            bass_db = -abs(float(str(data.get("fx_Bass") or data.get("bassDb") or 0).replace(",", ".").strip() or 0))
+        except (TypeError, ValueError):
+            bass_db = 0.0
+        try:
+            bass_hz = float(data.get("bassHz", 160) or 160)
+        except (TypeError, ValueError):
+            bass_hz = 160.0
         loudness_report = []
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir, loudness_report=loudness_report,
@@ -3674,7 +3687,7 @@ def assemble():
             limiter_attack_ms=limiter_attack_ms,
             limiter_release_ms=limiter_release_ms,
             denoise_amount=denoise_amount,
-            highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz,
+            highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz, bass_db=bass_db, bass_hz=bass_hz,
             intro_first=str(data.get("fx_IntroOnce") or "").strip().lower() in ("да", "yes", "1", "true", "+"),
         )
 
