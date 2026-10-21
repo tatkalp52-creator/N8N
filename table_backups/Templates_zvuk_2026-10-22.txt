@@ -1,0 +1,22 @@
+Бэкап звуковых колонок, 22.10.2026 (до упрощения звука и автобаланса). Строка 2 = pengui; строки 3–4 (jazz, bossa) пустые.
+Templates:
+AS 🎬_tmpl_FadeInSeconds = 1.5
+AT 🎬_tmpl_FadeOutSeconds = 3
+BE 🎬_tmpl_MixSeconds = (пусто)
+BF 🎬_tmpl_GapSeconds = 1
+BG 🎬_tmpl_TargetLUFS = -14
+BH 🎬tmpl_CompressorThresholdDb = -20
+BI 🎬tmpl_CompressorRatio = 1
+BJ 🎬tmpl_CompressorAttackSec = 0.02
+BK 🎬tmpl_CompressorReleaseSec = 0.25
+BL 🎬tmpl_LimiterCeiling = 0.89
+BM 🎬tmpl_LimiterAttackMs = 5
+BN 🎬tmpl_LimiterReleaseMs = 50
+BO 🎬tmpl_DenoiseAmount = 2
+BP 🎬tmpl_HighsDb = 16
+BQ 🎬tmpl_HighsHz = 3000
+BR 🎬tmpl_HissDb = 9
+BS 🎬tmpl_HissHz = 9500
+BT 🎬tmpl_BassCutHz = 55
+BU–CB чистка (Kaggle): CleanMode duo; CleanNotebook https://www.kaggle.com/code/td1976/suno-clean; CleanAlarmHours 4; CleanRecheckTimes 3; CleanLayersModel aggressive; CleanDrumsModel normal; CleanDrumsDb -3; CleanLayersRestoreDb 3
+Лист «jazzt a Pengui»: AL fx_IntroOnce (строки 37, 38, 40 = «да»), AM fx_Bass (строка 40 = 9).
