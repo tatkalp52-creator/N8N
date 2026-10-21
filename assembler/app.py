@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-diag"
+ASSEMBLER_VERSION = "2026-10-22-diag2"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -4105,34 +4105,43 @@ def diag_metrics(path):
 
 @app.route("/diag", methods=["GET"])
 def diag_route():
+    # (22.10) несколько треков: n=3,7,12. Шаги: после чистки → «как сейчас» (старые срезы) →
+    # «шестиполосник» (автобаланс по bands=…; без bands — диапазоны по умолчанию, как в таблице 22.10).
     from flask import request as _rq
     q = _rq.args
-    n = max(1, int(q.get("n", 3)))
+    nums = [max(1, int(v)) for v in re.findall(r"\d+", q.get("n", "3"))] or [3]
     num = lambda k, d: float(q.get(k, d))
+    ranges = parse_sound_bands(q.get("bands") or "саб -40..-10; бас -8..-2; низ середины -12..-4; "
+                               "середина -15..-6; верха -60..-12; воздух -60..-18")
     work = tempfile.mkdtemp(prefix="diag_")
-    out = []
+    lim = f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack=5:release=50:level=disabled"
+    out = ["шаг | громкость LUFS | пик дБ | плотность дБ | полосы: саб бас н.сер сер верх возд"]
     try:
-        def nth(url, sub):
+        def listing(url, sub):
             d, order = resolve_audio_tracks_dir(url, os.path.join(work, sub))
-            files = sorted(glob.glob(os.path.join(d, "*.mp3")) + glob.glob(os.path.join(d, "*.wav")),
-                           key=lambda p: natural_sort_key(p, order))
-            return files[min(n, len(files)) - 1] if files else None
-        steps = []
-        if q.get("raw"):
-            steps.append(("1 сырой (Suno)", nth(q["raw"], "raw")))
-        cleaned = nth(q["clean"], "clean") if q.get("clean") else None
-        if cleaned:
-            steps.append(("2 после чистки", cleaned))
-            base = cleaned
-        else:
-            base = steps[0][1] if steps else None
-        if base:
-            # 3: та же цепочка, что в сборке трека: обрезка+срез низа → шумодав → срезы → громкость+лимитер
-            t1 = os.path.join(work, "t1.wav")
+            return sorted(glob.glob(os.path.join(d, "*.mp3")) + glob.glob(os.path.join(d, "*.wav")),
+                          key=lambda p: natural_sort_key(p, order))
+        files = listing(q["clean"], "clean") if q.get("clean") else (listing(q["raw"], "raw") if q.get("raw") else [])
+
+        def line(name, path):
+            r = diag_metrics(path)
+            if not r:
+                return f"{name} | слишком короткий"
+            b = " ".join(f"{v:.0f}" for v in (r["bands"] or []))
+            return f"{name} | {r['lufs']:.1f} | {r['tp']:.1f} | {r['crest']:.1f} | {b}"
+
+        for n in nums:
+            if n > len(files):
+                out.append(f"\nТрек №{n}: нет такого (всего {len(files)})"); continue
+            base = files[n - 1]
+            out.append(f"\nТрек №{n}: {os.path.basename(base)}")
+            out.append(line("после чистки", base))
+            t1 = os.path.join(work, f"{n}_t1.wav")
             trim_to_content(base, t1, bass_cut_hz=num("cut", 55))
             src = t1
             if num("denoise", 2):
-                t2 = os.path.join(work, "t2.wav"); run_ffmpeg(["-i", src, "-af", f"afftdn=nr={num('denoise', 2)}", t2]); src = t2
+                t2 = os.path.join(work, f"{n}_t2.wav"); run_ffmpeg(["-i", src, "-af", f"afftdn=nr={num('denoise', 2)}", t2]); src = t2
+            # как сейчас: старые срезы
             eq = []
             if num("bass", 0):
                 eq.append(f"bass=g={-abs(num('bass', 0)):.2f}:f=160:t=s:w=0.5")
@@ -4140,22 +4149,18 @@ def diag_route():
                 eq.append(f"treble=g={-abs(num('highs', 16)):.2f}:f={num('highshz', 3000):.0f}:t=s:w=0.35")
             if num("hiss", 9):
                 eq.append(f"treble=g={-abs(num('hiss', 9)):.2f}:f=9500:t=s:w=0.3")
+            old = src
             if eq:
-                t3 = os.path.join(work, "t3.wav"); run_ffmpeg(["-i", src, "-af", ",".join(eq), t3]); src = t3
-            lim = f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack=5:release=50:level=disabled"
-            t4 = os.path.join(work, "t4.wav")
-            run_ffmpeg(["-i", src, "-af", f"{gain_to_target(src, num('lufs', -14))},{lim}", t4])
-            steps.append(("3 после сборщика", t4))
-        out.append(f"Трек №{n}: " + (os.path.basename(steps[0][1]) if steps and steps[0][1] else "?"))
-        out.append("шаг | громкость LUFS | пик дБ | плотность дБ | перегруз/мин | щелчки/мин | полосы: саб бас н.сер сер верх возд")
-        for name, path in steps:
-            if not path:
-                out.append(f"{name} | трек не найден"); continue
-            r = diag_metrics(path)
-            if not r:
-                out.append(f"{name} | слишком короткий"); continue
-            b = " ".join(f"{v:.0f}" for v in (r["bands"] or []))
-            out.append(f"{name} | {r['lufs']:.1f} | {r['tp']:.1f} | {r['crest']:.1f} | {r['clip']:.1f} | {r['clicks']:.1f} | {b}")
+                old = os.path.join(work, f"{n}_old_eq.wav"); run_ffmpeg(["-i", src, "-af", ",".join(eq), old])
+            old_f = os.path.join(work, f"{n}_old.wav")
+            run_ffmpeg(["-i", old, "-af", f"{gain_to_target(old, num('lufs', -14))},{lim}", old_f])
+            out.append(line("как сейчас", old_f))
+            # шестиполосник
+            bal, _, _, gains = balance_sound_bands(src, os.path.join(work, f"{n}_bands.wav"), ranges)
+            new_f = os.path.join(work, f"{n}_new.wav")
+            run_ffmpeg(["-i", bal, "-af", f"{gain_to_target(bal, num('lufs', -14))},{lim}", new_f])
+            out.append(line("шестиполосник", new_f))
+            out.append("   поправки: " + ", ".join(f"{SOUND_BANDS[k][0]} {g:+.1f}" for k, g in enumerate(gains) if abs(g) >= 0.05) if gains else "   поправки: не нужны")
         return "\n".join(out) + "\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
     except Exception as e:
         return f"не получилось: {e}\n", 500, {"Content-Type": "text/plain; charset=utf-8"}
