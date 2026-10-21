@@ -39,6 +39,14 @@ if (plan.mode === 'say') {
     action = 'reset';
     message = `начинаем заново — ${rs.names.join(', ')}. Старые черновики стёрты${rs.picture ? '; варианты картинок сохранены, согласование картинки снято' : ''}.`;
   }
+} else if (plan.mode === 'direct') {
+  const n = plan.directN;
+  state.items[n] = { ...(state.items[n] || {}), text: plan.directText };
+  state.agreed[n] = true;
+  changed = [n];
+  action = 'text_block';
+  const it = items.find(x => x.n === n);
+  message = `пункт ${n}${it ? ' «' + it.name + '»' : ''} записан ровно как вы прислали, согласовано:\n${plan.directText || '— пусто'}`;
 } else if (plan.mode === 'done') {
   action = 'done';
 } else if (plan.mode === 'draw' || plan.mode === 'edit') {
@@ -82,7 +90,7 @@ if (plan.mode === 'say') {
 
 // ── Пункт с превью автор сначала видит глазами: в тот ход, когда его строки записаны или
 // изменены, он не согласуется (даже если модель так решила). «ок» — следующим сообщением, после превью.
-if (stage && stage.approve) {
+if (stage && stage.approve && plan.mode !== 'direct') {
   for (const it of items) {
     if (!it.preview || !state.agreed[it.n]) continue;
     const now = ((state.items[it.n] || {}).text || '').trim();
@@ -163,7 +171,7 @@ text += `\n\nID: ${ctx.projectId}`;
 // Превью: изменился пункт, которому в листе «Пункты» положено превью, — сборщик нарисует картинку.
 let previewBody = null;
 const pvItem = items.find(it => it.preview && (changed.includes(it.n) || proposed.includes(it.n)) && (state.items[it.n] || {}).text);
-if (pvItem && approvedBefore && /оживл/.test(pvItem.preview)) {
+if (pvItem && approvedBefore && /оживл/.test(pvItem.preview) && plan.mode !== 'direct') {   // свои строки она уже видела на страничке
   const fx = {};
   for (const key of Object.keys(ctx.tmpl || {})) {        // вид эффектов — колонки 🎬 (как у сборки)
     if (!key.includes('🎬')) continue;

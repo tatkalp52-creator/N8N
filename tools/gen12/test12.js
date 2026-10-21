@@ -320,6 +320,27 @@ async function turn(stages, row, inc, response, subResponse) {
       assert.equal(r3.isNew, false);
     }
     console.log('18 сломанный разговор — повтор в новом OK');
+    // (22.10) готовый текст пункта от автора — пишет код, модель не зовём, превью нет, согласовано
+    {
+      const ctxM = { ...ctxA, kind: 'message', text: 'Пункт 9, добавь к тому, что уже есть (остальное не трогай):\nобложка Б: кадр 1 2 — 51 52, оверлей справа',
+        row: { ...ctxA.row, fx_Effects: 'пар: 28, 50\nобложка Б: кадр 0 0 — 50 50, оверлей слева' } };
+      const nd = { 'Контекст проекта': ctxM };
+      nd['Кто отвечает'] = (await run('Кто отвечает', { nodes: nd }))[0];
+      assert.equal(nd['Кто отвечает'].mode, 'direct', 'модель не нужна');
+      assert.equal(nd['Кто отвечает'].directText, 'пар: 28, 50\nобложка Б: кадр 1 2 — 51 52, оверлей справа');
+      const it = (await run('Итог хода: черновик', { nodes: nd }))[0];
+      const stD = JSON.parse(it.editorState);
+      assert.equal(stD.items[9].text, 'пар: 28, 50\nобложка Б: кадр 1 2 — 51 52, оверлей справа');
+      assert.equal(stD.agreed[9], true, 'её строки — сразу согласовано');
+      assert.equal(it.previewBody, null, 'превью не нужно');
+      assert.equal(it.agreedFields.fx_Effects, 'пар: 28, 50\nобложка Б: кадр 1 2 — 51 52, оверлей справа', 'в колонку выпуска');
+      const ex = { 'Контекст проекта': { ...ctxM, text: 'Пункт 9, запиши ровно так, без изменений:\nпузыри: 1, 2, 3' } };
+      ex['Кто отвечает'] = (await run('Кто отвечает', { nodes: ex }))[0];
+      assert.equal(ex['Кто отвечает'].mode, 'direct'); assert.equal(ex['Кто отвечает'].directText, 'пузыри: 1, 2, 3');
+      const ch = { 'Контекст проекта': { ...ctxM, text: 'сделай пар погуще' } };
+      assert.equal((await run('Кто отвечает', { nodes: ch }))[0].mode, 'model', 'обычная просьба — по-прежнему этапу');
+    }
+    console.log('20 готовый пункт — без модели OK');
     // лупа: точки уточняются по увеличенным кусочкам, меняются только числа этих точек
     {
       const ln = { ...n, 'Разбираем ответ этапа': (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'свеча: 62, 49\nдождь: 56, 44, 71, 60\nлистья: 46, 14 → 47, 88; раз в 2 мин' }], message: 'Вот.' })] }))[0] };
@@ -444,16 +465,14 @@ async function turn(stages, row, inc, response, subResponse) {
     const ROW = { ...APPROVED, sys_EditorState: JSON.stringify({ v: 2, items: { 9: { text: 'свеча: 61, 41.9' } }, agreed: { 9: false }, stages: {} }) };
     const t = await turn(ANIM2, ROW, { text: 'Пункт 9, запиши ровно так, без изменений:\nсвеча: 58, 83; раскачка 12', __items: IT9 },
       call('propose_items', { items: [{ n: 9, text: 'свеча: 58, 83; раскачка 12' }], agreed: [9], message: 'Записал.' }));
-    assert.equal(JSON.parse(t.r.editorState).agreed[9], false, 'новые строки — не согласованы, пока автор не увидела превью');
-    assert.ok(t.r.previewBody && t.r.previewBody.fx_Effects === 'свеча: 58, 83; раскачка 12', 'превью приходит');
-    assert.equal(t.r.transition, 'none', 'Писатель не начинается');
-    const ROW2 = { ...APPROVED, sys_EditorState: t.r.editorState };
-    const t2 = await turn(ANIM2, ROW2, { text: 'ок', __items: IT9 }, call('propose_items', { items: [{ n: 9, text: 'свеча: 58, 83; раскачка 12' }], agreed: [9], message: 'Отлично.' }));
-    assert.equal(JSON.parse(t2.r.editorState).agreed[9], true, '«ок» после превью — согласовано');
-    assert.equal(t2.r.agreedFields.fx_Effects, 'свеча: 58, 83; раскачка 12', 'и сразу в таблице');
-    assert.notEqual(t2.r.transition, 'none', 'дальше — следующий этап');
+    // (22.10, её решение) строки со странички она уже видела в движении — пишет код, без модели и превью
+    assert.equal(t.plan.mode, 'direct');
+    assert.equal(JSON.parse(t.r.editorState).agreed[9], true, 'её строки — согласовано сразу');
+    assert.equal(t.r.previewBody, null, 'превью не нужно');
+    assert.equal(t.r.agreedFields.fx_Effects, 'свеча: 58, 83; раскачка 12', 'и сразу в таблице');
+    assert.notEqual(t.r.transition, 'none', 'дальше — следующий этап');
   }
-  console.log('9g разметка ≠ согласование, «ок» после превью OK');
+  console.log('9g строки со странички — записаны без модели OK');
 
   // ── 9f. Слово «пересобери» реплаем на выпуск = сборка без новой чистки ──
   {

@@ -432,6 +432,18 @@ function itCurrentText(row, item, state) {
   return String(itValue(state, item.n).text || '').trim();
 }
 function itLineKey(l) { const i = l.indexOf(':'); return (i < 0 ? l : l.slice(0, i)).trim().toLowerCase().replace(/\s+/g, ' '); }
+// «Пункт N, запиши ровно так: …» — текст пункта целиком, как прислала автор
+function itExactCommand(text, items) {
+  const m = String(text || '').match(/^\s*пункт\s*(\d+)(?!\d)[^\n]*?(?<![а-яё])запиш[^\n:]*:?([^\n]*)\n?([\s\S]*)$/iu);
+  if (!m) return null;
+  const item = items.find(it => it.n === Number(m[1]));
+  const lines = [m[2], m[3]].join('\n').split('\n').map(l => l.trim()).filter(Boolean);
+  return item && lines.length ? { n: item.n, text: lines.join('\n') } : null;
+}
+// Готовый текст пункта от автора (запиши / добавь / убери) — записывает код, без модели
+function itDirectCommand(text, items, row, state) {
+  return itExactCommand(text, items) || itMergeCommand(text, items, row, state);
+}
 function itMergeCommand(text, items, row, state) {
   const m = String(text || '').match(/^\s*пункт\s*(\d+)(?!\d)[^\n]*?(?<![а-яё])(добав|убер|удал)[^\n:]*:?([^\n]*)\n?([\s\S]*)$/iu);
   if (!m) return null;

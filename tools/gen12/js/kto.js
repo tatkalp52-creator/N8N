@@ -58,9 +58,10 @@ if (ctx.setupProblem) {
   silent = stage.talks !== 'author' && !addressed;
 }
 
-// «Пункт N, добавь / убери» — код собирает пункт сам, этапу уходит готовый текст «запиши ровно так»
-const merged = mode === 'model' && !isStart ? itMergeCommand(userText, items, row, state) : null;
-if (merged) userText = `Пункт ${merged.n}, запиши ровно так, без изменений:\n${merged.text || '-'}`;
+// (22.10) «Пункт N, запиши ровно так / добавь / убери» — готовый текст автора: пишет код, модель не нужна
+// (не тратит деньги и не ломается). Согласовано сразу — это её собственные строки.
+const direct = mode === 'model' && !isStart && !photo ? itDirectCommand(userText, items, row, state) : null;
+if (direct) { mode = 'direct'; silent = false; }
 
 const editVariant = (() => {
   const e = String(ctx.text || '').match(/правк[аиу]\s*(?:вариант[а]?|№)?\s*(\d+)/iu);
@@ -83,6 +84,8 @@ return [{
     silent,
     sayText,
     editVariant,
+    directN: direct ? direct.n : null,
+    directText: direct ? direct.text : '',
     fromAuthor: !isStart,
     // фото этапу, чей пункт показывается превью «оживление», — это разметка: её читает сборщик
     needMarks: mode === 'model' && !!photo && !!approvedUrl && !!stage &&
