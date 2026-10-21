@@ -151,8 +151,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 
   <section class="card" aria-label="Текст для бота">
     <details id="havebox">
-      <summary>Добавить к тому, что уже есть в пункте 9</summary>
-      <p class="note">Вставь сюда строки, которые уже стоят в пункте 9 (из таблицы или из прошлого сообщения боту). Текст для бота выйдет целиком: старые строки и новые отметки вместе.</p>
+      <summary>Переписать пункт 9 целиком (обычно не нужно)</summary>
+      <p class="note">Обычно оставь пустым: бот сам допишет новые отметки к тому, что уже есть в пункте 9, а новая обложка Б или В заменит прежнюю. Убрать эффект — напиши боту «Пункт 9, убери: пар». Сюда вставляй строки, только если хочешь переписать пункт 9 целиком: тогда текст выйдет со всеми строками сразу.</p>
       <textarea id="have" rows="5" style="width:100%;font:inherit;font-size:14px" placeholder="пар: 66.9, 56.2; …"></textarea>
     </details>
     <div class="label">Текст для бота</div>
@@ -649,6 +649,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (marks.some(function (m) { return m.eff === 'cover'; })) old = old.filter(function (l) { return !/^обложк/i.test(l); });
     var lines = old.concat(fresh.filter(function (l) { return old.indexOf(l) < 0; }));
     if (!lines.length) return '';
+    // (22.10) поле пустое — бот сам допишет новое к тому, что уже лежит в пункте 9 (обложка Б/В заменит прежнюю)
+    if (!old.length) return 'Пункт 9, добавь к тому, что уже есть (остальное не трогай):\n' + lines.join('\n');
     return 'Пункт 9, запиши ровно так, без изменений:\n' + lines.join('\n');
   }
   if ($('have')) $('have').addEventListener('input', function () { renderOut(); });

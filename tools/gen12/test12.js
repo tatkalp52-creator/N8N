@@ -632,5 +632,22 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('17 повторное нажатие кнопки OK');
 
+  // ── 19. «Пункт 9, добавь / убери» (22.10) — к тому, что уже лежит в пункте, без переписывания ──
+  {
+    const lib = new Function(require('fs').readFileSync(require('path').join(__dirname, 'js', 'lib12.js'), 'utf8') + '; return { itMergeCommand };')();
+    const items = [{ n: 9, cols: 'fx_Effects' }];
+    const row = { fx_Effects: 'пар: 28, 50; густота 5\nпузыри: 74, 17, 14\nобложка Б: кадр 1 2 — 51 52, оверлей слева' };
+    const st = { items: {} };
+    const r1 = lib.itMergeCommand('Пункт 9, добавь к тому, что уже есть (остальное не трогай):\nобложка Б: кадр 3 4 — 53 54, оверлей справа\nобложка В: кадр 0 0 — 60 60, оверлей слева\nпар: 60, 40\nпузыри: 74, 17, 14', items, row, st);
+    assert.equal(r1.text, 'пар: 28, 50; густота 5\nпузыри: 74, 17, 14\nобложка Б: кадр 3 4 — 53 54, оверлей справа\nобложка В: кадр 0 0 — 60 60, оверлей слева\nпар: 60, 40',
+      'обложка Б заменилась, В и второй пар добавились, повтор пузырей не задвоился');
+    const r2 = lib.itMergeCommand('Пункт 9, убери: пар', items, row, st);
+    assert.equal(r2.text, 'пузыри: 74, 17, 14\nобложка Б: кадр 1 2 — 51 52, оверлей слева');
+    assert.equal(lib.itMergeCommand('Пункт 9, запиши ровно так, без изменений:\nпар: 1, 2', items, row, st), null, 'полная запись — как раньше');
+    const r3 = lib.itMergeCommand('пункт 9 добавь\nморгание: 86, 13', items, {}, { items: { 9: { text: 'пар: 1, 2' } } });
+    assert.equal(r3.text, 'пар: 1, 2\nморгание: 86, 13', 'пусто в таблице — берём из состояния');
+  }
+  console.log('19 пункт: добавь / убери OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

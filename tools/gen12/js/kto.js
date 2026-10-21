@@ -58,6 +58,10 @@ if (ctx.setupProblem) {
   silent = stage.talks !== 'author' && !addressed;
 }
 
+// «Пункт N, добавь / убери» — код собирает пункт сам, этапу уходит готовый текст «запиши ровно так»
+const merged = mode === 'model' && !isStart ? itMergeCommand(userText, items, row, state) : null;
+if (merged) userText = `Пункт ${merged.n}, запиши ровно так, без изменений:\n${merged.text || '-'}`;
+
 const editVariant = (() => {
   const e = String(ctx.text || '').match(/правк[аиу]\s*(?:вариант[а]?|№)?\s*(\d+)/iu);
   return e ? Number(e[1]) : (ctx.replyVariant || null);

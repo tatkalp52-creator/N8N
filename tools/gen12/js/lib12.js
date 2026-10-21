@@ -418,6 +418,41 @@ function itFields(items, state) {
   return out;
 }
 
+// (22.10) «Пункт N, добавь: …» / «Пункт N, убери: …» — автор не переписывает пункт целиком:
+// код берёт то, что уже лежит в пункте (таблица, иначе состояние), и меняет построчно.
+// Строка с именем («обложка Б: …», «свеча 2: …» — ключ из слова и короткой метки) заменяет строку
+// с тем же ключом; остальные добавляются (два пара, два глаза — можно). «убери: пар» — убрать строки с ключом.
+function itCurrentText(row, item, state) {
+  const cols = String(item.cols || '');
+  if (cols && !cols.includes('|')) {
+    const c = cols.split(',').map(x => x.trim()).filter(Boolean)[0];
+    const v = c ? String(row[c] == null ? '' : row[c]).trim() : '';
+    if (v) return v;
+  }
+  return String(itValue(state, item.n).text || '').trim();
+}
+function itLineKey(l) { const i = l.indexOf(':'); return (i < 0 ? l : l.slice(0, i)).trim().toLowerCase().replace(/\s+/g, ' '); }
+function itMergeCommand(text, items, row, state) {
+  const m = String(text || '').match(/^\s*пункт\s*(\d+)(?!\d)[^\n]*?(?<![а-яё])(добав|убер|удал)[^\n:]*:?([^\n]*)\n?([\s\S]*)$/iu);
+  if (!m) return null;
+  const item = items.find(it => it.n === Number(m[1]));
+  if (!item) return null;
+  const body = [m[3], m[4]].join('\n').split('\n').map(l => l.trim()).filter(Boolean);
+  let lines = itCurrentText(row, item, state).split('\n').map(l => l.trim()).filter(l => l && l !== '-');
+  if (/^добав/i.test(m[2])) {
+    for (const l of body) {
+      if (lines.includes(l)) continue;
+      const k = itLineKey(l);
+      if (/^\S+ \S{1,3}$/.test(k) && lines.some(o => itLineKey(o) === k)) lines = lines.map(o => itLineKey(o) === k ? l : o);
+      else lines.push(l);
+    }
+  } else {
+    const keys = body.map(itLineKey);
+    lines = lines.filter(o => !keys.includes(itLineKey(o)) && !body.includes(o));
+  }
+  return { n: item.n, text: lines.join('\n') };
+}
+
 // Стена перед сборщиком: проверяем то, что РЕАЛЬНО лежит в таблице.
 // Обязательны колонки пунктов, которые нельзя оставить пустыми.
 function validateRow(row, items, opts) {
