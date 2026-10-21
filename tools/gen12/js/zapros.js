@@ -17,7 +17,12 @@ const brief = String(row.ai_UserBrief || '').trim();
 // Разговор этапа: свой у каждого этапа (чистая голова). Молчаливый этап — без разговора.
 let conversationId = '';
 let isNew = false;
-if (!plan.silent) {
+// (22.10) разговор этапа сломался (OpenAI ответил «Bad request») — второй раз этот же код строит запрос
+// в новый разговор: всё, что этап знает о выпуске, — в карточке, картинки показываются заново
+let freshId = '';
+try { freshId = String($('OpenAI: новый разговор').first().json.id || ''); } catch (e) {}
+if (!plan.silent && freshId) { conversationId = freshId; isNew = true; }
+else if (!plan.silent) {
   conversationId = String(st.conv || '').trim();
   if (!conversationId) {
     try { conversationId = $('OpenAI: создаём разговор').first().json.id; isNew = true; } catch (e) {}
@@ -35,7 +40,7 @@ const kb = kbForStage(ctx.tmpl, stage.icon, [plan.userText, brief].join(' '));
 let variants = [];
 try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }
 if (!Array.isArray(variants)) variants = [];
-const seen = new Set(plan.silent ? [] : st.seen);
+const seen = new Set(plan.silent || freshId ? [] : st.seen);
 const images = [];
 // key — что помнить в состоянии (картинку с сеткой помним по метке, а не по её огромным данным)
 const addImage = (url, label, key) => { const k = key || url; if (url && !seen.has(k)) { images.push({ url, label }); seen.add(k); } };
@@ -189,4 +194,4 @@ const requestBody = {
 if (conversationId) requestBody.conversation = conversationId;
 if (['low', 'medium', 'high'].includes(stage.effort)) requestBody.reasoning = { effort: stage.effort };
 
-return [{ json: { requestBody, conversationId, seen: Array.from(seen), stageIcon: stage.icon } }];
+return [{ json: { requestBody, conversationId, isNew, seen: Array.from(seen), stageIcon: stage.icon } }];

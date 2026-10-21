@@ -1,6 +1,8 @@
 // Разбираем ответ этапа: текст и (не больше одного) вызов инструмента.
 const response = $input.first().json || {};
-const prep = $('Готовим запрос этапу').first().json;
+let prep = $('Готовим запрос этапу').first().json;
+// (22.10) был повтор в новом разговоре — состояние берём из него
+try { const p2 = $('Готовим запрос заново').first().json; if (p2 && p2.requestBody) prep = p2; } catch (e) {}
 const ctx = $('Контекст проекта').first().json;
 const plan = $('Кто отвечает').first().json;
 const row = ctx.row || {};
@@ -20,7 +22,9 @@ if (callItem) {
 }
 let message = (args.message || plainText || '').trim();
 if (response.error || (!callItem && !plainText)) {
-  message = `⚠️ ${stage.name} не ответил${response.error ? ': ' + (response.error.message || response.error) : ''}. Напишите ещё раз.`;
+  // n8n пишет общее «Bad request», настоящая причина OpenAI — в description
+  const er = response.error, why = er ? [er.message || (typeof er === 'string' ? er : ''), er.description].filter(Boolean).join(' — ') : '';
+  message = `⚠️ ${stage.name} не ответил${why ? ': ' + String(why).slice(0, 400) : ''}. Напишите ещё раз.`;
 }
 
 const state = stParseState(row.sys_EditorState);

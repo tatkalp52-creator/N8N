@@ -291,6 +291,27 @@ async function turn(stages, row, inc, response, subResponse) {
       'аниматор видит каталог эффектов со столбцом своего канала');
     n['Готовим запрос этапу'] = req;
     n['Разбираем ответ этапа'] = (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'Вот.' })] }))[0];
+    // (22.10) разговор этапа сломался: тот же код строит запрос в новый разговор, картинка с сеткой — заново
+    {
+      const nr = { ...n, 'Контекст проекта': { ...ctxA, row: { ...ctxA.row, sys_EditorState: n['Разбираем ответ этапа'].editorState } } };
+      delete nr['OpenAI: создаём разговор']; delete nr['Готовим запрос этапу']; delete nr['Разбираем ответ этапа'];
+      const r1 = (await run('Готовим запрос этапу', { nodes: nr }))[0];
+      assert.equal(r1.conversationId, 'cA'); assert.equal(r1.isNew, false);
+      const u1 = r1.requestBody.input.find(i => i.role === 'user');
+      assert.ok(!Array.isArray(u1.content) || !u1.content.some(c => c.type === 'input_image'), 'старый разговор картинку уже видел');
+      nr['Готовим запрос этапу'] = r1; nr['OpenAI: новый разговор'] = { id: 'cB' };
+      const r2 = (await run('Готовим запрос заново', { nodes: nr }))[0];
+      assert.equal(r2.requestBody.conversation, 'cB'); assert.equal(r2.isNew, true);
+      assert.ok(r2.requestBody.input.find(i => i.role === 'user').content.some(c => c.type === 'input_image' && c.image_url === 'data:image/jpeg;base64,GRID'), 'новый разговор видит картинку');
+      nr['Готовим запрос заново'] = r2;
+      const pr = (await run('Разбираем ответ этапа', { nodes: nr, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'Вот.' })] }))[0];
+      const sts = JSON.parse(pr.editorState).stages;
+      assert.ok(Object.values(sts).some(x => x.conv === 'cB'), 'в состоянии — новый разговор');
+      delete nr['Готовим запрос заново'];
+      const pe2 = (await run('Разбираем ответ этапа', { nodes: nr, input: [{ error: { message: 'Bad request - please check your parameters', description: 'Invalid image' } }] }))[0];
+      assert.ok(pe2.message.includes('Invalid image'), 'автор видит настоящую причину');
+    }
+    console.log('18 сломанный разговор — повтор в новом OK');
     // лупа: точки уточняются по увеличенным кусочкам, меняются только числа этих точек
     {
       const ln = { ...n, 'Разбираем ответ этапа': (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'свеча: 62, 49\nдождь: 56, 44, 71, 60\nлистья: 46, 14 → 47, 88; раз в 2 мин' }], message: 'Вот.' })] }))[0] };

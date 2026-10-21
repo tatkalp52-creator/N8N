@@ -262,6 +262,16 @@ openai_http('OpenAI: этап', '={{ JSON.stringify($json.requestBody) }}', 'htt
 nodes[-1]['parameters']['options'] = {'timeout': 600000}
 nodes[-1]['onError'] = 'continueRegularOutput'
 code('Разбираем ответ этапа', 'parse.js', [EX + 1980, EY - 180], lib=True)
+# (22.10) разговор этапа сломался («Bad request» на старом разговоре) — один раз молча повторяем в новом разговоре
+if_node('Разговор сломался?', "!!$json.error && !!$('Готовим запрос этапу').first().json.conversationId && !$('Готовим запрос этапу').first().json.isNew"
+        " && !/timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNABORTED/i.test(JSON.stringify($json.error))", [EX + 1870, EY - 20])
+openai_http('OpenAI: новый разговор', "={{ JSON.stringify({ metadata: { project: " + CTX + ".projectId } }) }}",
+            'https://api.openai.com/v1/conversations', [EX + 1870, EY + 140])
+nodes[-1]['onError'] = 'continueRegularOutput'
+code('Готовим запрос заново', 'zapros.js', [EX + 1980, EY + 140], lib=True)
+openai_http('OpenAI: этап заново', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2090, EY + 140])
+nodes[-1]['parameters']['options'] = {'timeout': 600000}
+nodes[-1]['onError'] = 'continueRegularOutput'
 # ── ЛУПА: точки оживления уточняются по увеличенным кусочкам (сборщик режет, этап читает) ──
 code('Лупа: план', 'lupa_plan.js', [EX + 1980, EY - 520], lib=True)
 if_node('Нужна лупа?', "$('Лупа: план').first().json.need", [EX + 2090, EY - 680])
@@ -343,7 +353,11 @@ link('Сервер: разметка', 'Нужна сетка?')
 link('Нужна сетка?', 'Сервер: сетка', 0)
 link('Нужна сетка?', 'Готовим запрос этапу', 1)
 link('Сервер: сетка', 'Готовим запрос этапу')
-chain('Готовим запрос этапу', 'OpenAI: этап', 'Разбираем ответ этапа', 'Лупа: план', 'Нужна лупа?')
+chain('Готовим запрос этапу', 'OpenAI: этап', 'Разговор сломался?')
+link('Разговор сломался?', 'OpenAI: новый разговор', 0)
+link('Разговор сломался?', 'Разбираем ответ этапа', 1)
+chain('OpenAI: новый разговор', 'Готовим запрос заново', 'OpenAI: этап заново', 'Разбираем ответ этапа')
+chain('Разбираем ответ этапа', 'Лупа: план', 'Нужна лупа?')
 link('Нужна лупа?', 'Сервер: лупа', 0)
 link('Нужна лупа?', 'Поручение?', 1)
 chain('Сервер: лупа', 'Есть точки?')
