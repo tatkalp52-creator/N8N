@@ -183,7 +183,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
     { id: 'sky', name: 'Звёзды', taps: 99, knobs: [['яркость', 5], ['мерцание', 5], ['скорость', 5]], hint: 'Обведи небо в окне пальцем или стилусом одним движением (или точками по кругу и «Готово») — только небо над домами, без рамы. Обводи мимо домов: всё светлое внутри обводки замерцает как звёзды. Луну сборщик не трогает. Потом в списке «Настроить» — яркость, мерцание, скорость.' },
     { id: 'fire', name: 'Огонь (камин, костёр)', taps: 99, knobs: [['яркость', 5], ['высота', 5], ['скорость', 5], ['отсвет', 5]], hint: 'Обведи нарисованное пламя пальцем или стилусом одним движением (или точками по кругу и «Готово») — только огонь, можно с поленьями. Светлое внутри обводки заколышется вверх, вокруг задышит тёплый свет. Потом в списке «Настроить» — яркость, высота языков, скорость, отсвет; «Обвести отсвет» — пол или стена, куда падает свет.' },
-    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Нарисуй пальцем или стилусом рамку будущей обложки — страничка выровняет её до 16:9 (синяя рамка). Оранжевая зона — где встанет оверлей; кнопка «Оверлей ⇄» у отметки перекидывает его на другую сторону. Можно две обложки — Б и В. Строки обложек уйдут вместе с пунктом 9; сборщик сделает обложки с оверлеем при сборке, и они придут в Телеграм вместе с готовым видео. Поле «ID выпуска» — только для уже собранных выпусков.' },
+    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Коснись картинки — появится рамка обложки 16:9. Тяни рамку пальцем — она едет; тяни за белый уголок — меняется размер. Оранжевая зона — где встанет оверлей; кнопка «Оверлей ⇄» у отметки перекидывает его на другую сторону. Второе касание мимо рамки — вторая обложка. Можно две обложки — Б и В. Строки обложек уйдут вместе с пунктом 9; сборщик сделает обложки с оверлеем при сборке, и они придут в Телеграм вместе с готовым видео. Поле «ID выпуска» — только для уже собранных выпусков.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6], ['ореол', 5]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
@@ -296,6 +296,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   // части рамки (оранжевая зона), сторону переключает кнопка у отметки.
   var COVER_SERVER = /sslip\.io$/.test(location.hostname) ? location.origin : 'http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io';
   function coverFrame(m) {
+    if (m.f) return { x0: r1(m.f.x0), y0: r1(m.f.y0), x1: r1(m.f.x0 + m.f.s), y1: r1(m.f.y0 + m.f.s), side: m.side || (m.f.x0 + m.f.s / 2 < 50 ? 'right' : 'left') };
     var pts = m.pts, xs = pts.map(function (q) { return q.x; }), ys = pts.map(function (q) { return q.y; });
     var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs), by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
     var cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
@@ -376,6 +377,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#2563eb', 'stroke-width': 2, 'stroke-dasharray': '4 3', 'vector-effect': 'non-scaling-stroke' }));
         ov.appendChild(svgEl('rect', { x: half, y: cf.y0, width: 0.45 * sz, height: sz, fill: 'rgba(249,115,22,0.18)', stroke: 'none' }));
         ov.appendChild(svgEl('rect', { x: cf.x0, y: cf.y0, width: sz, height: sz, fill: 'none', stroke: '#2563eb', 'stroke-width': 3, 'vector-effect': 'non-scaling-stroke' }));
+        [[cf.x0, cf.y0], [cf.x1, cf.y0], [cf.x0, cf.y1], [cf.x1, cf.y1]].forEach(function (c) {
+          ov.appendChild(svgEl('rect', { x: c[0] - 1.2, y: c[1] - 2.1, width: 2.4, height: 4.2, fill: '#fff', stroke: '#2563eb', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }));
+        });
       }
       if (m.eff === 'sky') {
         ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'rgba(191,219,254,0.18)', stroke: '#93c5fd', 'stroke-width': 3, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }));
@@ -399,7 +403,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         (m.cuts || []).forEach(function (c) { ov.appendChild(svgEl('polygon', { points: c.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#f59e0b', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' })); });
         if (m.spill && m.spill.length) ov.appendChild(svgEl('polygon', { points: m.spill.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#f59e0b', 'stroke-width': 2, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }));
       }
-      drawDot(p[0].x, p[0].y, n, false);
+      if (p.length) drawDot(p[0].x, p[0].y, n, false);
     });
     if ((outlining || cur.id === 'leaves' || cur.id === 'edge' || cur.id === 'surf' || cur.id === 'occ' || cur.id === 'sky' || cur.id === 'fire' || cur.id === 'cover') && pending.length > 1) {
       ov.appendChild(svgEl('polyline', { points: pending.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: 'var(--mark2)', 'stroke-width': 2, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }));
@@ -740,6 +744,30 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     var st = $('stage');
     if (ev.button === 2 || panMode) { drag = { pan: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop }; ov.setPointerCapture(ev.pointerId); ov.style.cursor = 'grabbing'; ev.preventDefault(); return; }
     if (ev.button !== 0) return;
+    // (22.10) обложка как обрезка фото: касание пустого места — новая рамка 16:9, тянешь рамку — едет,
+    // тянешь за уголок — меняется размер (противоположный угол стоит на месте)
+    if (cur.id === 'cover') {
+      var rc = ov.getBoundingClientRect(), px = (ev.clientX - rc.left) / rc.width * 100, py = (ev.clientY - rc.top) / rc.height * 100;
+      var cm = null, corner = null;
+      marks.filter(function (o) { return o.eff === 'cover'; }).reverse().forEach(function (o) {
+        if (cm) return;
+        var f = coverFrame(o);
+        [[f.x0, f.y0, f.x1, f.y1], [f.x1, f.y0, f.x0, f.y1], [f.x0, f.y1, f.x1, f.y0], [f.x1, f.y1, f.x0, f.y0]].forEach(function (c) {
+          if (!corner && Math.abs(px - c[0]) < 5 && Math.abs(py - c[1]) < 6) { cm = o; corner = { ox: c[2], oy: c[3] }; }
+        });
+        if (!cm && px >= f.x0 && px <= f.x1 && py >= f.y0 && py <= f.y1) cm = o;
+      });
+      if (!cm) {
+        if (marks.filter(function (o) { return o.eff === 'cover'; }).length >= 2) { $('hint').textContent = 'Обложек уже две (Б и В). Тяни рамку или её уголок; лишнюю — «Убрать».'; return; }
+        var s0 = 50;
+        cm = { eff: 'cover', pts: [], kind: '', drawn: true, f: { x0: Math.max(0, Math.min(100 - s0, px - s0 / 2)), y0: Math.max(0, Math.min(100 - s0, py - s0 / 2)), s: s0 } };
+        marks.forEach(function (o) { o.open = false; }); marks.push(cm);
+      }
+      if (!cm.f) { var ff = coverFrame(cm); cm.f = { x0: ff.x0, y0: ff.y0, s: ff.x1 - ff.x0 }; cm.pts = []; }
+      drag = { cover: cm, corner: corner, sx: px, sy: py, f0: { x0: cm.f.x0, y0: cm.f.y0, s: cm.f.s } };
+      suppress = true; ov.setPointerCapture(ev.pointerId); ev.preventDefault(); refresh();
+      return;
+    }
     var h = outlining ? null : hitPoint(ev);      // пока обводишь, точки отметок не хватаются
     // (15.10) край и предмет можно РИСОВАТЬ: ведёшь пальцем или стилусом — линия ложится как нарисована
     if (!h && !outlining && (cur.id === 'edge' || cur.id === 'occ' || cur.id === 'sky' || cur.id === 'fire' || cur.id === 'cover')) {
@@ -778,6 +806,20 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         drag.el.setAttribute('points', drag.pts.map(function (p) { return p.x + ',' + p.y; }).join(' '));
       }
       return;
+    }
+    if (drag.cover) {
+      var rv = ov.getBoundingClientRect(), qx = (ev.clientX - rv.left) / rv.width * 100, qy = (ev.clientY - rv.top) / rv.height * 100, f = drag.cover.f;
+      if (drag.corner) {
+        var ox = drag.corner.ox, oy = drag.corner.oy;
+        var sz = Math.max(15, Math.min(100, Math.max(Math.abs(qx - ox), Math.abs(qy - oy))));
+        var nx = qx < ox ? ox - sz : ox, ny = qy < oy ? oy - sz : oy;
+        if (nx < 0 || ny < 0 || nx + sz > 100 || ny + sz > 100) return;
+        f.x0 = nx; f.y0 = ny; f.s = sz;
+      } else {
+        f.x0 = Math.max(0, Math.min(100 - f.s, drag.f0.x0 + qx - drag.sx));
+        f.y0 = Math.max(0, Math.min(100 - f.s, drag.f0.y0 + qy - drag.sy));
+      }
+      refresh(); return;
     }
     if (drag.pan) { var st = $('stage'); st.scrollLeft = drag.sl - (ev.clientX - drag.sx); st.scrollTop = drag.stp - (ev.clientY - drag.sy); return; }
     var r = ov.getBoundingClientRect();
