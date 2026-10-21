@@ -928,6 +928,14 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     '<text x="40" y="60" font-family="sans-serif" font-size="30" fill="#4b3d2c">Пример: это не картинка выпуска</text></svg>');
   $('sample').onclick = function () { setImage(SAMPLE); };
 
+  function copyText(t) {   // (22.10) на http-адресе сервера clipboard недоступен — старый способ через скрытое поле
+    try {
+      var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
+      var ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+    } catch (e) { return false; }
+  }
   $('copy').onclick = function () {
     var t = outText(); if (!t) { $('copied').textContent = 'Нечего копировать'; return; }
     function done() { $('copied').textContent = 'Скопировано'; setTimeout(function () { $('copied').textContent = ''; }, 2500); }
@@ -935,7 +943,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var range = document.createRange(); range.selectNodeContents($('out')); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
       $('copied').textContent = 'Текст выделен, нажми «Копировать» в меню';
     }
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
+    if (copyText(t)) done();
+    else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
   };
 
   function setZoom(z) {

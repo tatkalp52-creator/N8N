@@ -481,12 +481,21 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   $('clrL').onclick = function () { $('lyr').value = ''; st.lyr = ''; calcDur(); save(); };
 
   // ── копирование ──
-  Array.prototype.forEach.call(document.querySelectorAll('[data-copy]'), function (b) {
+  function copyText(t) {   // (22.10) на http-адресе сервера clipboard недоступен — старый способ через скрытое поле
+    try {
+      var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
+      var ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+    } catch (e) { return false; }
+  }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-copy]'), function (b) {
     b.onclick = function () {
       var id = b.getAttribute('data-copy'), t = id === 'lyr' ? $('lyr').value : (id === 'outS' ? styleText() : st.x.join(', '));
       if (!t) { toast('Пусто'); return; }
       function fb() { if (id === 'lyr') { $('lyr').select(); } else { var r = document.createRange(); r.selectNodeContents($(id)); var s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast('Выделено — скопируй из меню'); }
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Скопировано'); }, fb); else fb();
+      if (copyText(t)) toast('Скопировано');
+      else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Скопировано'); }, fb); else fb();
     };
   });
 
