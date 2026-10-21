@@ -124,7 +124,9 @@ def openai_http(name, body_expr, url, pos):
                                'nodeCredentialType': 'openAiApi', 'sendBody': True, 'specifyBody': 'json',
                                'jsonBody': body_expr, 'options': {}},
                 'name': name, 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': pos,
-                'credentials': copy.deepcopy(CRED_OPENAI)})
+                'credentials': copy.deepcopy(CRED_OPENAI),
+                # (22.10) тихие повторы: OpenAI иногда отвечает «занят»/«слишком много запросов» — не пугать автора
+                'retryOnFail': True, 'maxTries': 3, 'waitBetweenTries': 5000})
 
 def sheets_automap(name, sheet_expr, pos, match):
     """Запись с колонками из входных данных: имена колонок решает таблица, а не код."""
@@ -761,6 +763,11 @@ for n_ in nodes:
         n_['retryOnFail'] = True
         n_['maxTries'] = 3
         n_['waitBetweenTries'] = 25000
+    # (22.10) тихие повторы и для таблицы: Google иногда отвечает «слишком много запросов» (квота в минуту)
+    if n_.get('type') == 'n8n-nodes-base.googleSheets' and not n_.get('retryOnFail'):
+        n_['retryOnFail'] = True
+        n_['maxTries'] = 3
+        n_['waitBetweenTries'] = 5000
 
 wf = {
     'name': '12_Этапы',

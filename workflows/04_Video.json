@@ -50,7 +50,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -88,7 +91,10 @@
       "position": [
         5344,
         2896
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -128,7 +134,10 @@
       "position": [
         5344,
         3100
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -169,7 +178,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -200,7 +212,10 @@
       "position": [
         6912,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -279,7 +294,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -297,7 +315,10 @@
       "position": [
         4448,
         3040
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -330,7 +351,10 @@
       "position": [
         5344,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -388,7 +412,10 @@
           "id": "HvMLVgMnS8OU4ebj",
           "name": "OpenAi account"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -496,7 +523,10 @@
       },
       "continueOnFail": true,
       "notesInFlow": true,
-      "notes": "continueOnFail: если публикация комментария не удалась, это не должно ронять всю сборку видео — видео уже выложено, это лишь дополнение к нему."
+      "notes": "continueOnFail: если публикация комментария не удалась, это не должно ронять всю сборку видео — видео уже выложено, это лишь дополнение к нему.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -537,7 +567,10 @@
       },
       "continueOnFail": true,
       "notesInFlow": true,
-      "notes": "Спрашиваем у YouTube реальный статус видео — комментарий можно публиковать, только когда видео уже public (не private/запланировано). continueOnFail: если проверка не удалась, просто повторим на следующем цикле."
+      "notes": "Спрашиваем у YouTube реальный статус видео — комментарий можно публиковать, только когда видео уже public (не private/запланировано). continueOnFail: если проверка не удалась, просто повторим на следующем цикле.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -681,7 +714,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -719,7 +755,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -776,7 +815,10 @@
       "position": [
         3552,
         2400
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -807,7 +849,10 @@
       "position": [
         8256,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -845,7 +890,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -866,7 +914,10 @@
         7808,
         2704
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -902,7 +953,10 @@
           "name": "YouTube account 3"
         }
       },
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -953,7 +1007,10 @@
       "position": [
         8480,
         2960
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -991,7 +1048,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1031,7 +1091,10 @@
       "position": [
         4448,
         2800
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "7fe6f975-7ec1-45f7-ade4-183c79b3e6ac",
@@ -1082,7 +1145,10 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Закрепил комментарий под видео: https://youtu.be/' + $('Загружаем на YouTube').first().json.uploadId }) }}",
         "options": {}
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "0782c831-8c8c-4f32-a15a-f5c32a7f30e4",
@@ -1123,7 +1189,10 @@
       },
       "continueOnFail": true,
       "notesInFlow": true,
-      "notes": "continueOnFail: если запрос к API субтитров упадёт (например, не хватит прав) — это не должно ронять остальной прогон, включая параллельную ветку с закреплением комментария."
+      "notes": "continueOnFail: если запрос к API субтитров упадёт (например, не хватит прав) — это не должно ронять остальной прогон, включая параллельную ветку с закреплением комментария.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "0d68f4a3-e8f8-4e8e-9d84-4568372d4525",
@@ -1195,7 +1264,10 @@
       },
       "continueOnFail": true,
       "notesInFlow": true,
-      "notes": "continueOnFail: если удаление не удалось — видео и так уже опубликовано, это не критично, просто оставит субтитры как есть."
+      "notes": "continueOnFail: если удаление не удалось — видео и так уже опубликовано, это не критично, просто оставит субтитры как есть.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "eba3cf1a-5262-41dc-9562-3d1cabf895ad",
@@ -1297,7 +1369,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1358,7 +1433,10 @@
         }
       },
       "alwaysOutputData": true,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1400,7 +1478,10 @@
         }
       },
       "continueOnFail": true,
-      "id": "6399579f-fa93-48a8-833d-ec4ebf23013d"
+      "id": "6399579f-fa93-48a8-833d-ec4ebf23013d",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1471,7 +1552,10 @@
         }
       },
       "continueOnFail": true,
-      "id": "fa563761-7827-4c20-9981-bc40d4b01260"
+      "id": "fa563761-7827-4c20-9981-bc40d4b01260",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1503,7 +1587,10 @@
         2004
       ],
       "continueOnFail": true,
-      "id": "4eff2f97-9dea-4d77-951d-9975d4464bab"
+      "id": "4eff2f97-9dea-4d77-951d-9975d4464bab",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     }
   ],
   "pinData": {},

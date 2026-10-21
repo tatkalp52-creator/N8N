@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-diag2"
+ASSEMBLER_VERSION = "2026-10-22-retry"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -441,7 +441,34 @@ def clean_status(data):
 
 
 
+# (22.10) ТИХИЕ ПОВТОРЫ: Google / Kaggle / любой адрес иногда временно отвечает «слишком много запросов»
+# (429), «сервер занят» (5xx) или рвёт связь. Это не поломка — пробуем ещё раз с паузами
+# (15 с, 45 с, 1,5 мин, 3 мин). Сразу сдаёмся только на настоящей ошибке: нет файла / нет доступа (4xx).
+DOWNLOAD_RETRY_WAITS = (15, 45, 90, 180)
+
+
+def _download_transient(err):
+    code = getattr(getattr(err, "response", None), "status_code", None)
+    if code is not None:
+        return code == 429 or code >= 500
+    text = str(err).lower()
+    if any(w in text for w in ("404", "not found", "403", "forbidden", "permission", "access denied")):
+        return False
+    return True    # обрыв связи, таймаут, сбой gdown без ясной причины
+
+
 def download_file(url, dest_path):
+    for attempt, wait in enumerate(DOWNLOAD_RETRY_WAITS + (None,), start=1):
+        try:
+            return _download_once(url, dest_path)
+        except Exception as err:
+            if wait is None or not _download_transient(err):
+                raise
+            print(f"[скачивание] попытка {attempt} не удалась ({err}); жду {wait} с и пробую снова")
+            time.sleep(wait)
+
+
+def _download_once(url, dest_path):
     if "kaggle.com/code/" in url:
         # «#run=<метка>» дописывает авточистка: брать только архив этого запуска
         tag = (re.search(r"#run=([^&]+)", url) or [None, None])[1]
