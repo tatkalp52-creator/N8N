@@ -343,9 +343,17 @@ async function turn(stages, row, inc, response, subResponse) {
       assert.equal(stD.agreed[9], true, 'её строки — сразу согласовано');
       assert.equal(it.previewBody, null, 'превью не нужно');
       assert.equal(it.agreedFields.fx_Effects, 'пар: 28, 50\nобложка Б: кадр 1 2 — 51 52, оверлей справа', 'в колонку выпуска');
-      const ex = { 'Контекст проекта': { ...ctxM, text: 'Пункт 9, запиши ровно так, без изменений:\nпузыри: 1, 2, 3' } };
+      const ex = { 'Контекст проекта': { ...ctxM, text: 'Пункт 9, запиши ровно так, без изменений:\nпар: 28, 50\nобложка Б: кадр 0 0 — 50 50, оверлей слева\nпузыри: 1, 2, 3' } };
       ex['Кто отвечает'] = (await run('Кто отвечает', { nodes: ex }))[0];
-      assert.equal(ex['Кто отвечает'].mode, 'direct'); assert.equal(ex['Кто отвечает'].directText, 'пузыри: 1, 2, 3');
+      assert.equal(ex['Кто отвечает'].mode, 'direct'); assert.equal(ex['Кто отвечает'].directText, 'пар: 28, 50\nобложка Б: кадр 0 0 — 50 50, оверлей слева\nпузыри: 1, 2, 3', 'всё старое на месте — пишем');
+      // «запиши ровно так» без старых строк — не стирает молча, спрашивает
+      const wipe = { 'Контекст проекта': { ...ctxM, text: 'Пункт 9, запиши ровно так, без изменений:\nобложка Б: кадр 3 3 — 50 50, оверлей справа' } };
+      const pw = (await run('Кто отвечает', { nodes: wipe }))[0];
+      assert.equal(pw.mode, 'say', 'пар пропал бы — не пишем');
+      assert.ok(pw.sayText.includes('пар: 28, 50') && pw.sayText.includes('добавь'));
+      const force = { 'Контекст проекта': { ...ctxM, text: 'Пункт 9, перепиши целиком:\nобложка Б: кадр 3 3 — 50 50, оверлей справа' } };
+      const pf = (await run('Кто отвечает', { nodes: force }))[0];
+      assert.equal(pf.mode, 'direct'); assert.equal(pf.directText, 'обложка Б: кадр 3 3 — 50 50, оверлей справа');
       const ch = { 'Контекст проекта': { ...ctxM, text: 'сделай пар погуще' } };
       assert.equal((await run('Кто отвечает', { nodes: ch }))[0].mode, 'model', 'обычная просьба — по-прежнему этапу');
     }

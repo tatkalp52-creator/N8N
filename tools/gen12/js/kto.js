@@ -61,7 +61,13 @@ if (ctx.setupProblem) {
 // (22.10) «Пункт N, запиши ровно так / добавь / убери» — готовый текст автора: пишет код, модель не нужна
 // (не тратит деньги и не ломается). Согласовано сразу — это её собственные строки.
 const direct = mode === 'model' && !isStart && !photo ? itDirectCommand(userText, items, row, state) : null;
-if (direct) { mode = 'direct'; silent = false; }
+if (direct && direct.drops && direct.drops.length) {
+  mode = 'say';
+  sayText = `${stage.icon} ${stage.name}: ничего не записала — этот текст убрал бы из пункта ${direct.n} строки:\n`
+    + direct.drops.join('\n')
+    + `\n\nДописать новое к тому, что есть: «Пункт ${direct.n}, добавь: …». Убрать строку: «Пункт ${direct.n}, убери: пар». `
+    + `Переписать пункт целиком, без этих строк: «Пункт ${direct.n}, перепиши целиком: …».`;
+} else if (direct) { mode = 'direct'; silent = false; }
 
 const editVariant = (() => {
   const e = String(ctx.text || '').match(/правк[аиу]\s*(?:вариант[а]?|№)?\s*(\d+)/iu);

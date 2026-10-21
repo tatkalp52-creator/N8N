@@ -433,16 +433,23 @@ function itCurrentText(row, item, state) {
 }
 function itLineKey(l) { const i = l.indexOf(':'); return (i < 0 ? l : l.slice(0, i)).trim().toLowerCase().replace(/\s+/g, ' '); }
 // «Пункт N, запиши ровно так: …» — текст пункта целиком, как прислала автор
-function itExactCommand(text, items) {
-  const m = String(text || '').match(/^\s*пункт\s*(\d+)(?!\d)[^\n]*?(?<![а-яё])запиш[^\n:]*:?([^\n]*)\n?([\s\S]*)$/iu);
+// (22.10) «запиши ровно так» не стирает молча то, что уже было в пункте: если строки пропали бы —
+// drops (ничего не пишем, спрашиваем). «Пункт N, перепиши целиком: …» — переписать, как есть.
+function itExactCommand(text, items, row, state) {
+  const m = String(text || '').match(/^\s*пункт\s*(\d+)(?!\d)[^\n]*?(?<![а-яё])(запиш|перепиш)[^\n:]*:?([^\n]*)\n?([\s\S]*)$/iu);
   if (!m) return null;
   const item = items.find(it => it.n === Number(m[1]));
-  const lines = [m[2], m[3]].join('\n').split('\n').map(l => l.trim()).filter(Boolean);
-  return item && lines.length ? { n: item.n, text: lines.join('\n') } : null;
+  const lines = [m[3], m[4]].join('\n').split('\n').map(l => l.trim()).filter(Boolean);
+  if (!item || !lines.length) return null;
+  const force = /^перепиш/i.test(m[2]) || /целиком/i.test(String(text).split('\n')[0]);
+  const old = row ? itCurrentText(row, item, state || { items: {} }).split('\n').map(l => l.trim()).filter(l => l && l !== '-') : [];
+  const keys = lines.map(itLineKey);
+  const drops = force ? [] : old.filter(o => !lines.includes(o) && !keys.includes(itLineKey(o)));
+  return { n: item.n, text: lines.join('\n'), drops };
 }
 // Готовый текст пункта от автора (запиши / добавь / убери) — записывает код, без модели
 function itDirectCommand(text, items, row, state) {
-  return itExactCommand(text, items) || itMergeCommand(text, items, row, state);
+  return itExactCommand(text, items, row, state) || itMergeCommand(text, items, row, state);
 }
 function itMergeCommand(text, items, row, state) {
   const m = String(text || '').match(/^\s*пункт\s*(\d+)(?!\d)[^\n]*?(?<![а-яё])(добав|убер|удал)[^\n:]*:?([^\n]*)\n?([\s\S]*)$/iu);
