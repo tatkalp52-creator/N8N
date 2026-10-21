@@ -54,7 +54,15 @@ if (functionName === 'propose_items') {
   action = 'text_block';
 } else if (functionName === 'save_note') {
   const kb = kbForStage(ctx.tmpl, stage.icon, '');
-  if (kb.notesKey) note = { key: kb.notesKey, text: String(args.notes || '') };
+  // (22.10) памятка только дописывается: раньше модель присылала «полный текст», а писала одно новое —
+  // и прежние выпуски стирались. Дата и выпуск — чтобы было видно, откуда запись.
+  if (kb.notesKey) {
+    const old = String((ctx.tmpl || {})[kb.notesKey] || '').trim();
+    const add = String(args.notes || '').trim();
+    const d = new Date(), dd = String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0');
+    const text = !add || old.includes(add) ? old : (add.startsWith(old) && old ? add : [old, `${dd} · ${ctx.projectId} — ${add}`].filter(Boolean).join('\n'));
+    note = { key: kb.notesKey, text };
+  }
 } else if (functionName === 'delegate') {
   const sub = sc.subs.find(s => s.name === args.stage);
   if (sub && sub.picture && !sub.items.length) {

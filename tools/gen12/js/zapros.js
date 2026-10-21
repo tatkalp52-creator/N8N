@@ -106,13 +106,13 @@ if (myItems.length) {
 if (kb.notesKey && !plan.silent) {
   tools.push({
     type: 'function', name: 'save_note',
-    description: 'Сохранить твою памятку (колонка таблицы, её видишь только ты и в следующих выпусках).',
+    description: 'Дописать в твою памятку (колонка таблицы, её видишь ты в следующих выпусках). Прежние записи система сохраняет сама.',
     parameters: { type: 'object', properties: {
-      notes: { type: 'string', description: 'ПОЛНЫЙ текст памятки: прежняя + новое' },
+      notes: { type: 'string', description: 'Только НОВОЕ, что стоит помнить: коротко, по делу' },
       message: { type: 'string', description: 'Реплика автору' },
     }, required: ['notes', 'message'] },
   });
-  toolLines.push('- save_note — записать в твою памятку то, что стоит помнить в следующих выпусках (замечания автора, её вкус). Передавай полный текст.');
+  toolLines.push('- save_note — дописать в памятку то, что стоит помнить в следующих выпусках (замечания автора, её вкус). Пиши только новое: прежние записи остаются сами.');
 }
 if (subs.length && !plan.silent) {
   tools.push({

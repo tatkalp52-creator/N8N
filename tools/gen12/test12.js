@@ -180,7 +180,16 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.equal(tn.plan.stageName, 'Писатель');
   assert.equal(tn.r.note.key, '✍️📝_tmpl_WriterNotes');
   const pm = (await run('Памятка', { nodes: { 'Итог хода': tn.r } }))[0];
-  assert.deepEqual(pm, { tmpl_Channel: 'demo', '✍️📝_tmpl_WriterNotes': 'Автор не любит сироп. Стакан у щедрого фермера полный.' });
+  assert.equal(pm['✍️📝_tmpl_WriterNotes'], 'Автор не любит сироп. Стакан у щедрого фермера полный.', 'модель прислала прежнее + новое — так и остаётся');
+  // (22.10) памятка дописывается: прежние записи остаются
+  {
+    const ctxW = { ...tn.ctx, tmpl: { ...tn.ctx.tmpl, '✍️📝_tmpl_WriterNotes': '15.10 · P0 — paws, не hands' } };
+    const nw = { ...tn.nodes, 'Контекст проекта': ctxW };
+    const rw = (await run('Разбираем ответ этапа', { nodes: nw, input: [call('save_note', { notes: 'без крошечных стаканчиков', message: 'Запомнил.' })] }))[0];
+    assert.ok(rw.note.text.startsWith('15.10 · P0 — paws, не hands\n') && rw.note.text.endsWith('— без крошечных стаканчиков'), 'старое + новое');
+    const rw2 = (await run('Разбираем ответ этапа', { nodes: nw, input: [call('save_note', { notes: 'paws, не hands', message: 'Ок.' })] }))[0];
+    assert.equal(rw2.note.text, '15.10 · P0 — paws, не hands', 'повтор не дописывается');
+  }
   console.log('4b памятка — в колонку со значком этапа и 📝 OK');
 
   // ── 5. Технический: видит описание, предлагает свои пункты; «-» для оверлея ──
