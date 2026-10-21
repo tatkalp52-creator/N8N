@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-bands"
+ASSEMBLER_VERSION = "2026-10-22-diag"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -4071,6 +4071,96 @@ def get_bands_report(project_id):
     if not os.path.exists(report_path):
         return "замера нет: выпуск ещё не собирался с колонкой SoundBands\n", 404
     return send_file(report_path, mimetype="text/plain; charset=utf-8")
+
+
+# ── ДИАГНОСТИКА ТРЕСКА (22.10) ──
+# Один трек на трёх шагах: сырой (Suno) → после чистки Kaggle → после ручек сборщика.
+# На каждом шаге — цифры, по которым слышимый треск видно без ушей: щелчки (резкие скачки
+# сигнала), перегруз (сэмплы у самого края), пик, «плотность» (пик/среднее), громкость, 6 полос.
+# GET /diag?raw=<ссылка на сырой архив>&clean=<ссылка kaggle …#run=метка>&n=<номер трека>
+#   &highs=16&highshz=3000&hiss=9&denoise=2&cut=55&bass=0&lufs=-14  (ручки — как в таблице)
+def diag_metrics(path):
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:
+        _sys.path.insert(0, "/app/pylibs")
+    import numpy as np
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", "44100", "-f", "f32le", "-"],
+                         capture_output=True, check=True).stdout
+    x = np.frombuffer(raw, dtype=np.float32).astype(np.float64)
+    if len(x) < 44100:
+        return None
+    minutes = len(x) / 44100 / 60
+    peak = float(np.max(np.abs(x))) or 1e-9
+    rms = float(np.sqrt(np.mean(x ** 2))) or 1e-9
+    near = np.abs(x) >= 0.98 * max(peak, 0.5)          # у самого края
+    runs = int(np.sum(near[2:] & near[1:-1] & near[:-2]))
+    d2 = x[2:] - 2 * x[1:-1] + x[:-2]                  # резкость скачка
+    scale = float(np.median(np.abs(d2))) * 1.4826 or 1e-9
+    clicks = int(np.sum(np.abs(d2) > 30 * scale))
+    m = measure_loudnorm(path, -14) or {}
+    return {"lufs": float(m.get("input_i", "nan")), "tp": float(m.get("input_tp", "nan")),
+            "crest": 20 * math.log10(peak / rms), "clip": runs / minutes, "clicks": clicks / minutes,
+            "bands": measure_sound_bands(path)}
+
+
+@app.route("/diag", methods=["GET"])
+def diag_route():
+    from flask import request as _rq
+    q = _rq.args
+    n = max(1, int(q.get("n", 3)))
+    num = lambda k, d: float(q.get(k, d))
+    work = tempfile.mkdtemp(prefix="diag_")
+    out = []
+    try:
+        def nth(url, sub):
+            d, order = resolve_audio_tracks_dir(url, os.path.join(work, sub))
+            files = sorted(glob.glob(os.path.join(d, "*.mp3")) + glob.glob(os.path.join(d, "*.wav")),
+                           key=lambda p: natural_sort_key(p, order))
+            return files[min(n, len(files)) - 1] if files else None
+        steps = []
+        if q.get("raw"):
+            steps.append(("1 сырой (Suno)", nth(q["raw"], "raw")))
+        cleaned = nth(q["clean"], "clean") if q.get("clean") else None
+        if cleaned:
+            steps.append(("2 после чистки", cleaned))
+            base = cleaned
+        else:
+            base = steps[0][1] if steps else None
+        if base:
+            # 3: та же цепочка, что в сборке трека: обрезка+срез низа → шумодав → срезы → громкость+лимитер
+            t1 = os.path.join(work, "t1.wav")
+            trim_to_content(base, t1, bass_cut_hz=num("cut", 55))
+            src = t1
+            if num("denoise", 2):
+                t2 = os.path.join(work, "t2.wav"); run_ffmpeg(["-i", src, "-af", f"afftdn=nr={num('denoise', 2)}", t2]); src = t2
+            eq = []
+            if num("bass", 0):
+                eq.append(f"bass=g={-abs(num('bass', 0)):.2f}:f=160:t=s:w=0.5")
+            if num("highs", 16):
+                eq.append(f"treble=g={-abs(num('highs', 16)):.2f}:f={num('highshz', 3000):.0f}:t=s:w=0.35")
+            if num("hiss", 9):
+                eq.append(f"treble=g={-abs(num('hiss', 9)):.2f}:f=9500:t=s:w=0.3")
+            if eq:
+                t3 = os.path.join(work, "t3.wav"); run_ffmpeg(["-i", src, "-af", ",".join(eq), t3]); src = t3
+            lim = f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack=5:release=50:level=disabled"
+            t4 = os.path.join(work, "t4.wav")
+            run_ffmpeg(["-i", src, "-af", f"{gain_to_target(src, num('lufs', -14))},{lim}", t4])
+            steps.append(("3 после сборщика", t4))
+        out.append(f"Трек №{n}: " + (os.path.basename(steps[0][1]) if steps and steps[0][1] else "?"))
+        out.append("шаг | громкость LUFS | пик дБ | плотность дБ | перегруз/мин | щелчки/мин | полосы: саб бас н.сер сер верх возд")
+        for name, path in steps:
+            if not path:
+                out.append(f"{name} | трек не найден"); continue
+            r = diag_metrics(path)
+            if not r:
+                out.append(f"{name} | слишком короткий"); continue
+            b = " ".join(f"{v:.0f}" for v in (r["bands"] or []))
+            out.append(f"{name} | {r['lufs']:.1f} | {r['tp']:.1f} | {r['crest']:.1f} | {r['clip']:.1f} | {r['clicks']:.1f} | {b}")
+        return "\n".join(out) + "\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
+    except Exception as e:
+        return f"не получилось: {e}\n", 500, {"Content-Type": "text/plain; charset=utf-8"}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 @app.route("/clean_start", methods=["POST"])
