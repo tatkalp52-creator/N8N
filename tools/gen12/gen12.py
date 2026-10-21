@@ -157,7 +157,7 @@ add({'parameters': {'conditions': {'options': {'caseSensitive': True, 'leftValue
 add({'parameters': {}, 'name': 'Вызов изнутри', 'type': 'n8n-nodes-base.executeWorkflowTrigger', 'typeVersion': 1,
      'position': [X, Y + 200]})
 code('Разбираем входящее', 'razbor.js', [X + 440, Y])
-switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown'], [X + 660, Y])
+switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown', 'dupButton'], [X + 660, Y])
 chain('Telegram Trigger', 'Это владелец бота?', 'Разбираем входящее', 'Что пришло?')
 link('Вызов изнутри', 'Разбираем входящее')
 # Из календаря (страница контент-плана): «Старт» выпуска и ссылка на треки — тем же путём, что из Телеграма
@@ -175,6 +175,11 @@ link('Что пришло?', 'Читаем каталог каналов', 0)
 chain('Читаем каталог каналов', 'Кнопка на каждый канал', 'Предлагаем каналы')
 
 tg_answer('Отвечаем на кнопку канала', [X + 900, Y - 450])
+nodes[-1]['parameters']['additionalFields'] = {'text': '✅ Принято'}
+# (22.10) второе нажатие той же кнопки (не видно, нажалось ли) — только ответ «уже принято», без второго действия
+tg_answer('Отвечаем: уже нажато', [X + 900, Y - 650])
+nodes[-1]['parameters']['additionalFields'] = {'text': '✅ Уже принято — делаю'}
+link('Что пришло?', 'Отвечаем: уже нажато', 3)
 sheets_read('Ищем канал в каталоге', 'Catalog', [('Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1120, Y - 450], always=False)
 code('Генерируем ProjectID', 'projectid.js', [X + 1340, Y - 450])
 add({'parameters': {'authentication': 'serviceAccount', 'operation': 'append',
@@ -200,7 +205,7 @@ link('Из календаря?', 'Проект создан', 1)
 
 if_node('Это кнопка?', "!!$('Разбираем входящее').first().json.callbackQueryId", [X + 900, Y])
 tg_answer('Отвечаем на кнопку', [X + 1120, Y - 150])
-nodes[-1]['parameters']['additionalFields'] = {'text': "={{ $('Разбираем входящее').first().json.kind === 'imgApprove' ? '✅ Принято, вариант ' + $('Разбираем входящее').first().json.variantNumber : '' }}"}
+nodes[-1]['parameters']['additionalFields'] = {'text': "={{ (function(){ const j = $('Разбираем входящее').first().json; return j.kind === 'imgApprove' ? '✅ Принято, вариант ' + j.variantNumber : j.kind === 'finalApprove' ? '✅ Принято — записываю' : j.kind === 'build' ? '🎬 Принято — собираю' : '✅ Принято'; })() }}"}
 sheets_read('Находим лист канала', 'Catalog', [('Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1340, Y])
 sheets_read('Читаем строку проекта', '={{ $json.SheetName }}', [('sys_ProjectID', "={{ $('Разбираем входящее').first().json.projectId }}")], [X + 1560, Y])
 sheets_read('Читаем шаблоны канала', 'Templates', [('tmpl_Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1780, Y])
@@ -224,7 +229,7 @@ if_node('Проект найден?', '$json.found', [X + 2660, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2880, Y + 200])
 switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build', 'cleanStatus', 'stageStart'], [X + 2880, Y])
 tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопка из старой схемы — она ничего не делает.\n\nID: {{ $json.projectId }}', [X + 3140, Y + 1500])
-link('Что пришло?', 'Это кнопка?', 3)
+link('Что пришло?', 'Это кнопка?', 4)
 link('Это кнопка?', 'Отвечаем на кнопку', 0)
 link('Это кнопка?', 'Находим лист канала', 1)
 chain('Отвечаем на кнопку', 'Находим лист канала', 'Читаем строку проекта', 'Читаем шаблоны канала', 'Читаем этапы', 'Читаем пункты', 'Читаем эффекты', 'Читаем календарь (метка)', 'Контекст проекта', 'Проект найден?')

@@ -14,8 +14,10 @@ async function run(nodeName, ctx) {
   const input = (ctx.input || []).map(j => ({ json: j, binary: j && j.__binary }));
   const $input = { first: () => input[0], all: () => input };
   const DateTime = { now: () => ({ toFormat: () => '20261004_120000' }) };
-  const f = new Function('$', '$input', 'items', 'DateTime', `return (async () => {\n${code}\n})();`);
-  const out = await f.call({ helpers: {} }, $, $input, input, DateTime);
+  // статические данные workflow — только если тест их передал (ctx.staticData)
+  const sdFn = ctx.staticData ? () => ctx.staticData : undefined;
+  const f = new Function('$', '$input', 'items', 'DateTime', '$getWorkflowStaticData', `return (async () => {\n${code}\n})();`);
+  const out = await f.call({ helpers: {} }, $, $input, input, DateTime, sdFn);
   return out.map(o => (o.binary ? { ...o.json, __binary: o.binary } : o.json));
 }
 module.exports = { run, wf };

@@ -64,6 +64,18 @@ if (t.callback_query) {
     callbackQueryId: cb.id, text: '', photo: null, projectId: '', channelKey: '',
     variantNumber: null, tracksUrl: '', replyVariant: null, event: '',
   };
+  // (22.10) Не видно, нажалась ли кнопка, — жмут второй раз. Та же кнопка того же сообщения
+  // в течение 10 минут — повтор: ответить «уже принято» и ничего не делать (иначе два выпуска, две сборки).
+  if (typeof $getWorkflowStaticData === 'function') {
+    const sd = $getWorkflowStaticData('global');
+    const key = [base.chatId, cb.message ? cb.message.message_id : '', data].join('|');
+    const now = Date.now();
+    const seen = sd.seenButtons && typeof sd.seenButtons === 'object' ? sd.seenButtons : {};
+    for (const k of Object.keys(seen)) if (now - seen[k] > 600000) delete seen[k];
+    if (seen[key]) { sd.seenButtons = seen; return [{ json: { ...base, kind: 'dupButton' } }]; }
+    seen[key] = now;
+    sd.seenButtons = seen;
+  }
   const parts = data.split('|');
   const idMatch = parts[1] ? parts[1].match(ID_RE) : null;
   if (parts[0] === 'img' && idMatch) return [{ json: { ...base, ...fromId(idMatch), kind: 'imgApprove', variantNumber: parseInt(parts[2], 10) || null } }];

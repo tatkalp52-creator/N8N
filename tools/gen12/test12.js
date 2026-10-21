@@ -597,5 +597,19 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('16 метка выпуска и вход из календаря OK');
 
+  // ── 17. Повторное нажатие той же кнопки (22.10) — «уже принято», второго действия нет ──
+  {
+    const sd = {};
+    const upd = (id) => ({ update_id: id, callback_query: { id: 'q' + id, data: 'final|20261012_092708_pengui', from: { id: 7 }, message: { message_id: 55, chat: { id: 7 } } } });
+    const a1 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': upd(1) }, staticData: sd }))[0];
+    const a2 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': upd(2) }, staticData: sd }))[0];
+    assert.equal(a1.kind, 'finalApprove');
+    assert.equal(a2.kind, 'dupButton', 'второе нажатие — повтор');
+    assert.ok(a2.callbackQueryId, 'на повтор всё равно отвечаем, чтобы кнопка не «висела»');
+    const a3 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { update_id: 3, callback_query: { id: 'q3', data: 'final|20261012_092708_pengui', from: { id: 7 }, message: { message_id: 56, chat: { id: 7 } } } } }, staticData: sd }))[0];
+    assert.equal(a3.kind, 'finalApprove', 'кнопка другого сообщения — не повтор');
+  }
+  console.log('17 повторное нажатие кнопки OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
