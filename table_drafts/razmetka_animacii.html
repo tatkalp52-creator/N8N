@@ -183,7 +183,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
     { id: 'sky', name: 'Звёзды', taps: 99, knobs: [['яркость', 5], ['мерцание', 5], ['скорость', 5]], hint: 'Обведи небо в окне пальцем или стилусом одним движением (или точками по кругу и «Готово») — только небо над домами, без рамы. Обводи мимо домов: всё светлое внутри обводки замерцает как звёзды. Луну сборщик не трогает. Потом в списке «Настроить» — яркость, мерцание, скорость.' },
     { id: 'fire', name: 'Огонь (камин, костёр)', taps: 99, knobs: [['яркость', 5], ['высота', 5], ['скорость', 5], ['отсвет', 5]], hint: 'Обведи нарисованное пламя пальцем или стилусом одним движением (или точками по кругу и «Готово») — только огонь, можно с поленьями. Светлое внутри обводки заколышется вверх, вокруг задышит тёплый свет. Потом в списке «Настроить» — яркость, высота языков, скорость, отсвет; «Обвести отсвет» — пол или стена, куда падает свет.' },
-    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Обведи пальцем или стилусом то, что обязательно должно попасть в обложку: Пингви, предмет, кусок сцены. Страничка сама построит кадр 16:9 так, чтобы обведённое было в одной половине, а в другой встал оверлей (оранжевая зона). Можно две обложки — Б и В. Строки обложек уйдут вместе с пунктом 9; сборщик сделает обложки с оверлеем при сборке, и они придут в Телеграм вместе с готовым видео. Поле «ID выпуска» — только для уже собранных выпусков.' },
+    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Нарисуй пальцем или стилусом рамку будущей обложки — страничка выровняет её до 16:9 (синяя рамка). Оранжевая зона — где встанет оверлей; кнопка «Оверлей ⇄» у отметки перекидывает его на другую сторону. Можно две обложки — Б и В. Строки обложек уйдут вместе с пунктом 9; сборщик сделает обложки с оверлеем при сборке, и они придут в Телеграм вместе с готовым видео. Поле «ID выпуска» — только для уже собранных выпусков.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6], ['ореол', 5]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
@@ -234,7 +234,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   // (например толщина 7, густота 3), и видео расходится с превью на странице
   function lineOf(m) {
     var p = m.pts, s;
-    if (m.eff === 'cover') { var cf = coverFrame(p); return 'обложка ' + coverLetter(m) + ': кадр ' + cf.x0 + ' ' + cf.y0 + ' — ' + cf.x1 + ' ' + cf.y1 + ', оверлей ' + (cf.side === 'right' ? 'справа' : 'слева'); }
+    if (m.eff === 'cover') { var cf = coverFrame(m); return 'обложка ' + coverLetter(m) + ': кадр ' + cf.x0 + ' ' + cf.y0 + ' — ' + cf.x1 + ' ' + cf.y1 + ', оверлей ' + (cf.side === 'right' ? 'справа' : 'слева'); }
     if (m.eff === 'blink') s = 'моргание: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + (m.r ? '; радиус ' + fmt(m.r) : '') + (m.every ? '; частота ' + blinkKnob(m.every) : '');
     else if (m.eff === 'candle') {
       s = 'свеча: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
@@ -291,21 +291,21 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     });
   }, 40);
   function blinkKnob(sec) { return r1(Math.max(0, Math.min(20, 5 + 5 * Math.log2(BLINK_BASE / sec)))); }
-  // (22.10) Обложка: кадр 16:9 вокруг обведённого. Картинка тоже 16:9, поэтому кадр в процентах — квадрат s×s.
-  // Обведённое занимает одну половину кадра (до 55 % ширины), во второй — оверлей.
+  // (22.10) Обложка: она рисует рамку будущей обложки — страничка ровняет её до 16:9 (картинка тоже 16:9,
+  // поэтому в процентах это квадрат s×s по большей стороне нарисованного). Оверлей — в левой или правой
+  // части рамки (оранжевая зона), сторону переключает кнопка у отметки.
   var COVER_SERVER = /sslip\.io$/.test(location.hostname) ? location.origin : 'http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io';
-  function coverFrame(pts) {
-    var xs = pts.map(function (q) { return q.x; }), ys = pts.map(function (q) { return q.y; });
+  function coverFrame(m) {
+    var pts = m.pts, xs = pts.map(function (q) { return q.x; }), ys = pts.map(function (q) { return q.y; });
     var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs), by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
     var cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
-    var size = Math.min(100, Math.max(30, (bx1 - bx0) / 0.55, (by1 - by0) / 0.85));
-    var side = cx < 50 ? 'right' : 'left';
-    var x0 = side === 'right' ? cx - 0.275 * size : cx - 0.725 * size, y0 = cy - size / 2;
-    x0 = Math.max(0, Math.min(100 - size, x0)); y0 = Math.max(0, Math.min(100 - size, y0));
+    var size = Math.min(100, Math.max(20, bx1 - bx0, by1 - by0));
+    var side = m.side || (cx < 50 ? 'right' : 'left');
+    var x0 = Math.max(0, Math.min(100 - size, cx - size / 2)), y0 = Math.max(0, Math.min(100 - size, cy - size / 2));
     return { x0: r1(x0), y0: r1(y0), x1: r1(x0 + size), y1: r1(y0 + size), side: side };
   }
   function coverUrl(m) {
-    var f = coverFrame(m.pts), id = (($('pid') || {}).value || '').trim();
+    var f = coverFrame(m), id = (($('pid') || {}).value || '').trim();
     return id ? COVER_SERVER + '/cover/' + encodeURIComponent(id) + '?box=' + [f.x0, f.y0, f.x1, f.y1].join(',') + '&side=' + f.side : '';
   }
   function coverLetter(m) { var n = marks.filter(function (o) { return o.eff === 'cover'; }).indexOf(m); return n === 0 ? 'Б' : n === 1 ? 'В' : String(n + 1); }
@@ -372,7 +372,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       }
       if (m.eff === 'fire' && m.spill && m.spill.length) ov.appendChild(svgEl('polygon', { points: m.spill.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#f59e0b', 'stroke-width': 2, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }));
       if (m.eff === 'cover') {
-        var cf = coverFrame(p), sz = cf.x1 - cf.x0, half = cf.side === 'right' ? cf.x0 + 0.55 * sz : cf.x0;
+        var cf = coverFrame(m), sz = cf.x1 - cf.x0, half = cf.side === 'right' ? cf.x0 + 0.55 * sz : cf.x0;
         ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#2563eb', 'stroke-width': 2, 'stroke-dasharray': '4 3', 'vector-effect': 'non-scaling-stroke' }));
         ov.appendChild(svgEl('rect', { x: half, y: cf.y0, width: 0.45 * sz, height: sz, fill: 'rgba(249,115,22,0.18)', stroke: 'none' }));
         ov.appendChild(svgEl('rect', { x: cf.x0, y: cf.y0, width: sz, height: sz, fill: 'none', stroke: '#2563eb', 'stroke-width': 3, 'vector-effect': 'non-scaling-stroke' }));
@@ -421,6 +421,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         if (cu) { a.href = cu; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Открыть обложку ' + coverLetter(m) + ' (сборщик, с оверлеем)'; }
         else a.textContent = 'Придёт в Телеграм вместе с готовым видео. (Для уже собранного выпуска — впиши ID сверху, появится ссылка.)';
         a.style.display = 'block'; a.style.marginTop = '4px'; t.appendChild(a);
+        var sw = document.createElement('button'); sw.type = 'button'; sw.textContent = 'Оверлей ⇄';
+        sw.style.display = 'block'; sw.style.marginTop = '6px';
+        sw.onclick = function () { m.side = coverFrame(m).side === 'right' ? 'left' : 'right'; refresh(); };
+        t.appendChild(sw);
       }
       var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Убрать'; del.setAttribute('aria-label', 'Убрать точку ' + (i + 1));
       del.onclick = function () { marks.splice(i, 1); refresh(); };
