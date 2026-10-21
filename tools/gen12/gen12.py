@@ -264,7 +264,7 @@ nodes[-1]['onError'] = 'continueRegularOutput'
 code('Разбираем ответ этапа', 'parse.js', [EX + 1980, EY - 180], lib=True)
 # (22.10) разговор этапа сломался («Bad request» на старом разговоре) — один раз молча повторяем в новом разговоре
 if_node('Разговор сломался?', "!!$json.error && !!$('Готовим запрос этапу').first().json.conversationId && !$('Готовим запрос этапу').first().json.isNew"
-        " && !/timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNABORTED/i.test(JSON.stringify($json.error))", [EX + 1870, EY - 20])
+        " && !/timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNABORTED/i.test([$json.error.message, $json.error.description].join(' '))", [EX + 1870, EY - 20])
 openai_http('OpenAI: новый разговор', "={{ JSON.stringify({ metadata: { project: " + CTX + ".projectId } }) }}",
             'https://api.openai.com/v1/conversations', [EX + 1870, EY + 140])
 nodes[-1]['onError'] = 'continueRegularOutput'

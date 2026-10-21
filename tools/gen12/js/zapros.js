@@ -21,7 +21,17 @@ let isNew = false;
 // в новый разговор: всё, что этап знает о выпуске, — в карточке, картинки показываются заново
 let freshId = '';
 try { freshId = String($('OpenAI: новый разговор').first().json.id || ''); } catch (e) {}
-if (!plan.silent && freshId) { conversationId = freshId; isNew = true; }
+// (22.10) «No tool output found for function call call_…» — в разговоре завис вызов инструмента без ответа:
+// чиним в том же разговоре (отвечаем на этот вызов), память этапа сохраняется
+let orphanCall = '';
+if (freshId) {
+  try {
+    const er = $('OpenAI: этап').first().json.error || {};
+    const mm = [er.message, er.description].join(' ').match(/No tool output found for function call (call_[A-Za-z0-9_-]+)/);
+    if (mm) orphanCall = mm[1];
+  } catch (e) {}
+}
+if (!plan.silent && freshId && !orphanCall) { conversationId = freshId; isNew = true; }
 else if (!plan.silent) {
   conversationId = String(st.conv || '').trim();
   if (!conversationId) {
@@ -29,7 +39,7 @@ else if (!plan.silent) {
   }
   if (!conversationId) throw new Error('Нет разговора для этапа ' + stage.name);
 }
-const pendingCallId = plan.silent || isNew ? '' : String(st.pending || '').trim();
+const pendingCallIds = plan.silent || isNew ? [] : [...new Set([orphanCall, String(st.pending || '').trim()].filter(Boolean))];
 
 let userImageUrl = '';
 try { userImageUrl = $('Фото в base64').first().json.userImageUrl || ''; } catch (e) {}
@@ -40,7 +50,7 @@ const kb = kbForStage(ctx.tmpl, stage.icon, [plan.userText, brief].join(' '));
 let variants = [];
 try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }
 if (!Array.isArray(variants)) variants = [];
-const seen = new Set(plan.silent || freshId ? [] : st.seen);
+const seen = new Set(plan.silent || (freshId && !orphanCall) ? [] : st.seen);
 const images = [];
 // key — что помнить в состоянии (картинку с сеткой помним по метке, а не по её огромным данным)
 const addImage = (url, label, key) => { const k = key || url; if (url && !seen.has(k)) { images.push({ url, label }); seen.add(k); } };
@@ -176,7 +186,7 @@ for (const img of images) {
   content.push({ type: 'input_image', image_url: img.url });
 }
 const input = [];
-if (pendingCallId) input.push({ type: 'function_call_output', call_id: pendingCallId, output: 'Выполнено. Актуальный результат — в карточке выпуска.' });
+for (const id of pendingCallIds) input.push({ type: 'function_call_output', call_id: id, output: 'Выполнено. Актуальный результат — в карточке выпуска.' });
 input.push({ role: 'user', content: content.length > 1 ? content : text });
 
 const requestBody = {
