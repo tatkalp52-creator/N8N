@@ -1,0 +1,368 @@
+<title>Пульт звука</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one column — ручки сборщика сверху, ниже треки: у каждого полосы «низ → верх» как есть и после сборщика */
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1f2328; --muted: #5d6470; --line: #dcdcd4;
+  --accent: #1f6f8b; --accent-soft: #b8d4de; --warn: #b4580c; --warn-bg: #fbe9d9; --ok: #2f7a4f;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181c; --panel: #1d2126; --ink: #e8e6e1; --muted: #a2a8b1; --line: #343a42;
+  --accent: #6cb6cf; --accent-soft: #2f5563; --warn: #f0a160; --warn-bg: #3a2717; --ok: #78c597; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15181c; --panel: #1d2126; --ink: #e8e6e1; --muted: #a2a8b1; --line: #343a42;
+  --accent: #6cb6cf; --accent-soft: #2f5563; --warn: #f0a160; --warn-bg: #3a2717; --ok: #78c597; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; }
+h1 { font-size: 24px; margin: 0; text-wrap: balance; }
+.lead { color: var(--muted); margin: 4px 0 0; max-width: 65ch; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.knobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 20px; }
+.knob { display: grid; gap: 4px; }
+.knob .row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.knob b { font-variant-numeric: tabular-nums; font-family: var(--f-mono); font-size: 14px; }
+.knob small { color: var(--muted); font-family: var(--f-mono); font-size: 11.5px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, .filebtn { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 7px 12px; cursor: pointer; min-height: 36px; }
+button.primary, .filebtn { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+button:focus-visible, .filebtn:focus-within, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.filebtn { position: relative; display: inline-flex; align-items: center; }
+.status { color: var(--muted); font-size: 13px; }
+.track { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 10px; }
+.track:first-of-type { border-top: 0; padding-top: 0; }
+.thead { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.thead .name { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.thead .meta { color: var(--muted); font-family: var(--f-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.bands { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .bands { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.band { display: grid; gap: 3px; }
+.band .bn { font-size: 12.5px; }
+.band .hz { font-size: 11px; color: var(--muted); font-family: var(--f-mono); }
+.meter { position: relative; height: 10px; border-radius: 0 5px 5px 0; background: color-mix(in srgb, var(--line) 55%, transparent); overflow: hidden; }
+.meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 5px 5px 0; }
+.meter i.before { background: var(--accent-soft); }
+.meter i.after { background: var(--accent); top: 3px; bottom: 3px; }
+.meter i.ref { width: 2px !important; background: var(--ink); left: auto; border-radius: 0; opacity: .55; }
+.band .val { font-family: var(--f-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.band.hot .bn, .band.hot .val { color: var(--warn); font-weight: 600; }
+.flags { display: flex; flex-wrap: wrap; gap: 6px; }
+.flag { font-size: 12.5px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--line); color: var(--muted); }
+.flag.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+.flag.ok { border-color: var(--ok); color: var(--ok); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); align-items: center; }
+.legend span::before { content: ""; display: inline-block; width: 18px; height: 8px; border-radius: 0 4px 4px 0; margin-right: 6px; vertical-align: middle; }
+.legend .lb::before { background: var(--accent-soft); }
+.legend .la::before { background: var(--accent); height: 4px; }
+.legend .lr::before { background: var(--ink); width: 2px; height: 12px; opacity: .55; }
+.timeline { position: relative; }
+.timeline canvas { width: 100%; height: 90px; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: 12px; font-family: var(--f-mono); white-space: nowrap; transform: translate(-50%, -110%); }
+.note { color: var(--muted); font-size: 13px; max-width: 70ch; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Пульт звука</h1>
+    <p class="lead">Сколько в треке низа, середины и верха — как прислал Suno и как станет после сборщика с ручками из таблицы. Треки остаются на твоём устройстве, никуда не загружаются.</p>
+  </header>
+
+  <section class="card" aria-label="Ручки сборщика">
+    <div class="label">Ручки сборщика (как в таблице)</div>
+    <div class="knobs" id="knobs"></div>
+    <p class="note">Подвинь ручку — полосы ниже пересчитаются. Понравилось — впиши это число в колонку, которая написана под ручкой.</p>
+  </section>
+
+  <section class="card" aria-label="Треки">
+    <div class="bar">
+      <label class="filebtn" for="file">Выбрать треки<input id="file" type="file" accept="audio/*,.wav,.mp3,.zip" multiple></label>
+      <button type="button" id="demo">Показать на примере</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+    <div class="legend" aria-hidden="true"><span class="lb">как есть</span><span class="la">после сборщика</span><span class="lr">эталон ★</span></div>
+    <div id="tracks"></div>
+  </section>
+
+  <section class="card" aria-label="Как читать">
+    <div class="label">Как читать</div>
+    <p class="note"><b>Саб</b> (20–60 Гц) — то, что слышно скорее телом: от него дребезжит планшет. <b>Бас</b> (60–250) — тело контрабаса. <b>Середина</b> — фортепиано, голос мелодии. <b>Верха</b> и <b>воздух</b> — блеск и «стекло».</p>
+    <p class="note">Полоса — какая доля громкости трека приходится на этот диапазон (0 дБ — весь трек). Отметь удачный трек звёздочкой — у остальных оранжевым загорится то, что громче эталона на 4 дБ и больше.</p>
+    <p class="note">Это примерный расчёт: фильтры похожи на фильтры сборщика, но не совпадают до точки. Для решения «крутить или нет» его хватает.</p>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var BANDS = [['Саб', 20, 60], ['Бас', 60, 250], ['Низ середины', 250, 800], ['Середина', 800, 3000], ['Верха', 3000, 8000], ['Воздух', 8000, 16000]];
+  var KNOBS = [
+    { k: 'cut', name: 'Срез самого низа', col: '🎬tmpl_BassCutHz', min: 30, max: 120, step: 5, v: 55, unit: ' Гц' },
+    { k: 'bass', name: 'Бас тише', col: 'fx_Bass (строка выпуска)', min: 0, max: 15, step: 1, v: 0, unit: ' дБ' },
+    { k: 'highs', name: 'Верха тише', col: '🎬tmpl_HighsDb', min: 0, max: 24, step: 1, v: 16, unit: ' дБ' },
+    { k: 'highsHz', name: '…начиная с', col: '🎬tmpl_HighsHz', min: 1000, max: 10000, step: 250, v: 3000, unit: ' Гц' },
+    { k: 'hiss', name: 'Шипение тише', col: '🎬tmpl_HissDb', min: 0, max: 18, step: 1, v: 9, unit: ' дБ' },
+    { k: 'lufs', name: 'Громкость', col: '🎬_tmpl_TargetLUFS', min: -20, max: -10, step: 1, v: -14, unit: ' LUFS' },
+  ];
+  var K = {}; KNOBS.forEach(function (q) { K[q.k] = q.v; });
+  var tracks = [], refIdx = -1, playing = null, actx = null, timer = null;
+
+  // ── ручки ──
+  KNOBS.forEach(function (q) {
+    var d = document.createElement('div'); d.className = 'knob';
+    d.innerHTML = '<div class="row"><label for="k_' + q.k + '">' + q.name + '</label><b id="o_' + q.k + '"></b></div>' +
+      '<input type="range" id="k_' + q.k + '" min="' + q.min + '" max="' + q.max + '" step="' + q.step + '" value="' + q.v + '"><small>' + q.col + '</small>';
+    $('knobs').appendChild(d);
+    var inp = d.querySelector('input'), out = d.querySelector('b');
+    var show = function () { out.textContent = (q.k === 'bass' || q.k === 'highs' || q.k === 'hiss') && +inp.value ? '−' + inp.value + q.unit : inp.value + q.unit; };
+    show();
+    inp.addEventListener('input', function () { K[q.k] = +inp.value; show(); clearTimeout(timer); timer = setTimeout(reprocessAll, 250); });
+  });
+
+  // ── FFT и полосы ──
+  function fft(re, im) {
+    var n = re.length;
+    for (var i = 1, j = 0; i < n; i++) { var bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { var t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+    for (var len = 2; len <= n; len <<= 1) {
+      var ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+      for (var s = 0; s < n; s += len) {
+        var cr = 1, ci = 0;
+        for (var k = 0; k < len / 2; k++) {
+          var a = s + k, b = a + len / 2, xr = re[b] * cr - im[b] * ci, xi = re[b] * ci + im[b] * cr;
+          re[b] = re[a] - xr; im[b] = im[a] - xi; re[a] += xr; im[a] += xi;
+          var nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+        }
+      }
+    }
+  }
+  var N = 8192, HANN = new Float64Array(N); for (var h = 0; h < N; h++) HANN[h] = 0.5 - 0.5 * Math.cos(2 * Math.PI * h / (N - 1));
+  function mono(buf) {
+    var L = buf.length, m = new Float32Array(L), ch = buf.numberOfChannels;
+    for (var c = 0; c < ch; c++) { var d = buf.getChannelData(c); for (var i = 0; i < L; i++) m[i] += d[i] / ch; }
+    return m;
+  }
+  // доли полос (дБ относительно всего трека) + бас по времени (раз в секунду)
+  function analyse(buf) {
+    var m = mono(buf), sr = buf.sampleRate, hop = Math.round(sr * 0.5), tot = new Float64Array(BANDS.length), all = 0, time = [];
+    var re = new Float64Array(N), im = new Float64Array(N), bin = sr / N, peak = 0, ms = 0;
+    for (var i = 0; i < m.length; i++) { var a = Math.abs(m[i]); if (a > peak) peak = a; ms += m[i] * m[i]; }
+    for (var p = 0; p + N <= m.length; p += hop) {
+      for (var j = 0; j < N; j++) { re[j] = m[p + j] * HANN[j]; im[j] = 0; }
+      fft(re, im);
+      var fr = new Float64Array(BANDS.length), fa = 0;
+      for (var b = 1; b < N / 2; b++) {
+        var f = b * bin, pw = re[b] * re[b] + im[b] * im[b];
+        if (f >= 20 && f < 16000) fa += pw;
+        for (var q = 0; q < BANDS.length; q++) if (f >= BANDS[q][1] && f < BANDS[q][2]) { fr[q] += pw; break; }
+      }
+      for (var q2 = 0; q2 < BANDS.length; q2++) tot[q2] += fr[q2];
+      all += fa;
+      time.push(10 * Math.log10((fr[0] + fr[1]) / N / N + 1e-12));
+    }
+    return {
+      bands: Array.prototype.map.call(tot, function (v) { return 10 * Math.log10(v / (all || 1) + 1e-12); }),
+      time: time, hop: hop / sr, peak: 20 * Math.log10(peak + 1e-12), rms: 10 * Math.log10(ms / m.length + 1e-12),
+    };
+  }
+
+  // ── фильтры, похожие на сборщик ──
+  function biquad(ctx, type, f, gain, q) { var n = ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; if (gain != null) n.gain.value = gain; if (q != null) n.Q.value = q; return n; }
+  function render(buf, chainFn) {
+    var ctx = new OfflineAudioContext(buf.numberOfChannels, buf.length, buf.sampleRate);
+    var src = ctx.createBufferSource(); src.buffer = buf;
+    var nodes = chainFn(ctx), prev = src;
+    nodes.forEach(function (n) { prev.connect(n); prev = n; });
+    prev.connect(ctx.destination); src.start();
+    return ctx.startRendering();
+  }
+  function assemblerChain(ctx) {
+    var list = [];
+    if (K.cut > 30) { list.push(biquad(ctx, 'highpass', K.cut, null, 0.707)); list.push(biquad(ctx, 'highpass', K.cut, null, 0.707)); }
+    else list.push(biquad(ctx, 'highpass', 30, null, 0.707));
+    if (K.bass) list.push(biquad(ctx, 'lowshelf', 160, -K.bass));
+    if (K.highs) list.push(biquad(ctx, 'highshelf', K.highsHz, -K.highs));
+    if (K.hiss) list.push(biquad(ctx, 'highshelf', 9500, -K.hiss));
+    list.push(biquad(ctx, 'lowpass', 19000, null, 0.707));
+    return list;
+  }
+  // громкость по-взрослому (K-взвешивание, без «ворот»): так же, как её меряет сборщик и YouTube
+  function lufs(buf) {
+    return render(buf, function (ctx) { return [biquad(ctx, 'highshelf', 1500, 4), biquad(ctx, 'highpass', 60, null, 0.5)]; }).then(function (k) {
+      var s = 0, n = 0;
+      for (var c = 0; c < k.numberOfChannels; c++) { var d = k.getChannelData(c); for (var i = 0; i < d.length; i++) s += d[i] * d[i]; n = d.length; }
+      return -0.691 + 10 * Math.log10(s / (n || 1) + 1e-12);
+    });
+  }
+  function gainBuf(buf, g) {
+    var out = new AudioBuffer({ length: buf.length, numberOfChannels: buf.numberOfChannels, sampleRate: buf.sampleRate });
+    for (var c = 0; c < buf.numberOfChannels; c++) { var s = buf.getChannelData(c), d = out.getChannelData(c); for (var i = 0; i < s.length; i++) d[i] = s[i] * g; }
+    return out;
+  }
+  function process(t) {
+    return render(t.buf, assemblerChain).then(function (pb) { return lufs(pb).then(function (L) {
+      var g = Math.pow(10, (K.lufs - L) / 20); t.proc = gainBuf(pb, g); t.after = analyse(t.proc); t.gainDb = 20 * Math.log10(g);
+    }); });
+  }
+  function reprocessAll() {
+    if (!tracks.length) return;
+    $('status').textContent = 'Пересчитываю…';
+    tracks.reduce(function (p, t) { return p.then(function () { return process(t); }); }, Promise.resolve())
+      .then(function () { $('status').textContent = ''; draw(); });
+  }
+
+  // ── загрузка ──
+  function decode(ab) { return new OfflineAudioContext(2, 44100, 44100).decodeAudioData(ab); }
+  function addTrack(name, buf, isDemo) {
+    var t = { name: name, buf: buf, before: analyse(buf), demo: !!isDemo, dur: buf.duration };
+    tracks.push(t); return process(t);
+  }
+  $('file').addEventListener('change', function (ev) {
+    var files = Array.prototype.slice.call(ev.target.files || []);
+    if (!files.length) return;
+    tracks = tracks.filter(function (t) { return !t.demo; }); refIdx = -1;
+    var jobs = [];
+    files.forEach(function (f) {
+      if (/\.zip$/i.test(f.name) && window.JSZip) {
+        jobs.push(f.arrayBuffer().then(JSZip.loadAsync).then(function (z) {
+          var names = Object.keys(z.files).filter(function (n) { return /\.(wav|mp3|m4a|ogg|flac)$/i.test(n) && !z.files[n].dir; });
+          return names.map(function (n) { return { name: n.split('/').pop(), get: function () { return z.files[n].async('arraybuffer'); } }; });
+        }));
+      } else jobs.push(Promise.resolve([{ name: f.name, get: function () { return f.arrayBuffer(); } }]));
+    });
+    Promise.all(jobs).then(function (lists) {
+      var items = [].concat.apply([], lists), done = 0;
+      return items.reduce(function (p, it) {
+        return p.then(function () {
+          $('status').textContent = 'Слушаю ' + (done + 1) + ' из ' + items.length + ': ' + it.name;
+          return it.get().then(decode).then(function (b) { return addTrack(it.name, b); })
+            .catch(function () { $('status').textContent = 'Не смогла открыть ' + it.name + ' — пропускаю.'; })
+            .then(function () { done++; draw(); });
+        });
+      }, Promise.resolve());
+    }).then(function () { $('status').textContent = tracks.length ? '' : 'Треков не нашлось: нужны WAV или MP3 (можно в ZIP).'; });
+  });
+
+  // пример: мелодия + гудящий низ — чтобы было видно, как работают ручки
+  function makeDemo() {
+    var sr = 44100, dur = 12, ctx = new OfflineAudioContext(2, sr * dur, sr);
+    var g = ctx.createGain(); g.gain.value = 0.25; g.connect(ctx.destination);
+    var notes = [523, 659, 784, 659, 587, 698, 880, 698];
+    notes.forEach(function (f, i) {
+      for (var r = 0; r < 2; r++) {
+        var o = ctx.createOscillator(), e = ctx.createGain(); o.type = 'triangle'; o.frequency.value = f; o.connect(e); e.connect(g);
+        var t0 = i * 1.5 + r * 0.75; e.gain.setValueAtTime(0, t0); e.gain.linearRampToValueAtTime(0.5, t0 + 0.01); e.gain.exponentialRampToValueAtTime(0.001, t0 + 0.7);
+        o.start(t0); o.stop(t0 + 0.75);
+      }
+    });
+    [41, 55, 46, 49].forEach(function (f, i) {
+      var o = ctx.createOscillator(), e = ctx.createGain(); o.type = 'sine'; o.frequency.value = f; o.connect(e); e.connect(g);
+      var t0 = i * 3; e.gain.setValueAtTime(0.9, t0); e.gain.exponentialRampToValueAtTime(0.05, t0 + 2.9); o.start(t0); o.stop(t0 + 3);
+    });
+    return ctx.startRendering();
+  }
+  $('demo').addEventListener('click', function () {
+    tracks = tracks.filter(function (t) { return !t.demo; });
+    makeDemo().then(function (b) { return addTrack('Пример: мелодия и гудящий контрабас', b, true); }).then(draw);
+  });
+
+  // ── проигрывание ──
+  function play(t, which, btn) {
+    try { actx = actx || new AudioContext(); actx.resume(); } catch (e) { return; }
+    if (playing) { try { playing.src.stop(); } catch (e) {} var same = playing.btn === btn; playing.btn.textContent = playing.label; playing = null; if (same) return; }
+    var src = actx.createBufferSource(); src.buffer = which === 'after' ? t.proc : t.buf; src.connect(actx.destination);
+    var label = btn.textContent; btn.textContent = '■ стоп'; src.start(0, Math.min(30, t.dur * 0.25));
+    playing = { src: src, btn: btn, label: label };
+    src.onended = function () { if (playing && playing.src === src) { btn.textContent = label; playing = null; } };
+  }
+
+  // ── отрисовка ──
+  var fmtT = function (s) { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  var hz = function (f) { return f >= 1000 ? f / 1000 + 'k' : String(f); };
+  var dbs = function (v) { var r = Math.round(v); return String(r === 0 ? 0 : r); };
+  var pct = function (db) { return Math.max(2, Math.min(100, (db + 40) / 40 * 100)); };
+  function draw() {
+    var box = $('tracks'); box.innerHTML = '';
+    if (!tracks.length) { box.innerHTML = '<p class="note">Выбери треки (WAV, MP3 или ZIP с ними) — или нажми «Показать на примере».</p>'; return; }
+    var ref = refIdx >= 0 && tracks[refIdx] ? tracks[refIdx] : null;
+    tracks.forEach(function (t, idx) {
+      var el = document.createElement('div'); el.className = 'track';
+      var A = t.after || t.before;
+      var head = document.createElement('div'); head.className = 'thead';
+      head.innerHTML = '<span class="name"></span><span class="meta">' + fmtT(t.dur) + ' · пик ' + t.before.peak.toFixed(1) + ' дБ' +
+        (t.after ? ' · сборщик поднимет на ' + (t.gainDb >= 0 ? '+' : '') + t.gainDb.toFixed(1) + ' дБ · пик после ' + t.after.peak.toFixed(1) + ' дБ' : '') + '</span>';
+      head.querySelector('.name').textContent = (idx === refIdx ? '★ ' : '') + t.name;
+      el.appendChild(head);
+      var bands = document.createElement('div'); bands.className = 'bands';
+      BANDS.forEach(function (b, q) {
+        var d = document.createElement('div'), hot = ref && ref !== t && A.bands[q] - ref.after.bands[q] >= 4;
+        d.className = 'band' + (hot ? ' hot' : '');
+        d.innerHTML = '<span class="bn">' + b[0] + '</span><span class="hz">' + hz(b[1]) + '–' + hz(b[2]) + ' Гц</span>' +
+          '<div class="meter" role="img" aria-label="' + b[0] + ': как есть ' + t.before.bands[q].toFixed(0) + ' дБ, после ' + A.bands[q].toFixed(0) + ' дБ">' +
+          '<i class="before" style="width:' + pct(t.before.bands[q]) + '%"></i><i class="after" style="width:' + pct(A.bands[q]) + '%"></i>' +
+          (ref && ref !== t ? '<i class="ref" style="left:' + pct(ref.after.bands[q]) + '%"></i>' : '') + '</div>' +
+          '<span class="val">' + dbs(t.before.bands[q]) + ' → ' + dbs(A.bands[q]) + ' дБ</span>';
+        bands.appendChild(d);
+      });
+      el.appendChild(bands);
+      var flags = document.createElement('div'); flags.className = 'flags';
+      var sub = A.bands[0], bass = A.bands[1];
+      var f = [];
+      if (sub > -14) f.push(['warn', 'Саба много — планшет может дребезжать']);
+      if (bass > -4) f.push(['warn', 'Бас забирает почти всю громкость']);
+      if (t.after && t.after.peak > -1) f.push(['warn', 'После подъёма громкости пики упрутся в лимитер']);
+      if (ref && ref !== t) { var over = BANDS.filter(function (b, q) { return A.bands[q] - ref.after.bands[q] >= 4; }).map(function (b) { return b[0].toLowerCase(); }); if (over.length) f.push(['warn', 'Громче эталона: ' + over.join(', ')]); }
+      if (!f.length) f.push(['ok', 'Ровно']);
+      f.forEach(function (x) { var s = document.createElement('span'); s.className = 'flag ' + x[0]; s.textContent = x[1]; flags.appendChild(s); });
+      el.appendChild(flags);
+      var tl = document.createElement('div'); tl.className = 'timeline';
+      var cv = document.createElement('canvas'); cv.setAttribute('aria-label', 'Низ (саб и бас) по времени, после сборщика'); tl.appendChild(cv);
+      var tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; tl.appendChild(tip);
+      el.appendChild(tl);
+      var bar = document.createElement('div'); bar.className = 'bar';
+      var b1 = document.createElement('button'); b1.type = 'button'; b1.textContent = '▶ как есть'; b1.onclick = function () { play(t, 'before', b1); };
+      var b2 = document.createElement('button'); b2.type = 'button'; b2.textContent = '▶ после сборщика'; b2.onclick = function () { play(t, 'after', b2); };
+      var b3 = document.createElement('button'); b3.type = 'button'; b3.textContent = idx === refIdx ? '★ эталон' : '☆ сделать эталоном'; b3.setAttribute('aria-pressed', idx === refIdx ? 'true' : 'false');
+      b3.onclick = function () { refIdx = idx === refIdx ? -1 : idx; draw(); };
+      var note = document.createElement('span'); note.className = 'status'; note.textContent = 'Линия — низ по времени: где горб, там контрабас разгулялся.';
+      [b1, b2, b3, note].forEach(function (x) { bar.appendChild(x); });
+      el.appendChild(bar);
+      box.appendChild(el);
+      requestAnimationFrame(function () { drawLine(cv, tip, A); });
+    });
+  }
+  function drawLine(cv, tip, A) {
+    var w = cv.clientWidth, hgt = 90, dpr = window.devicePixelRatio || 1;
+    cv.width = w * dpr; cv.height = hgt * dpr;
+    var c = cv.getContext('2d'); c.scale(dpr, dpr);
+    var cs = getComputedStyle(document.documentElement), ink = cs.getPropertyValue('--muted'), acc = cs.getPropertyValue('--accent'), line = cs.getPropertyValue('--line');
+    var v = A.time; if (!v.length) return;
+    var lo = Math.min.apply(null, v), hi = Math.max.apply(null, v); if (hi - lo < 6) { lo = hi - 6; }
+    var y = function (d) { return 8 + (hgt - 24) * (1 - (d - lo) / (hi - lo)); }, x = function (i) { return 4 + (w - 8) * i / Math.max(1, v.length - 1); };
+    c.strokeStyle = line; c.lineWidth = 1; [0.25, 0.5, 0.75].forEach(function (g) { c.beginPath(); c.moveTo(0, 8 + (hgt - 24) * g); c.lineTo(w, 8 + (hgt - 24) * g); c.stroke(); });
+    c.beginPath(); v.forEach(function (d, i) { if (i) c.lineTo(x(i), y(d)); else c.moveTo(x(i), y(d)); });
+    c.lineTo(x(v.length - 1), hgt - 16); c.lineTo(x(0), hgt - 16); c.closePath();
+    c.fillStyle = acc; c.globalAlpha = 0.12; c.fill(); c.globalAlpha = 1;
+    c.beginPath(); v.forEach(function (d, i) { if (i) c.lineTo(x(i), y(d)); else c.moveTo(x(i), y(d)); });
+    c.strokeStyle = acc; c.lineWidth = 2; c.stroke();
+    var mi = v.indexOf(hi); c.fillStyle = acc; c.beginPath(); c.arc(x(mi), y(hi), 4, 0, 7); c.fill();
+    c.fillStyle = ink; c.font = '11px ' + cs.getPropertyValue('--f-mono'); c.fillText('0:00', 4, hgt - 3);
+    var end = fmtT((v.length - 1) * A.hop), tw = c.measureText(end).width; c.fillText(end, w - tw - 4, hgt - 3);
+    cv.onpointermove = function (e) {
+      var r = cv.getBoundingClientRect(), i = Math.round((e.clientX - r.left - 4) / (w - 8) * (v.length - 1)); i = Math.max(0, Math.min(v.length - 1, i));
+      tip.hidden = false; tip.style.left = x(i) + 'px'; tip.style.top = y(v[i]) + 'px';
+      tip.textContent = fmtT(i * A.hop) + ' · низ ' + (v[i] - hi).toFixed(0) + ' дБ от самого громкого места';
+    };
+    cv.onpointerleave = function () { tip.hidden = true; };
+  }
+
+  draw();
+  makeDemo().then(function (b) { return addTrack('Пример: мелодия и гудящий контрабас', b, true); }).then(draw).catch(function () {});
+})();
+</script>
