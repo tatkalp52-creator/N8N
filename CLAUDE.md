@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Read first
 
-`PROJECT_NOTES.md` (Russian) is the running working memory between sessions: author's decisions, incidents, what is deployed, open tasks. Read its newest sections (bottom of file) before doing anything, and append to it when something is decided. Work branch: `claude/session-continuation-2r2ln2`.
+`PROJECT_NOTES.md` (Russian) is the short working memory: rules for working with the author, her standing decisions, rejected ideas (check before proposing anything), current state, open tasks. Read it fully before doing anything; append new items to its «Журнал» briefly and fold them into the sections weekly — keep it short. Full history up to 21.10.2026: `docs/notes_archive/`. Work branch: `ccr-592d85a5-ljre1x`.
 
 ## What this repo is
 
