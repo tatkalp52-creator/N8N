@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-21-theme"
+ASSEMBLER_VERSION = "2026-10-22-bands"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -761,6 +761,92 @@ def segment_loudness(path, start, length):
     return float(found[-1]) if found else None
 
 
+# ── АВТОБАЛАНС ПОЛОС (22.10) ──
+# Шесть полос, как на страничке «Пульт звука»: доля каждой в громкости трека (дБ от всего трека).
+# 🎬 SoundBands — диапазоны «саб -18..-10; бас -8..-2; …». Трек, у которого полоса вышла за диапазон,
+# сборщик сам подтягивает к краю: убавляет сколько нужно, прибавляет не больше BAND_BOOST_MAX
+# (подъём тихой полосы поднимает и её шум). Пустая колонка — как раньше, полосы не трогаются.
+SOUND_BANDS = [("саб", 20, 60), ("бас", 60, 250), ("низ середины", 250, 800),
+               ("середина", 800, 3000), ("верха", 3000, 8000), ("воздух", 8000, 16000)]
+BAND_BOOST_MAX = 6.0
+
+
+def parse_sound_bands(text):
+    """«саб -18..-10; бас -8..-2» → {индекс полосы: (низ, верх)}."""
+    out = {}
+    for part in re.split(r"[;\n]", str(text or "")):
+        m = re.match(r"\s*([а-яёa-z ]+?)\s*[:=]?\s*(-?\d+(?:[.,]\d+)?)\s*(?:\.\.|…|—|–|\s)\s*(-?\d+(?:[.,]\d+)?)\s*$", part.strip().lower())
+        if not m:
+            continue
+        name = m.group(1).strip()
+        for i, (bn, _, _) in enumerate(SOUND_BANDS):
+            if name == bn:
+                a, b = float(m.group(2).replace(",", ".")), float(m.group(3).replace(",", "."))
+                out[i] = (min(a, b), max(a, b))
+    return out
+
+
+def measure_sound_bands(path, sr=44100):
+    """Доли шести полос (дБ от всего трека), как на страничке: окно 8192, шаг 0,5 с."""
+    import sys as _sys
+    if "/app/pylibs" not in _sys.path:
+        _sys.path.insert(0, "/app/pylibs")
+    import numpy as np
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"],
+                         capture_output=True, check=True).stdout
+    x = np.frombuffer(raw, dtype=np.float32)
+    n, hop = 8192, sr // 2
+    if len(x) < n:
+        return None
+    win = np.hanning(n).astype(np.float32)
+    freqs = np.fft.rfftfreq(n, 1.0 / sr)
+    acc = np.zeros(len(freqs))
+    for p0 in range(0, len(x) - n + 1, hop):
+        acc += np.abs(np.fft.rfft(x[p0:p0 + n] * win)) ** 2
+    total = acc[(freqs >= 20) & (freqs < 16000)].sum() or 1.0
+    return [10 * math.log10(acc[(freqs >= a) & (freqs < b)].sum() / total + 1e-12) for _, a, b in SOUND_BANDS]
+
+
+def band_eq_chain(gains):
+    """Поправки по полосам → цепочка ffmpeg: полки по краям, колокола посередине (ширина — в октавах полосы)."""
+    parts = []
+    for i, g in enumerate(gains):
+        if abs(g) < 0.05:
+            continue
+        _, a, b = SOUND_BANDS[i]
+        if i == 0:     # полка чуть выше края: самый низ (40 Гц) целиком внутри неё
+            parts.append(f"lowshelf=f={b * 1.4:.0f}:g={g:.2f}:t=q:w=0.6")
+        elif i == len(SOUND_BANDS) - 1:
+            parts.append(f"highshelf=f={a / 1.4:.0f}:g={g:.2f}:t=q:w=0.6")
+        else:
+            parts.append(f"equalizer=f={math.sqrt(a * b):.0f}:t=o:w={math.log2(b / a):.2f}:g={g:.2f}")
+    return ",".join(parts)
+
+
+def balance_sound_bands(src, dst, ranges, passes=4):
+    """Подтягивает полосы трека в диапазоны. Возвращает (путь, замер до, замер после, поправки)."""
+    before = measure_sound_bands(src)
+    if not before or not ranges:
+        return src, before, before, []
+    gains = [0.0] * len(SOUND_BANDS)
+    cur, out = before, src
+    for _ in range(passes):
+        step = [0.0] * len(SOUND_BANDS)
+        for i, (lo, hi) in ranges.items():
+            if cur[i] > hi:
+                step[i] = hi - cur[i]
+            elif cur[i] < lo:
+                step[i] = lo - cur[i]
+        if all(abs(v) < 1.0 for v in step):
+            break
+        gains = [g + d for g, d in zip(gains, step)]
+        gains = [min(g, BAND_BOOST_MAX) for g in gains]
+        run_ffmpeg(["-i", src, "-af", band_eq_chain(gains), dst])
+        out = dst
+        cur = measure_sound_bands(dst) or cur
+    return out, before, cur, gains
+
+
 def track_loudness_entry(n, raw_path, source_path, faded_path, duration, target_lufs, fade_in, fade_out):
     m = measure_loudnorm(source_path, target_lufs) or {}
     num = lambda k: float(m[k]) if k in m else None
@@ -828,7 +914,7 @@ def build_audio_track(
     compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
     denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
-    bass_db=0.0, bass_hz=160.0, bass_cut_hz=30.0,
+    bass_db=0.0, bass_hz=160.0, bass_cut_hz=30.0, sound_bands=None, band_report=None,
     intro_first=False, intro_max_seconds=90.0,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
@@ -947,7 +1033,17 @@ def build_audio_track(
         # Полка с пологим наклоном: переход широкий, без ступеньки; громкость дальше меряется уже после неё.
         # (08.10) второй срез — только самый верх (шипение выше ~9 кГц): 🎬 HissDb / HissHz.
         # (20.10) низы: приглушить гудящий контрабас Suno — 🎬 BassDb / BassHz (канал) или fx_Bass (выпуск).
-        if highs_db or hiss_db or bass_db:
+        if sound_bands:
+            try:
+                bal_path, b_before, b_after, b_gains = balance_sound_bands(
+                    source_path, os.path.join(faded_dir, f"bands_{i}.wav"), sound_bands)
+                source_path = bal_path
+                if band_report is not None and b_before:
+                    band_report.append({"n": i + 1, "name": os.path.basename(tracks_raw[i]),
+                                        "before": b_before, "after": b_after, "gains": b_gains})
+            except Exception as band_error:   # автобаланс — улучшение, сборку не роняем
+                print(f"[полосы] трек {i + 1}: не получилось: {band_error}")
+        elif highs_db or hiss_db or bass_db:
             eq_path = os.path.join(faded_dir, f"highs_{i}.wav")
             eq_parts = []
             if bass_db:
@@ -3727,6 +3823,7 @@ def assemble():
         except (TypeError, ValueError):
             bass_cut_hz = 30.0
         loudness_report = []
+        band_report = []
         audio_path, duration = build_audio_track(
             audio_zip_url, work_dir, loudness_report=loudness_report,
             target_lufs=target_lufs,
@@ -3745,7 +3842,23 @@ def assemble():
             highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz, bass_db=bass_db, bass_hz=bass_hz, bass_cut_hz=bass_cut_hz,
             intro_first=intro_mode(data.get("fx_IntroOnce")),
             intro_max_seconds=_float_or(data.get("introMaxSeconds"), 90.0),
+            sound_bands=parse_sound_bands(data.get("soundBands")), band_report=band_report,
         )
+        if band_report:
+            names = [b[0] for b in SOUND_BANDS]
+            lines = ["Полосы (дБ от всего трека): было → стало; поправка"]
+            for r in band_report:
+                lines.append(f"{r['n']:>2}. {r['name']}: " + "; ".join(
+                    f"{nm} {r['before'][k]:.0f}→{r['after'][k]:.0f}" + (f" ({r['gains'][k]:+.1f})" if r['gains'] and abs(r['gains'][k]) >= 0.05 else "")
+                    for k, nm in enumerate(names)))
+            band_text = "\n".join(lines)
+            print(band_text)
+            try:
+                os.makedirs(THUMBNAIL_DIR, exist_ok=True)
+                with open(os.path.join(THUMBNAIL_DIR, f"{project_id}_bands.txt"), "w", encoding="utf-8") as fh:
+                    fh.write(band_text + "\n")
+            except Exception as band_error:
+                print(f"[полосы] отчёт не записан: {band_error}")
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
         # просто пишет в лог сервера, если что-то разъехалось с целью.
@@ -3948,6 +4061,15 @@ def get_loudness_report(project_id):
     report_path = os.path.join(THUMBNAIL_DIR, f"{project_id}_loudness.txt")
     if not os.path.exists(report_path):
         return "отчёта нет: выпуск ещё не собирался этой версией сборщика\n", 404
+    return send_file(report_path, mimetype="text/plain; charset=utf-8")
+
+
+# (22.10) замер полос последней сборки выпуска (текст): было → стало по каждому треку.
+@app.route("/bands/<project_id>", methods=["GET"])
+def get_bands_report(project_id):
+    report_path = os.path.join(THUMBNAIL_DIR, f"{project_id}_bands.txt")
+    if not os.path.exists(report_path):
+        return "замера нет: выпуск ещё не собирался с колонкой SoundBands\n", 404
     return send_file(report_path, mimetype="text/plain; charset=utf-8")
 
 
