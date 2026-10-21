@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-retry"
+ASSEMBLER_VERSION = "2026-10-22-all"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -3707,8 +3707,12 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
             for g_i, group in enumerate(group_blinks(blink_spec, bw_, bh_)):
                 rng_b = random.Random(f"{project_id}-blink-{g_i}")
                 factor = fx_knob(data, "blink", group[0][1], "частота")   # 5 — как есть, больше — чаще
-                for kind_name, pat_fn, mult in (("one", lambda s0: [(s0, BLINK_SLOW)], 1.0),
-                                                ("three", lambda s0: [(s0 + 0.32 * i, BLINK_QUICK) for i in range(3)], 4.0)):
+                # (22.10) серии вразнобой: одно неспешное (половина серий), два быстрых (треть), три быстрых (пятая часть);
+                # каждая серия — своё событие со своим периодом, моменты с разбросом → порядок случайный.
+                # В среднем одна серия раз в blinkEverySeconds / «частота».
+                for kind_name, pat_fn, mult in (("one", lambda s0: [(s0, BLINK_SLOW)], 2.0),
+                                                ("two", lambda s0: [(s0 + 0.32 * i, BLINK_QUICK) for i in range(2)], 3.3),
+                                                ("three", lambda s0: [(s0 + 0.32 * i, BLINK_QUICK) for i in range(3)], 5.0)):
                     s0 = rng_b.uniform(0.4, clip_s - 2.4)
                     raw = render_blink_event(image_path, group, pat_fn(s0), fps, clip_s,
                                              os.path.join(pdir, f"blink{g_i}{kind_name}_src.mp4"),
@@ -3722,7 +3726,7 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
                     events.append((ev, ln))
                     masks[len(events) - 1] = mask
                     periods.append(every * mult / factor)
-            print(f"[blink] групп глаз: {len(group_blinks(blink_spec, bw_, bh_))}, одно моргание раз в ~{every / factor:g} с")
+            print(f"[blink] групп глаз: {len(group_blinks(blink_spec, bw_, bh_))}, серия (1–3 моргания) в среднем раз в ~{every / factor:g} с")
         except Exception as blink_error:   # моргание — украшение, сборку не роняем
             print(f"[blink] моргание не получилось: {blink_error}")
     if leaves:

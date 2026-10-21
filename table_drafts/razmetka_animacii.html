@@ -53,7 +53,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
 .dot .n { position: absolute; left: 7px; top: -17px; min-width: 18px; height: 18px; padding-inline: 4px; border-radius: 9px; background: var(--mark); color: #fff; border: 1.5px solid #fff; font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
 .dot.b { background: var(--mark2); }
 .eye.auto { opacity: .65; border-style: dotted; }
-@keyframes blinkprev { 0%, 6% { background: color-mix(in srgb, var(--accent) 18%, transparent); } 1.5%, 3% { background: var(--accent); } }
+.eye.shut { background: var(--accent); }
 .eye { position: absolute; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; pointer-events: none; background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .pane { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.35); }
 .pane .stage { max-height: 44vh; }
@@ -120,9 +120,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   <div class="pane" aria-label="Картинка">
     <div class="zoom">
       <span class="label">Увеличение</span>
-      <input id="zoom" type="range" min="1" max="4" step="0.25" value="1" aria-label="Увеличение картинки">
+      <input id="zoom" type="range" min="1" max="10" step="0.25" value="1" aria-label="Увеличение картинки">
       <span id="zoomv" style="min-width:2.5em;text-align:right">1×</span>
-      <button id="panbtn" type="button" aria-pressed="false" title="Картинку можно просто тянуть мышкой или пальцем">✋ Двигать картинку</button>
+      <span class="note" style="margin:0">Двумя пальцами — двигать и увеличивать. Одним — рисовать и ставить точки.</span><button id="panbtn" type="button" aria-pressed="false" hidden>✋ Двигать картинку</button>
       <canvas id="loupe" width="264" height="264" hidden></canvas>
     </div>
     <div class="stage" id="stage">
@@ -271,6 +271,22 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   }
   // (21.10) моргание «раз в N секунд» → ручка «частота» сборщика: 5 — раз в ~17.5 с, каждые +5 — вдвое чаще
   var BLINK_BASE = 17.5;
+  function blinkLabel(sec) { return 'серия раз в ' + Math.round(sec) + ' с (≈ ' + (60 / sec).toFixed(sec > 20 ? 1 : 0) + ' в минуту)'; }
+  // (22.10) превью моргания: серии 1, 2, 3 вразнобой, как у сборщика (половина — одно, треть — два, пятая часть — три)
+  var blinkPlan = {};
+  setInterval(function () {
+    var now = performance.now() / 1000;
+    document.querySelectorAll('.eye').forEach(function (el, i) {
+      var every = +el.dataset.every || BLINK_BASE, key = i + '|' + every, p = blinkPlan[key];
+      if (!p || now > p.until) {
+        var r = Math.random(), n = r < 0.5 ? 1 : r < 0.8 ? 2 : 3, start = (p ? p.until : now) + every * (0.75 + Math.random() * 0.5);
+        p = blinkPlan[key] = { times: [], until: start + n * 0.32 + 0.3 };
+        for (var k = 0; k < n; k++) p.times.push(start + k * (n === 1 ? 0 : 0.32));
+      }
+      var shut = p.times.some(function (t0) { return now >= t0 && now < t0 + (p.times.length === 1 ? 0.28 : 0.14); });
+      el.classList.toggle('shut', shut);
+    });
+  }, 40);
   function blinkKnob(sec) { return r1(Math.max(0, Math.min(20, 5 + 5 * Math.log2(BLINK_BASE / sec)))); }
   function effName(id) { return EFFECTS.filter(function (e) { return e.id === id; })[0].name; }
 
@@ -310,7 +326,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       if (m.eff === 'blink') {
         var c = document.createElement('div'); c.className = 'eye' + (m.r ? '' : ' auto');
         c.style.left = m.pts[0].x + '%'; c.style.top = m.pts[0].y + '%'; c.style.width = (2 * (m.r || 3) / 1536 * 100) + '%';
-        c.style.animation = 'blinkprev ' + (m.every || BLINK_BASE) + 's linear infinite';
+        c.dataset.every = String(m.every || BLINK_BASE);
         $('dots').appendChild(c);
       }
     });
@@ -484,10 +500,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         var lab4 = document.createElement('label');
         var s4 = document.createElement('span'); s4.textContent = 'как часто';
         var inp4 = document.createElement('input'); inp4.type = 'range'; inp4.min = 3; inp4.max = 35; inp4.step = 1; inp4.value = m.every || BLINK_BASE; inp4.id = 'ev' + i;
-        var out4 = document.createElement('span'); out4.textContent = 'раз в ' + Math.round(m.every || BLINK_BASE) + ' с';
-        inp4.oninput = function () { m.every = Number(inp4.value); out4.textContent = 'раз в ' + inp4.value + ' с'; t.textContent = lineOf(m); redrawOverlay(); renderOut(); };
+        var out4 = document.createElement('span'); out4.textContent = blinkLabel(m.every || BLINK_BASE);
+        inp4.oninput = function () { m.every = Number(inp4.value); out4.textContent = blinkLabel(+inp4.value); t.textContent = lineOf(m); redrawOverlay(); renderOut(); };
         lab4.appendChild(s4); lab4.appendChild(inp4); lab4.appendChild(out4); kb3.appendChild(lab4);
-        var n4 = document.createElement('p'); n4.className = 'note'; n4.textContent = 'Кружок на картинке мигает так же часто — одно моргание, иногда три быстрых.';
+        var n4 = document.createElement('p'); n4.className = 'note'; n4.textContent = 'Моргает сериями вразнобой: чаще одно неспешное, иногда два или три быстрых подряд. Ползунок — как часто в среднем начинается серия. Кружок на картинке моргает так же.';
         kb3.appendChild(n4);
         d.appendChild(kb3);
       }
@@ -652,7 +668,30 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     return best;
   }
   var downAt = null;
+  // (22.10) Пальцы: один — рисует и ставит точки, два — двигают и увеличивают (как в картах и Procreate).
+  // Второй палец отменяет начатую линию, картинка под рисующим пальцем больше не уезжает.
+  var touches = {}, gest = null;
+  function tCount() { return Object.keys(touches).length; }
+  function startGesture() {
+    var ids = Object.keys(touches), a = touches[ids[0]], b = touches[ids[1]], st = $('stage'), sr = st.getBoundingClientRect();
+    if (drag && drag.el && drag.el.parentNode) drag.el.parentNode.removeChild(drag.el);
+    drag = null; suppress = true;
+    var mx = (a.x + b.x) / 2 - sr.left, my = (a.y + b.y) / 2 - sr.top, z0 = Number($('zoom').value);
+    gest = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: z0, cx: (st.scrollLeft + mx) / z0, cy: (st.scrollTop + my) / z0 };
+  }
+  function moveGesture() {
+    var ids = Object.keys(touches); if (ids.length < 2 || !gest) return;
+    var a = touches[ids[0]], b = touches[ids[1]], st = $('stage'), sr = st.getBoundingClientRect();
+    var z = setZoom(gest.z0 * Math.hypot(a.x - b.x, a.y - b.y) / gest.d0);
+    var mx = (a.x + b.x) / 2 - sr.left, my = (a.y + b.y) / 2 - sr.top;
+    st.scrollLeft = gest.cx * z - mx; st.scrollTop = gest.cy * z - my;
+  }
   ov.addEventListener('pointerdown', function (ev) {
+    if (ev.pointerType === 'touch') {
+      touches[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+      if (tCount() >= 2) { startGesture(); ev.preventDefault(); return; }
+    }
+    if (gest) return;
     suppress = false; downAt = [ev.clientX, ev.clientY];
     if (!img.getAttribute('src')) return;
     var st = $('stage');
@@ -673,9 +712,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       return;
     }
     if (h) { drag = { m: h.m, k: h.k, moved: false }; suppress = true; ov.setPointerCapture(ev.pointerId); ev.preventDefault(); }
-    else { drag = { maybe: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop, id: ev.pointerId }; }   // потянет — поедет картинка
+    else if (ev.pointerType === 'mouse') { drag = { maybe: true, sx: ev.clientX, sy: ev.clientY, sl: st.scrollLeft, stp: st.scrollTop, id: ev.pointerId }; }   // мышью потянет — поедет картинка
   });
   ov.addEventListener('pointermove', function (ev) {
+    if (ev.pointerType === 'touch' && touches[ev.pointerId]) { touches[ev.pointerId] = { x: ev.clientX, y: ev.clientY }; if (gest) { moveGesture(); return; } }
     if (!drag) return;
     if (drag.maybe) {
       if (Math.hypot(ev.clientX - drag.sx, ev.clientY - drag.sy) <= 6) return;
@@ -702,6 +742,10 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     drag.moved = true; drag.m.open = true; refresh();
   });
   function endDrag(ev) {
+    if (ev && ev.pointerType === 'touch') {
+      delete touches[ev.pointerId];
+      if (gest) { if (tCount() < 2) { gest = null; drag = null; } return; }
+    }
     if (!drag) return;
     if (drag.draw) {
       var pts = drag.pts; drag = null;
@@ -729,8 +773,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   }
   // (16.10) в приложении (телефон, планшет) жест пальца перехватывала прокрутка окна: линия
   // обрывалась на первых миллиметрах и оставались только «тычки». Пока рисуешь — прокрутку держим.
-  ov.addEventListener('touchmove', function (ev) { if (drag && (drag.draw || drag.maybeDraw)) ev.preventDefault(); }, { passive: false });
-  ov.addEventListener('touchstart', function (ev) { if (!outlining && !panMode && (cur.id === 'edge' || cur.id === 'occ' || cur.id === 'sky' || cur.id === 'fire')) ev.preventDefault(); }, { passive: false });
+  // палец на картинке не листает страницу и не увеличивает её целиком — жесты наши
+  ov.addEventListener('touchmove', function (ev) { ev.preventDefault(); }, { passive: false });
+  ov.addEventListener('touchstart', function (ev) { if (ev.touches.length > 1 || !outlining && (cur.id === 'edge' || cur.id === 'occ' || cur.id === 'sky' || cur.id === 'fire')) ev.preventDefault(); }, { passive: false });
   ov.addEventListener('pointerup', endDrag);
   ov.addEventListener('pointercancel', endDrag);
 
@@ -808,11 +853,14 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
   };
 
-  $('zoom').addEventListener('input', function () {
-    var z = Number($('zoom').value);
+  function setZoom(z) {
+    z = Math.min(10, Math.max(1, z));
+    $('zoom').value = z;
     pic.style.width = (z * 100) + '%';
-    $('zoomv').textContent = (z % 1 ? z.toFixed(2).replace(/0$/, '') : z) + '×';
-  });
+    $('zoomv').textContent = (Math.round(z * 4) / 4 % 1 ? (Math.round(z * 4) / 4).toFixed(2).replace(/0$/, '') : Math.round(z)) + '×';
+    return z;
+  }
+  $('zoom').addEventListener('input', function () { setZoom(Number($('zoom').value)); });
 
 
   // ── Пробный пар прямо на картинке: примерно так он будет двигаться (формулы те же, что у сборщика,
@@ -877,6 +925,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     drawCandles(now, dw, dh);
     drawStars(now, dw, dh);
     drawFire(now, dw, dh);
+    drawBubbles(now, dw, dh);
     requestAnimationFrame(drawSteam);
   }
 
@@ -1102,6 +1151,30 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   }
   // (17.10) Пробный огонь: тёплый свет внутри обводки и вокруг неё дышит в такт, как у сборщика.
   // Колыхание языков видно только в ролике (сдвиг пикселей тяжёл для телефона).
+  // (22.10) Пробные пузыри — как у сборщика: в 6-секундной петле две серии по три, поднимаются от рта до глади,
+  // чуть виляя, растут и тают у поверхности.
+  function drawBubbles(now, dw, dh) {
+    var all = marks.filter(function (m) { return m.eff === 'bubbles' && m.pts.length >= 2; });
+    if (!all.length || !dh) return;
+    var t = (now / 1000) % LOOP, k = dh / 864;
+    all.forEach(function (m) {
+      var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh, surf = m.pts[1].y / 100 * dh;
+      [0.6, 3.6].forEach(function (start) {
+        for (var j = 0; j < 3; j++) {
+          var age = t - (start + j * 0.28), life = 1.45;
+          if (age < 0 || age > life) continue;
+          var p = age / life, y = py - p * (py - surf);
+          var x = px + k * (-2 - j * 1.2 + 2.2 * Math.sin(2 * Math.PI * (p * 1.6 + j * 0.3)));
+          var a = Math.min(1, age / 0.12) * (p < 0.85 ? 1 : Math.max(0, (1 - p) / 0.15)), r = k * (1.5 + 1.3 * p) * 1.6;
+          fxc.save(); fxc.globalAlpha = 0.8 * a;
+          fxc.strokeStyle = 'rgb(236,240,236)'; fxc.lineWidth = Math.max(1, 0.8 * k * 1.6);
+          fxc.beginPath(); fxc.arc(x, y, r, 0, 7); fxc.stroke();
+          fxc.fillStyle = 'rgba(236,240,236,0.8)'; fxc.beginPath(); fxc.arc(x - r * 0.45, y - r * 0.45, r * 0.3, 0, 7); fxc.fill();
+          fxc.restore();
+        }
+      });
+    });
+  }
   function drawFire(now, dw, dh) {
     var all = marks.filter(function (m) { return m.eff === 'fire' && m.pts.length >= 3; });
     if (!all.length || !dh) return;
