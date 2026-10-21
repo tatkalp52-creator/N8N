@@ -183,7 +183,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
     { id: 'sky', name: 'Звёзды', taps: 99, knobs: [['яркость', 5], ['мерцание', 5], ['скорость', 5]], hint: 'Обведи небо в окне пальцем или стилусом одним движением (или точками по кругу и «Готово») — только небо над домами, без рамы. Обводи мимо домов: всё светлое внутри обводки замерцает как звёзды. Луну сборщик не трогает. Потом в списке «Настроить» — яркость, мерцание, скорость.' },
     { id: 'fire', name: 'Огонь (камин, костёр)', taps: 99, knobs: [['яркость', 5], ['высота', 5], ['скорость', 5], ['отсвет', 5]], hint: 'Обведи нарисованное пламя пальцем или стилусом одним движением (или точками по кругу и «Готово») — только огонь, можно с поленьями. Светлое внутри обводки заколышется вверх, вокруг задышит тёплый свет. Потом в списке «Настроить» — яркость, высота языков, скорость, отсвет; «Обвести отсвет» — пол или стена, куда падает свет.' },
-    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Коснись картинки — появится рамка обложки 16:9. Тяни рамку пальцем — она едет; тяни за белый уголок — меняется размер. Белая зона в оранжевом пунктире — где встанет текст оверлея; кнопка «Оверлей ⇄» у отметки перекидывает его на другую сторону. Рамка готова — нажми «ОК» у неё; следующее касание (хоть поверх неё) — рамка второй обложки. Можно две обложки — Б и В. Строки обложек уйдут вместе с пунктом 9; сборщик сделает обложки с оверлеем при сборке, и они придут в Телеграм вместе с готовым видео. Поле «ID выпуска» — только для уже собранных выпусков.' },
+    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Коснись картинки — появится рамка обложки 16:9. Тяни рамку пальцем — она едет; тяни за белый уголок — меняется размер. Белая зона в оранжевом пунктире — где встанет текст оверлея; сторону выбери кнопкой у отметки: «◀ Оверлей слева» или «Оверлей справа ▶» (пока не выбрана, обложки в тексте для бота нет). Рамка готова — нажми «ОК» у неё; следующее касание (хоть поверх неё) — рамка второй обложки. Можно две обложки — Б и В. Строки обложек уйдут вместе с пунктом 9; сборщик сделает обложки с оверлеем при сборке, и они придут в Телеграм вместе с готовым видео. Поле «ID выпуска» — только для уже собранных выпусков.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6], ['ореол', 5]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
@@ -234,7 +234,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   // (например толщина 7, густота 3), и видео расходится с превью на странице
   function lineOf(m) {
     var p = m.pts, s;
-    if (m.eff === 'cover') { var cf = coverFrame(m); return 'обложка ' + coverLetter(m) + ': кадр ' + cf.x0 + ' ' + cf.y0 + ' — ' + cf.x1 + ' ' + cf.y1 + ', оверлей ' + (cf.side === 'right' ? 'справа' : 'слева'); }
+    // (22.10) сторону оверлея выбирает она сама; пока не выбрана — строки в тексте для бота нет
+    if (m.eff === 'cover') { var cf = coverFrame(m); if (!cf.side) return ''; return 'обложка ' + coverLetter(m) + ': кадр ' + cf.x0 + ' ' + cf.y0 + ' — ' + cf.x1 + ' ' + cf.y1 + ', оверлей ' + (cf.side === 'right' ? 'справа' : 'слева'); }
     if (m.eff === 'blink') s = 'моргание: ' + fmt(p[0].x) + ', ' + fmt(p[0].y) + (m.r ? '; радиус ' + fmt(m.r) : '') + (m.every ? '; частота ' + blinkKnob(m.every) : '');
     else if (m.eff === 'candle') {
       s = 'свеча: ' + fmt(p[0].x) + ', ' + fmt(p[0].y);
@@ -296,18 +297,18 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   // части рамки (оранжевая зона), сторону переключает кнопка у отметки.
   var COVER_SERVER = /sslip\.io$/.test(location.hostname) ? location.origin : 'http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io';
   function coverFrame(m) {
-    if (m.f) return { x0: r1(m.f.x0), y0: r1(m.f.y0), x1: r1(m.f.x0 + m.f.s), y1: r1(m.f.y0 + m.f.s), side: m.side || (m.f.x0 + m.f.s / 2 < 50 ? 'right' : 'left') };
+    if (m.f) return { x0: r1(m.f.x0), y0: r1(m.f.y0), x1: r1(m.f.x0 + m.f.s), y1: r1(m.f.y0 + m.f.s), side: m.side || null };
     var pts = m.pts, xs = pts.map(function (q) { return q.x; }), ys = pts.map(function (q) { return q.y; });
     var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs), by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
     var cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
     var size = Math.min(100, Math.max(20, bx1 - bx0, by1 - by0));
-    var side = m.side || (cx < 50 ? 'right' : 'left');
+    var side = m.side || null;
     var x0 = Math.max(0, Math.min(100 - size, cx - size / 2)), y0 = Math.max(0, Math.min(100 - size, cy - size / 2));
     return { x0: r1(x0), y0: r1(y0), x1: r1(x0 + size), y1: r1(y0 + size), side: side };
   }
   function coverUrl(m) {
     var f = coverFrame(m), id = (($('pid') || {}).value || '').trim();
-    return id ? COVER_SERVER + '/cover/' + encodeURIComponent(id) + '?box=' + [f.x0, f.y0, f.x1, f.y1].join(',') + '&side=' + f.side : '';
+    return id && f.side ? COVER_SERVER + '/cover/' + encodeURIComponent(id) + '?box=' + [f.x0, f.y0, f.x1, f.y1].join(',') + '&side=' + f.side : '';
   }
   function coverLetter(m) { var n = marks.filter(function (o) { return o.eff === 'cover'; }).indexOf(m); return n === 0 ? 'Б' : n === 1 ? 'В' : String(n + 1); }
   function effName(id) { return EFFECTS.filter(function (e) { return e.id === id; })[0].name; }
@@ -376,7 +377,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         var cf = coverFrame(m), sz = cf.x1 - cf.x0, half = cf.side === 'right' ? cf.x0 + 0.55 * sz : cf.x0;
         ov.appendChild(svgEl('polygon', { points: p.map(function (q) { return q.x + ',' + q.y; }).join(' '), fill: 'none', stroke: '#2563eb', 'stroke-width': 2, 'stroke-dasharray': '4 3', 'vector-effect': 'non-scaling-stroke' }));
         // (22.10) зона оверлея должна читаться на тёплой картинке: светлая заливка, яркая пунктирная рамка
-        ov.appendChild(svgEl('rect', { x: half, y: cf.y0 + 0.2 * sz, width: 0.45 * sz, height: 0.6 * sz, fill: 'rgba(255,255,255,0.45)', stroke: '#f97316', 'stroke-width': 3, 'stroke-dasharray': '8 5', 'vector-effect': 'non-scaling-stroke' }));
+        if (cf.side) ov.appendChild(svgEl('rect', { x: half, y: cf.y0 + 0.2 * sz, width: 0.45 * sz, height: 0.6 * sz, fill: 'rgba(255,255,255,0.45)', stroke: '#f97316', 'stroke-width': 3, 'stroke-dasharray': '8 5', 'vector-effect': 'non-scaling-stroke' }));
         ov.appendChild(svgEl('rect', { x: cf.x0, y: cf.y0, width: sz, height: sz, fill: 'none', stroke: '#2563eb', 'stroke-width': 3, 'vector-effect': 'non-scaling-stroke' }));
         [[cf.x0, cf.y0], [cf.x1, cf.y0], [cf.x0, cf.y1], [cf.x1, cf.y1]].forEach(function (c) {
           ov.appendChild(svgEl('rect', { x: c[0] - 1.2, y: c[1] - 2.1, width: 2.4, height: 4.2, fill: '#fff', stroke: '#2563eb', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }));
@@ -420,16 +421,21 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       var m = pair[0], i = pair[1];
       var d = document.createElement('div'); d.className = 'mark';
       var num = document.createElement('div'); num.className = 'num'; num.textContent = i + 1;
-      var t = document.createElement('div'); t.className = 'txt'; t.textContent = lineOf(m);
+      var sides = null;
+      var t = document.createElement('div'); t.className = 'txt'; t.textContent = lineOf(m) || ('обложка ' + coverLetter(m) + ': выбери, где встанет оверлей ↓');
       if (m.eff === 'cover') {
         var cu = coverUrl(m), a = document.createElement(cu ? 'a' : 'span');
         if (cu) { a.href = cu; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Открыть обложку ' + coverLetter(m) + ' (сборщик, с оверлеем)'; }
-        else a.textContent = 'Придёт в Телеграм вместе с готовым видео. (Для уже собранного выпуска — впиши ID сверху, появится ссылка.)';
+        else a.textContent = '→ придёт в Телеграм вместе с видео';
         a.style.display = 'block'; a.style.marginTop = '4px'; t.appendChild(a);
-        var sw = document.createElement('button'); sw.type = 'button'; sw.textContent = 'Оверлей ⇄';
-        sw.style.display = 'block'; sw.style.marginTop = '6px';
-        sw.onclick = function () { m.side = coverFrame(m).side === 'right' ? 'left' : 'right'; refresh(); };
-        t.appendChild(sw);
+        sides = document.createElement('div'); sides.style.display = 'flex'; sides.style.gap = '8px'; sides.style.marginTop = '4px'; sides.style.gridColumn = '1 / -1';
+        [['left', '◀ Оверлей слева'], ['right', 'Оверлей справа ▶']].forEach(function (o) {
+          var b = document.createElement('button'); b.type = 'button'; b.textContent = o[1];
+          if (m.side === o[0]) b.className = 'primary';
+          b.style.flex = '1';
+          b.onclick = function () { m.side = o[0]; refresh(); };
+          sides.appendChild(b);
+        });
       }
       var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Убрать'; del.setAttribute('aria-label', 'Убрать точку ' + (i + 1));
       del.onclick = function () { marks.splice(i, 1); refresh(); };
@@ -626,7 +632,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         okb.onclick = function () { m.fixed = true; m.open = false; if (outlining && outlining.m === m) { outlining = null; pending = []; } refresh(); };
         d.appendChild(okb);
       }
-      if (m.fixed) { var ft = document.createElement('div'); ft.className = 'fixedtag'; ft.textContent = '✓ зафиксировано — с картинки убрано, виден только эффект'; d.appendChild(ft); }
+      if (m.eff === 'cover' && sides) d.appendChild(sides);
+      if (m.fixed) { var ft = document.createElement('div'); ft.className = 'fixedtag'; ft.textContent = m.eff === 'cover' ? '✓ рамка зафиксирована — касание по ней начнёт новую' : '✓ зафиксировано — с картинки убрано, виден только эффект'; d.appendChild(ft); }
       box.appendChild(d);
     });
   }
@@ -638,7 +645,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   }
   function outText() {
     // (22.10) обложки едут в том же тексте: сборщик сделает Б/В при сборке, 04 пришлёт их в Телеграм
-    var fresh = marks.map(lineOf), old = haveLines();
+    var fresh = marks.map(lineOf).filter(Boolean), old = haveLines();
     if (marks.some(function (m) { return m.eff === 'cover'; })) old = old.filter(function (l) { return !/^обложк/i.test(l); });
     var lines = old.concat(fresh.filter(function (l) { return old.indexOf(l) < 0; }));
     if (!lines.length) return '';
