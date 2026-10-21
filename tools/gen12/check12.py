@@ -35,7 +35,7 @@ for n in wf['nodes']:
         print('NO CREDS', n['name']); bad += 1
 # 6. СТОРОЖ: код не читает колонки с содержанием по имени и не знает ролей.
 # Разрешены только служебные колонки (кнопки механики) и колонки листа выпусков (интерфейс 04_Video).
-SERVICE = {'tmpl_Channel', 'tmpl_Lupa', 'tmpl_ImageModel', 'tmpl_ChannelVectorStoreId', 'tmpl_CleanMode', 'tmpl_CleanNotebook',
+SERVICE = {'tmpl_Channel', 'tmpl_Lupa', 'tmpl_ImageModel', 'tmpl_ImageQuality', 'tmpl_LightModel', 'tmpl_ChannelVectorStoreId', 'tmpl_CleanMode', 'tmpl_CleanNotebook',
            'tmpl_CleanAlarmHours', 'tmpl_CleanRecheckTimes', 'tmpl_CleanBlend', 'tmpl_CleanBlendStems', 'tmpl_Clean'}
 ROLE_WORDS = re.compile(r'Редактор|Писател|Художник|Технический|Pengui|Пингви', re.I)
 for n in wf['nodes']:

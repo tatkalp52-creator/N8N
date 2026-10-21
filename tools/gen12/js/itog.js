@@ -222,6 +222,7 @@ return [{ json: {
   editRefUrls: art ? art.editRefUrls : [],
   editRoles: art ? art.editRoles : '',
   imageModel: art ? art.imageModel : '',
+  imageQuality: art ? art.imageQuality : '',
   projectId: ctx.projectId,
   chatId: ctx.chatId,
   sheetName: ctx.sheetName,

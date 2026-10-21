@@ -358,7 +358,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $('Считаем длительности треков').first().json;\nconst channelRow = $json;\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (24.09): названия тайм-кодов Редактор пишет заранее — пункт 4\n// текстового блока, согласованный автором, лежит в колонке\n// ai_TimecodeNames (по одному названию на строку). Имена файлов больше не\n// используются: переименовываются ВСЕ треки. Берём заготовленные по\n// порядку — первый трек получает первое название и т.д. Лишние названия\n// просто не используются. Если заготовленных меньше, чем треков (или их\n// нет вообще — старый проект), недостающие придумывает GPT по правилам\n// канала из таблицы.\nconst prewritten = String(proj.ai_TimecodeNames || '')\n  .split('\\n').map(s => s.trim()).filter(Boolean);\n\nconst needsNaming = info.tracks.filter((t, pos) => !prewritten[pos]);\n\nif (needsNaming.length === 0) {\n  return [{ json: { skipGpt: true, prewritten, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n}\n\n// Как называть — правила канала из таблицы (PackagingRules, раздел про\n// тайм-коды) и паспорт персонажа; в коде только формат ответа.\nconst packagingRules = findByLabel(channelRow, 'tmpl_PackagingRules') || '';\nconst characterPassport = findByLabel(channelRow, 'tmpl_CharacterPassport') || '';\n\nconst systemPrompt = 'Придумай названия для инструментальных треков YouTube-видео по правилам канала ниже.\\n\\n' +\n  (characterPassport ? 'Персонаж канала: ' + characterPassport + '\\n\\n' : '') +\n  (packagingRules ? 'Правила канала:\\n' + packagingRules + '\\n\\n' : '') +\n  'Верни JSON строго такого вида: {\"names\": {\"<index>\": \"Name\", ...}} — по одному имени на каждый индекс из списка.';\n\nconst userPrompt = 'Описание выпуска: ' + (proj.ai_DescriptionEN || proj.ai_Description || proj.ai_UserBrief || '') + '\\n\\n' +\n  (prewritten.length ? 'Уже есть названия (не повторяй их): ' + prewritten.join('; ') + '\\n\\n' : '') +\n  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');\n\nreturn [{ json: { skipGpt: false, prewritten, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $('Считаем длительности треков').first().json;\nconst channelRow = $json;\n// (22.10) лёгкая модель для служебных текстов — служебная колонка Templates tmpl_LightModel\nconst lightModel = String((Object.entries(channelRow).find(([k]) => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightModel') || [])[1] || '').trim() || 'gpt-5-mini';\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (24.09): названия тайм-кодов Редактор пишет заранее — пункт 4\n// текстового блока, согласованный автором, лежит в колонке\n// ai_TimecodeNames (по одному названию на строку). Имена файлов больше не\n// используются: переименовываются ВСЕ треки. Берём заготовленные по\n// порядку — первый трек получает первое название и т.д. Лишние названия\n// просто не используются. Если заготовленных меньше, чем треков (или их\n// нет вообще — старый проект), недостающие придумывает GPT по правилам\n// канала из таблицы.\nconst prewritten = String(proj.ai_TimecodeNames || '')\n  .split('\\n').map(s => s.trim()).filter(Boolean);\n\nconst needsNaming = info.tracks.filter((t, pos) => !prewritten[pos]);\n\nif (needsNaming.length === 0) {\n  return [{ json: { skipGpt: true, prewritten, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n}\n\n// Как называть — правила канала из таблицы (PackagingRules, раздел про\n// тайм-коды) и паспорт персонажа; в коде только формат ответа.\nconst packagingRules = findByLabel(channelRow, 'tmpl_PackagingRules') || '';\nconst characterPassport = findByLabel(channelRow, 'tmpl_CharacterPassport') || '';\n\nconst systemPrompt = 'Придумай названия для инструментальных треков YouTube-видео по правилам канала ниже.\\n\\n' +\n  (characterPassport ? 'Персонаж канала: ' + characterPassport + '\\n\\n' : '') +\n  (packagingRules ? 'Правила канала:\\n' + packagingRules + '\\n\\n' : '') +\n  'Верни JSON строго такого вида: {\"names\": {\"<index>\": \"Name\", ...}} — по одному имени на каждый индекс из списка.';\n\nconst userPrompt = 'Описание выпуска: ' + (proj.ai_DescriptionEN || proj.ai_Description || proj.ai_UserBrief || '') + '\\n\\n' +\n  (prewritten.length ? 'Уже есть названия (не повторяй их): ' + prewritten.join('; ') + '\\n\\n' : '') +\n  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');\n\nreturn [{ json: { skipGpt: false, model: lightModel, prewritten, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n"
       },
       "id": "e8a238cf-457f-43f0-ab36-5d5bffde8162",
       "name": "Готовим запрос на названия треков",
@@ -396,7 +396,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }) }}",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ model: $json.model || 'gpt-5-mini', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }, /^gpt-5/.test($json.model || 'gpt-5-mini') ? { reasoning_effort: 'minimal' } : {})) }}",
         "options": {}
       },
       "id": "471febd4-9271-469d-aba8-52652c9b0515",
@@ -1440,7 +1440,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Переводы названия и описания — локализации YouTube: зритель из Испании видит\n// ролик по-испански. Какие языки — служебная колонка tmpl_Languages в Templates\n// («es, de, fr»); пусто — переводов нет, ветка молча кончается. Как переводить\n// (что оставить как есть, тон) — колонки со значком 🌐: здесь только механика.\nconst tmpl = $('Читаем стиль оверлея').first().json;\nconst data = $('Готовим данные для сборки').first().json;\nconst key = Object.keys(tmpl).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_Languages');\nconst langs = [...new Set(String(key ? tmpl[key] || '' : '')\n  .split(/[\\s,;]+/).map(s => s.trim().toLowerCase())\n  .filter(s => /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/.test(s) && s !== 'en'))];\nif (!langs.length) return [];\nconst rules = Object.keys(tmpl)\n  .filter(k => k.includes('🌐') && String(tmpl[k] || '').trim())\n  .map(k => String(tmpl[k]).trim()).join('\\n\\n');\nconst systemPrompt = 'Translate the title and the description of a YouTube video from English into these languages (codes): '\n  + langs.join(', ') + '.\\n'\n  + 'Answer with JSON only: {\"<code>\": {\"title\": \"...\", \"description\": \"...\"}} — one entry for every code.\\n'\n  + 'Keep line breaks, the timestamps at the start of lines (0:00, 12:34, 1:02:03), links and hashtags exactly as they are. '\n  + 'The title must stay under 100 characters. Never use the characters < and >.'\n  + (rules ? '\\n\\n' + rules : '');\nreturn [{ json: { langs, systemPrompt, userPrompt: JSON.stringify({ title: data.title, description: data.description }) } }];"
+        "jsCode": "// Переводы названия и описания — локализации YouTube: зритель из Испании видит\n// ролик по-испански. Какие языки — служебная колонка tmpl_Languages в Templates\n// («es, de, fr»); пусто — переводов нет, ветка молча кончается. Как переводить\n// (что оставить как есть, тон) — колонки со значком 🌐: здесь только механика.\nconst tmpl = $('Читаем стиль оверлея').first().json;\nconst data = $('Готовим данные для сборки').first().json;\n// (22.10) лёгкая модель для служебных текстов — служебная колонка Templates tmpl_LightModel\nconst lightModel = String((Object.entries(tmpl).find(([k]) => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightModel') || [])[1] || '').trim() || 'gpt-5-mini';\nconst key = Object.keys(tmpl).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_Languages');\nconst langs = [...new Set(String(key ? tmpl[key] || '' : '')\n  .split(/[\\s,;]+/).map(s => s.trim().toLowerCase())\n  .filter(s => /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/.test(s) && s !== 'en'))];\nif (!langs.length) return [];\nconst rules = Object.keys(tmpl)\n  .filter(k => k.includes('🌐') && String(tmpl[k] || '').trim())\n  .map(k => String(tmpl[k]).trim()).join('\\n\\n');\nconst systemPrompt = 'Translate the title and the description of a YouTube video from English into these languages (codes): '\n  + langs.join(', ') + '.\\n'\n  + 'Answer with JSON only: {\"<code>\": {\"title\": \"...\", \"description\": \"...\"}} — one entry for every code.\\n'\n  + 'Keep line breaks, the timestamps at the start of lines (0:00, 12:34, 1:02:03), links and hashtags exactly as they are. '\n  + 'The title must stay under 100 characters. Never use the characters < and >.'\n  + (rules ? '\\n\\n' + rules : '');\n// (22.10) пересборка: тот же текст — те же переводы, OpenAI не зовём. Отпечаток — без тайм-кодов,\n// они при новой сборке могут сдвинуться; в готовые переводы подставляем новые по порядку.\nconst TS = /\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b/g;\nconst fp = s => { let h = 5381; for (const ch of s) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(36); };\nconst print = fp(JSON.stringify([langs, data.title, String(data.description || '').replace(TS, '#')]));\nlet cache = null;\ntry { cache = JSON.parse(String($('Читаем проект').first().json.sys_Translations || '') || 'null'); } catch (e) { cache = null; }\nconst newTs = String(data.description || '').match(TS) || [];\nif (cache && cache.print === print && cache.loc) {\n  const loc = {};\n  let ok = true;\n  for (const [l, v] of Object.entries(cache.loc)) {\n    const old = String(v.description || '').match(TS) || [];\n    if (old.length !== newTs.length) { ok = false; break; }\n    let i = 0;\n    loc[l] = { title: v.title, description: String(v.description || '').replace(TS, () => newTs[i++]) };\n  }\n  if (ok) return [{ json: { langs, cached: true, cachedLoc: loc, print } }];\n}\nreturn [{ json: { langs, cached: false, print, model: lightModel, systemPrompt, userPrompt: JSON.stringify({ title: data.title, description: data.description }) } }];"
       },
       "name": "Готовим переводы",
       "type": "n8n-nodes-base.code",
@@ -1459,7 +1459,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }) }}",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ model: $json.model || 'gpt-5-mini', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }, /^gpt-5/.test($json.model || 'gpt-5-mini') ? { reasoning_effort: 'minimal' } : {})) }}",
         "options": {
           "timeout": 180000
         }
@@ -1485,7 +1485,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Ответ переводчика → тело videos.update. Этот вызов переписывает snippet целиком,\n// поэтому кладём в него ровно то, что ушло при загрузке (название, описание, теги,\n// категорию) — иначе YouTube стёр бы описание и теги. defaultLanguage обязателен,\n// без него YouTube не принимает локализации.\nif ($json.error) return [{ json: { error: 'переводчик не ответил: ' + JSON.stringify($json.error).slice(0, 200) } }];\nconst data = $('Готовим данные для сборки').first().json;\nconst up = $('Загружаем на YouTube').first().json;\nconst prep = $('Готовим переводы').first().json;\nlet parsed;\ntry { parsed = JSON.parse($json.choices[0].message.content); }\ncatch (e) { return [{ json: { error: 'переводчик ответил не JSON' } }]; }\nconst clean = s => String(s || '').replace(/[<>]/g, '').trim();\nconst localizations = {};\nfor (const l of prep.langs) {\n  const t = parsed[l] || {};\n  const title = clean(t.title);\n  if (!title) continue;\n  let description = clean(t.description);\n  while (Buffer.byteLength(description, 'utf8') > 5000) description = description.slice(0, -50);\n  localizations[l] = { title: title.slice(0, 100), description };\n}\nif (!Object.keys(localizations).length) return [{ json: { error: 'в ответе нет ни одного перевода' } }];\n// те же теги, что при загрузке (тот же отбор под лимит 500 символов)\nconst seen = new Set(); const tags = []; let used = 0;\nfor (const raw of String(data.tags || '').split(',')) {\n  const t = raw.trim(); const k = t.toLowerCase();\n  if (!t || seen.has(k)) continue;\n  const cost = t.length + (t.includes(' ') ? 2 : 0) + (tags.length ? 1 : 0);\n  if (used + cost > 480) break;\n  seen.add(k); tags.push(t); used += cost;\n}\nreturn [{ json: {\n  error: '',\n  langs: Object.keys(localizations),\n  body: {\n    id: up.uploadId,\n    snippet: { title: data.title, description: data.description, categoryId: '10', tags, defaultLanguage: 'en' },\n    localizations,\n  },\n} }];"
+        "jsCode": "// Ответ переводчика → тело videos.update. Этот вызов переписывает snippet целиком,\n// поэтому кладём в него ровно то, что ушло при загрузке (название, описание, теги,\n// категорию) — иначе YouTube стёр бы описание и теги. defaultLanguage обязателен,\n// без него YouTube не принимает локализации.\nconst data = $('Готовим данные для сборки').first().json;\nconst up = $('Загружаем на YouTube').first().json;\nconst prep = $('Готовим переводы').first().json;\nlet parsed;\nif (prep.cached) parsed = prep.cachedLoc;          // (22.10) пересборка — готовые переводы\nelse {\n  if ($json.error) return [{ json: { error: 'переводчик не ответил: ' + JSON.stringify($json.error).slice(0, 200) } }];\n  try { parsed = JSON.parse($json.choices[0].message.content); }\n  catch (e) { return [{ json: { error: 'переводчик ответил не JSON' } }]; }\n}\nconst clean = s => String(s || '').replace(/[<>]/g, '').trim();\nconst localizations = {};\nfor (const l of prep.langs) {\n  const t = parsed[l] || {};\n  const title = clean(t.title);\n  if (!title) continue;\n  let description = clean(t.description);\n  while (Buffer.byteLength(description, 'utf8') > 5000) description = description.slice(0, -50);\n  localizations[l] = { title: title.slice(0, 100), description };\n}\nif (!Object.keys(localizations).length) return [{ json: { error: 'в ответе нет ни одного перевода' } }];\n// те же теги, что при загрузке (тот же отбор под лимит 500 символов)\nconst seen = new Set(); const tags = []; let used = 0;\nfor (const raw of String(data.tags || '').split(',')) {\n  const t = raw.trim(); const k = t.toLowerCase();\n  if (!t || seen.has(k)) continue;\n  const cost = t.length + (t.includes(' ') ? 2 : 0) + (tags.length ? 1 : 0);\n  if (used + cost > 480) break;\n  seen.add(k); tags.push(t); used += cost;\n}\nreturn [{ json: {\n  error: '',\n  cached: !!prep.cached,\n  // в строку выпуска: следующая пересборка возьмёт отсюда\n  cacheJson: JSON.stringify({ print: prep.print, loc: localizations }),\n  langs: Object.keys(localizations),\n  body: {\n    id: up.uploadId,\n    snippet: { title: data.title, description: data.description, categoryId: '10', tags, defaultLanguage: 'en' },\n    localizations,\n  },\n} }];"
       },
       "name": "Собираем локализации",
       "type": "n8n-nodes-base.code",
@@ -1684,6 +1684,84 @@
       "maxTries": 3,
       "waitBetweenTries": 5000,
       "id": "776ada01-2286-5628-ae50-0fd697386a0d"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "0df0af0e-f6f4-537f-b074-81dbfce205d2",
+              "leftValue": "={{ !!$json.cached }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Переводы уже есть?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        7920,
+        1860
+      ],
+      "id": "848adaf5-ee2e-5632-b0d9-3701bc02a311"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Нормализуем вход').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Читаем проект').first().json.sys_ProjectID }}",
+            "sys_Translations": "={{ $('Собираем локализации').first().json.cacheJson }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "cec13188-eb8d-5df7-9f20-221f6e7867a1",
+      "name": "Запоминаем переводы",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        8480,
+        1860
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "continueOnFail": true
     }
   ],
   "pinData": {},
@@ -2338,7 +2416,7 @@
       "main": [
         [
           {
-            "node": "OpenAI: переводы",
+            "node": "Переводы уже есть?",
             "type": "main",
             "index": 0
           }
@@ -2372,6 +2450,11 @@
         [
           {
             "node": "Ставим переводы на YouTube",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Запоминаем переводы",
             "type": "main",
             "index": 0
           }
@@ -2434,6 +2517,24 @@
         [
           {
             "node": "Шлём обложку Б/В",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Переводы уже есть?": {
+      "main": [
+        [
+          {
+            "node": "Собираем локализации",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI: переводы",
             "type": "main",
             "index": 0
           }

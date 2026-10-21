@@ -53,4 +53,19 @@ async function run(name, nodes, input){
   it=(await run('Итог переводов',{'Собираем локализации':bl,'Готовим данные для сборки':data},{error:{message:'403'}}))[0];
   assert.ok(it.text.includes('не встали'));
   console.log('5 OK (переводы)');
+  // 5b) (22.10) пересборка: тот же текст — переводы из строки выпуска, OpenAI не зовём; новые тайм-коды подставляются
+  {
+    assert.equal(pr.cached,false); assert.equal(pr.model,'gpt-5-mini');
+    const T={'tmpl_Languages':'es, DE; fr en','🌐_tmpl_TranslationRules':"Keep Pengui's Jazz"};
+    const cacheRow={sys_Translations: bl.cacheJson.replace('D es','D es 0:00 A').replace('D de','D de 0:00 A')};
+    const data2={...data,description:'Story\n\n0:05 A\n\n#pengui'};
+    const p2=(await run('Готовим переводы',{'Читаем стиль оверлея':T,'Готовим данные для сборки':data2,'Читаем проект':cacheRow}))[0];
+    assert.equal(p2.cached,true,'текст тот же — берём готовое');
+    assert.equal(p2.cachedLoc.es.description,'D es 0:05 A','тайм-код новый');
+    const b2=(await run('Собираем локализации',{'Готовим данные для сборки':data2,'Загружаем на YouTube':{uploadId:'vid2'},'Готовим переводы':p2},p2))[0];
+    assert.equal(b2.error,''); assert.equal(b2.body.id,'vid2'); assert.equal(b2.body.localizations.es.description,'D es 0:05 A');
+    const p3=(await run('Готовим переводы',{'Читаем стиль оверлея':{...T,'tmpl_LightModel':'gpt-5-nano'},'Готовим данные для сборки':{...data,title:'New title'},'Читаем проект':cacheRow}))[0];
+    assert.equal(p3.cached,false,'текст другой — переводим'); assert.equal(p3.model,'gpt-5-nano','модель из таблицы');
+  }
+  console.log('5b OK (пересборка без перевода)');
 })().catch(e=>{console.error('FAIL',e);process.exit(1)});

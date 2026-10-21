@@ -554,6 +554,7 @@ function artBuild(ctx, stage, task, edit, variantNumber) {
     dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,
     revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,
     imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',
+    imageQuality: (q => ['low', 'medium', 'high', 'auto'].includes(q) ? q : 'high')(String(findByLabel(tmpl, 'tmpl_ImageQuality') || '').trim().toLowerCase()),
     ...refs,
   };
   if (edit) {

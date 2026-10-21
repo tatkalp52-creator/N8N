@@ -445,8 +445,13 @@ def image_call(template, name, count, prompt, pos):
             x['value'] = "={{ $('Итог хода').first().json.imageModel }}"
         if x.get('name') == 'prompt':
             x['value'] = prompt
+    # (22.10) качество — служебная колонка Templates tmpl_ImageQuality (low / medium / high), по умолчанию high
+    QUALITY = "={{ $('Итог хода').first().json.imageQuality || 'high' }}"
+    for x in bp:
+        if x.get('name') == 'quality':
+            x['value'] = QUALITY
     if not any(x.get('name') == 'quality' for x in bp):
-        bp.insert(3, {'name': 'quality', 'value': 'high'})
+        bp.insert(3, {'name': 'quality', 'value': QUALITY})
     bp += [{'parameterType': 'formBinaryData', 'name': 'image[]', 'inputDataFieldName': f'image_{k}'} for k in range(count)]
     n['parameters']['bodyParameters']['parameters'] = bp
     return add(n)

@@ -1,19 +1,20 @@
 // Перевод для автора (11.10): пункты не по-русски переводит отдельный переводчик. Он видит только
 // готовый текст пункта — то, что ляжет в таблицу, — без разговора и без пометок автора. Поэтому
 // русский, который читает автор, — всегда перевод того английского, который она согласует.
-// Модель — этапа, который сейчас говорил (лист «Этапы»).
+// Модель — служебная колонка Templates tmpl_LightModel (22.10: переводу не нужна большая модель); пусто — как раньше, модель этапа.
 const draft = $('Итог хода: черновик').first().json;
 const ctx = $('Контекст проекта').first().json;
 const state = stParseState(draft.editorState);
 const todo = itRuTodo(state);
 const stages = ctx.stages || [];
 const textModel = s => s && s.model && !/image|dall/i.test(s.model) ? s.model : '';
+const lightModel = String(findByLabel(ctx.tmpl || {}, 'tmpl_LightModel') || '').trim();
 // (20.10) Задание художнику — наоборот, на английский: по-русски модель картинок дорисовывает
 // «русский дух» (сани, гобелен с тройкой). Переводится только смысл задания, ничего не добавляется.
 const plan = $('Кто отвечает').first().json;
 const artTask = ['ready_to_draw', 'revise_point'].includes(draft.action) ? String(plan.userText || '').trim() : '';
 if (artTask && /[а-яё]/i.test(artTask)) {
-  const model = stages.map(textModel).find(Boolean) || 'gpt-5';
+  const model = lightModel || stages.map(textModel).find(Boolean) || 'gpt-5';
   const requestBody = {
     model,
     instructions: 'Translate the author\'s picture brief into clear, natural English for an image model. '
@@ -23,12 +24,12 @@ if (artTask && /[а-яё]/i.test(artTask)) {
     text: { format: { type: 'json_object' } },
     store: false,
   };
-  if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: 'low' };
+  if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: lightModel ? 'minimal' : 'low' };
   return [{ json: { need: true, todo: [], art: true, artTask, requestBody } }];
 }
 if (!todo.length) return [{ json: { need: false, todo: [] } }];
 const stage = stages.find(s => bareIcon(s.icon) === bareIcon(draft.stageIcon)) || stages.find(s => s.model) || {};
-const model = stage.model || 'gpt-5';
+const model = lightModel || stage.model || 'gpt-5';
 const src = {};
 for (const t of todo) src[String(t.n)] = t.text;
 const requestBody = {
@@ -41,5 +42,5 @@ const requestBody = {
   text: { format: { type: 'json_object' } },
   store: false,
 };
-if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: 'low' };
+if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: lightModel ? 'minimal' : 'low' };
 return [{ json: { need: true, todo, requestBody } }];
