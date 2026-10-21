@@ -183,7 +183,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     { id: 'rain',   name: 'Дождь',      taps: 2, hint: 'Коснись двух противоположных углов стекла окна.' },
     { id: 'sky', name: 'Звёзды', taps: 99, knobs: [['яркость', 5], ['мерцание', 5], ['скорость', 5]], hint: 'Обведи небо в окне пальцем или стилусом одним движением (или точками по кругу и «Готово») — только небо над домами, без рамы. Обводи мимо домов: всё светлое внутри обводки замерцает как звёзды. Луну сборщик не трогает. Потом в списке «Настроить» — яркость, мерцание, скорость.' },
     { id: 'fire', name: 'Огонь (камин, костёр)', taps: 99, knobs: [['яркость', 5], ['высота', 5], ['скорость', 5], ['отсвет', 5]], hint: 'Обведи нарисованное пламя пальцем или стилусом одним движением (или точками по кругу и «Готово») — только огонь, можно с поленьями. Светлое внутри обводки заколышется вверх, вокруг задышит тёплый свет. Потом в списке «Настроить» — яркость, высота языков, скорость, отсвет; «Обвести отсвет» — пол или стена, куда падает свет.' },
-    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Обведи пальцем или стилусом то, что обязательно должно попасть в обложку: Пингви, предмет, кусок сцены. Страничка сама построит кадр 16:9 так, чтобы обведённое было в одной половине, а в другой встал оверлей (оранжевая зона). Можно две обложки — Б и В. Ниже впиши ID выпуска и открой обложку: её сделает сборщик, с оверлеем, как в ролике.' },
+    { id: 'cover', name: 'Обложка (кадр)', taps: 99, hint: 'Обведи пальцем или стилусом то, что обязательно должно попасть в обложку: Пингви, предмет, кусок сцены. Страничка сама построит кадр 16:9 так, чтобы обведённое было в одной половине, а в другой встал оверлей (оранжевая зона). Можно две обложки — Б и В. Строки обложек уйдут вместе с пунктом 9; сборщик сделает обложки с оверлеем при сборке, и они придут в Телеграм вместе с готовым видео. Поле «ID выпуска» — только для уже собранных выпусков.' },
     { id: 'lights', name: 'Гирлянда',   taps: 99, knobs: [['яркость', 8], ['мерцание', 6], ['ореол', 5]], hint: 'Коснись каждой лампочки по очереди, в любом порядке, потом нажми «Готово». Сразу видно, как светит: так же посветит и в ролике. Сборщик подвигает точку на самое светлое место лампочки (маленький кружок — куда); если не надо — в списке поставь «точно».' }
   ];
   var cur = EFFECTS[0], pending = [], marks = [], outlining = null;
@@ -293,7 +293,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   function blinkKnob(sec) { return r1(Math.max(0, Math.min(20, 5 + 5 * Math.log2(BLINK_BASE / sec)))); }
   // (22.10) Обложка: кадр 16:9 вокруг обведённого. Картинка тоже 16:9, поэтому кадр в процентах — квадрат s×s.
   // Обведённое занимает одну половину кадра (до 55 % ширины), во второй — оверлей.
-  var COVER_SERVER = 'http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io';
+  var COVER_SERVER = /sslip\.io$/.test(location.hostname) ? location.origin : 'http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io';
   function coverFrame(pts) {
     var xs = pts.map(function (q) { return q.x; }), ys = pts.map(function (q) { return q.y; });
     var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs), by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
@@ -419,7 +419,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       if (m.eff === 'cover') {
         var cu = coverUrl(m), a = document.createElement(cu ? 'a' : 'span');
         if (cu) { a.href = cu; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Открыть обложку ' + coverLetter(m) + ' (сборщик, с оверлеем)'; }
-        else a.textContent = 'Впиши ID выпуска сверху — появится ссылка на обложку.';
+        else a.textContent = 'Придёт в Телеграм вместе с готовым видео. (Для уже собранного выпуска — впиши ID сверху, появится ссылка.)';
         a.style.display = 'block'; a.style.marginTop = '4px'; t.appendChild(a);
       }
       var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Убрать'; del.setAttribute('aria-label', 'Убрать точку ' + (i + 1));
@@ -628,7 +628,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       .filter(function (l) { return l && !/^пункт\s*9/i.test(l); });
   }
   function outText() {
-    var fresh = marks.filter(function (m) { return m.eff !== 'cover'; }).map(lineOf), old = haveLines();
+    // (22.10) обложки едут в том же тексте: сборщик сделает Б/В при сборке, 04 пришлёт их в Телеграм
+    var fresh = marks.map(lineOf), old = haveLines();
+    if (marks.some(function (m) { return m.eff === 'cover'; })) old = old.filter(function (l) { return !/^обложк/i.test(l); });
     var lines = old.concat(fresh.filter(function (l) { return old.indexOf(l) < 0; }));
     if (!lines.length) return '';
     return 'Пункт 9, запиши ровно так, без изменений:\n' + lines.join('\n');

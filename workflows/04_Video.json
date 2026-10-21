@@ -1591,6 +1591,99 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000
+    },
+    {
+      "name": "Обложки Б/В: какие есть",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8704,
+        2400
+      ],
+      "parameters": {
+        "url": "=http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/covers/{{ $('Нормализуем вход').first().json.projectId }}",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "30a352ec-0a39-53e6-9649-42766af1fa35"
+    },
+    {
+      "name": "Обложки Б/В: по одной",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8928,
+        2400
+      ],
+      "parameters": {
+        "jsCode": "// Нет строк обложек в пункте 9 или сборщик не ответил — ничего не шлём, молча.\nreturn $input.all().flatMap(i => ((i.json && i.json.covers) || []).filter(c => c && c.file).map(c => ({ json: c })));"
+      },
+      "id": "940873cd-2726-510c-b620-c128a8e9fee7"
+    },
+    {
+      "name": "Скачиваем обложку Б/В",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9152,
+        2400
+      ],
+      "parameters": {
+        "url": "=http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/cover_file/{{ $('Нормализуем вход').first().json.projectId }}/{{ $json.file }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "5ad47fb1-afa2-5bb1-924d-2045fcc1e88a"
+    },
+    {
+      "name": "Шлём обложку Б/В",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9376,
+        2400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendDocument",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Готовим данные для сборки').first().json.chatId }}"
+            },
+            {
+              "name": "caption",
+              "value": "=Обложка {{ $('Обложки Б/В: по одной').item.json.letter }} — для «Тест и сравнение» в YouTube Studio"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "document",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "776ada01-2286-5628-ae50-0fd697386a0d"
     }
   ],
   "pinData": {},
@@ -2087,6 +2180,11 @@
             "node": "Готовим попытку субтитров",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Обложки Б/В: какие есть",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -2096,6 +2194,11 @@
         [
           {
             "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Обложки Б/В: какие есть",
             "type": "main",
             "index": 0
           }
@@ -2298,6 +2401,39 @@
         [
           {
             "node": "Сообщаем: переводы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Обложки Б/В: какие есть": {
+      "main": [
+        [
+          {
+            "node": "Обложки Б/В: по одной",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Обложки Б/В: по одной": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем обложку Б/В",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем обложку Б/В": {
+      "main": [
+        [
+          {
+            "node": "Шлём обложку Б/В",
             "type": "main",
             "index": 0
           }

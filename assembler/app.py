@@ -11,7 +11,7 @@ import shutil
 import glob
 import requests
 import gdown
-from flask import Flask, request, jsonify, send_file, after_this_request
+from flask import Flask, request, jsonify, send_file, after_this_request, send_from_directory
 
 app = Flask(__name__)
 
@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-covers"
+ASSEMBLER_VERSION = "2026-10-22-covers2"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -1657,10 +1657,13 @@ class FxNums(list):
     radius = None
 
 
+COVER_WORDS = ("обложк",)   # строки обложек Б/В в пункте 9 — не эффекты, их читает make_episode_covers
+
+
 def parse_effects(text):
     out = []
     for line in str(text or "").splitlines():
-        if line.strip().lower().startswith(EVENT_EFFECT_WORDS):
+        if line.strip().lower().startswith(EVENT_EFFECT_WORDS + COVER_WORDS):
             continue
         low = line.lower()
         knobs = {}
@@ -3812,6 +3815,7 @@ def assemble():
         except Exception as grade_error:  # фильтр — украшение, сборку не роняем
             print(f"[grade] не удалось: {grade_error}")
         save_cover_kit(project_id, image_path, data)
+        make_episode_covers(project_id, data.get("fx_Effects"))
         fade_in_seconds = float(data.get("fadeInSeconds", 1.5))
         fade_out_seconds = float(data.get("fadeOutSeconds", 3))
         gap_seconds = float(data.get("gapSeconds", 0))
@@ -4142,6 +4146,80 @@ def render_cover(project_id, box, side, out_path):
         graph += ";[base]null[v]"
     run_ffmpeg(["-i", base, "-filter_complex", graph, "-map", "[v]", "-frames:v", "1", "-q:v", "2", out_path])
     return out_path
+
+
+def parse_cover_lines(text):
+    """Строки страницы разметки: «обложка Б: кадр 13 26 — 66 79, оверлей справа» → [(буква, рамка, сторона)]."""
+    out = []
+    for line in str(text or "").splitlines():
+        low = line.strip().lower()
+        if not low.startswith(COVER_WORDS):
+            continue
+        km = re.search(r"кадр\w*\s*(.*)", low)
+        nums = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", km.group(1) if km else "")]
+        if len(nums) < 4:
+            print(f"[обложка] не поняла строку: {line!r}")
+            continue
+        x0, y0, x1, y1 = nums[:4]
+        if x1 - x0 < 5 or y1 - y0 < 5:
+            print(f"[обложка] слишком маленькая рамка: {line!r}")
+            continue
+        side = "left" if "слева" in low else "center" if "центр" in low else "right"
+        lm = re.match(r"обложк\w*\s+([^\s:]+)\s*:", low)
+        letter = (lm.group(1) if lm else str(len(out) + 1)).upper()
+        out.append((letter, (x0, y0, x1, y1), side))
+    return out
+
+
+COVER_FILE_NAMES = {"Б": "B", "В": "V", "Г": "G"}
+
+
+def make_episode_covers(project_id, fx_text):
+    """(22.10) Обложки из пункта 9 делаются при сборке и ждут 04: /covers/<ID> — список, /cover_file/<ID>/<имя> — картинка."""
+    listing = os.path.join(THUMBNAIL_DIR, f"{project_id}_covers.json")
+    try:
+        if os.path.exists(listing):
+            with open(listing, encoding="utf-8") as fh:
+                for c in json.load(fh):
+                    try:
+                        os.remove(os.path.join(THUMBNAIL_DIR, f"{project_id}_cover_{c['file']}.jpg"))
+                    except OSError:
+                        pass
+            os.remove(listing)
+        made = []
+        for letter, box, side in parse_cover_lines(fx_text):
+            name = COVER_FILE_NAMES.get(letter, re.sub(r"[^A-Za-z0-9]", "", letter) or str(len(made) + 1))
+            try:
+                render_cover(project_id, box, side, os.path.join(THUMBNAIL_DIR, f"{project_id}_cover_{name}.jpg"))
+                made.append({"letter": letter, "file": name})
+            except Exception as one_error:
+                print(f"[обложка] {letter} не получилась: {one_error}")
+        if made:
+            with open(listing, "w", encoding="utf-8") as fh:
+                json.dump(made, fh, ensure_ascii=False)
+    except Exception as covers_error:   # обложки — дополнение, сборку не роняем
+        print(f"[обложка] не сделаны: {covers_error}")
+
+
+@app.route("/covers/<project_id>", methods=["GET"])
+def covers_list_route(project_id):
+    listing = os.path.join(THUMBNAIL_DIR, f"{project_id}_covers.json")
+    if not os.path.exists(listing):
+        return jsonify({"covers": []})
+    with open(listing, encoding="utf-8") as fh:
+        return jsonify({"covers": json.load(fh)})
+
+
+@app.route("/cover_file/<project_id>/<name>", methods=["GET"])
+def cover_file_route(project_id, name):
+    path = os.path.join(THUMBNAIL_DIR, f"{secure_name(project_id)}_cover_{secure_name(name)}.jpg")
+    if not os.path.exists(path):
+        return jsonify({"error": "cover not found"}), 404
+    return send_file(path, mimetype="image/jpeg", as_attachment=True, download_name=f"{project_id}_oblozhka_{name}.jpg")
+
+
+def secure_name(v):
+    return re.sub(r"[^A-Za-z0-9_\-]", "", str(v))
 
 
 @app.route("/cover_kit/<project_id>", methods=["POST"])
@@ -4923,6 +5001,29 @@ def cleanup_old_temp(hours=3):
                 print(f"[cleanup] удалена старая временная папка {d}")
         except Exception as e:
             print(f"[cleanup] не удалось удалить {d}: {e}")
+
+
+# ── СТРАНИЧКИ (22.10) ──
+# Разметка оживления, пульт звука, сборщик Suno живут на этом же сервере, в /app/pages
+# (постоянная папка, кладётся командой из assembler/update.sh) — открываются без claude.ai.
+PAGES_DIR = os.environ.get("PAGES_DIR", "/app/pages")
+
+
+@app.route("/pages/", methods=["GET"])
+@app.route("/pages", methods=["GET"])
+def pages_index():
+    names = sorted(f[:-5] for f in os.listdir(PAGES_DIR) if f.endswith(".html")) if os.path.isdir(PAGES_DIR) else []
+    links = "".join(f'<li><a href="/pages/{n}">{n}</a></li>' for n in names) or "<li>страничек нет — запусти update.sh</li>"
+    return f'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><ul>{links}</ul>'
+
+
+@app.route("/pages/<path:name>", methods=["GET"])
+def pages_file(name):
+    if "." not in name.rsplit("/", 1)[-1]:
+        name += ".html"
+    resp = send_from_directory(PAGES_DIR, name)
+    resp.headers["Cache-Control"] = "no-cache"   # после обновления открывается новая версия
+    return resp
 
 
 @app.route("/health", methods=["GET"])
