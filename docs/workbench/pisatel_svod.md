@@ -92,7 +92,7 @@ Then the invitation: "Come by and spend a little time with Pengui — subscribe 
 
 [6 HASHTAGS] 2–3, from the channel's own series: #penguisjazz always; + one series: #penguicooks (kitchen), #penguireads (reading, study, work), #penguisleeps (sleep, bedtime); + #halloween or #christmas when the episode is clearly seasonal. A new series hashtag only with the author's agreement.
 
-[7 TAGS] Under 500 characters. The pool: jazzt a pengui, jazz a pengui, jazzt a penguin, jazz a penguin, pengui, pengui's jazz, penguins jazz, cozy jazz, cafe jazz, lofi jazz, piano jazz, relaxing jazz, smooth jazz, jazz instrumental, classical crossover, background music, music for reading, study music, music for work, cooking music, sleep music. Seasonal, when they fit: fireplace jazz, autumn jazz, rainy day jazz, winter jazz, snowy night jazz, winter coffee shop jazz, christmas jazz, cozy christmas jazz, holiday jazz. Then 3–6 tags of this episode: the composer and the piece in full, the occasion, the key image of the scene.
+[7 TAGS] Under 500 characters, from the channel's tag pool (its own column): all "Always" tags; then the fitting ones "by what the episode is for"; seasonal ones only for a seasonal episode; then 3–6 tags of this episode: the composer and the piece in full, the occasion, the key image of the scene.
 
 [8 PINNED COMMENT] Paused: pass "-".
 ```
