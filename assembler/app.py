@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-covers2"
+ASSEMBLER_VERSION = "2026-10-22-harm"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -935,6 +935,29 @@ def _float_or(v, default):
         return default
 
 
+# (22.10) Обертоны баса — чтобы контрабас был слышен на планшете и телефоне: их динамики ниже ~200 Гц
+# не играют, основной тон баса пропадает. Низ ниже 120 Гц мягко перегружаем (tanh даёт нечётные
+# обертоны: 55 Гц → 165, 275 …), оставляем полосу 140–700 Гц и тихо подмешиваем к треку.
+# Мозг по обертонам «достраивает» основной тон. 🎬 BassHarmonics: 0 — выключено, 1–10 — сила (5 — обычно).
+BASS_HARM_BASE_DB = 3.0   # подобрано замером: сила 5 → обертоны на ≈ 12 дБ тише самого баса
+def add_bass_harmonics(src, dst, strength):
+    # перегрузка зависит от уровня: сначала меряем пик низа, разгоняем его до одной и той же
+    # перегрузки и потом возвращаем обратно — доля обертонов не зависит от громкости трека
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-i", src, "-af", "lowpass=f=120,lowpass=f=120,volumedetect",
+                          "-f", "null", "-"], capture_output=True, text=True).stderr
+    m = re.search(r"max_volume:\s*(-?[\d.]+) dB", out)
+    if not m or float(m.group(1)) < -60:
+        return src                                         # низа нет — нечего достраивать
+    drive = 6.0 - float(m.group(1))
+    gain_db = -drive + BASS_HARM_BASE_DB + 2 * max(0.0, min(10.0, strength))
+    graph = ("[0:a]asplit=2[dry][low];"
+             f"[low]lowpass=f=120,lowpass=f=120,volume={drive:.1f}dB,asoftclip=type=tanh,"
+             f"highpass=f=140,highpass=f=140,lowpass=f=700,volume={gain_db:.1f}dB[h];"
+             "[dry][h]amix=inputs=2:duration=first:dropout_transition=0,volume=2")
+    run_ffmpeg(["-i", src, "-filter_complex", graph, dst])
+    return dst
+
+
 def build_audio_track(
     audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
     gap_seconds=0, loop_count=None, mix_seconds=None,
@@ -942,7 +965,7 @@ def build_audio_track(
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
     denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
     bass_db=0.0, bass_hz=160.0, bass_cut_hz=30.0, sound_bands=None, band_report=None,
-    intro_first=False, intro_max_seconds=90.0,
+    intro_first=False, intro_max_seconds=90.0, bass_harmonics=0.0,
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -1060,6 +1083,11 @@ def build_audio_track(
         # Полка с пологим наклоном: переход широкий, без ступеньки; громкость дальше меряется уже после неё.
         # (08.10) второй срез — только самый верх (шипение выше ~9 кГц): 🎬 HissDb / HissHz.
         # (20.10) низы: приглушить гудящий контрабас Suno — 🎬 BassDb / BassHz (канал) или fx_Bass (выпуск).
+        if bass_harmonics > 0:   # до автобаланса: он же и удержит низ середины в границах
+            try:
+                source_path = add_bass_harmonics(source_path, os.path.join(faded_dir, f"harm_{i}.wav"), bass_harmonics)
+            except Exception as harm_error:   # улучшение, сборку не роняем
+                print(f"[обертоны] трек {i + 1}: не получилось: {harm_error}")
         if sound_bands:
             try:
                 bal_path, b_before, b_after, b_gains = balance_sound_bands(
@@ -3877,6 +3905,7 @@ def assemble():
             denoise_amount=denoise_amount,
             highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz, bass_db=bass_db, bass_hz=bass_hz, bass_cut_hz=bass_cut_hz,
             intro_first=intro_mode(data.get("fx_IntroOnce")),
+            bass_harmonics=_float_or(data.get("bassHarmonics"), 0.0),
             intro_max_seconds=_float_or(data.get("introMaxSeconds"), 90.0),
             sound_bands=parse_sound_bands(data.get("soundBands")), band_report=band_report,
         )
