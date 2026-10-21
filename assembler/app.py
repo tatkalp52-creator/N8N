@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-all"
+ASSEMBLER_VERSION = "2026-10-22-covers"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -3811,6 +3811,7 @@ def assemble():
             grade_image(image_path, data)
         except Exception as grade_error:  # фильтр — украшение, сборку не роняем
             print(f"[grade] не удалось: {grade_error}")
+        save_cover_kit(project_id, image_path, data)
         fade_in_seconds = float(data.get("fadeInSeconds", 1.5))
         fade_out_seconds = float(data.get("fadeOutSeconds", 3))
         gap_seconds = float(data.get("gapSeconds", 0))
@@ -4093,6 +4094,91 @@ def get_loudness_report(project_id):
     if not os.path.exists(report_path):
         return "отчёта нет: выпуск ещё не собирался этой версией сборщика\n", 404
     return send_file(report_path, mimetype="text/plain; charset=utf-8")
+
+
+# ── ОБЛОЖКИ Б / В (22.10) ──
+# Кадр выбирает автор (рамка на страничке разметки), оверлей ставит сборщик — тем же шрифтом,
+# цветом и тенью, что в ролике, на свободную сторону кадра. При каждой сборке сборщик кладёт себе
+# «набор обложки»: картинку после цветофильтра и настройки оверлея. Для выпуска, собранного раньше, —
+# POST /cover_kit/<ID> с теми же полями, что шлёт 04 (imageUrl, overlayText, стиль, цвет).
+COVER_KEYS = ("overlayText", "overlayPosition", "overlayFont", "overlaySize", "overlayColor", "overlayShadow",
+              "overlayShadowBlur", "overlayShadowOpacity", "overlayLineSpacing", "overlayBorder", "overlayMargin")
+
+
+def save_cover_kit(project_id, image_path, data):
+    try:
+        os.makedirs(THUMBNAIL_DIR, exist_ok=True)
+        shutil.copy(image_path, os.path.join(THUMBNAIL_DIR, f"{project_id}_cover_base.jpg"))
+        with open(os.path.join(THUMBNAIL_DIR, f"{project_id}_cover.json"), "w", encoding="utf-8") as fh:
+            json.dump({k: data.get(k) for k in COVER_KEYS if data.get(k) not in (None, "")}, fh, ensure_ascii=False)
+    except Exception as kit_error:   # обложки — дополнение, сборку не роняем
+        print(f"[обложка] набор не сохранён: {kit_error}")
+
+
+def render_cover(project_id, box, side, out_path):
+    """box = (x0, y0, x1, y1) в процентах картинки; side — где оверлей: left / right / center."""
+    base = os.path.join(THUMBNAIL_DIR, f"{project_id}_cover_base.jpg")
+    with open(os.path.join(THUMBNAIL_DIR, f"{project_id}_cover.json"), encoding="utf-8") as fh:
+        kit = json.load(fh)
+    from PIL import Image as _Im
+    w, h = _Im.open(base).size
+    x0, y0, x1, y1 = box
+    cx, cy = int(x0 / 100 * w), int(y0 / 100 * h)
+    cw, ch = max(16, int((x1 - x0) / 100 * w)), max(9, int((y1 - y0) / 100 * h))
+    font_path = font_path_for(kit.get("overlayFont"))
+    shadow_l, main_l = build_overlay_drawtext(
+        str(kit.get("overlayText") or ""), side, font_path, kit.get("overlaySize", "44"),
+        str(kit.get("overlayColor", "#FFFFFF")).lstrip("#"), str(kit.get("overlayShadow", "E7DFCF")).lstrip("#"),
+        kit.get("overlayShadowOpacity", "0.55"), "1", margin=int(kit.get("overlayMargin") or 60),
+        line_spacing=float(kit.get("overlayLineSpacing") or 0.875), visible_until="9999",
+        border=max(0, int(round(float(kit.get("overlayBorder") or 0)))))
+    graph = f"[0:v]crop={cw}:{ch}:{cx}:{cy},scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:flags=lanczos,setsar=1[base]"
+    if shadow_l:
+        graph += (f";color=black@0.0:s={VIDEO_WIDTH}x{VIDEO_HEIGHT},format=rgba[shadowbg];"
+                  + ";".join(f"[{'shadowbg' if i == 0 else f'sh{i}'}]{f}[sh{i + 1}]" for i, f in enumerate(shadow_l))
+                  + f";[sh{len(shadow_l)}]gblur=sigma={kit.get('overlayShadowBlur', '4')}[shb];[base][shb]overlay[ws]"
+                  + "".join(f";[{'ws' if i == 0 else f'm{i}'}]{f}[{f'm{i + 1}' if i + 1 < len(main_l) else 'v'}]" for i, f in enumerate(main_l)))
+    else:
+        graph += ";[base]null[v]"
+    run_ffmpeg(["-i", base, "-filter_complex", graph, "-map", "[v]", "-frames:v", "1", "-q:v", "2", out_path])
+    return out_path
+
+
+@app.route("/cover_kit/<project_id>", methods=["POST"])
+def cover_kit_route(project_id):
+    data = request.json or {}
+    work = tempfile.mkdtemp(prefix="coverkit_")
+    try:
+        img = download_file(data["imageUrl"], os.path.join(work, "image.jpg"))
+        try:
+            grade_image(img, data)
+        except Exception as grade_error:
+            print(f"[grade] не удалось: {grade_error}")
+        save_cover_kit(project_id, img, data)
+        return "набор обложки сохранён\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
+    except Exception as e:
+        return f"не получилось: {e}\n", 500, {"Content-Type": "text/plain; charset=utf-8"}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+@app.route("/cover/<project_id>", methods=["GET"])
+def cover_route(project_id):
+    try:
+        box = [float(v) for v in request.args.get("box", "").split(",")]
+        if len(box) != 4:
+            raise ValueError("нужна рамка box=x0,y0,x1,y1")
+        side = request.args.get("side", "right")
+        if side not in ("left", "right", "center"):
+            side = "right"
+        if not os.path.exists(os.path.join(THUMBNAIL_DIR, f"{project_id}_cover.json")):
+            return ("набора обложки нет: выпуск собирался до 22.10 — пересобери его или пришли /cover_kit\n",
+                    404, {"Content-Type": "text/plain; charset=utf-8"})
+        out = os.path.join(tempfile.mkdtemp(prefix="cover_"), f"{project_id}_cover.jpg")
+        render_cover(project_id, box, side, out)
+        return send_file(out, mimetype="image/jpeg", download_name=f"{project_id}_cover.jpg")
+    except Exception as e:
+        return f"не получилось: {e}\n", 500, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 # (22.10) замер полос последней сборки выпуска (текст): было → стало по каждому треку.
