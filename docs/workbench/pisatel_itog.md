@@ -61,7 +61,7 @@ PACKAGING — items 1, 2, 4–8. Everything here is in English. Every word count
 [1 OVERLAY] Two words + position, written as "text | position". Choose the form that fits the episode:
 — "Just" + one word for the mood or state of the moment, not a literal label of the scene: "Just Falling", "Just Sleepy";
 — "Jazzt" + one word, a playful twist on the channel name: "Jazzt Nothing", "Jazzt Fantasia".
-Position: left, right or center — the side of the picture where Pengui is not, so the text never covers him.
+Position: left, right or center — wherever the two words look most expressive over this picture. Center is welcome, even if the text touches Pengui a little.
 Guide episodes (step-by-step recipes and how-tos): the frame already carries dense text — no overlay, pass "-".
 
 [2 TITLE] Up to 100 characters, two parts joined by " | ". "Pengui's Jazz" opens the title; the music is acoustic café jazz by a small ensemble and is never called lofi. Before the pipe: the two or three words people really search for — the mood plus the place, time or activity this music suits (cozy café, rainy evening, slow reading). After the pipe: a short playful phrase from the heart of this episode's story; when there is a composer, his or her name can live inside it, so the reimagining is felt through the story. Full piece details live in the footer. Example: "Pengui's Jazz · Rainy Bookshop | A Polite Nod to the Cat".
