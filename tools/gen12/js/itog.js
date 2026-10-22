@@ -182,6 +182,14 @@ if (pvItem && approvedBefore && /оживл/.test(pvItem.preview) && plan.mode !
   previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId,
     fxTable: fxTableFor(ctx.effects) };
 }
+// (23.10) обводка без подписи ждёт слов следующим сообщением
+if (plan.marksSave || plan.marksClear) {
+  const k = bareIcon(plan.stageIcon || '');
+  if (k) {
+    state.stages[k] = { ...(state.stages[k] || {}) };
+    if (plan.marksSave) state.stages[k].marks = plan.marksSave; else delete state.stages[k].marks;
+  }
+}
 // Согласованное — сразу в колонки строки выпуска (как в листе «Пункты»); несогласованное там пусто.
 let agreedFields = null;
 const agreedKey = st_ => items.filter(it => st_.agreed[it.n]).map(it => it.n + ':' + ((st_.items[it.n] || {}).text || '')).join('\n');

@@ -21,7 +21,19 @@ const replyStage = isStart || addressed || byItem ? null : stByReply(stages, ctx
 const stage = addressed ? addressed.stage : (byItem || replyStage || current || (isStart ? null : lastAuthor));
 let userText = addressed ? addressed.rest : String(ctx.text || '');
 const photo = ctx.photo && ctx.photo.length ? ctx.photo : null;
+const ownWords = userText.trim();
 if (!userText.trim()) userText = photo ? '(фото без подписи)' : '';
+// (23.10) Обводка без подписи (с планшета подпись не всегда добавишь): не рисуем вслепую, а запоминаем
+// обводку и ждём слова следующим сообщением — тогда это одна правка. Обводка живёт 30 минут.
+const stKey = stage ? bareIcon(stage.icon) : '';
+const pendingMarks = (() => {
+  const m = stKey && state.stages[stKey] ? state.stages[stKey].marks : null;
+  return m && m.photo && Date.now() - Number(m.at || 0) < 30 * 60 * 1000 ? m : null;
+})();
+let marksSave = null;
+let marksClear = false;
+let markPhoto = null;
+let markVariant = null;
 
 let mode = 'none';
 let sayText = '';
@@ -47,8 +59,20 @@ if (ctx.setupProblem) {
     } else {
       mode = 'draw'; userText = String(row.ai_UserBrief || ''); silent = true;
     }
+  } else if (photo && !ownWords) {
+    mode = 'say';
+    sayText = `${stage.icon} ${stage.name}: вижу обводку. Что сделать в обведённых местах? Напишите следующим сообщением — поправлю по этой обводке.`;
+    marksSave = { photo, variant: ctx.replyVariant || null, at: Date.now() };
   } else if (!userText.trim()) {
     mode = 'say'; sayText = `${stage.icon} ${stage.name}: напишите задание словами.`;
+  } else if (!photo && pendingMarks) {
+    // слова к обводке, присланной перед этим
+    mode = 'edit';
+    const e = userText.match(/^\s*правк[аиу](?![а-яё])(?:\s*по\s+разметке)?[\s:,.!—–-]*/iu);
+    if (e) userText = userText.slice(e[0].length);
+    markPhoto = pendingMarks.photo;
+    markVariant = pendingMarks.variant;
+    marksClear = true;
   } else {
     const e = userText.match(/^\s*правк[аиу](?![а-яё])(?:\s*(?:вариант[а]?|№)?\s*(\d+))?[\s:,.!—–-]*/iu);
     if (e || ctx.replyVariant) {
@@ -85,7 +109,7 @@ if (mode === 'model' && stage && stage.noModel) {
 
 const editVariant = (() => {
   const e = String(ctx.text || '').match(/правк[аиу]\s*(?:вариант[а]?|№)?\s*(\d+)/iu);
-  return e ? Number(e[1]) : (ctx.replyVariant || null);
+  return e ? Number(e[1]) : (markVariant || ctx.replyVariant || null);
 })();
 
 // диспетчер: чистое одобрение автора отмечаем сами (модель на этом ходу может выбрать другой инструмент)
@@ -111,8 +135,10 @@ return [{
     needMarks: mode === 'model' && !!photo && !!approvedUrl && !!stage &&
       items.some(it => stScope(stages, stage).items.includes(it.n) && /оживл/.test(it.preview || '')),
     // правка картинки с фото автора: красная обводка на фото = где можно менять (маска сборщика)
-    needMask: mode === 'edit' && !!photo,
-    maskPhoto: mode === 'edit' ? photo : null,
+    needMask: mode === 'edit' && !!(photo || markPhoto),
+    maskPhoto: mode === 'edit' ? (photo || markPhoto) : null,
+    marksSave,
+    marksClear,
     needGrid: mode === 'model' && !!(stage && stage.grid) && !!approvedUrl,
     needConv: mode === 'model' && !silent && !String((state.stages[bareIcon(stage ? stage.icon : '')] || {}).conv || '').trim(),
   }

@@ -746,5 +746,23 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('22 пункт автора без этапа OK');
 
+  // 23. (23.10) Обводка без подписи: не рисуем, ждём слова; следующее сообщение — правка по этой обводке
+  {
+    const V = JSON.stringify([{ n: 1, url: 'U1' }, { n: 2, url: 'U2' }]);
+    let t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: '', replyVariant: 1, photo: [{ file_id: 'S' }, { file_id: 'BIG' }] });
+    assert.equal(t.plan.mode, 'say'); assert.ok(/вижу обводку/.test(t.plan.sayText)); assert.equal(t.next === 'edit', false, 'вслепую не рисуем');
+    const st = JSON.parse(t.r.editorState);
+    assert.equal(st.stages['🎨'].marks.photo[1].file_id, 'BIG');
+    t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2', sys_EditorState: t.r.editorState }, { text: 'радио на подоконнике' });
+    assert.equal(t.plan.mode, 'edit'); assert.equal(t.plan.needMask, true); assert.equal(t.plan.maskPhoto[1].file_id, 'BIG');
+    assert.equal(t.r.revisionTargetImageUrl, 'U1', 'правится та картинка, на которую была обводка');
+    assert.ok(!JSON.parse(t.r.editorState).stages['🎨'].marks, 'обводка использована');
+    // через 30 минут обводка забыта — обычное задание
+    const old = JSON.parse(t.r.editorState); old.stages['🎨'] = { marks: { photo: [{ file_id: 'X' }], variant: 1, at: Date.now() - 31 * 60 * 1000 } };
+    t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2', sys_EditorState: JSON.stringify(old) }, { text: 'осенний сад' });
+    assert.equal(t.plan.mode, 'draw');
+  }
+  console.log('23 обводка без подписи OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
