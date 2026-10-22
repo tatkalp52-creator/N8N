@@ -159,8 +159,15 @@ add({'parameters': {'conditions': {'options': {'caseSensitive': True, 'leftValue
 add({'parameters': {}, 'name': 'Вызов изнутри', 'type': 'n8n-nodes-base.executeWorkflowTrigger', 'typeVersion': 1,
      'position': [X, Y + 200]})
 code('Разбираем входящее', 'razbor.js', [X + 440, Y])
-switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown', 'dupButton'], [X + 660, Y])
-chain('Telegram Trigger', 'Это владелец бота?', 'Разбираем входящее', 'Что пришло?')
+switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown', 'dupButton', 'duplicate'], [X + 660, Y])
+# (23.10) вахтёр на сервере: одно сообщение / одно нажатие — один запуск (повтор — «уже принято» или тихо)
+code('Вахтёр: ключ', 'vahter_klyuch.js', [X + 500, Y - 160])
+add({'parameters': {'method': 'POST', 'url': ASM + '/gate', 'sendBody': True, 'specifyBody': 'json',
+                    'jsonBody': '={{ JSON.stringify($json) }}', 'options': {'timeout': 5000}},
+     'name': 'Вахтёр', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [X + 560, Y - 160],
+     'onError': 'continueRegularOutput'})
+code('Вахтёр: итог', 'vahter_itog.js', [X + 620, Y - 160])
+chain('Telegram Trigger', 'Это владелец бота?', 'Разбираем входящее', 'Вахтёр: ключ', 'Вахтёр', 'Вахтёр: итог', 'Что пришло?')
 link('Вызов изнутри', 'Разбираем входящее')
 # Из календаря (страница контент-плана): «Старт» выпуска и ссылка на треки — тем же путём, что из Телеграма
 add({'parameters': {'httpMethod': 'POST', 'path': CAL_HOOK, 'options': {}}, 'name': 'Из календаря',
@@ -231,7 +238,7 @@ if_node('Проект найден?', '$json.found', [X + 2660, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2880, Y + 200])
 switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build', 'cleanStatus', 'stageStart'], [X + 2880, Y])
 tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопка из старой схемы — она ничего не делает.\n\nID: {{ $json.projectId }}', [X + 3140, Y + 1500])
-link('Что пришло?', 'Это кнопка?', 4)
+link('Что пришло?', 'Это кнопка?', 5)
 link('Это кнопка?', 'Отвечаем на кнопку', 0)
 link('Это кнопка?', 'Находим лист канала', 1)
 chain('Отвечаем на кнопку', 'Находим лист канала', 'Читаем строку проекта', 'Читаем шаблоны канала', 'Читаем этапы', 'Читаем пункты', 'Читаем эффекты', 'Читаем календарь (метка)', 'Контекст проекта', 'Проект найден?')

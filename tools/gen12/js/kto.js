@@ -38,7 +38,10 @@ if (ctx.setupProblem) {
 } else if (stage.picture && !stage.items.length) {
   // Художник: сообщение автора — это задание. Ответ на картинку или «правка …» — правка.
   if (isStart) {
-    if (stage.talks === 'author' || !String(row.ai_UserBrief || '').trim()) {
+    // (23.10) задание уже пришло (обогнало запуск этапа) — молчим, не просим его ещё раз
+    if (stage.talks === 'author' && String(row.ai_UserBrief || '').trim()) {
+      mode = 'none';
+    } else if (stage.talks === 'author' || !String(row.ai_UserBrief || '').trim()) {
       mode = 'say';
       sayText = `${stage.icon} ${stage.name}: жду задание — опишите, что на картинке.`;
     } else {
@@ -68,6 +71,14 @@ if (direct && direct.drops && direct.drops.length) {
     + `\n\nДописать новое к тому, что есть: «Пункт ${direct.n}, добавь: …». Убрать строку: «Пункт ${direct.n}, убери: пар». `
     + `Переписать пункт целиком, без этих строк: «Пункт ${direct.n}, перепиши целиком: …».`;
 } else if (direct) { mode = 'direct'; silent = false; }
+// (23.10) этап без модели («Модель: нет» в листе «Этапы») — OpenAI не зовём, просим готовый текст
+if (mode === 'model' && stage && stage.noModel) {
+  const nums = stScope(stages, stage).items.join(', ');
+  mode = 'say'; silent = false;
+  sayText = isStart
+    ? `${stage.icon} ${stage.name}: жду пункт ${nums} — пришлите готовый текст («Пункт ${nums}, добавь: …» со странички).`
+    : `${stage.icon} ${stage.name}: я работаю без модели — пришлите готовый текст: «Пункт ${nums}, добавь: …», «убери: …» или «запиши ровно так: …».`;
+}
 
 const editVariant = (() => {
   const e = String(ctx.text || '').match(/правк[аиу]\s*(?:вариант[а]?|№)?\s*(\d+)/iu);

@@ -72,7 +72,9 @@ function stParseStages(rows) {
       approve: !/авто/i.test(cell(r, 'Согласование')),
       picture: /картин/i.test(does),
       items: parseNumbers(does.replace(/картин\S*/gi, '')),
-      model: cell(r, 'Модель'),
+      // «Модель: нет» — этап без модели (OpenAI не зовётся): пишет только готовый текст автора (23.10)
+      model: /^(нет|без модели)$/i.test(cell(r, 'Модель')) ? '' : cell(r, 'Модель'),
+      noModel: /^(нет|без модели)$/i.test(cell(r, 'Модель')),
       effort: cell(r, 'Усилие').toLowerCase(),
       // «Картинка: с сеткой» — этап видит картинку с сеткой процентов (чтобы точно называть места)
       grid: /сетк/i.test(cell(r, 'Картинка')),

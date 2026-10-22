@@ -695,5 +695,37 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('19 пункт: добавь / убери OK');
 
+  // 21. (23.10) Вахтёр и тихий старт
+  {
+    const k1 = (await run('Вахтёр: ключ', { nodes: { 'Telegram Trigger': { update_id: 77, message: { text: 'x' } } } }))[0];
+    assert.deepEqual(k1, { key: 'upd:77', ttl: 3600 });
+    const cb = m => ({ update_id: m, callback_query: { id: 'q' + m, data: 'img|20261022_113103_demo|1', message: { message_id: m } } });
+    const k2 = (await run('Вахтёр: ключ', { nodes: { 'Telegram Trigger': cb(5) } }))[0];
+    const k3 = (await run('Вахтёр: ключ', { nodes: { 'Telegram Trigger': cb(9) } }))[0];
+    assert.equal(k2.key, k3.key, 'та же кнопка под разными сообщениями — один ключ');
+    const k4 = (await run('Вахтёр: ключ', { nodes: {} }))[0];
+    assert.equal(k4.key, '', 'изнутри / из календаря — без ключа');
+    const R = { kind: 'message', text: 'бриф', callbackQueryId: '' };
+    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': R }, input: [{ first: true }] }))[0].kind, 'message');
+    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': R }, input: [{ first: false }] }))[0].kind, 'duplicate');
+    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': { ...R, callbackQueryId: 'q' } }, input: [{ first: false }] }))[0].kind, 'dupButton');
+    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': R }, input: [{ error: { message: 'timeout' } }] }))[0].kind, 'message', 'сервер молчит — пропускаем');
+    // бриф обогнал запуск этапа — художник не просит задание ещё раз
+    let t = await turn(DIRECT, { ai_UserBrief: 'вечерний город' }, { kind: 'stageStart', event: 'Новый выпуск.' });
+    assert.equal(t.plan.mode, 'none');
+    t = await turn(DIRECT, {}, { kind: 'stageStart', event: 'Новый выпуск.' });
+    assert.equal(t.plan.mode, 'say');
+    // «Модель: нет» — без OpenAI, «добавь» пишет код
+    const NOM = [st('🎨', 'Художник', 'автор', 'да', 'картинка'), { ...st('✍️', 'Писатель', 'автор', 'да', '3'), 'Модель': 'нет' }];
+    const AP = { ai_UserBrief: 'сад', ai_ApprovedImageUrl: 'U1', ai_ImageVariants: '[{"n":1,"url":"U1"}]', sys_Status: 'Картинка согласована' };
+    t = await turn(NOM, AP, { kind: 'stageStart', event: 'Картинка согласована.' });
+    assert.equal(t.plan.mode, 'say'); assert.ok(/жду пункт 3/.test(t.plan.sayText), t.plan.sayText);
+    t = await turn(NOM, AP, { kind: 'message', text: 'напиши историю' });
+    assert.equal(t.plan.mode, 'say'); assert.equal(t.req, null, 'модель не звали');
+    t = await turn(NOM, AP, { kind: 'message', text: 'Пункт 3, добавь: Pengui baked a pie.' });
+    assert.equal(t.plan.mode, 'direct');
+  }
+  console.log('21 вахтёр, тихий старт, этап без модели OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

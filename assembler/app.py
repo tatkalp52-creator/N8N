@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-22-harm"
+ASSEMBLER_VERSION = "2026-10-23-gate"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -5053,6 +5053,41 @@ def pages_file(name):
     resp = send_from_directory(PAGES_DIR, name)
     resp.headers["Cache-Control"] = "no-cache"   # после обновления открывается новая версия
     return resp
+
+
+# (23.10) Вахтёр для бота: «первый раз вижу этот ключ?» — атомарно, даже если n8n шлёт
+# одно и то же из нескольких запусков одновременно. Файл под блокировкой — работает и при
+# нескольких процессах сервера. Ключи живут ttl секунд (по умолчанию 10 минут).
+GATE_FILE = "/tmp/gate_keys.json"
+
+
+@app.route("/gate", methods=["POST"])
+def gate():
+    import fcntl
+    data = request.get_json(silent=True) or {}
+    key = str(data.get("key") or "")[:300]
+    if not key:
+        return jsonify({"first": True})
+    ttl = max(1, min(int(_float_or(data.get("ttl"), 600)), 86400))
+    now = time.time()
+    with open(GATE_FILE + ".lock", "a") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        try:
+            try:
+                with open(GATE_FILE) as f:
+                    keys = json.load(f)
+            except Exception:
+                keys = {}
+            keys = {k: v for k, v in keys.items() if v > now}
+            first = key not in keys
+            if first:
+                keys[key] = now + ttl
+            with open(GATE_FILE + ".new", "w") as f:
+                json.dump(keys, f)
+            os.replace(GATE_FILE + ".new", GATE_FILE)
+        finally:
+            fcntl.flock(lk, fcntl.LOCK_UN)
+    return jsonify({"first": first})
 
 
 @app.route("/health", methods=["GET"])
