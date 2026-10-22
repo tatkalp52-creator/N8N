@@ -17,6 +17,7 @@ const TMPL = {
   '🖋_tmpl_EditorOnly': 'только редактору',
   '⚙️_tmpl_Secret': 'служебное',
   '🎬tmpl_TargetLUFS': '-14',
+  '🌐_tmpl_TranslationRules': 'Пингви in English is always Pengui (he).',
 };
 const ITEMS = [
   { 'Канал': 'demo', '№': '1', 'Пункт': 'Оверлей', 'Колонки': 'ai_OverlayText | ai_OverlayPosition', 'Подсказка': 'текст | позиция', 'Можно пусто': 'да' },
@@ -90,6 +91,7 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.equal(t.next, 'draw');
   assert.ok(t.r.dallePrompt.endsWith('RU: Пингви на кухне печёт пирог'), 'художнику — перевод задания');
   assert.ok(t.r.chunks.join('').includes('По-английски:'), 'автор видит английское задание');
+  assert.ok(t.nodes['Перевод для автора: что'].requestBody.instructions.includes('Пингви in English is always Pengui'), 'переводчик брифа знает имя (🌐)');
   assert.ok(t.r.dallePrompt.includes('Рисованная иллюстрация.'));
   assert.ok(t.r.dallePrompt.includes('Уютная кухня с окном.'), 'место по слову «кухне»');
   assert.ok(!t.r.dallePrompt.includes('KITCHEN:'), 'строка с триггерами — механика, художнику не идёт');
