@@ -727,5 +727,24 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('21 вахтёр, тихий старт, этап без модели OK');
 
+  // 22. (23.10) Пункт без этапа (оживление): автор пишет сама со странички в любой момент
+  {
+    const IT9 = [...ITEMS, { 'Канал': 'demo', '№': '9', 'Пункт': 'Оживление', 'Колонки': 'fx_Effects', 'Подсказка': '', 'Можно пусто': 'да' }];
+    const TWO = [st('🎨', 'Художник', 'автор', 'да', 'картинка'), st('✍️', 'Писатель', 'автор', 'да', '1–4')];
+    const AP = { ai_UserBrief: 'сад', ai_ApprovedImageUrl: 'U1', ai_ImageVariants: '[{"n":1,"url":"U1"}]', sys_Status: 'Картинка согласована' };
+    const CMD = 'Пункт 9, добавь к тому, что уже есть (остальное не трогай):\nпар: 40, 50';
+    let t = await turn(TWO, AP, { kind: 'message', text: CMD, __items: IT9 });
+    assert.equal(t.plan.mode, 'direct', 'пока работает Писатель'); assert.equal(t.req, null);
+    assert.ok(/пар: 40, 50/.test(t.r.message || JSON.stringify(t.r)), 'записано');
+    t = await turn(TWO, { ai_UserBrief: 'сад' }, { kind: 'message', text: CMD, __items: IT9 });
+    assert.equal(t.plan.mode, 'direct', 'даже пока рисуется картинка — не уходит художнику');
+    const DONE = { ...AP, sys_EditorState: JSON.stringify({ items: { 1: { text: 'a' }, 2: { text: 'b' }, 3: { text: 'c' }, 4: { text: 'd' } }, agreed: { 1: true, 2: true, 3: true, 4: true } }) };
+    t = await turn(TWO, DONE, { kind: 'message', text: CMD, __items: IT9 });
+    assert.equal(t.plan.mode, 'direct', 'все этапы прошли');
+    t = await turn(TWO, AP, { kind: 'message', text: 'светлее', __items: IT9 });
+    assert.notEqual(t.plan.mode, 'direct', 'обычная реплика — как раньше');
+  }
+  console.log('22 пункт автора без этапа OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

@@ -63,10 +63,13 @@ if (ctx.setupProblem) {
 
 // (22.10) «Пункт N, запиши ровно так / добавь / убери» — готовый текст автора: пишет код, модель не нужна
 // (не тратит деньги и не ломается). Согласовано сразу — это её собственные строки.
-const direct = mode === 'model' && !isStart && !photo ? itDirectCommand(userText, items, row, state) : null;
+// (23.10) Свою готовую строку («Пункт 9, добавь: …» со странички) автор шлёт в любой момент — и пока идёт
+// любой этап, и когда все этапы уже прошли. Пункт без этапа в «Этапы» — пункт автора: только так и пишется.
+const directAllowed = !isStart && !photo && !ctx.setupProblem && !resetAsked && ['model', 'done', 'draw', 'edit'].includes(mode);
+const direct = directAllowed ? itDirectCommand(userText, items, row, state) : null;
 if (direct && direct.drops && direct.drops.length) {
   mode = 'say';
-  sayText = `${stage.icon} ${stage.name}: ничего не записала — этот текст убрал бы из пункта ${direct.n} строки:\n`
+  sayText = `${stage ? stage.icon + ' ' + stage.name : '📋'}: ничего не записала — этот текст убрал бы из пункта ${direct.n} строки:\n`
     + direct.drops.join('\n')
     + `\n\nДописать новое к тому, что есть: «Пункт ${direct.n}, добавь: …». Убрать строку: «Пункт ${direct.n}, убери: пар». `
     + `Переписать пункт целиком, без этих строк: «Пункт ${direct.n}, перепиши целиком: …».`;
