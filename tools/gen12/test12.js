@@ -104,9 +104,9 @@ async function turn(stages, row, inc, response, subResponse) {
   // ответ на картинку «Вариант 1» — правка
   const V = JSON.stringify([{ n: 1, url: 'U1' }, { n: 2, url: 'U2' }]);
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'светлее', replyVariant: 1 });
-  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U1'); assert.equal(t.r.revisionInstruction, 'brighter', 'художнику — по-английски');
+  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U1'); assert.ok(t.r.revisionInstruction.startsWith('Рисованная иллюстрация.'), 'правка держит правила'); assert.ok(t.r.revisionInstruction.endsWith('Change only what is asked here: brighter'), 'художнику — по-английски');
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'правка 2: убрать кота' });
-  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U2'); assert.equal(t.r.revisionInstruction, 'remove the cat');
+  assert.equal(t.next, 'edit'); assert.equal(t.r.revisionTargetImageUrl, 'U2'); assert.ok(t.r.revisionInstruction.startsWith('Рисованная иллюстрация.'), 'правка держит правила'); assert.ok(t.r.revisionInstruction.endsWith('Change only what is asked here: remove the cat'));
   // правка с фото-обводкой: план просит маску; маска — к первой картинке; подпись честно говорит, сработала ли
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'шторка на штанге', replyVariant: 2, photo: [{ file_id: 'S' }, { file_id: 'B' }] });
   assert.equal(t.plan.mode, 'edit'); assert.equal(t.plan.needMask, true); assert.equal(t.plan.maskPhoto[1].file_id, 'B');

@@ -570,7 +570,9 @@ function artBuild(ctx, stage, task, edit, variantNumber) {
     const target = variantNumber ? variants.find(v => Number(v.n) === Number(variantNumber)) : last;
     if (target && target.url) { r.revisionTargetImageUrl = target.url; r.revisionTargetVariantNumber = target.n; }
     else { r.action = 'chat'; r.messageToUser = variantNumber ? `Не нашла вариант ${variantNumber}. Есть: ${variants.map(v => v.n).join(', ') || 'пока ни одного'}.` : 'Править пока нечего — сначала нужна картинка.'; }
-    r.revisionInstruction = task;
+    // (23.10) правка тоже держит правила художника (иначе обведённый герой сползал к референсам);
+    // слова правки — в конце, чтобы их можно было заменить английским переводом
+    r.revisionInstruction = kb.text ? `${kb.text}\n\nKeep the picture true to these rules. Change only what is asked here: ${task}` : task;
   } else {
     r.dallePrompt = [kb.text, task].filter(Boolean).join('\n\n');
   }

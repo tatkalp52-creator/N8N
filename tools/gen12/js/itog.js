@@ -59,7 +59,7 @@ if (plan.mode === 'say') {
   if (en) {
     const task = String(plan.userText || '').trim();
     if (art.dallePrompt) art.dallePrompt = art.dallePrompt.endsWith(task) ? art.dallePrompt.slice(0, art.dallePrompt.length - task.length) + en : art.dallePrompt + '\n\n' + en;
-    if (art.revisionInstruction) art.revisionInstruction = en;
+    if (art.revisionInstruction) art.revisionInstruction = art.revisionInstruction.endsWith(task) ? art.revisionInstruction.slice(0, art.revisionInstruction.length - task.length) + en : en;
     message += `\n\nПо-английски: ${en}`;
   }
 } else if (plan.mode === 'model') {
