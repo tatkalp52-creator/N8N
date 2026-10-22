@@ -1,0 +1,628 @@
+{
+  "name": "14_Разбор_каналов",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "name": "Раз в час",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dcf204ce-f27b-5c77-8fcf-69d03e395704"
+    },
+    {
+      "parameters": {},
+      "name": "Запустить вручную",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ],
+      "id": "1c3f95df-6be6-55a1-a7d9-224de153f035"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Каналы для разбора",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Читаем ссылки",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        220,
+        100
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "58c32cd4-3b34-55a4-a655-d301abf09cbd"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Разбор каналов YouTube (23.10): лист «Каналы для разбора» — Ссылка | Группа | Сколько роликов | Статус.\n// Берём строки без статуса. Ссылка — канал (@имя, /channel/UC…, /user/…, /c/…) или любой ролик канала.\n// Группа — любая метка автора («классика», «джаз», «кулинария»): по ней потом разбор, коду она не важна.\nconst API = 'https://www.googleapis.com/youtube/v3/';\nconst MAX_PER_RUN = 10;\nfunction parse(raw) {\n  const s = String(raw || '').trim();\n  if (!s) return null;\n  let m;\n  if ((m = s.match(/(?:v=|youtu\\.be\\/|\\/shorts\\/|\\/live\\/|\\/embed\\/)([A-Za-z0-9_-]{11})/))) return { kind: 'video', value: m[1] };\n  if ((m = s.match(/\\/channel\\/(UC[A-Za-z0-9_-]{22})/)) || (m = s.match(/^(UC[A-Za-z0-9_-]{22})$/))) return { kind: 'id', value: m[1] };\n  if ((m = s.match(/(?:^|\\/)@([^/?#\\s]+)/))) return { kind: 'handle', value: '@' + decodeURIComponent(m[1]) };\n  if ((m = s.match(/\\/user\\/([^/?#\\s]+)/))) return { kind: 'user', value: m[1] };\n  if ((m = s.match(/\\/c\\/([^/?#\\s]+)/))) return { kind: 'custom', value: decodeURIComponent(m[1]) };\n  if (/^[\\w.-]+$/.test(s)) return { kind: 'handle', value: '@' + s };\n  return null;\n}\nconst url = p => p.kind === 'video' ? `${API}videos?part=snippet&id=${p.value}`\n  : p.kind === 'id' ? `${API}channels?part=id&id=${p.value}`\n  : p.kind === 'handle' ? `${API}channels?part=id&forHandle=${encodeURIComponent(p.value)}`\n  : p.kind === 'user' ? `${API}channels?part=id&forUsername=${encodeURIComponent(p.value)}`\n  : `${API}search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(p.value)}`;\nconst out = [];\nfor (const it of $input.all()) {\n  const r = it.json || {};\n  const link = String(r['Ссылка'] || '').trim();\n  if (!link || String(r['Статус'] || '').trim()) continue;\n  const limit = Math.max(1, Math.min(50, parseInt(r['Сколько роликов'], 10) || 50));\n  const p = parse(link);\n  out.push({ json: { link, group: String(r['Группа'] || '').trim(), limit, kind: p ? p.kind : 'bad', step1Url: p ? url(p) : '' } });\n  if (out.length >= MAX_PER_RUN) break;\n}\nreturn out;\n"
+      },
+      "name": "Что разбираем",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        100
+      ],
+      "id": "e06f1c9a-f9ff-519b-ae10-7f10d4a22d49"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.step1Url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "name": "YouTube: находим канал",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        100
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "a758ec9e-b4f9-560b-b272-660b7f5d053e"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Из ответа YouTube — id канала (по видео, по имени, по поиску).\nconst prev = $('Что разбираем').all();\nreturn $input.all().map((it, i) => {\n  const src = prev[i].json, r = it.json || {}, x = (r.items || [])[0];\n  const channelId = !x ? '' : (src.kind === 'video' || src.kind === 'custom') ? ((x.snippet || {}).channelId || '') : (x.id || '');\n  const error = src.kind === 'bad' ? 'не понимаю ссылку' : r.error ? 'YouTube: ' + String((r.error.message || r.error)).slice(0, 150) : channelId ? '' : 'канал не найден';\n  return { json: { ...src, channelId, error,\n    chUrl: channelId ? `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails,brandingSettings&id=${channelId}` : '' } };\n});\n"
+      },
+      "name": "Канал найден?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        100
+      ],
+      "id": "2a25cea2-50af-5221-96e2-2ad6ba76d9b0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "e3845f96-b408-559c-8356-6155f4858ef9",
+              "leftValue": "={{ !!$json.channelId }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Есть канал?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ],
+      "id": "d07e1ea5-d7a5-5086-af90-62fd651ff55d"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.chUrl }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "name": "YouTube: канал",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        0
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "3155afe8-b032-5b4d-a41d-390dcb2380f9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Канал → его плейлист «все загрузки» → последние N роликов.\nconst prev = $('Есть канал?').all();\nreturn $input.all().map((it, i) => {\n  const src = prev[i].json, ch = ((it.json || {}).items || [])[0] || null;\n  const uploads = ch && ch.contentDetails && ch.contentDetails.relatedPlaylists ? ch.contentDetails.relatedPlaylists.uploads : '';\n  return { json: { ...src, channel: ch, error: ch ? '' : 'канал не открылся',\n    plUrl: uploads ? `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=${src.limit}&playlistId=${uploads}` : '' } };\n});\n"
+      },
+      "name": "Ролики: запрос списка",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "id": "7de096b5-78ce-5258-beb1-73d0fd9e6f34"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.plUrl || 'https://www.googleapis.com/youtube/v3/videos?part=id&id=none' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "name": "YouTube: список роликов",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        0
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "e0287c0f-013a-5066-bf57-405f160b4a92"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Ролики: запрос списка').all();\nreturn $input.all().map((it, i) => {\n  const src = prev[i].json;\n  const ids = ((it.json || {}).items || []).map(x => (x.contentDetails || {}).videoId).filter(Boolean);\n  return { json: { ...src, videoIds: ids,\n    vUrl: ids.length ? `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}` : '' } };\n});\n"
+      },
+      "name": "Ролики: запрос данных",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        0
+      ],
+      "id": "f7b8cbf2-1ed9-52ba-bdd0-77dcfbcee39a"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.vUrl || 'https://www.googleapis.com/youtube/v3/videos?part=id&id=none' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "name": "YouTube: ролики",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        0
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "268a6b6c-f688-5a83-a568-ea7bc851a059"
+    },
+    {
+      "parameters": {
+        "jsCode": "// общее для строк разбора\nfunction isoMin(d) { const m = String(d || '').match(/P(?:(\\d+)D)?T?(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?/); if (!m) return 0; return Math.round(((+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0) + (+m[4] || 0) / 60) * 10) / 10; }\nfunction hashtags(t) { return [...new Set(String(t || '').match(/#[\\p{L}\\p{N}_]+/gu) || [])]; }\nfunction median(a) { const s = a.filter(x => x != null && !isNaN(x)).sort((x, y) => x - y); if (!s.length) return ''; const k = Math.floor(s.length / 2); return s.length % 2 ? s[k] : Math.round((s[k - 1] + s[k]) / 2); }\nfunction today() { const d = new Date(); return String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.' + d.getUTCFullYear(); }\nfunction chLink(ch) { const h = ((ch || {}).snippet || {}).customUrl; return h ? 'https://www.youtube.com/' + (h.startsWith('@') ? h : '@' + h) : 'https://www.youtube.com/channel/' + ((ch || {}).id || ''); }\n\n// Строка на ролик → лист «Разбор: ролики».\nconst prev = $('Ролики: запрос данных').all();\nconst out = [];\n$input.all().forEach((it, i) => {\n  const src = prev[i].json, ch = src.channel || {};\n  for (const v of ((it.json || {}).items || [])) {\n    const sn = v.snippet || {}, st = v.statistics || {}, cd = v.contentDetails || {};\n    const desc = String(sn.description || '');\n    const tags = sn.tags || [];\n    const th = sn.thumbnails || {};\n    out.push({ json: {\n      'Группа': src.group, 'Канал': (ch.snippet || {}).title || '', 'Ссылка на канал': chLink(ch),\n      'Ролик': 'https://www.youtube.com/watch?v=' + v.id, 'Название': sn.title || '', 'Длина названия': String(sn.title || '').length,\n      'Дата': String(sn.publishedAt || '').slice(0, 10), 'Минут': isoMin(cd.duration),\n      'Просмотры': +st.viewCount || 0, 'Лайки': +st.likeCount || 0, 'Комментарии': +st.commentCount || 0,\n      'Тегов': tags.length, 'Теги': tags.join(', '), 'Хэштеги': hashtags(desc).join(' '),\n      'Начало описания': desc.split('\\n').filter(l => l.trim()).slice(0, 2).join(' / ').slice(0, 300),\n      'Длина описания': desc.length, 'Описание': desc.slice(0, 5000),\n      'Язык': sn.defaultAudioLanguage || sn.defaultLanguage || '', 'Категория': sn.categoryId || '',\n      'Обложка': (th.maxres || th.high || th.medium || th.default || {}).url || '', 'Разобрано': today(),\n    } });\n  }\n});\nreturn out;\n"
+      },
+      "name": "Строки роликов",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        -200
+      ],
+      "id": "8f2fcf20-7fe7-58de-8922-d147580b4c01"
+    },
+    {
+      "parameters": {
+        "jsCode": "// общее для строк разбора\nfunction isoMin(d) { const m = String(d || '').match(/P(?:(\\d+)D)?T?(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?/); if (!m) return 0; return Math.round(((+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0) + (+m[4] || 0) / 60) * 10) / 10; }\nfunction hashtags(t) { return [...new Set(String(t || '').match(/#[\\p{L}\\p{N}_]+/gu) || [])]; }\nfunction median(a) { const s = a.filter(x => x != null && !isNaN(x)).sort((x, y) => x - y); if (!s.length) return ''; const k = Math.floor(s.length / 2); return s.length % 2 ? s[k] : Math.round((s[k - 1] + s[k]) / 2); }\nfunction today() { const d = new Date(); return String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.' + d.getUTCFullYear(); }\nfunction chLink(ch) { const h = ((ch || {}).snippet || {}).customUrl; return h ? 'https://www.youtube.com/' + (h.startsWith('@') ? h : '@' + h) : 'https://www.youtube.com/channel/' + ((ch || {}).id || ''); }\n\n// Строка на канал → лист «Разбор: каналы» (средние по разобранным роликам).\nconst prev = $('Ролики: запрос данных').all();\nreturn $input.all().map((it, i) => {\n  const src = prev[i].json, ch = src.channel || {}, sn = ch.snippet || {}, st = ch.statistics || {};\n  const vids = (it.json || {}).items || [];\n  const views = vids.map(v => +((v.statistics || {}).viewCount) || 0);\n  const mins = vids.map(v => isoMin((v.contentDetails || {}).duration));\n  const dates = vids.map(v => Date.parse((v.snippet || {}).publishedAt)).filter(Boolean).sort((a, b) => a - b);\n  const gaps = dates.slice(1).map((d, k) => Math.round((d - dates[k]) / 86400000 * 10) / 10);\n  const tagsN = vids.map(v => ((v.snippet || {}).tags || []).length);\n  const withHash = vids.filter(v => hashtags((v.snippet || {}).description).length).length;\n  const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : '';\n  return { json: {\n    'Группа': src.group, 'Канал': sn.title || '', 'Ссылка на канал': chLink(ch),\n    'Подписчики': st.hiddenSubscriberCount ? 'скрыто' : (+st.subscriberCount || 0), 'Роликов всего': +st.videoCount || 0,\n    'Просмотров всего': +st.viewCount || 0, 'Создан': String(sn.publishedAt || '').slice(0, 10), 'Страна': sn.country || '',\n    'Описание канала': String(sn.description || '').slice(0, 3000),\n    'Ключевые слова канала': String(((ch.brandingSettings || {}).channel || {}).keywords || '').slice(0, 1000),\n    'Разобрано роликов': vids.length, 'Просмотры: медиана': median(views), 'Просмотры: среднее': avg(views),\n    'Дней между роликами (медиана)': median(gaps) === '' ? '' : median(gaps), 'Минут: среднее': avg(mins),\n    'Тегов: среднее': avg(tagsN), 'Роликов с хэштегами': vids.length ? Math.round(withHash / vids.length * 100) + '%' : '',\n    'Самый ранний из разобранных': dates.length ? new Date(dates[0]).toISOString().slice(0, 10) : '', 'Разобрано': today(),\n  } };\n});\n"
+      },
+      "name": "Сводка каналов",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        0
+      ],
+      "id": "2efe94a2-7f63-50d6-8cdd-c03ba06ee8f1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// общее для строк разбора\nfunction isoMin(d) { const m = String(d || '').match(/P(?:(\\d+)D)?T?(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?/); if (!m) return 0; return Math.round(((+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0) + (+m[4] || 0) / 60) * 10) / 10; }\nfunction hashtags(t) { return [...new Set(String(t || '').match(/#[\\p{L}\\p{N}_]+/gu) || [])]; }\nfunction median(a) { const s = a.filter(x => x != null && !isNaN(x)).sort((x, y) => x - y); if (!s.length) return ''; const k = Math.floor(s.length / 2); return s.length % 2 ? s[k] : Math.round((s[k - 1] + s[k]) / 2); }\nfunction today() { const d = new Date(); return String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.' + d.getUTCFullYear(); }\nfunction chLink(ch) { const h = ((ch || {}).snippet || {}).customUrl; return h ? 'https://www.youtube.com/' + (h.startsWith('@') ? h : '@' + h) : 'https://www.youtube.com/channel/' + ((ch || {}).id || ''); }\n\n// Отметка в «Каналы для разбора»: готово.\nconst prev = $('Ролики: запрос данных').all();\nreturn $input.all().map((it, i) => {\n  const src = prev[i].json, n = ((it.json || {}).items || []).length;\n  return { json: { 'Ссылка': src.link, 'Статус': n ? `готово ${today()}: ${n} роликов` : 'роликов не нашлось' } };\n});\n"
+      },
+      "name": "Статус: готово",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        200
+      ],
+      "id": "bbf7a292-6d2b-56ff-8fe3-6dd109dbff87"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Отметка в «Каналы для разбора»: почему не получилось.\nreturn $input.all().map(it => ({ json: { 'Ссылка': it.json.link, 'Статус': 'ошибка: ' + (it.json.error || 'неизвестно') } }));\n"
+      },
+      "name": "Статус: ошибка",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ],
+      "id": "fa65fb06-d6c6-57d0-a38e-75189ef51e69"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Разбор: ролики",
+          "mode": "name"
+        },
+        "options": {},
+        "operation": "append",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        }
+      },
+      "name": "Пишем ролики",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2640,
+        -200
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "e2b33ea5-93a3-5701-b5e2-2e5a6eaa5ff6"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Разбор: каналы",
+          "mode": "name"
+        },
+        "options": {},
+        "operation": "append",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        }
+      },
+      "name": "Пишем каналы",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2640,
+        0
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "dc49e7ea-0caa-51d6-b148-a912743a73ae"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Каналы для разбора",
+          "mode": "name"
+        },
+        "options": {},
+        "operation": "update",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Ссылка"
+          ]
+        }
+      },
+      "name": "Отмечаем ссылку",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2640,
+        300
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "ac1fe3a2-e5bf-5326-8b03-3becf2a4e25a"
+    }
+  ],
+  "connections": {
+    "Раз в час": {
+      "main": [
+        [
+          {
+            "node": "Читаем ссылки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запустить вручную": {
+      "main": [
+        [
+          {
+            "node": "Читаем ссылки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем ссылки": {
+      "main": [
+        [
+          {
+            "node": "Что разбираем",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Что разбираем": {
+      "main": [
+        [
+          {
+            "node": "YouTube: находим канал",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: находим канал": {
+      "main": [
+        [
+          {
+            "node": "Канал найден?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Канал найден?": {
+      "main": [
+        [
+          {
+            "node": "Есть канал?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: канал": {
+      "main": [
+        [
+          {
+            "node": "Ролики: запрос списка",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ролики: запрос списка": {
+      "main": [
+        [
+          {
+            "node": "YouTube: список роликов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: список роликов": {
+      "main": [
+        [
+          {
+            "node": "Ролики: запрос данных",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ролики: запрос данных": {
+      "main": [
+        [
+          {
+            "node": "YouTube: ролики",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube: ролики": {
+      "main": [
+        [
+          {
+            "node": "Строки роликов",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Сводка каналов",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Статус: готово",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Строки роликов": {
+      "main": [
+        [
+          {
+            "node": "Пишем ролики",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сводка каналов": {
+      "main": [
+        [
+          {
+            "node": "Пишем каналы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Статус: готово": {
+      "main": [
+        [
+          {
+            "node": "Отмечаем ссылку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Статус: ошибка": {
+      "main": [
+        [
+          {
+            "node": "Отмечаем ссылку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть канал?": {
+      "main": [
+        [
+          {
+            "node": "YouTube: канал",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Статус: ошибка",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "A6x2zK1xfuhc5I3E"
+  },
+  "pinData": {}
+}
