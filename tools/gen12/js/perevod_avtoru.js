@@ -16,6 +16,12 @@ const withRules = t => t + (trRules ? '\n\nThe channel\'s translation rules (fol
 // «русский дух» (сани, гобелен с тройкой). Переводится только смысл задания, ничего не добавляется.
 const plan = $('Кто отвечает').first().json;
 const artTask = ['ready_to_draw', 'revise_point'].includes(draft.action) ? String(plan.userText || '').trim() : '';
+// (24.10) тот же бриф уже переводили — берём готовый перевод, модель не зовём
+const artKey = bareIcon(plan.stageIcon || '');
+const cached = artTask && state.stages[artKey] && state.stages[artKey].briefEn;
+if (artTask && cached && cached.ru === artTask && cached.en) {
+  return [{ json: { need: false, todo: [], art: true, artTask, cachedEn: cached.en } }];
+}
 if (artTask && /[а-яё]/i.test(artTask)) {
   const model = lightModel || stages.map(textModel).find(Boolean) || 'gpt-5';
   const requestBody = {

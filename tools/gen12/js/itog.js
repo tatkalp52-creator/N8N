@@ -61,6 +61,9 @@ if (plan.mode === 'say') {
     if (art.dallePrompt) art.dallePrompt = art.dallePrompt.endsWith(task) ? art.dallePrompt.slice(0, art.dallePrompt.length - task.length) + en : art.dallePrompt + '\n\n' + en;
     if (art.revisionInstruction) art.revisionInstruction = art.revisionInstruction.endsWith(task) ? art.revisionInstruction.slice(0, art.revisionInstruction.length - task.length) + en : en;
     message += `\n\nПо-английски: ${en}`;
+    // (24.10) запоминаем перевод: тот же бриф второй раз не переводим
+    const k = bareIcon(plan.stageIcon || '');
+    if (k && !plan.mode.startsWith('edit')) state.stages[k] = { ...(state.stages[k] || {}), briefEn: { ru: task, en } };
   }
 } else if (plan.mode === 'model') {
   const r = $('Разбираем ответ этапа').first().json;

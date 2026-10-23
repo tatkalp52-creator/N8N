@@ -392,6 +392,7 @@ function artEnBrief() {
   let pv = null, resp = null;
   try { pv = $('Перевод для автора: что').first().json; } catch (e) { return ''; }
   if (!pv || !pv.art) return '';
+  if (pv.cachedEn) return String(pv.cachedEn);
   try { resp = $('OpenAI: перевод для автора').first().json || null; } catch (e) { return ''; }
   if (!resp || resp.error) return '';
   const out = (resp.output || []).filter(i => i.type === 'message')

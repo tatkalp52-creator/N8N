@@ -764,5 +764,20 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('23 обводка без подписи OK');
 
+  // 24. (24.10) Тот же бриф второй раз не переводится
+  {
+    const TR2 = Object.assign(TR, { 'осенний сад': 'autumn garden' });
+    let t = await turn(DIRECT, {}, { kind: 'message', text: 'осенний сад' });
+    assert.ok(t.r.dallePrompt.endsWith('autumn garden'), 'первый раз — перевод');
+    const st = JSON.parse(t.r.editorState);
+    assert.equal(st.stages['🎨'].briefEn.en, 'autumn garden');
+    t = await turn(DIRECT, { sys_EditorState: t.r.editorState }, { kind: 'message', text: 'осенний сад' });
+    assert.equal(t.nodes['Перевод для автора: что'].need, false, 'модель не зовём');
+    assert.ok(t.r.dallePrompt.endsWith('autumn garden'), 'готовый перевод');
+    t = await turn(DIRECT, { sys_EditorState: t.r.editorState }, { kind: 'message', text: 'зимний сад' });
+    assert.equal(t.nodes['Перевод для автора: что'].need, true, 'новый бриф — переводим');
+  }
+  console.log('24 перевод брифа не повторяется OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
