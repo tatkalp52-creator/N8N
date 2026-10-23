@@ -481,21 +481,28 @@ input[type=text] { font: inherit; color: var(--ink); background: var(--bg); bord
   $('clrL').onclick = function () { $('lyr').value = ''; st.lyr = ''; calcDur(); save(); };
 
   // ── копирование ──
-  function copyText(t) {   // (22.10) на http-адресе сервера clipboard недоступен — старый способ через скрытое поле
+  function copyText(t, field) {   // (23.10) на телефоне скрытое поле не копировалось — для Lyrics копируем из самого поля
     try {
-      var ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, t.length);
-      var ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+      var ta = field, tmp = !ta;
+      if (tmp) {
+        ta = document.createElement('textarea'); ta.value = t;
+        ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0'; ta.style.fontSize = '16px';
+        document.body.appendChild(ta);
+      }
+      ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+      var ok = document.execCommand('copy');
+      if (tmp) document.body.removeChild(ta); else ta.blur();
+      return ok;
     } catch (e) { return false; }
   }
     Array.prototype.forEach.call(document.querySelectorAll('[data-copy]'), function (b) {
     b.onclick = function () {
       var id = b.getAttribute('data-copy'), t = id === 'lyr' ? $('lyr').value : (id === 'outS' ? styleText() : st.x.join(', '));
       if (!t) { toast('Пусто'); return; }
-      function fb() { if (id === 'lyr') { $('lyr').select(); } else { var r = document.createRange(); r.selectNodeContents($(id)); var s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast('Выделено — скопируй из меню'); }
-      if (copyText(t)) toast('Скопировано');
-      else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Скопировано'); }, fb); else fb();
+      function fb() { if (id === 'lyr') { $('lyr').focus(); $('lyr').select(); } else { var r = document.createRange(); r.selectNodeContents($(id)); var s = getSelection(); s.removeAllRanges(); s.addRange(r); } toast('Выделено — скопируй из меню'); }
+      function old() { if (copyText(t, id === 'lyr' ? $('lyr') : null)) toast('Скопировано'); else fb(); }
+      if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Скопировано'); }, old);
+      else old();
     };
   });
 
