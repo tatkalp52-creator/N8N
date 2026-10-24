@@ -1345,7 +1345,9 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     var P = pixels(); if (!P) return;
     var sc = dw / P.width, t = now / 1000;
     all.forEach(function (m, i) {
-      if (!lidShut(i + '|' + (m.every || BLINK_BASE), m.every || BLINK_BASE, t)) return;
+      // пока у глаза открыта «Настроить» — моргает каждые ~3 с, чтобы сразу видеть, куда ложится веко
+      var ev = m.open ? 3 : (m.every || BLINK_BASE);
+      if (!lidShut(i + '|' + ev, ev, t)) return;
       var s2 = lidSprite(P, m);
       fxc.drawImage(s2.c, s2.x * sc, s2.y * sc, s2.c.width * sc, s2.c.height * sc);
     });
