@@ -735,12 +735,16 @@ async function turn(stages, row, inc, response, subResponse) {
     const CMD = 'Пункт 9, добавь к тому, что уже есть (остальное не трогай):\nпар: 40, 50';
     let t = await turn(TWO, AP, { kind: 'message', text: CMD, __items: IT9 });
     assert.equal(t.plan.mode, 'direct', 'пока работает Писатель'); assert.equal(t.req, null);
+    assert.equal(t.r.transition, 'none', 'Писатель ещё работает — сводки нет');
     assert.ok(/пар: 40, 50/.test(t.r.message || JSON.stringify(t.r)), 'записано');
     t = await turn(TWO, { ai_UserBrief: 'сад' }, { kind: 'message', text: CMD, __items: IT9 });
     assert.equal(t.plan.mode, 'direct', 'даже пока рисуется картинка — не уходит художнику');
-    const DONE = { ...AP, sys_EditorState: JSON.stringify({ items: { 1: { text: 'a' }, 2: { text: 'b' }, 3: { text: 'c' }, 4: { text: 'd' } }, agreed: { 1: true, 2: true, 3: true, 4: true } }) };
+    const DONE = { ...AP, sys_EditorState: JSON.stringify({ v: 2, items: { 1: { text: 'a' }, 2: { text: 'b' }, 3: { text: 'c' }, 4: { text: 'd' } }, agreed: { 1: true, 2: true, 3: true, 4: true } }) };
     t = await turn(TWO, DONE, { kind: 'message', text: CMD, __items: IT9 });
     assert.equal(t.plan.mode, 'direct', 'все этапы прошли');
+    assert.equal(t.r.transition, 'summary', '(24.10) всё готово — сразу сводка с ✅');
+    t = await turn(TWO, { ...DONE, sys_Status: 'Утверждено' }, { kind: 'message', text: CMD, __items: IT9 });
+    assert.equal(t.r.transition, 'summary', 'утверждённый выпуск изменён — согласовать заново');
     t = await turn(TWO, AP, { kind: 'message', text: 'светлее', __items: IT9 });
     assert.notEqual(t.plan.mode, 'direct', 'обычная реплика — как раньше');
   }

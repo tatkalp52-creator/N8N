@@ -134,6 +134,12 @@ if (action === 'done') {
     else transition = stages.some(s => s.approve) ? 'summary' : 'package';
   }
 }
+// (24.10) свой пункт автора («Пункт 9, добавь: …»), когда все этапы уже пройдены, — сразу сводка с ✅,
+// а не искать кнопку у прошлой сводки
+if (plan.mode === 'direct' && transition === 'none' && approvedUrl && statusAfter !== 'Утверждено'
+    && !stCurrent(stages, items, state, approvedUrl)) {
+  transition = stages.some(s => s.approve) ? 'summary' : 'package';
+}
 
 // Перевод для автора — от отдельного переводчика (второй проход этого узла; в черновике его ещё нет)
 const ruError = itApplyRu(state);
