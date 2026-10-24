@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-25-glue"
+ASSEMBLER_VERSION = "2026-10-24-lock"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -3800,13 +3800,10 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
     with open(list_path, "w") as f:
         for p in pieces:
             f.write(f"file '{os.path.abspath(p)}'\n")
-    # (25.10) звук (fade in/out и прочее из audio_chain) готовим отдельным проходом, а склейка — чистое
-    # копирование: ffmpeg 24.10 вис на склейке, где копирование видео и фильтр звука шли одной командой
-    audio_ready = os.path.join(pdir, "audio_ready.m4a")
-    run_ffmpeg(["-i", audio_path, "-af", audio_chain, "-t", str(duration),
-                "-c:a", "aac", "-b:a", "384k", audio_ready])
-    run_ffmpeg(["-f", "concat", "-safe", "0", "-i", list_path, "-i", audio_ready,
-                "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", str(duration), output_path])
+    run_ffmpeg(["-f", "concat", "-safe", "0", "-i", list_path, "-i", audio_path,
+                "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-af", audio_chain,
+                "-c:a", "aac", "-b:a", "384k", "-t", str(duration),
+                "-movflags", "+faststart", output_path])
     print(f"[video] кусков: {len(pieces)}, разных: {len(cache) + 1}")
     return output_path
 
