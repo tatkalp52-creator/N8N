@@ -18,7 +18,11 @@ with open(src + "/list.txt", "w") as f:
     f.writelines(lines)
 audio = (glob.glob(w + "/audio_loop_*.wav") or glob.glob(w + "/audio_final*.wav"))[0]
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", audio, "-t", "70", "-c", "copy", src + "/a.wav"], check=True)
-subprocess.run(["pkill", "-9", "-f", "pieces/list.txt"])
+for pid in [x for x in os.listdir("/proc") if x.isdigit()]:   # в контейнере нет pkill
+    try:
+        if b"pieces/list.txt" in open(f"/proc/{pid}/cmdline", "rb").read(): os.kill(int(pid), 9)
+    except Exception:
+        pass
 print("взяла пробу из", w)
 
 
