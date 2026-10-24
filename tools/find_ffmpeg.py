@@ -14,8 +14,11 @@ src = "/tmp/probe_src"
 shutil.rmtree(src, ignore_errors=True); os.makedirs(src)
 with open(w + "/pieces/list.txt") as f:
     lines = [l for l in f if l.strip()][:3]          # начало + две петли
-with open(src + "/list.txt", "w") as f:
-    f.writelines(lines)
+with open(src + "/list.txt", "w") as f:            # куски копируем: после остановки склейки сборщик стирает свою папку
+    for i, l in enumerate(lines):
+        piece = l.strip()[len("file '"):-1]
+        shutil.copy(piece, f"{src}/p{i}.mp4")
+        f.write(f"file '{src}/p{i}.mp4'\n")
 audio = (glob.glob(w + "/audio_loop_*.wav") or glob.glob(w + "/audio_final*.wav"))[0]
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", audio, "-t", "70", "-c", "copy", src + "/a.wav"], check=True)
 for pid in [x for x in os.listdir("/proc") if x.isdigit()]:   # в контейнере нет pkill
