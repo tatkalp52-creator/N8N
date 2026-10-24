@@ -866,7 +866,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// все строки листа, каналы (Catalog) и выпуски каналов (только шаг и треки) одним JSON для страницы\n// только соседние месяцы (прошлый … +3 вперёд) — страница не тяжелеет с годами\nconst now = new Date(), base = now.getFullYear() * 12 + now.getMonth();\nconst ym = (y, m) => { y = Number(y) || 0; m = Number(m) || 0; if (!m) return -1; if (!y) { y = now.getFullYear(); if (y * 12 + m - 1 < base - 2) y++; } return y * 12 + m - 1; };\nconst near = k => k >= base - 1 && k <= base + 3;\nconst rows = $('Читаем календарь (страница)').all().map(i => i.json).filter(r => r && String(r.id || '').trim()).filter(r => {\n  const rel = String(r.release || '').match(/^(\\d{4})-(\\d{2})/);\n  return near(ym(r.year, r.month)) || (rel && near(ym(rel[1], rel[2])));\n});\nconst channels = $('Читаем каталог (страница)').all().map(i => i.json).filter(c => c && String(c.Channel || '').trim());\nlet raw = [];\ntry { raw = $('Читаем выпуски (страница)').all().map(i => i.json); } catch (e) {}\nconst projects = raw.filter(p => p && /^\\d{8}_\\d{6}_[a-z0-9]+$/i.test(String(p.sys_ProjectID || '').trim())).map(p => {\n  const id = String(p.sys_ProjectID).trim();\n  return { id, ch: id.split('_').slice(2).join('_').toLowerCase(), status: String(p.sys_Status || '').trim(),\n    tracks: !!String(p.sys_AudioZipUrl || '').trim(), title: String(p.ai_Title || '').slice(0, 160) };\n});\nreturn [{ json: { body: JSON.stringify({ rows, channels, projects }) } }];"
+        "jsCode": "// все строки листа, каналы (Catalog) и выпуски каналов (только шаг и треки) одним JSON для страницы\n// только соседние месяцы (прошлый … +3 вперёд) — страница не тяжелеет с годами\nconst now = new Date(), base = now.getFullYear() * 12 + now.getMonth();\nconst ym = (y, m) => { y = Number(y) || 0; m = Number(m) || 0; if (!m) return -1; if (!y) { y = now.getFullYear(); if (y * 12 + m - 1 < base - 2) y++; } return y * 12 + m - 1; };\nconst near = k => k >= base - 1 && k <= base + 3;\nconst rows = $('Читаем календарь (страница)').all().map(i => i.json).filter(r => r && String(r.id || '').trim()).filter(r => {\n  const rel = String(r.release || '').match(/^(\\d{4})-(\\d{2})/);\n  return near(ym(r.year, r.month)) || (rel && near(ym(rel[1], rel[2])));\n});\nconst channels = $('Читаем каталог (страница)').all().map(i => i.json).filter(c => c && String(c.Channel || '').trim());\nlet raw = [];\n// (24.10) обычно — только нужные колонки; если быстрый путь не прошёл проверку — весь лист, как раньше\ntry { const v = $('Выпуски: проверка').first().json; if (v.ok) raw = v.rows; } catch (e) {}\nif (!raw.length) { try { raw = $('Читаем выпуски (страница)').all().map(i => i.json); } catch (e) {} }\nconst projects = raw.filter(p => p && /^\\d{8}_\\d{6}_[a-z0-9]+$/i.test(String(p.sys_ProjectID || '').trim())).map(p => {\n  const id = String(p.sys_ProjectID).trim();\n  return { id, ch: id.split('_').slice(2).join('_').toLowerCase(), status: String(p.sys_Status || '').trim(),\n    tracks: !!String(p.sys_AudioZipUrl || '').trim(), title: String(p.ai_Title || '').slice(0, 160) };\n});\nreturn [{ json: { body: JSON.stringify({ rows, channels, projects }) } }];"
       },
       "id": "b28640a5-d765-4830-9c8e-5ab6763adc82",
       "name": "Собираем данные",
@@ -1458,8 +1458,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
-        440,
-        1520
+        1320,
+        1740
       ],
       "credentials": {
         "googleApi": {
@@ -1513,6 +1513,165 @@
         1580
       ],
       "id": "d4ebece4-eeb6-4403-a20f-763a930444ee"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.SheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A1:ZZ2"
+            }
+          }
+        }
+      },
+      "id": "1bd4b66a-944c-4d83-87bc-9280d04cc0d9",
+      "name": "Выпуски: заголовок",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        440,
+        1520
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Номера нужных колонок — по их именам в первой строке листа выпусков (имена задаёт таблица)\nconst NEED = ['sys_ProjectID', 'sys_Status', 'sys_AudioZipUrl', 'ai_Title'];\nconst cat = $('Читаем каталог (страница)').all();\nconst letter = i => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };\nconst pIdx = it => { const p = it.pairedItem; return Array.isArray(p) ? (p[0] || {}).item || 0 : (p && p.item) || 0; };\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  const sheet = String(((cat[pIdx(it)] || {}).json || {}).SheetName || '').trim();\n  const keys = Object.keys(j).filter(k => k !== 'row_number');\n  if (!sheet || j.error || !keys.includes('sys_ProjectID')) continue;\n  for (const name of NEED) {\n    const i = keys.indexOf(name);\n    if (i >= 0) out.push({ json: { sheet, name, range: letter(i) + '1:' + letter(i) + '5000' } });\n  }\n}\nreturn out.length ? out : [{ json: { sheet: '', name: '', range: '', skip: true } }];\n"
+      },
+      "id": "fca44d0f-9200-4106-8d66-f6da0415ce99",
+      "name": "Выпуски: какие колонки",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1520
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheet }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "={{ $json.range }}"
+            }
+          }
+        }
+      },
+      "id": "8c9295a4-e45f-48fb-baf4-2fa4e77d9b84",
+      "name": "Выпуски: нужные колонки",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        880,
+        1520
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Склеиваем прочитанные колонки по номеру строки. Любое сомнение — ok: false, и календарь читает лист целиком.\nconst reqs = $('Выпуски: какие колонки').all().map(i => i.json);\nconst pIdx = it => { const p = it.pairedItem; return Array.isArray(p) ? (p[0] || {}).item || 0 : (p && p.item) || 0; };\nlet ok = reqs.length > 0 && !reqs[0].skip;\nconst bySheet = {};\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  const keys = Object.keys(j).filter(k => k !== 'row_number');\n  if (!keys.length) continue;                    // пустая колонка — нечего склеивать\n  const rq = reqs[pIdx(it)];\n  if (j.error || !rq || keys[0] !== rq.name || j.row_number == null) { ok = false; break; }\n  const s = bySheet[rq.sheet] = bySheet[rq.sheet] || {};\n  const r = s[j.row_number] = s[j.row_number] || {};\n  r[rq.name] = j[rq.name];\n}\nconst rows = ok ? Object.values(bySheet).flatMap(s => Object.values(s)) : [];\nif (!rows.some(r => String(r.sys_ProjectID || '').trim())) ok = false;\nreturn [{ json: { ok, rows: ok ? rows : [] } }];\n"
+      },
+      "id": "34941600-82c2-43de-bcac-a11dd2d65c68",
+      "name": "Выпуски: проверка",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        1520
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "72ad1e92-d63e-4f5c-a424-55f6bd92ddaf",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0de5decf-925b-41bd-8c56-2f573dcf1698",
+      "name": "Колонки прочитаны?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Запасной путь: каналы ещё раз — по ним старый узел читает листы выпусков целиком\nreturn $('Читаем каталог (страница)').all();\n"
+      },
+      "id": "553a70ca-d3f7-4410-853d-78b5b25c3f91",
+      "name": "Каталог заново",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        1960
+      ],
+      "alwaysOutputData": true
     }
   ],
   "connections": {
@@ -1890,7 +2049,7 @@
       "main": [
         [
           {
-            "node": "Читаем выпуски (страница)",
+            "node": "Выпуски: заголовок",
             "type": "main",
             "index": 0
           }
@@ -1935,6 +2094,79 @@
         [
           {
             "node": "OpenAI: ищем поводы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: заголовок": {
+      "main": [
+        [
+          {
+            "node": "Выпуски: какие колонки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: какие колонки": {
+      "main": [
+        [
+          {
+            "node": "Выпуски: нужные колонки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: нужные колонки": {
+      "main": [
+        [
+          {
+            "node": "Выпуски: проверка",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: проверка": {
+      "main": [
+        [
+          {
+            "node": "Колонки прочитаны?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Колонки прочитаны?": {
+      "main": [
+        [
+          {
+            "node": "Собираем данные",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Каталог заново",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Каталог заново": {
+      "main": [
+        [
+          {
+            "node": "Читаем выпуски (страница)",
             "type": "main",
             "index": 0
           }
