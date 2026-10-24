@@ -64,7 +64,7 @@ for n in wf['nodes']:
 for n in wf['nodes']:
     t = n['type']; op = n['parameters'].get('operation', '')
     body = str(n['parameters'].get('jsonBody', ''))
-    unsafe = (t == 'n8n-nodes-base.code' or t == 'n8n-nodes-base.telegram'
+    unsafe = (t == 'n8n-nodes-base.telegram'
               or (t == 'n8n-nodes-base.googleSheets' and op in ('append', 'appendOrUpdate'))
               or (t == 'n8n-nodes-base.httpRequest' and ('requestBody' in body or '/clean_start' in n['parameters'].get('url', '') or '/gate' in n['parameters'].get('url', ''))
                   and n['name'] in ('OpenAI: этап', 'OpenAI: этап заново', 'Сервер: запусти чистку') + tuple(x['name'] for x in wf['nodes'] if '/gate' in x['parameters'].get('url', ''))))

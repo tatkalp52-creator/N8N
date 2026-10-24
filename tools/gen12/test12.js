@@ -834,7 +834,7 @@ async function turn(stages, row, inc, response, subResponse) {
     const cn = wf.connections;
     assert.equal(cn['Куда дальше?'].main[0][0].node, 'Замок', 'сообщение автора сначала берёт замок');
     assert.equal(cn['Замок свободен?'].main[1][0].node, 'Замок: ещё работаю', 'занято — говорим «ещё работаю», ничего не трогаем');
-    assert.ok(!wf.nodes.some(n => n.type === 'n8n-nodes-base.code' && n.retryOnFail), 'код-узлы не повторяются');
+    assert.ok(wf.nodes.filter(n => n.type === 'n8n-nodes-base.code').every(n => n.retryOnFail), 'код-узлы повторяются (без этого сбой исполнителя роняет запуск)');
   }
   console.log('26 одновременные запуски: чистка, замок, повторы OK');
 

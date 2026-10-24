@@ -819,7 +819,13 @@ for n_ in nodes:
 for n_ in nodes:
     t_ = n_.get('type', '')
     op_ = (n_.get('parameters') or {}).get('operation', '')
-    if t_ == 'n8n-nodes-base.code' or t_ == 'n8n-nodes-base.telegram' or (t_ == 'n8n-nodes-base.googleSheets' and op_ in ('append', 'appendOrUpdate')):
+    # (24.10, вечер) код-узлам повторы ВОЗВРАЩЕНЫ: без них сбой исполнителя («Task request timed out») сразу роняет
+    # запуск, Телеграм шлёт сообщение снова — петля. Код-узлы ничего не делают снаружи, повторять их безопасно.
+    if t_ == 'n8n-nodes-base.code':
+        n_['retryOnFail'] = True
+        n_['maxTries'] = 3
+        n_['waitBetweenTries'] = 25000
+    elif t_ == 'n8n-nodes-base.telegram' or (t_ == 'n8n-nodes-base.googleSheets' and op_ in ('append', 'appendOrUpdate')):
         for k_ in ('retryOnFail', 'maxTries', 'waitBetweenTries'):
             n_.pop(k_, None)
     elif t_ == 'n8n-nodes-base.googleSheets' and not n_.get('retryOnFail'):
