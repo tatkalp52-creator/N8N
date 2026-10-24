@@ -288,7 +288,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
         for (var k = 0; k < n; k++) p.times.push(start + k * (n === 1 ? 0 : 0.32));
       }
       var shut = p.times.some(function (t0) { return now >= t0 && now < t0 + (p.times.length === 1 ? 0.28 : 0.14); });
-      el.classList.toggle('shut', shut);
+      void shut;   // (24.10) моргает настоящее веко (drawBlinks), кружок — только разметка
     });
   }, 40);
   function blinkKnob(sec) { return r1(Math.max(0, Math.min(20, 5 + 5 * Math.log2(BLINK_BASE / sec)))); }
@@ -1344,10 +1344,17 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     if (!all.length || !dh) return;
     var P = pixels(); if (!P) return;
     var sc = dw / P.width, t = now / 1000;
+    // как у сборщика: глаза ближе 6 % ширины кадра — один зверь, моргают вместе
+    var ar = P.height / P.width, grp = [];
+    all.forEach(function (m, i) {
+      grp[i] = i;
+      for (var j = 0; j < i; j++) if (Math.hypot(m.pts[0].x - all[j].pts[0].x, (m.pts[0].y - all[j].pts[0].y) * ar) < 6) { grp[i] = grp[j]; break; }
+    });
     all.forEach(function (m, i) {
       // пока у глаза открыта «Настроить» — моргает каждые ~3 с, чтобы сразу видеть, куда ложится веко
-      var ev = m.open ? 3 : (m.every || BLINK_BASE);
-      if (!lidShut(i + '|' + ev, ev, t)) return;
+      var g = all.filter(function (o, j) { return grp[j] === grp[i]; });
+      var ev = g.some(function (o) { return o.open; }) ? 3 : (all[grp[i]].every || BLINK_BASE);
+      if (!lidShut(grp[i] + '|' + ev, ev, t)) return;
       var s2 = lidSprite(P, m);
       fxc.drawImage(s2.c, s2.x * sc, s2.y * sc, s2.c.width * sc, s2.c.height * sc);
     });
