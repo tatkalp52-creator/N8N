@@ -783,5 +783,24 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('24 перевод брифа не повторяется OK');
 
+  // 25. (24.10) «предложи ещё» до пунктов — свободный ответ; таймкоды переводятся
+  {
+    const TWO = [st('🎨', 'Художник', 'автор', 'да', 'картинка'), st('✍️', 'Писатель', 'автор', 'да', '1–4')];
+    const AP = { ai_UserBrief: 'сад', ai_ApprovedImageUrl: 'U1', ai_ImageVariants: '[{"n":1,"url":"U1"}]', sys_Status: 'Картинка согласована' };
+    const txt = { output: [{ type: 'message', content: [{ type: 'output_text', text: 'Ещё зёрна' }] }] };
+    let t = await turn(TWO, AP, { kind: 'message', text: 'Предложи ещё' }, txt);
+    assert.equal(t.req.requestBody.tool_choice, 'auto', 'новые варианты — свободно');
+    t = await turn(TWO, AP, { kind: 'message', text: 'Берём первое' }, txt);
+    assert.equal(t.req.requestBody.tool_choice.name, 'propose_items', 'выбрала — пункты как раньше');
+    const HAS = { ...AP, sys_EditorState: JSON.stringify({ v: 2, items: { 3: { text: 'story' } }, agreed: {} }) };
+    t = await turn(TWO, HAS, { kind: 'message', text: 'Предложи ещё' }, txt);
+    assert.equal(t.req.requestBody.tool_choice.name, 'propose_items', 'пункты уже есть — правка через пункты');
+    const ST4 = { ...AP, sys_EditorState: JSON.stringify({ v: 2, items: { 4: { text: 'Bat Air Traffic' } }, agreed: {} }) };
+    t = await turn(TWO, ST4, { kind: 'message', text: 'Пункт 4, добавь: x' });
+    const pv = t.nodes['Перевод для автора: что'];
+    assert.ok(pv.need && /Title Case/.test(pv.requestBody.instructions), 'переводчику: названия переводить');
+  }
+  console.log('25 «предложи ещё» и перевод таймкодов OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

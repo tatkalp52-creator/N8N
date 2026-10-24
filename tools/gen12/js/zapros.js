@@ -156,7 +156,12 @@ ${card}`;
 // (16.10) ответ автору у этапа с пунктами — всегда пунктами: модель могла прислать текст пункта просто
 // сообщением (черновик «посмотри голос») — тогда он не записывался, не переводился автору, и выпуск стоял.
 // Начало этапа и согласование — как раньше (свободный ответ: предложить, попрощаться, памятка).
-const forceItems = !plan.isStart && !(plan.approveNums || []).length && myItems.some(it => !state.agreed[it.n]);
+// (24.10) пока пунктов ещё нет, а автор просит другие варианты («предложи ещё») — ответ свободный:
+// иначе этап молча писал все пункты по своему выбору вместо новых вариантов
+const noItemsYet = !myItems.some(it => String((state.items[it.n] || {}).text || '').trim());
+const asksOptions = /(ещё|еще|друг(ие|ое|ой|ую)|вариант|предлож|зёрн|зерн|идеи)/iu.test(String(plan.userText || ''));
+const forceItems = !plan.isStart && !(plan.approveNums || []).length && myItems.some(it => !state.agreed[it.n])
+  && !(noItemsYet && asksOptions);
 const text = plan.isStart
   ? `[Служебное сообщение] ${plan.event || 'Предыдущий этап завершён.'} Сейчас твой этап — начни по своим правилам.`
   : (plan.userText || '(пустое сообщение)') + ((plan.approveNums || []).length

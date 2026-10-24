@@ -44,7 +44,8 @@ for (const t of todo) src[String(t.n)] = t.text;
 const requestBody = {
   model,
   instructions: withRules('Translate each text into Russian exactly as it is written. Do not add, drop, improve or explain anything; '
-    + 'keep line breaks, numbers, timestamps, hashtags and names as they are. '
+    + 'keep line breaks, numbers, timestamps and hashtags as they are; keep the names of people and characters, the channel name and the names of music pieces as they are. '
+    + 'Titles and short phrases are translated too, even when written In Title Case (episode titles, timecode names). '
     + 'Answer with JSON only: {"<key>": "<Russian translation>"} with the same keys.'),
   // слово JSON обязано стоять в самом запросе — иначе OpenAI отказывает в формате json_object
   input: [{ role: 'user', content: 'Texts to translate (JSON):\n' + JSON.stringify(src) }],
