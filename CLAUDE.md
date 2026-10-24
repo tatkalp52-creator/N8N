@@ -46,7 +46,7 @@ python3 tools/gen12/gen12.py && python3 tools/gen12/check12.py && node tools/gen
 2. **The one who knows the truth decides.** Cleaning: Kaggle/the server knows; «блокнот занят» never writes the project row.
 3. **Retries only where repeating is harmless:** sheet reads, sheet updates by key, stateless requests, GET/PUT/DELETE. Never on Code nodes, Telegram sends, sheet appends, YouTube uploads/comments, OpenAI calls that keep a conversation, `/clean_start`, `/gate`. `check12.py` enforces it for 12; `tools/patch_retries.py` for 04 and 14.
 4. **No silent dead ends.** Every Switch output leads somewhere, except the ones listed in `check12.py` QUIET (silence there is deliberate).
-5. **n8n server settings are part of the system** (Coolify compose): `EXECUTIONS_DATA_PRUNE=true`, `EXECUTIONS_DATA_MAX_AGE=72`, `EXECUTIONS_DATA_PRUNE_MAX_COUNT=2000`, `DB_SQLITE_VACUUM_ON_STARTUP=true`, task runner `N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT=0`.
+5. **n8n server settings are part of the system** (Coolify compose, copy in `compose_backup/n8n_compose_24-10_internal_runner.yml`): `EXECUTIONS_DATA_PRUNE=true`, `EXECUTIONS_DATA_MAX_AGE=72`, `EXECUTIONS_DATA_PRUNE_MAX_COUNT=2000`, `DB_SQLITE_VACUUM_ON_STARTUP=true`, `N8N_RUNNERS_MODE=internal` (the external task-runners container never accepted tasks — «Task request timed out after 60 seconds» was the cause of the slowness; no Python Code nodes are used). Health check: `docker logs --since 10m <n8n> 2>&1 | grep -c "timed out"` → 0.
 6. Before a fix, look for the class of problem, not the single case; a new guard is allowed only if it is one of the rules above.
 
 ## Generator for workflow 10
