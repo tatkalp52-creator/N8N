@@ -91,7 +91,10 @@
       "position": [
         5344,
         2896
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -131,7 +134,10 @@
       "position": [
         5344,
         3100
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -206,7 +212,10 @@
       "position": [
         6912,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -306,7 +315,10 @@
       "position": [
         4448,
         3040
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -446,6 +458,9 @@
           "name": "YouTube account 3"
         }
       },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
       "onError": "continueErrorOutput"
     },
     {
@@ -508,7 +523,10 @@
       },
       "continueOnFail": true,
       "notesInFlow": true,
-      "notes": "continueOnFail: если публикация комментария не удалась, это не должно ронять всю сборку видео — видео уже выложено, это лишь дополнение к нему."
+      "notes": "continueOnFail: если публикация комментария не удалась, это не должно ронять всю сборку видео — видео уже выложено, это лишь дополнение к нему.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -797,7 +815,10 @@
       "position": [
         3552,
         2400
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -828,7 +849,10 @@
       "position": [
         8256,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -983,7 +1007,10 @@
       "position": [
         8480,
         2960
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1064,7 +1091,10 @@
       "position": [
         4448,
         2800
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "7fe6f975-7ec1-45f7-ade4-183c79b3e6ac",
@@ -1115,7 +1145,10 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Закрепил комментарий под видео: https://youtu.be/' + $('Загружаем на YouTube').first().json.uploadId }) }}",
         "options": {}
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "id": "0782c831-8c8c-4f32-a15a-f5c32a7f30e4",
@@ -1554,7 +1587,10 @@
         2004
       ],
       "continueOnFail": true,
-      "id": "4eff2f97-9dea-4d77-951d-9975d4464bab"
+      "id": "4eff2f97-9dea-4d77-951d-9975d4464bab",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "name": "Обложки Б/В: какие есть",
@@ -1644,6 +1680,9 @@
         "options": {}
       },
       "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
       "id": "776ada01-2286-5628-ae50-0fd697386a0d"
     },
     {
