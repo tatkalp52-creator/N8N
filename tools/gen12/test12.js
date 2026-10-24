@@ -323,12 +323,12 @@ async function turn(stages, row, inc, response, subResponse) {
       assert.ok(pe2.message.includes('Invalid image'), 'автор видит настоящую причину');
       const stE = JSON.parse(pe2.editorState).stages, stB = JSON.parse(nr['Контекст проекта'].row.sys_EditorState).stages;
       assert.deepEqual(Object.values(stE).map(x => x.pending), Object.values(stB).map(x => x.pending), 'ошибка не стирает ожидающий вызов');
-      // зависший вызов инструмента — чиним в том же разговоре
+      // (24.10) зависший вызов инструмента — тоже новый разговор (в старом их бывало несколько)
       const no = { ...nr, 'OpenAI: этап': { error: { message: 'Bad request - please check your parameters', description: 'No tool output found for function call call_Cf2TBtOC4kNQJ1EFrGkUrEhN.' } } };
       const r3 = (await run('Готовим запрос заново', { nodes: no }))[0];
-      assert.equal(r3.requestBody.conversation, 'cA', 'тот же разговор');
-      assert.ok(r3.requestBody.input.some(i => i.type === 'function_call_output' && i.call_id === 'call_Cf2TBtOC4kNQJ1EFrGkUrEhN'), 'ответ на зависший вызов');
-      assert.equal(r3.isNew, false);
+      assert.equal(r3.requestBody.conversation, 'cB', 'новый разговор');
+      assert.ok(!r3.requestBody.input.some(i => i.type === 'function_call_output'), 'в новом разговоре отвечать не на что');
+      assert.equal(r3.isNew, true);
     }
     console.log('18 сломанный разговор — повтор в новом OK');
     // (22.10) готовый текст пункта от автора — пишет код, модель не зовём, превью нет, согласовано

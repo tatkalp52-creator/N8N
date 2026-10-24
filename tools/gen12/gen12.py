@@ -268,6 +268,8 @@ code('Готовим запрос этапу', 'zapros.js', [EX + 1540, EY - 180
 openai_http('OpenAI: этап', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 1760, EY - 180])
 nodes[-1]['parameters']['options'] = {'timeout': 600000}
 nodes[-1]['onError'] = 'continueRegularOutput'
+# (24.10) разговор хранится у OpenAI: повтор запроса оставлял в нём второй ответ с вызовом без ответа
+nodes[-1]['retryOnFail'] = False
 code('Разбираем ответ этапа', 'parse.js', [EX + 1980, EY - 180], lib=True)
 # (22.10) разговор этапа сломался («Bad request» на старом разговоре) — один раз молча повторяем в новом разговоре
 if_node('Разговор сломался?', "!!$json.error && !!$('Готовим запрос этапу').first().json.conversationId && !$('Готовим запрос этапу').first().json.isNew"
@@ -279,6 +281,7 @@ code('Готовим запрос заново', 'zapros.js', [EX + 1980, EY + 1
 openai_http('OpenAI: этап заново', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2090, EY + 140])
 nodes[-1]['parameters']['options'] = {'timeout': 600000}
 nodes[-1]['onError'] = 'continueRegularOutput'
+nodes[-1]['retryOnFail'] = False
 # ── ЛУПА: точки оживления уточняются по увеличенным кусочкам (сборщик режет, этап читает) ──
 code('Лупа: план', 'lupa_plan.js', [EX + 1980, EY - 520], lib=True)
 if_node('Нужна лупа?', "$('Лупа: план').first().json.need", [EX + 2090, EY - 680])
