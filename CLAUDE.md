@@ -40,6 +40,15 @@ Everything creative or channel-specific (tone, style, prompts, character, refere
 python3 tools/gen12/gen12.py && python3 tools/gen12/check12.py && node tools/gen12/test12.js
 ```
 
+## Reliability rules (24.10, after the audit `docs/AUDIT_24-10.md`) — one rule per class, no per-case patches
+
+1. **Locks by deed, held on the server.** Anything that must not run twice at once takes a key on the assembler's `/gate` (`lock: true` → `locked`; `release: true` when done; TTL as the safety net). The Google Sheet is a record for the author, never a lock: an execution sees the row as it was when it started. Workflow 12: `work:<projectId>` for author messages (taken in «Замок», released after the reply or the picture).
+2. **The one who knows the truth decides.** Cleaning: Kaggle/the server knows; «блокнот занят» never writes the project row.
+3. **Retries only where repeating is harmless:** sheet reads, sheet updates by key, stateless requests, GET/PUT/DELETE. Never on Code nodes, Telegram sends, sheet appends, YouTube uploads/comments, OpenAI calls that keep a conversation, `/clean_start`, `/gate`. `check12.py` enforces it for 12; `tools/patch_retries.py` for 04 and 14.
+4. **No silent dead ends.** Every Switch output leads somewhere, except the ones listed in `check12.py` QUIET (silence there is deliberate).
+5. **n8n server settings are part of the system** (Coolify compose): `EXECUTIONS_DATA_PRUNE=true`, `EXECUTIONS_DATA_MAX_AGE=72`, `EXECUTIONS_DATA_PRUNE_MAX_COUNT=2000`, `DB_SQLITE_VACUUM_ON_STARTUP=true`, task runner `N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT=0`.
+6. Before a fix, look for the class of problem, not the single case; a new guard is allowed only if it is one of the rules above.
+
 ## Generator for workflow 10
 
 `tools/gen10/gen.py` builds `workflows/10_Единый_редактор.json` from `tools/gen10/js/*.js` (each JS file is the body of one n8n Code node; `lib_state.js` is prepended to some). Drawing nodes are copied from `workflows/01_Художник.json`. Workflow: edit JS/gen.py → regenerate → check → test.

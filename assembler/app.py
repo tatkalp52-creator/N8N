@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-23-gate"
+ASSEMBLER_VERSION = "2026-10-24-lock"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -5068,6 +5068,8 @@ def gate():
     key = str(data.get("key") or "")[:300]
     if not key:
         return jsonify({"first": True})
+    # (24.10) замок «по делу»: lock — занять (ответ locked: занято кем-то ещё), release — снять, когда дело сделано
+    release = bool(data.get("release"))
     ttl = max(1, min(int(_float_or(data.get("ttl"), 600)), 86400))
     now = time.time()
     with open(GATE_FILE + ".lock", "a") as lk:
@@ -5080,14 +5082,18 @@ def gate():
                 keys = {}
             keys = {k: v for k, v in keys.items() if v > now}
             first = key not in keys
-            if first:
+            if release:
+                keys.pop(key, None)
+            elif first:
                 keys[key] = now + ttl
             with open(GATE_FILE + ".new", "w") as f:
                 json.dump(keys, f)
             os.replace(GATE_FILE + ".new", GATE_FILE)
         finally:
             fcntl.flock(lk, fcntl.LOCK_UN)
-    return jsonify({"first": first})
+    if release:
+        return jsonify({"released": True})
+    return jsonify({"first": first, "locked": (not first) if data.get("lock") else False})
 
 
 @app.route("/health", methods=["GET"])

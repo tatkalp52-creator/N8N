@@ -802,5 +802,41 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('25 «предложи ещё» и перевод таймкодов OK');
 
+  // 26. (24.10) одновременные запуски: «блокнот занят» не трогает строку; затёртая чистка всё равно забирается; замок
+  {
+    const { wf } = require('./harness12.js');
+    const ctxC = { projectId: 'P1', chatId: 1, kind: 'tracks', row: { sys_CleanState: '', sys_CleanTag: '' }, tmpl: {} };
+    const prep = { body: { cleanNotebook: 'https://www.kaggle.com/code/u/n', tracksUrl: 'U' }, mode: 'duo', alarmHours: 3 };
+    let z = (await run('Чистка: запущена?', { nodes: { 'Контекст проекта': ctxC, 'Чистка: нужна?': prep }, input: [{ ok: true, tag: 'P1-1' }] }))[0];
+    assert.equal(z.write, true, 'запустилась — пишем');
+    z = (await run('Чистка: запущена?', { nodes: { 'Контекст проекта': ctxC, 'Чистка: нужна?': prep }, input: [{ ok: false, busy: true, error: 'Блокнот занят' }] }))[0];
+    assert.equal(z.write, false, 'вторая ссылка вплотную: «занят» — строку не трогаем (снимок мог устареть)');
+    z = (await run('Чистка: запущена?', { nodes: { 'Контекст проекта': ctxC, 'Чистка: нужна?': prep }, input: [{ ok: false, error: 'нет ключа' }] }))[0];
+    assert.equal(z.write, true, 'настоящая ошибка — записать, чтобы было видно');
+    const start = { tag: 'P1-1', notebookUrl: 'N' };
+    const dal = async fresh => (await run('Чистка: что дальше', { nodes: { 'Чистка: запущена?': start, 'Перечитываем строку (чистка)': fresh, 'Ждём стук Kaggle': { body: { tag: 'P1-1', ok: true } } } }))[0].action;
+    assert.equal(await dal({ sys_CleanTag: 'P1-1', sys_CleanState: 'идёт' }), 'ask');
+    assert.equal(await dal({ sys_CleanTag: '', sys_CleanState: 'ошибка: Блокнот занят' }), 'ask', 'строку затёрли — чистка всё равно наша, забираем');
+    assert.equal(await dal({ sys_CleanTag: 'P1-2', sys_CleanState: 'идёт' }), 'stop', 'идёт новая чистка — старая молчит');
+    assert.equal(await dal({ sys_CleanTag: 'P1-1', sys_CleanState: 'готово' }), 'stop', 'уже забрано');
+    // замок: занимается на сообщение автора, снимается после ответа; при рисовании — после картинки
+    const body = (name, nodes) => {
+      const n = wf.nodes.find(x => x.name === name);
+      const ex = n.parameters.jsonBody.replace(/^=\{\{|\}\}$/g, '');
+      return JSON.parse(new Function('$', 'return ' + ex)(k => ({ first: () => ({ json: nodes[k] }) })));
+    };
+    const C = k => ({ 'Контекст проекта': { projectId: 'P1', kind: k } });
+    assert.deepEqual(body('Замок', C('message')), { key: 'work:P1', ttl: 240, lock: true });
+    assert.equal(body('Замок: снять', { ...C('message'), 'Что дальше?': { next: 'none' } }).key, 'work:P1', 'ответ ушёл — снять');
+    assert.equal(body('Замок: снять', { ...C('message'), 'Что дальше?': { next: 'draw' } }).key, '', 'рисует — держать до картинки');
+    assert.equal(body('Замок: снять', { ...C('stageStart'), 'Что дальше?': { next: 'none' } }).key, '', 'запуск изнутри замок не брал');
+    assert.equal(body('Замок: снять (картинка)', C('message')).key, 'work:P1');
+    const cn = wf.connections;
+    assert.equal(cn['Куда дальше?'].main[0][0].node, 'Замок', 'сообщение автора сначала берёт замок');
+    assert.equal(cn['Замок свободен?'].main[1][0].node, 'Замок: ещё работаю', 'занято — говорим «ещё работаю», ничего не трогаем');
+    assert.ok(!wf.nodes.some(n => n.type === 'n8n-nodes-base.code' && n.retryOnFail), 'код-узлы не повторяются');
+  }
+  console.log('26 одновременные запуски: чистка, замок, повторы OK');
+
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

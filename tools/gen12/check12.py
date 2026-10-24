@@ -59,4 +59,28 @@ for n in wf['nodes']:
     if n['type'] == 'n8n-nodes-base.googleSheets' and n['parameters'].get('sheetName', {}).get('value') in ('Этапы', 'Пункты', 'Эффекты'):
         if n['parameters'].get('options', {}).get('returnAllMatches') != 'returnAllMatches':
             print('GUARD: лист читается одной строкой', n['name']); bad += 1
+# (24.10) ПРАВИЛО ПОВТОРОВ: повторять можно только безопасное (чтение, запись в строку по ключу, запросы без памяти).
+# Код-узлы, отправка в Телеграм, добавление строки и запросы к OpenAI с разговором — без повторов (повтор = дубль).
+for n in wf['nodes']:
+    t = n['type']; op = n['parameters'].get('operation', '')
+    body = str(n['parameters'].get('jsonBody', ''))
+    unsafe = (t == 'n8n-nodes-base.code' or t == 'n8n-nodes-base.telegram'
+              or (t == 'n8n-nodes-base.googleSheets' and op in ('append', 'appendOrUpdate'))
+              or (t == 'n8n-nodes-base.httpRequest' and ('requestBody' in body or '/clean_start' in n['parameters'].get('url', '') or '/gate' in n['parameters'].get('url', ''))
+                  and n['name'] in ('OpenAI: этап', 'OpenAI: этап заново', 'Сервер: запусти чистку') + tuple(x['name'] for x in wf['nodes'] if '/gate' in x['parameters'].get('url', ''))))
+    if unsafe and n.get('retryOnFail'):
+        print('GUARD: повтор там, где повтор = дубль', n['name']); bad += 1
+# (24.10) НИ ОДНОГО ТУПИКА БЕЗ СЛОВА: у развилки (Switch) каждый выход куда-то ведёт, кроме перечисленных —
+# там молчание задумано (повтор сообщения, «ничего не нужно», чистку уже обработали).
+QUIET = {('Что пришло?', 2), ('Что пришло?', 4), ('Куда дальше?', 8), ('Куда после хода?', 5),
+         ('Чистка: куда?', 2), ('Чистка: куда?', 3), ('Чистка: итог куда?', 4)}
+for n in wf['nodes']:
+    if n['type'] != 'n8n-nodes-base.switch':
+        continue
+    rules = len(n['parameters'].get('rules', {}).get('values', []))
+    total = rules + (1 if n['parameters'].get('options', {}).get('fallbackOutput') == 'extra' else 0)
+    outs = wf['connections'].get(n['name'], {}).get('main', [])
+    for i in range(total):
+        if (i >= len(outs) or not outs[i]) and (n['name'], i) not in QUIET:
+            print('GUARD: развилка молча обрывается', n['name'], 'выход', i); bad += 1
 print('problems:', bad)

@@ -11,6 +11,9 @@ const keep = !ok && String(row.sys_CleanState || '').trim() === 'идёт';
 return [{
   json: {
     ok,
+    // (24.10) «блокнот занят» — строку выпуска не трогаем вовсе (снимок строки мог устареть: идущая чистка
+    // могла начаться секунды назад и ещё не видна здесь)
+    write: ok || !r.busy,
     tag: ok ? r.tag : (keep ? String(row.sys_CleanTag || '') : ''),
     notebookUrl: r.notebookUrl || prep.body.cleanNotebook,
     state: ok ? 'идёт' : (keep ? 'идёт' : `ошибка: ${err}`),
