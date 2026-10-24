@@ -23,8 +23,9 @@ def sheet(name, op, sheet_name, pos, extra):
          'sheetName': {'__rl': True, 'value': sheet_name, 'mode': 'name'}, 'options': {}}
     if op: p['operation'] = op
     p.update(extra)
+    # (24.10) правило повторов: добавление строк не повторяем (повтор = дубль строк)
     return add({'parameters': p, 'name': name, 'type': 'n8n-nodes-base.googleSheets', 'typeVersion': 4, 'position': pos,
-                'credentials': CRED_SH, **RETRY})
+                'credentials': CRED_SH, **({} if op in ('append', 'appendOrUpdate') else RETRY)})
 def link(a, b, out=0):
     m = conns.setdefault(a, {'main': []})['main']
     while len(m) <= out: m.append([])
