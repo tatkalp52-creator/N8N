@@ -1029,6 +1029,7 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
     drawSurf(now, dw, dh);
     drawCandles(now, dw, dh);
     drawStars(now, dw, dh);
+    drawBlinks(now, dw, dh);
     drawFire(now, dw, dh);
     drawBubbles(now, dw, dh);
     requestAnimationFrame(drawSteam);
@@ -1294,6 +1295,59 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
       poly(m.pts); fxc.fill();
       if (m.spill && m.spill.length >= 3) { fxc.fillStyle = 'rgba(255,168,88,' + Math.min(0.7, 0.3 * sk * bright * (1 + 0.4 * f) * 0.6).toFixed(3) + ')'; poly(m.spill); fxc.fill(); }
       fxc.restore();
+    });
+  }
+  // (24.10) моргание как в ролике: веко цветом пёрышек вокруг глаза и тёмная дуга-«улыбка» (те же формулы, что у сборщика),
+  // видно и после «ОК» — раньше на страничке только заливался кружок разметки
+  var lidCache = {}, lidPlan = {};
+  function lidShut(key, every, now) {
+    var p = lidPlan[key];
+    if (!p || now > p.until) {
+      var r = Math.random(), n = r < 0.5 ? 1 : r < 0.8 ? 2 : 3, start = (p ? p.until : now + 0.6) + (p ? every * (0.75 + Math.random() * 0.5) : 0);
+      p = lidPlan[key] = { times: [], until: start + n * 0.32 + 0.3 };
+      for (var k2 = 0; k2 < n; k2++) p.times.push(start + k2 * (n === 1 ? 0 : 0.32));
+    }
+    return p.times.some(function (t0) { return now >= t0 && now < t0 + (p.times.length === 1 ? 0.28 : 0.14); });
+  }
+  function lidSprite(P, m) {
+    var W = P.width, H = P.height, k = H / 864, ex = m.pts[0].x / 100 * W, ey = m.pts[0].y / 100 * H;
+    var rc = (m.r || 3) * k, key = [Math.round(ex), Math.round(ey), rc.toFixed(1), W].join('|');
+    if (lidCache[key]) return lidCache[key];
+    var pad = Math.ceil(rc * 1.9) + 2, bx0 = Math.round(ex) - pad, by0 = Math.round(ey) - pad, bw = 2 * pad;
+    var rs = [], gs = [], bs = [];
+    for (var yy = 0; yy < bw; yy++) for (var xx = 0; xx < bw; xx++) {
+      var X = bx0 + xx, Y = by0 + yy; if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+      var d = Math.hypot(X + 0.5 - ex, Y + 0.5 - ey);
+      if (d > rc * 1.1 && d < rc * 1.7) { var o = (Y * W + X) * 4; rs.push(P.data[o]); gs.push(P.data[o + 1]); bs.push(P.data[o + 2]); }
+    }
+    var med = function (a) { if (!a.length) return 128; a.sort(function (x, y) { return x - y; }); return a[a.length >> 1]; };
+    var fr = med(rs), fg = med(gs), fb = med(bs);
+    var c = document.createElement('canvas'); c.width = c.height = bw;
+    var cx = c.getContext('2d'), id = cx.createImageData(bw, bw);
+    for (var y2 = 0; y2 < bw; y2++) for (var x2 = 0; x2 < bw; x2++) {
+      var dd = Math.hypot(x2 + bx0 + 0.5 - ex, y2 + by0 + 0.5 - ey), a = Math.max(0, Math.min(1, (rc - dd) / (0.5 * k + 1e-6))), o2 = (y2 * bw + x2) * 4;
+      id.data[o2] = fr; id.data[o2 + 1] = fg; id.data[o2 + 2] = fb; id.data[o2 + 3] = Math.round(255 * a);
+    }
+    cx.putImageData(id, 0, 0);
+    var q = rc / (5 * k), hw = Math.max(4.2 * k * q, 0.9 * rc);
+    cx.strokeStyle = 'rgba(' + Math.round(fr * 0.5) + ',' + Math.round(fg * 0.5) + ',' + Math.round(fb * 0.5) + ',0.85)';
+    cx.lineWidth = Math.max(1, 1.3 * k * Math.max(q, 0.6)); cx.lineCap = 'round'; cx.beginPath();
+    for (var i = 0; i <= 40; i++) {
+      var dx = -hw + 2 * hw * i / 40, ly = ey - by0 + 0.2 * rc + 0.62 * hw * Math.sqrt(Math.max(0, 1 - (dx / hw) * (dx / hw))) * 0.9 - 0.2 * hw;
+      if (i) cx.lineTo(ex - bx0 + dx, ly); else cx.moveTo(ex - bx0 + dx, ly);
+    }
+    cx.stroke();
+    return (lidCache[key] = { c: c, x: bx0, y: by0 });
+  }
+  function drawBlinks(now, dw, dh) {
+    var all = marks.filter(function (m) { return m.eff === 'blink' && m.pts.length; });
+    if (!all.length || !dh) return;
+    var P = pixels(); if (!P) return;
+    var sc = dw / P.width, t = now / 1000;
+    all.forEach(function (m, i) {
+      if (!lidShut(i + '|' + (m.every || BLINK_BASE), m.every || BLINK_BASE, t)) return;
+      var s2 = lidSprite(P, m);
+      fxc.drawImage(s2.c, s2.x * sc, s2.y * sc, s2.c.width * sc, s2.c.height * sc);
     });
   }
   function drawStars(now, dw, dh) {
