@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-24-lock"
+ASSEMBLER_VERSION = "2026-10-25-join"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -243,8 +243,13 @@ def natural_sort_key(path, zip_order=None):
     return (3, 0, filename)
 
 
-def run_ffmpeg(args):
-    cmd = [FFMPEG_BIN, "-y"] + args
+# (25.10) склейку делает официальный выпуск ffmpeg из /app/bin (постоянная папка): ночные сборки виснут на
+# фильтрах звука; в официальном нет одного фильтра эффектов, поэтому куски видео рисует обычный ffmpeg
+JOIN_FFMPEG_BIN = "/app/bin/ffmpeg" if os.path.exists("/app/bin/ffmpeg") else None
+
+
+def run_ffmpeg(args, binary=None):
+    cmd = [binary or FFMPEG_BIN, "-y"] + args
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg failed:\n{result.stderr[-3000:]}")
@@ -3803,7 +3808,7 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
     run_ffmpeg(["-f", "concat", "-safe", "0", "-i", list_path, "-i", audio_path,
                 "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-af", audio_chain,
                 "-c:a", "aac", "-b:a", "384k", "-t", str(duration),
-                "-movflags", "+faststart", output_path])
+                "-movflags", "+faststart", output_path], binary=JOIN_FFMPEG_BIN)
     print(f"[video] кусков: {len(pieces)}, разных: {len(cache) + 1}")
     return output_path
 
