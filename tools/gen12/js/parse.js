@@ -31,10 +31,17 @@ const st = stStage(state, stage.icon);
 // (28.10) память разговора этапа: реплика автора и ответ этапа (что он сделал — коротко), последние 10
 if (!plan.silent) {
   const did = functionName ? ` [${functionName}${Array.isArray(args.items) && args.items.length ? ': пункты ' + args.items.map(i => i && i.n).filter(Boolean).join(', ') : ''}]` : '';
-  const cut = t => { t = String(t || '').trim(); return t.length > 2000 ? t.slice(0, 2000) + '…' : t; };
+  const cut = t => { t = String(t || '').trim(); return t.length > 1200 ? t.slice(0, 1200) + '…' : t; };
   if (prep.logUser) st.log.push({ r: 'u', t: cut(prep.logUser) });
   st.log.push({ r: 'a', t: cut(message + did) });
   st.log = st.log.slice(-10);
+  // ячейка таблицы держит 50 000 знаков: память этапов не должна её переполнить — старое уходит первым
+  const logs = Object.values(state.stages).filter(x => Array.isArray(x.log));
+  while (JSON.stringify(state).length > 40000) {
+    const longest = logs.reduce((m, x) => (x.log.length > (m ? m.log.length : 0) ? x : m), null);
+    if (!longest || longest.log.length <= 2) break;
+    longest.log.shift();
+  }
 }
 
 let action = 'chat';
