@@ -876,5 +876,41 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(lib.stByReply(SS, 'просто текст', null), null);
   }
   console.log('27 ответ на сообщение этапа под названием выпуска OK');
+  // 28. (29.10) приложение «Оживление»: кнопка по слову, каталог из листа, файл, строки обратно в пункт оживления
+  {
+    const IT9 = [...ITEMS, { 'Канал': 'demo', '№': '9', 'Пункт': 'Оживление', 'Колонки': 'fx_Effects', 'Можно пусто': 'да', 'Превью': 'оживление' }];
+    // слово «оживление» реплаем на выпуск → kind fxApp
+    const tgm = { update_id: 77, message: { message_id: 5, chat: { id: 1 }, from: { id: 1 }, text: 'оживление',
+      reply_to_message: { text: 'выпуск 20261004_120000_demo' } } };
+    const rz = (await run('Разбираем входящее', { nodes: { 'Вызов изнутри': { work: { source: 'tg', body: tgm } } } }))[0];
+    assert.equal(rz.kind, 'fxApp'); assert.equal(rz.projectId, '20261004_120000_demo');
+    const ctxA = await context(DIRECT, { ...APPROVED, ai_ApprovedImageUrl: 'https://drive.google.com/file/d/IMG1/view' }, { kind: 'fxApp' });
+    const kb = (await run('Оживление: кнопка', { nodes: { 'Контекст проекта': ctxA } }))[0].body;
+    const url = kb.reply_markup.inline_keyboard[0][0].web_app.url;
+    assert.ok(url.startsWith('https://n8n.example/webhook/ozh12-') && url.includes('f=ozhivlenie.html') && url.includes('p=P1'), url);
+    assert.ok(decodeURIComponent(url).includes('img=https://lh3.googleusercontent.com/d/IMG1=s2000'), 'картинка — прямой ссылкой');
+    assert.ok(decodeURIComponent(url).includes('submit=https://n8n.example/webhook/cal12-'), 'строки — во вход календаря');
+    const noImg = await context(DIRECT, { sys_Status: 'Картинка в работе' }, { kind: 'fxApp' });
+    assert.ok(!(await run('Оживление: кнопка', { nodes: { 'Контекст проекта': noImg } }))[0].body.reply_markup, 'без картинки — без кнопки');
+    // каталог — из листа «Эффекты»
+    const FXR = [{ 'Раздел': 'Анимация', 'Эффект': 'пар над кружкой', 'Механика': 'steam_cup', 'Строка для сборщика': 'пар: x, y', 'Ручки': 'густота — гуще', 'Статус': 'готов', demo: 'густота 5', 'Слово': 'пар', 'Значит': 'steam' },
+                 { 'Раздел': '', 'Эффект': 'Ручки — любое число', 'Механика': '', 'Слово': 'овал*', 'Значит': 'oval' }];
+    const kat = (await run('Оживление: каталог', { nodes: { 'Оживление: вход': { query: { catalog: '1', ch: 'demo' } } }, input: FXR }))[0];
+    assert.equal(kat.effects.length, 1); assert.equal(kat.effects[0].value, 'густота 5'); assert.equal(kat.words.length, 2);
+    // файл — только из /pages, без выхода наверх
+    assert.equal((await run('Оживление: какой файл', { input: [{ query: {} }] }))[0].f, 'ozhivlenie.html');
+    await assert.rejects(run('Оживление: какой файл', { input: [{ query: { f: '../app.py' } }] }));
+    // строки из приложения → «пункт 9, перепиши целиком» → записано, превью придёт
+    const cal = { source: 'cal', body: { body: { action: 'fx', projectId: '20261004_120000_demo', chatId: 1, mode: 'replace', lines: 'пар: 30, 60; овал 20 × 8' } } };
+    const rf = (await run('Разбираем входящее', { nodes: { 'Вызов изнутри': { work: cal } } }))[0];
+    assert.equal(rf.kind, 'message'); assert.equal(rf.fxApp.lines, 'пар: 30, 60; овал 20 × 8');
+    const ANIM2 = [DIRECT[0], DIRECT[1]];
+    const t = await turn(ANIM2, { ...APPROVED, sys_EditorState: JSON.stringify({ v: 2, items: { 9: { text: 'свеча: 1, 1' } }, agreed: {} }) },
+      { kind: 'message', text: '', fxApp: rf.fxApp, __items: IT9 });
+    assert.equal(t.plan.mode, 'direct'); assert.equal(t.plan.directN, 9);
+    assert.equal(JSON.parse(t.r.editorState).items[9].text, 'пар: 30, 60; овал 20 × 8', 'перепиши целиком');
+    assert.ok(t.r.previewBody && t.r.previewBody.fx_Effects === 'пар: 30, 60; овал 20 × 8', 'из приложения — превью приходит');
+  }
+  console.log('28 приложение «Оживление» OK');
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

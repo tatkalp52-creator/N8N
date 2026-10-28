@@ -176,7 +176,8 @@ text += `\n\nID: ${ctx.projectId}`;
 // Превью: изменился пункт, которому в листе «Пункты» положено превью, — сборщик нарисует картинку.
 let previewBody = null;
 const pvItem = items.find(it => it.preview && (changed.includes(it.n) || proposed.includes(it.n)) && (state.items[it.n] || {}).text);
-if (pvItem && approvedBefore && /оживл/.test(pvItem.preview) && plan.mode !== 'direct') {   // свои строки она уже видела на страничке
+// свои строки, набранные руками, она уже видела; из приложения — превью нужно (там движения нет)
+if (pvItem && approvedBefore && /оживл/.test(pvItem.preview) && (plan.mode !== 'direct' || plan.fxApp)) {
   const fx = {};
   for (const key of Object.keys(ctx.tmpl || {})) {        // вид эффектов — колонки 🎬 (как у сборки)
     if (!key.includes('🎬')) continue;

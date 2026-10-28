@@ -9,6 +9,7 @@ mkdir -p /app/pages/leaves /app/pages/refs
 old=$(grep -m1 'ASSEMBLER_VERSION =' /app/app.py 2>/dev/null)
 get assembler/app.py /app/app.py
 get table_drafts/razmetka_animacii.html /app/pages/razmetka.html
+get table_drafts/ozhivlenie.html /app/pages/ozhivlenie.html   # (29.10) приложение «Оживление» в боте (его отдаёт n8n)
 get table_drafts/pult_zvuka.html /app/pages/pult.html
 get table_drafts/suno_sborshik.html /app/pages/suno.html
 # референсы художника — на своём сервере, чтобы не зависеть от приватности репозитория (23.10)

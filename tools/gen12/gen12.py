@@ -22,6 +22,8 @@ def uid():
 
 # секретный адрес входа из календаря; тот же — в странице календаря (tools/patch11_plan.py)
 CAL_HOOK = 'cal12-pDjXqAmp9bfKxK9RRByEPOci'
+# (29.10) секретный адрес приложения «Оживление» (страница и каталог); строки из него приходят во вход календаря
+OZH_HOOK = 'ozh12-Vq7cR2mXk9LsT4wBn8Hd'
 
 def add(node):
     assert node['name'] not in names, node['name']
@@ -323,7 +325,7 @@ nodes[-1]['onError'] = 'continueRegularOutput'
 code('Контекст проекта', 'kontekst.js', [X + 2440, Y], lib=True)
 if_node('Проект найден?', '$json.found', [X + 2660, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2880, Y + 200])
-switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build', 'cleanStatus', 'stageStart'], [X + 2880, Y])
+switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build', 'cleanStatus', 'stageStart', 'fxApp'], [X + 2880, Y])
 tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопка из старой схемы — она ничего не делает.\n\nID: {{ $json.projectId }}', [X + 3140, Y + 1500])
 link('Что пришло?', 'Это кнопка?', 3)
 link('Это кнопка?', 'Отвечаем на кнопку', 0)
@@ -332,6 +334,37 @@ chain('Отвечаем на кнопку', 'Находим лист канал�
 link('Проект найден?', 'Куда дальше?', 0)
 link('Проект найден?', 'Проект не найден', 1)
 link('Куда дальше?', 'Старая кнопка', 4)
+# (29.10) приложение «Оживление»: кнопка по слову «оживление»
+code('Оживление: кнопка', 'oz_knopka.js', [X + 3140, Y + 1700], lib=True)
+nodes[-1]['parameters']['jsCode'] = "const CAL_HOOK = " + json.dumps(CAL_HOOK) + ";\nconst OZH_HOOK = " + json.dumps(OZH_HOOK) + ";\n" + nodes[-1]['parameters']['jsCode']
+tg_api('Оживление: шлём кнопку', 'sendMessage', '={{ JSON.stringify($json.body) }}', [X + 3360, Y + 1700])
+link('Куда дальше?', 'Оживление: кнопка', 8)
+chain('Оживление: кнопка', 'Оживление: шлём кнопку')
+# страница и каталог приложения — без очереди (только чтение)
+OY = Y + 2100
+add({'parameters': {'httpMethod': 'GET', 'path': OZH_HOOK, 'responseMode': 'responseNode', 'options': {}},
+     'name': 'Оживление: вход', 'type': 'n8n-nodes-base.webhook', 'typeVersion': 2, 'position': [X, OY], 'webhookId': uid()})
+if_node('Оживление: каталог?', "!!($json.query || {}).catalog", [X + 220, OY])
+sheets_read('Оживление: читаем эффекты', 'Эффекты', [], [X + 440, OY - 120])
+nodes[-1]['parameters'].pop('filtersUI')
+nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
+nodes[-1]['retryOnFail'] = True; nodes[-1]['maxTries'] = 3; nodes[-1]['waitBetweenTries'] = 3000
+code('Оживление: каталог', 'oz_katalog.js', [X + 660, OY - 120])
+nodes[-1]['executeOnce'] = True
+add({'parameters': {'respondWith': 'json', 'responseBody': '={{ JSON.stringify($json) }}', 'options': {}},
+     'name': 'Оживление: отдаём каталог', 'type': 'n8n-nodes-base.respondToWebhook', 'typeVersion': 1.1, 'position': [X + 880, OY - 120]})
+code('Оживление: какой файл', 'oz_fayl.js', [X + 440, OY + 120])
+add({'parameters': {'method': 'GET', 'url': "=" + ASM + "/pages/{{ $json.f }}",
+                    'options': {'timeout': 20000, 'response': {'response': {'responseFormat': 'file', 'outputPropertyName': 'data'}}}},
+     'name': 'Оживление: файл', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [X + 660, OY + 120],
+     'retryOnFail': True, 'maxTries': 3, 'waitBetweenTries': 3000})
+add({'parameters': {'respondWith': 'binary', 'options': {}},
+     'name': 'Оживление: отдаём файл', 'type': 'n8n-nodes-base.respondToWebhook', 'typeVersion': 1.1, 'position': [X + 880, OY + 120]})
+link('Оживление: вход', 'Оживление: каталог?')
+link('Оживление: каталог?', 'Оживление: читаем эффекты', 0)
+link('Оживление: каталог?', 'Оживление: какой файл', 1)
+chain('Оживление: читаем эффекты', 'Оживление: каталог', 'Оживление: отдаём каталог')
+chain('Оживление: какой файл', 'Оживление: файл', 'Оживление: отдаём файл')
 
 # ═════════════ ДВИЖОК ЭТАПОВ ═════════════
 EX = X + 3140; EY = Y - 1400

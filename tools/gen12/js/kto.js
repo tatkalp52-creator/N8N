@@ -89,6 +89,11 @@ if (ctx.setupProblem) {
 // (не тратит деньги и не ломается). Согласовано сразу — это её собственные строки.
 // (23.10) Свою готовую строку («Пункт 9, добавь: …» со странички) автор шлёт в любой момент — и пока идёт
 // любой этап, и когда все этапы уже прошли. Пункт без этапа в «Этапы» — пункт автора: только так и пишется.
+// (29.10) строки из приложения «Оживление» — готовый текст автора для пункта с превью оживления
+if (ctx.fxApp) {
+  const fxItem = items.find(it => /оживл/.test(it.preview || ''));
+  if (fxItem) userText = `Пункт ${fxItem.n}, ${ctx.fxApp.mode === 'add' ? 'добавь' : 'перепиши целиком'}:\n${ctx.fxApp.lines}`;
+}
 const directAllowed = !isStart && !photo && !ctx.setupProblem && !resetAsked && ['model', 'done', 'draw', 'edit'].includes(mode);
 const direct = directAllowed ? itDirectCommand(userText, items, row, state) : null;
 if (direct && direct.drops && direct.drops.length) {
@@ -131,6 +136,7 @@ return [{
     directN: direct ? direct.n : null,
     directText: direct ? direct.text : '',
     fromAuthor: !isStart,
+    fxApp: !!ctx.fxApp,
     // фото этапу, чей пункт показывается превью «оживление», — это разметка: её читает сборщик
     needMarks: mode === 'model' && !!photo && !!approvedUrl && !!stage &&
       items.some(it => stScope(stages, stage).items.includes(it.n) && /оживл/.test(it.preview || '')),

@@ -29,6 +29,11 @@ if (cal) {
              release: String(b.release || ''), icon: String(b.icon || '') } } }];
   }
   const cm = String(b.projectId || '').match(/^(\d{8})_(\d{6})_([A-Za-z0-9]+)$/);
+  // (29.10) из приложения «Оживление» в боте: готовые строки разметки → пункт оживления выпуска
+  if (b.action === 'fx' && cm && String(b.lines || '').trim()) {
+    return [{ json: { ...none, kind: 'message', projectId: cm[0], channelKey: cm[3],
+      fxApp: { mode: b.mode === 'add' ? 'add' : 'replace', lines: String(b.lines).slice(0, 20000) } } }];
+  }
   let url = String(b.url || '').trim();
   if (b.action === 'tracks' && cm && /^https?:\/\//.test(url)) {
     const dm = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
@@ -105,7 +110,7 @@ const BUILD_RE = /^\s*(?:🎬\uFE0F?\s*)?(?:пересобер|собер|пер
 return [{
   json: {
     kind: tracksUrl ? 'tracks' : (/^\s*(как\s+(там\s+)?чистка|статус)(?![а-яё])/iu.test(userText) ? 'cleanStatus'
-      : (BUILD_RE.test(userText) ? 'build' : 'message')),
+      : (BUILD_RE.test(userText) ? 'build' : (/^\s*✨?\s*оживлени[ея]\s*[.!]?\s*$/iu.test(userText) ? 'fxApp' : 'message'))),
     chatId,
     ...fromId(m),
     text: userText,

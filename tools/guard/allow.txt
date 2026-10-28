@@ -95,3 +95,5 @@
 ЗАПАС | assembler/app.py | v.update(state="failed", end=now, err=v.get("err") or "запуск не закончился за 20 минут") | очередь /inbox и /gate — техника
 ЗАПАС | assembler/app.py | v.update(state="work", t=now, tries=v.get("tries", 1) + 1) | очередь /inbox и /gate — техника
 ЗАПАС | assembler/app.py | fade = min(1, s / 0.04) * max(0, min(1, (w.get("end", 0.95) - s) / (0.45 * w.get("end", 0.95)))) | | пусто = 0 (выключено) / защита от деления на ноль — техника
+ЗАПАС | gen12/oz_fayl.js | input.first().json || {}).query || {}; const f = String(q.f || 'ozhivlenie.html' | имя самой страницы приложения — техника
+СЛОВАРЬ | gen12/razbor.js | /^\s*✨?\s*оживлени[ея]\s*[.!]?\s*$/iu | команда автора системе («оживление» — прислать кнопку приложения)
