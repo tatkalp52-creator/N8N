@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-28-eq"
+ASSEMBLER_VERSION = "2026-10-28-inbox"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -5134,6 +5134,121 @@ def gate():
     if release:
         return jsonify({"released": True})
     return jsonify({"first": first, "locked": (not first) if data.get("lock") else False})
+
+
+# (28.10) ОЧЕРЕДЬ БОТА — одна на всё входящее (заменяет Вахтёра и Замок).
+# Каждое входящее (сообщение, кнопка, переход этапа, календарь) кладётся сюда с ключом.
+#   put  — повтор того же ключа → dup; выпуск уже в работе → ждёт своей очереди (wait); иначе — в работу.
+#   done — сделано; отдаёт следующее ждущее этого же выпуска.
+#   fail — упало: «насовсем» (деньги, ключ, вход) или повтор через 5 / 15 / 30 минут; после 4-й попытки — всё.
+#   due  — что пора повторить (и что зависло: в работе дольше 20 минут — n8n умер посреди хода).
+# Файл в /app (переживает перезапуск контейнера), под блокировкой — одновременные запросы не мешают.
+INBOX_FILE = "/app/data/inbox.json"
+INBOX_RETRY = [300, 900, 1800]       # паузы перед 2-й, 3-й, 4-й попыткой
+INBOX_STALE = 1200                   # «в работе» дольше — считаем, что запуск умер
+INBOX_ACTIVE = ("work", "retry")
+
+
+def _inbox_edit(fn):
+    import fcntl
+    os.makedirs(os.path.dirname(INBOX_FILE), exist_ok=True)
+    with open(INBOX_FILE + ".lock", "a") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        try:
+            try:
+                with open(INBOX_FILE) as f:
+                    box = json.load(f)
+            except Exception:
+                box = {}
+            now = time.time()
+            box = {k: v for k, v in box.items()
+                   if v.get("state") not in ("done", "failed") or now - v.get("end", now) < v.get("keep", 86400)}
+            result = fn(box, now)
+            with open(INBOX_FILE + ".new", "w") as f:
+                json.dump(box, f, ensure_ascii=False)
+            os.replace(INBOX_FILE + ".new", INBOX_FILE)
+            return result
+        finally:
+            fcntl.flock(lk, fcntl.LOCK_UN)
+
+
+def _inbox_public(key, it):
+    return {"key": key, "body": it.get("body"), "chatId": it.get("chatId"), "project": it.get("project", ""),
+            "tries": it.get("tries", 0), "error": it.get("err", "")}
+
+
+def _inbox_next(box, project, now):
+    """Следующее ждущее этого выпуска — в работу (по порядку прихода)."""
+    if not project or any(v.get("project") == project and v.get("state") in INBOX_ACTIVE for v in box.values()):
+        return None
+    waiting = sorted((v.get("created", 0), k) for k, v in box.items() if v.get("project") == project and v.get("state") == "wait")
+    if not waiting:
+        return None
+    k = waiting[0][1]
+    box[k].update(state="work", t=now, tries=1)
+    return _inbox_public(k, box[k])
+
+
+@app.route("/inbox", methods=["POST"])
+def inbox():
+    data = request.get_json(silent=True) or {}
+    op = str(data.get("op") or "")
+    key = str(data.get("key") or "")[:300]
+    project = str(data.get("project") or "")[:80]
+
+    def run(box, now):
+        if op == "put":
+            if not key:
+                return {"run": True}
+            if key in box:
+                return {"dup": True, "state": box[key].get("state")}
+            busy = bool(project) and any(v.get("project") == project and v.get("state") in INBOX_ACTIVE for v in box.values())
+            box[key] = {"state": "wait" if busy else "work", "project": project, "body": data.get("body"),
+                        "chatId": data.get("chatId"), "created": now, "t": now, "tries": 0 if busy else 1,
+                        "keep": max(60, min(int(_float_or(data.get("keep"), 86400)), 86400 * 3))}
+            return {"run": not busy, "queued": busy}
+        if op == "done":
+            it = box.get(key)
+            if it:
+                it.update(state="done", end=now)
+                project_ = it.get("project", "")
+            else:
+                project_ = project
+            return {"next": _inbox_next(box, project_, now)}
+        if op == "fail":
+            it = box.get(key)
+            if not it:
+                return {"notify": "none", "next": None}
+            it["err"] = str(data.get("error") or "")[:500]
+            tries = it.get("tries", 1)
+            if data.get("fatal") or tries > len(INBOX_RETRY):
+                it.update(state="failed", end=now)
+                return {"notify": "fatal" if data.get("fatal") else "final", "tries": tries,
+                        "next": _inbox_next(box, it.get("project", ""), now)}
+            it.update(state="retry", next=now + INBOX_RETRY[tries - 1])
+            return {"notify": "slow" if tries == 2 else "none", "tries": tries, "next": None}
+        if op == "due":
+            run_, final = [], []
+            for k, v in list(box.items()):
+                st = v.get("state")
+                stale = st == "work" and now - v.get("t", now) > INBOX_STALE
+                if st == "retry" and v.get("next", 0) <= now or stale:
+                    if v.get("tries", 1) > len(INBOX_RETRY):
+                        v.update(state="failed", end=now, err=v.get("err") or "запуск не закончился за 20 минут")
+                        final.append(_inbox_public(k, v))
+                        continue
+                    v.update(state="work", t=now, tries=v.get("tries", 1) + 1)
+                    run_.append(_inbox_public(k, v))
+            for proj in {v.get("project") for v in box.values() if v.get("state") == "wait"}:
+                nx = _inbox_next(box, proj, now)          # ждущее, у которого выпуск свободен (страховка)
+                if nx:
+                    run_.append(nx)
+            return {"run": run_, "final": final}
+        if op == "list":
+            return {"items": [dict(_inbox_public(k, v), state=v.get("state")) for k, v in box.items()]}
+        return {"error": "unknown op"}
+
+    return jsonify(_inbox_edit(run))
 
 
 @app.route("/health", methods=["GET"])
