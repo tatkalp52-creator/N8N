@@ -1146,10 +1146,11 @@ def build_audio_track(
             leveled_path = os.path.join(faded_dir, f"leveled_{i}.wav")
             run_ffmpeg(["-i", source_path, "-af", f"{gain_to_target(source_path, target_lufs)},{track_limiter}", leveled_path])
             af_parts = [gain_to_target(leveled_path, target_lufs), track_limiter]
-        af_parts += [
-            f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri",
-            f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri",
-        ]
+        if fade_in_seconds > 0:
+            af_parts.append(f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri")
+        if fade_out_seconds > 0:
+            af_parts.append(f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri")
+        af_parts = af_parts or ["anull"]
         faded_path = os.path.join(faded_dir, f"faded_{i}.wav")
         run_ffmpeg(["-i", leveled_path, "-af", ",".join(af_parts), faded_path])
         faded_tracks.append(faded_path)
@@ -3880,8 +3881,8 @@ def assemble():
             print(f"[grade] не удалось: {grade_error}")
         save_cover_kit(project_id, image_path, data)
         make_episode_covers(project_id, data.get("fx_Effects"))
-        fade_in_seconds = float(data.get("fadeInSeconds", 1.5))
-        fade_out_seconds = float(data.get("fadeOutSeconds", 3))
+        fade_in_seconds = _float_or(data.get("fadeInSeconds"), 0.0)     # (28.10) нет колонки — нет фейда
+        fade_out_seconds = _float_or(data.get("fadeOutSeconds"), 0.0)
         gap_seconds = float(data.get("gapSeconds", 0))
         loop_count_raw = data.get("loopCount")
         loop_count = int(loop_count_raw) if loop_count_raw not in (None, "") else None
@@ -4095,11 +4096,12 @@ def assemble():
         # Та же логика fade, но для звука — тихий, плавный вход/выход у всей
         # аудиодорожки целиком, той же длиной и той же формой кривой (tri),
         # что и межтрековые фейды — см. комментарий у per-track фейда выше.
-        audio_fade = (
-            f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri,"
-            f"afade=t=out:st={duration-fade_out_seconds}:d={fade_out_seconds}:curve=tri"
-        )
-        audio_chain = ",".join(audio_filters + [audio_fade]) if audio_filters else audio_fade
+        audio_fade = []
+        if fade_in_seconds > 0:
+            audio_fade.append(f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri")
+        if fade_out_seconds > 0:
+            audio_fade.append(f"afade=t=out:st={duration-fade_out_seconds}:d={fade_out_seconds}:curve=tri")
+        audio_chain = ",".join(audio_filters + audio_fade) or "anull"
 
         output_path = os.path.join(work_dir, f"{project_id}.mp4")
         # НОВОЕ (25.09): картинка подаётся сразу с частотой fps (5 кадров/с),
