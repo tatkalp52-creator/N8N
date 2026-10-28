@@ -354,20 +354,6 @@ nodes[-1]['parameters']['options'] = {'timeout': 600000}
 # (28.10) запрос без памяти у OpenAI — повтор безвреден (тихие повторы из openai_http); не ответил — «Работа» упала,
 # очередь повторит сама
 code('Разбираем ответ этапа', 'parse.js', [EX + 1980, EY - 180], lib=True)
-# ── ЛУПА: точки оживления уточняются по увеличенным кусочкам (сборщик режет, этап читает) ──
-code('Лупа: план', 'lupa_plan.js', [EX + 1980, EY - 520], lib=True)
-if_node('Нужна лупа?', "$('Лупа: план').first().json.need", [EX + 2090, EY - 680])
-add({'parameters': {'method': 'POST', 'url': ASM + '/fx_zoom', 'sendBody': True, 'specifyBody': 'json',
-                    'jsonBody': "={{ JSON.stringify({ imageUrl: $('Лупа: план').first().json.imageUrl, fx_Effects: $('Лупа: план').first().json.fx }) }}",
-                    'options': {'timeout': 120000}},
-     'name': 'Сервер: лупа', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [EX + 2200, EY - 840],
-     'onError': 'continueRegularOutput'})
-if_node('Есть точки?', "(($('Сервер: лупа').first().json || {}).points || []).length > 0", [EX + 2310, EY - 1000])
-code('Готовим уточнение', 'lupa_zapros.js', [EX + 2420, EY - 1160], lib=True)
-openai_http('OpenAI: уточнение', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2530, EY - 1320])
-nodes[-1]['parameters']['options'] = {'timeout': 300000}
-nodes[-1]['onError'] = 'continueRegularOutput'
-code('Лупа: итог', 'lupa_itog.js', [EX + 2640, EY - 1160], lib=True)
 if_node('Поручение?', "$('Разбираем ответ этапа').first().json.action === 'delegate'", [EX + 2200, EY - 180])
 code('Готовим поручение', 'podchinennyy.js', [EX + 2420, EY - 360], lib=True)
 openai_http('OpenAI: поручение', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2640, EY - 360])
@@ -433,13 +419,7 @@ link('Нужна сетка?', 'Сервер: сетка', 0)
 link('Нужна сетка?', 'Готовим запрос этапу', 1)
 link('Сервер: сетка', 'Готовим запрос этапу')
 chain('Готовим запрос этапу', 'OpenAI: этап', 'Разбираем ответ этапа')
-chain('Разбираем ответ этапа', 'Лупа: план', 'Нужна лупа?')
-link('Нужна лупа?', 'Сервер: лупа', 0)
-link('Нужна лупа?', 'Поручение?', 1)
-chain('Сервер: лупа', 'Есть точки?')
-link('Есть точки?', 'Готовим уточнение', 0)
-link('Есть точки?', 'Поручение?', 1)
-chain('Готовим уточнение', 'OpenAI: уточнение', 'Лупа: итог', 'Поручение?')
+chain('Разбираем ответ этапа', 'Поручение?')
 link('Поручение?', 'Готовим поручение', 0)
 link('Поручение?', 'Итог хода: черновик', 1)
 chain('Готовим поручение', 'OpenAI: поручение', 'Итог хода: черновик')

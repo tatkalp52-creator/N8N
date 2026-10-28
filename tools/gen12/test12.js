@@ -8,6 +8,7 @@ const TMPL = {
   tmpl_ImageModel: 'gpt-image-2',
   tmpl_ImageQuality: 'high',
   tmpl_LightModel: 'gpt-5-mini',
+  tmpl_LightEffort: 'minimal',
   '🎨_tmpl_ReferenceImages': 'https://drive.google.com/file/d/STYLE/view\n\nhttps://drive.google.com/file/d/SHEET/view\nлист героя',
   '🎨_tmpl_ArtistRules': 'Рисованная иллюстрация.',
   '🎨📍_tmpl_LocationImages': 'KITCHEN: кухн, kitchen\nУютная кухня с окном.\nhttps://drive.google.com/file/d/K1/view\nкухня как есть\n\nSUBWAY: метро\nhttps://drive.google.com/file/d/S1/view',
@@ -33,6 +34,8 @@ const WINDOW = [st('🖋', 'Редактор', 'автор', 'да', '1, 2, 4'),
 const FACTORY = [st('🎨', 'Художник', '', 'авто', 'картинка'), st('✍️', 'Писатель', '', 'авто', '3'), st('🏷️', 'Технический писатель', '', 'авто', '1, 2, 4')];
 
 const call = (name, args) => ({ output: [{ type: 'function_call', name, call_id: 'c_' + name, arguments: JSON.stringify(args) }] });
+// (28.10) ответ этапа «двумя кармашками»: разговор + тексты пунктов
+const kar = obj => ({ output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify({ message: '', items: [], agreed: [], reopen: [], ...obj }) }] }] });
 
 async function context(stages, row, inc) {
   const nodes = {
@@ -155,8 +158,11 @@ async function turn(stages, row, inc, response, subResponse) {
   // ── 3. Картинка согласована → следующий этап: Писатель, чистая голова ──
   const APPROVED = { ai_ImageVariants: V, ai_ApprovedImageUrl: 'U2', sys_Status: 'Картинка согласована', ai_UserBrief: 'Пингви на кухне' };
   t = await turn(DIRECT, APPROVED, { kind: 'stageStart', event: 'Картинка согласована (вариант 2).' },
-    call('propose_items', { items: [{ n: 3, text: 'Pengui baked a pie.', ru: 'Пингви испёк пирог с вишней.' }], message: 'Вот история.' }));
+    kar({ items: [{ n: 3, text: 'Pengui baked a pie.' }], message: 'Вот история.' }));
   assert.equal(t.plan.stageName, 'Писатель');
+  assert.equal(t.req.requestBody.text.format.name, 'otvet', 'ответ — всегда два кармашка');
+  assert.equal(t.req.requestBody.tool_choice, 'auto', 'код не заставляет и не разбирает её слов');
+  assert.ok(!t.req.requestBody.tools.some(x => x.type === 'web_search'), 'интернета нет, пока его нет в «Справочник»');
   const ins = t.req.requestBody.instructions;
   assert.ok(ins.includes('Пиши просто.') && ins.includes('маленький взрослый') && ins.includes('Автор не любит сироп.'));
   assert.ok(!ins.includes('Название коротко.'), 'колонка 🏷️ Писателю не идёт');
@@ -166,10 +172,9 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.ok(t.req.requestBody.input[0].content.some(c => c.image_url === 'U2'), 'писатель видит согласованную картинку');
   assert.ok(t.req.requestBody.input[0].content[0].text.includes('Картинка согласована (вариант 2)'));
   const toolNames = t.req.requestBody.tools.map(x => x.name).filter(Boolean);
-  assert.deepEqual(toolNames, ['propose_items', 'save_note']);
+  assert.deepEqual(toolNames, ['save_note'], 'кнопки «записать пункты» больше нет — пункты во втором кармашке');
   assert.ok(t.r.chunks[0].startsWith('✍️ <b>Писатель</b>: Вот история.'));
   assert.ok(t.r.chunks[0].includes('<b>3. Описание</b>\nPengui baked a pie.\n\n— Перевод для автора —\nПингви испёк пирог.') || t.r.chunks[0].includes('Pengui baked a pie. (Пингви испёк пирог.)'));
-  assert.ok(!t.r.chunks[0].includes('с вишней'), 'перевод этапа не показывается — только переводчика');
   assert.ok(!JSON.stringify(t.req.requestBody.tools).includes('"ru"'), 'этап больше не пишет перевод сам');
   assert.equal(t.next, 'none');
   let state = JSON.parse(t.r.editorState);
@@ -180,7 +185,7 @@ async function turn(stages, row, inc, response, subResponse) {
 
   // ── 4. Автор согласовала описание → этап завершён → Технический писатель ──
   t = await turn(DIRECT, { ...APPROVED, sys_EditorState: t.r.editorState }, { text: 'отлично, согласовано' },
-    call('propose_items', { agreed: [3], message: 'Спасибо!' }));
+    kar({ agreed: [3], message: 'Спасибо!' }));
   assert.equal(t.plan.stageName, 'Писатель');
   assert.ok(!t.req.requestBody.conversation);
   assert.equal(t.req.requestBody.input[1].role, 'assistant', 'этап помнит свой прошлый ответ');
@@ -309,7 +314,7 @@ async function turn(stages, row, inc, response, subResponse) {
     const req = (await run('Готовим запрос этапу', { nodes: n }))[0];
     const imgs = req.requestBody.input[0].content.filter(c => c.type === 'input_image').map(c => c.image_url);
     assert.deepEqual(imgs, ['data:image/jpeg;base64,GRID'], 'аниматор видит картинку с сеткой');
-    assert.deepEqual(req.requestBody.tool_choice, { type: 'function', name: 'propose_items' }, 'пункт с превью — всегда строками, тогда придёт видео');
+    assert.equal(req.requestBody.text.format.name, 'otvet', 'пункт с превью — во втором кармашке, тогда придёт видео');
     assert.ok(!('seen' in req), 'картинки не «помнятся» — показываются каждый ход');
     assert.ok(req.requestBody.instructions.includes('КАТАЛОГ ЭФФЕКТОВ') && req.requestBody.instructions.includes('строка «дымок: x, y»')
       && req.requestBody.instructions.includes('на этом канале: густота 4') && req.requestBody.instructions.includes('на этом канале: не используется'),
@@ -372,39 +377,7 @@ async function turn(stages, row, inc, response, subResponse) {
       assert.equal((await run('Кто отвечает', { nodes: ch }))[0].mode, 'model', 'обычная просьба — по-прежнему этапу');
     }
     console.log('20 готовый пункт — без модели OK');
-    // лупа: точки уточняются по увеличенным кусочкам, меняются только числа этих точек
-    {
-      const ln = { ...n, 'Разбираем ответ этапа': (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'свеча: 62, 49\nдождь: 56, 44, 71, 60\nлистья: 46, 14 → 47, 88; раз в 2 мин' }], message: 'Вот.' })] }))[0] };
-      const lp = (await run('Лупа: план', { nodes: ln }))[0];
-      assert.equal(lp.need, true); assert.equal(lp.n, 9); assert.equal(lp.imageUrl, 'U2');
-      ln['Лупа: план'] = lp;
-      ln['Сервер: лупа'] = { ok: true, points: [
-        { id: '0:0', line: 0, pair: 0, label: 'середина пламени свечи', x: 62, y: 49, dataUrl: 'data:A' },
-        { id: '1:0', line: 1, pair: 0, label: 'левый верхний угол стекла', x: 56, y: 44, dataUrl: 'data:B' },
-        { id: '1:1', line: 1, pair: 1, label: 'правый нижний угол стекла', x: 71, y: 60, dataUrl: 'data:C' }] };
-      const lz = (await run('Готовим уточнение', { nodes: ln }))[0];
-      assert.equal(lz.requestBody.input[0].content.filter(c => c.type === 'input_image').length, 3);
-      assert.deepEqual(lz.requestBody.tool_choice, { type: 'function', name: 'refine_points' });
-      ln['OpenAI: уточнение'] = { output: [{ type: 'function_call', name: 'refine_points', arguments: JSON.stringify({ points: [
-        { id: '0:0', x: 60.6, y: 42.3 }, { id: '1:0', x: 53, y: 37 }, { id: '1:1', x: 65, y: 43 }, { id: '9:9', x: 1, y: 1 }] }) }] };
-      const li = (await run('Лупа: итог', { nodes: ln }))[0];
-      const txt = JSON.parse(li.editorState).items[9].text;
-      assert.equal(txt, 'свеча: 60.6, 42.3\nдождь: 53, 37, 65, 43\nлистья: 46, 14 → 47, 88; раз в 2 мин');
-      assert.equal(li.moved, 3);
-      ln['Лупа: итог'] = li;
-      const rr = (await run('Итог хода', { nodes: ln }))[0];
-      assert.equal(rr.previewBody.fx_Effects, txt, 'превью — уже по уточнённым точкам');
-      assert.ok(rr.chunks[0].includes('Лупа уточнила точек: 3'));
-      // слишком далёкий «уточнённый» ответ не принимаем
-      ln['OpenAI: уточнение'] = { output: [{ type: 'function_call', name: 'refine_points', arguments: JSON.stringify({ points: [{ id: '0:0', x: 20, y: 10 }] }) }] };
-      assert.ok(JSON.parse((await run('Лупа: итог', { nodes: ln }))[0].editorState).items[9].text.startsWith('свеча: 62, 49'));
-      // без пункта оживления лупа не нужна
-      const nn = { ...n, 'Разбираем ответ этапа': { ...ln['Разбираем ответ этапа'], changed: [] } };
-      assert.equal((await run('Лупа: план', { nodes: nn }))[0].need, false);
-      // выключатель tmpl_Lupa = нет: лупа не запускается, точки автора остаются как есть
-      const off = { ...ln, 'Контекст проекта': { ...ln['Контекст проекта'], tmpl: { ...(ln['Контекст проекта'].tmpl || {}), tmpl_Lupa: 'нет' } } };
-      assert.equal((await run('Лупа: план', { nodes: off }))[0].need, false, 'tmpl_Lupa = нет выключает лупу');
-    }
+    // (28.10) лупы нет: точки ставит автор на страничке разметки
     const r = (await run('Итог хода', { nodes: n }))[0];
     assert.equal(r.previewBody.fx_Effects, 'дымок: 44, 37'); assert.equal(r.previewBody.imageUrl, 'U2');
     assert.equal(r.previewBody.targetLUFS, '-14', 'вид эффектов — колонки 🎬');
@@ -422,7 +395,7 @@ async function turn(stages, row, inc, response, subResponse) {
     nm['OpenAI: создаём разговор'] = { id: 'cM' };
     const rq = (await run('Готовим запрос этапу', { nodes: nm }))[0];
     assert.ok(rq.requestBody.input[0].content[0].text.includes('Разметка автора') && rq.requestBody.input[0].content[0].text.includes('нижний конец 44, 37'));
-    assert.deepEqual(rq.requestBody.tool_choice, { type: 'function', name: 'propose_items' }, 'по разметке — всегда новый пункт, значит и новое превью');
+    assert.equal(rq.requestBody.text.format.name, 'otvet', 'по разметке — ответ кармашками');
     // автор видит, дошла ли разметка; строки для сборщика ей не показываем
     nm['Сервер: разметка'] = { ok: true, marks: [{}, {}], text: '…' };
     nm['Готовим запрос этапу'] = rq;
@@ -483,7 +456,7 @@ async function turn(stages, row, inc, response, subResponse) {
     const ROW = { ...APPROVED, sys_EditorState: JSON.stringify({ v: 2, items: { 9: { text: 'свеча: 61, 41.9' } }, agreed: { 9: false }, stages: {} }) };
     const t9 = await turn(ANIM2, ROW, { text: '9 предложи заново', __items: IT9 }, call('propose_items', { items: [{ n: 9, text: 'свеча: 61, 41.9' }], message: 'Те же строки.' }));
     assert.equal(t9.plan.stageName, 'Аниматор');
-    assert.deepEqual(t9.req.requestBody.tool_choice, { type: 'function', name: 'propose_items' });
+    assert.equal(t9.req.requestBody.text.format.name, 'otvet');
     assert.ok(t9.r.previewBody && t9.r.previewBody.fx_Effects === 'свеча: 61, 41.9', 'без изменений — превью всё равно');
   }
   console.log('9e те же строки → превью OK');
@@ -633,7 +606,7 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(b3.ok, true, '«пересобери» вышедшего выпуска — стена пропускает (статус вернётся в «Утверждено»)');
     const b4 = (await run('Стена: проверяем таблицу', { nodes: { 'Контекст проекта': ctx }, input: [{ ...row, ai_ApprovedImageUrl: 'U1', sys_Status: 'Картинка согласована', sys_CleanState: 'готово' }] }))[0];
     assert.equal(b4.ok, false, 'несогласованный — нет');
-    const tmpl = { '🎬tmpl_CleanMode': 'duo' };
+    const tmpl = { '🎬tmpl_CleanMode': 'duo', '🎬tmpl_CleanAlarmHours': '4' };
     const c1 = (await run('Чистка: нужна?', { nodes: { 'Контекст проекта': { ...ctx, tmpl, row: { ...row, sys_CleanState: 'готово' },
       tracksUrl: 'https://drive.google.com/uc?export=download&id=1wun3Im-LhqCR_Z_3R53fKis4aRd4brs5' } } }))[0];
     assert.equal(c1.need, false, 'ссылка на уже очищенный архив — без чистки');
@@ -834,17 +807,29 @@ async function turn(stages, row, inc, response, subResponse) {
     const TWO = [st('🎨', 'Художник', 'автор', 'да', 'картинка'), st('✍️', 'Писатель', 'автор', 'да', '1–4')];
     const AP = { ai_UserBrief: 'сад', ai_ApprovedImageUrl: 'U1', ai_ImageVariants: '[{"n":1,"url":"U1"}]', sys_Status: 'Картинка согласована' };
     const txt = { output: [{ type: 'message', content: [{ type: 'output_text', text: 'Ещё зёрна' }] }] };
-    let t = await turn(TWO, AP, { kind: 'message', text: 'Предложи ещё' }, txt);
-    assert.equal(t.req.requestBody.tool_choice, 'auto', 'новые варианты — свободно');
-    t = await turn(TWO, AP, { kind: 'message', text: 'Берём первое' }, txt);
-    assert.equal(t.req.requestBody.tool_choice.name, 'propose_items', 'выбрала — пункты как раньше');
-    const HAS = { ...AP, sys_EditorState: JSON.stringify({ v: 2, items: { 3: { text: 'story' } }, agreed: {} }) };
-    t = await turn(TWO, HAS, { kind: 'message', text: 'Предложи ещё' }, txt);
-    assert.equal(t.req.requestBody.tool_choice.name, 'propose_items', 'пункты уже есть — правка через пункты');
+    // (28.10) какие бы слова она ни написала — форма ответа одна: разговор + тексты пунктов, без принуждения
+    for (const [row, words] of [[AP, 'Предложи ещё'], [AP, 'Берём первое'], [AP, 'всё ужасно, переделай полностью']]) {
+      const tt = await turn(TWO, row, { kind: 'message', text: words }, txt);
+      assert.equal(tt.req.requestBody.tool_choice, 'auto', words);
+      assert.equal(tt.req.requestBody.text.format.name, 'otvet', words);
+      assert.ok(!tt.req.requestBody.input.slice(-1)[0].content.toString().includes('[Система: отвечай'), 'код ничего не дописывает от себя');
+    }
+    // зёрна — только разговор: в таблицу ничего не пишется
+    let t = await turn(TWO, AP, { kind: 'message', text: 'Предложи ещё' }, kar({ message: 'Вот три новых зерна: …' }));
+    assert.equal(t.r.action, 'chat'); assert.ok(t.r.chunks[0].includes('Вот три новых зерна'));
+    assert.deepEqual(JSON.parse(t.r.editorState).items, {});
+    // текст — во втором кармашке: пишется в таблицу (ждёт согласования) и идёт на перевод
+    t = await turn(TWO, AP, { kind: 'message', text: 'Берём первое' }, kar({ message: 'Вот текст.', items: [{ n: 3, text: 'A quiet story.' }] }));
+    assert.equal(JSON.parse(t.r.editorState).items[3].text, 'A quiet story.');
+    assert.equal(t.nodes['Перевод для автора: что'].need, true, 'текст пункта — на перевод');
+    // не-JSON (сбой формы) — показываем как разговор, ничего не теряем
+    t = await turn(TWO, AP, { kind: 'message', text: 'Привет' }, txt);
+    assert.ok(t.r.chunks[0].includes('Ещё зёрна'));
     const ST4 = { ...AP, sys_EditorState: JSON.stringify({ v: 2, items: { 4: { text: 'Bat Air Traffic' } }, agreed: {} }) };
     t = await turn(TWO, ST4, { kind: 'message', text: 'Пункт 4, добавь: x' });
     const pv = t.nodes['Перевод для автора: что'];
     assert.ok(pv.need && pv.requestBody.instructions.includes('Пингви in English is always Pengui'), 'переводчику — правила 🌐 из таблицы');
+    assert.equal(pv.requestBody.reasoning.effort, 'minimal', 'усилие переводчика — tmpl_LightEffort из таблицы');
     assert.ok(!/music pieces|characters/.test(pv.requestBody.instructions), 'своих правил про имена и названия в коде нет (28.10: спорили с таблицей)');
   }
   console.log('25 «предложи ещё» и перевод таймкодов OK');

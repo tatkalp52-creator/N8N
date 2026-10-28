@@ -9,6 +9,9 @@ const todo = itRuTodo(state);
 const stages = ctx.stages || [];
 const textModel = s => s && s.model && !/image|dall/i.test(s.model) ? s.model : '';
 const lightModel = String(findByLabel(ctx.tmpl || {}, 'tmpl_LightModel') || '').trim();
+// (28.10) усилие — тоже из таблицы: tmpl_LightEffort для лёгкой модели, иначе «Усилие» этапа; пусто — не задаём
+const EFFORTS = ['minimal', 'low', 'medium', 'high'];
+const lightEffort = String(findByLabel(ctx.tmpl || {}, 'tmpl_LightEffort') || '').trim().toLowerCase();
 // (23.10) правила перевода канала — колонки со значком 🌐 (их получатель — переводчик): имена героев и т. п.
 // (28.10) что переводить, а что оставить (имена, названия) — только там: правило в коде спорило с таблицей
 const trRules = Object.keys(ctx.tmpl || {}).filter(k => k.includes('🌐')).map(k => String(ctx.tmpl[k] == null ? '' : ctx.tmpl[k]).trim()).filter(Boolean).join('\n');
@@ -35,7 +38,8 @@ if (artTask && /[а-яё]/i.test(artTask)) {
     text: { format: { type: 'json_object' } },
     store: false,
   };
-  if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: lightModel ? 'minimal' : 'low' };
+  const eff = lightModel ? lightEffort : String((stages.find(s => s.model === model) || {}).effort || '');
+  if (EFFORTS.includes(eff)) requestBody.reasoning = { effort: eff };
   return [{ json: { need: true, todo: [], art: true, artTask, requestBody } }];
 }
 if (!todo.length) return [{ json: { need: false, todo: [] } }];
@@ -54,5 +58,6 @@ const requestBody = {
   text: { format: { type: 'json_object' } },
   store: false,
 };
-if (/^(gpt-5|o\d)/.test(model)) requestBody.reasoning = { effort: lightModel ? 'minimal' : 'low' };
+const eff = lightModel ? lightEffort : String(stage.effort || '');
+if (EFFORTS.includes(eff)) requestBody.reasoning = { effort: eff };
 return [{ json: { need: true, todo, requestBody } }];

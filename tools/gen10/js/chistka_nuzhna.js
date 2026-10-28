@@ -33,6 +33,6 @@ return [{
       callbackUrl,
     },
     mode,
-    alarmHours: parseFloat(val('tmpl_CleanAlarmHours')) || 4,
+    alarmHours: !need ? null : (h => { if (!(h > 0)) throw new Error('Таблица: чистка включена, а tmpl_CleanAlarmHours пустая'); return h; })(parseFloat(val('tmpl_CleanAlarmHours'))),
   }
 }];

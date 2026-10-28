@@ -4,7 +4,8 @@ const d = $('Чистка: что дальше').first().json;
 let r = {};
 try { r = $('Сервер: как чистка').first().json || {}; } catch (e) {}
 const round = typeof $runIndex === 'number' ? $runIndex : 0;
-const recheck = parseInt(findByLabel(ctx.tmpl || {}, 'tmpl_CleanRecheckTimes'), 10) || 3;
+// (28.10) сколько раз перепроверять — только из таблицы; пусто — не перепроверяем сама (спросите «как чистка?»)
+const recheck = parseInt(findByLabel(ctx.tmpl || {}, 'tmpl_CleanRecheckTimes'), 10) || 0;
 let action, text;
 if (d.action === 'failed' || r.state === 'error') {
   action = 'failed';

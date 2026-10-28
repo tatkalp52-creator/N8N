@@ -18,7 +18,18 @@ if (callItem) {
   functionName = callItem.name; callId = callItem.call_id;
   try { args = JSON.parse(callItem.arguments || '{}'); } catch (e) { args = {}; }
 }
-let message = (args.message || plainText || '').trim();
+// (28.10) два кармашка: ответ — JSON {message, items, agreed, reopen}; тексты пунктов — как будто propose_items
+let pocketsUsed = false;
+if (!callItem && prep.pockets && plainText) {
+  let pk = null;
+  try { pk = JSON.parse(plainText); } catch (e) { pk = null; }
+  if (pk && typeof pk === 'object' && typeof pk.message === 'string') {
+    args = pk; pocketsUsed = true;
+    const has = k => Array.isArray(pk[k]) && pk[k].length;
+    if (has('items') || has('agreed') || has('reopen')) functionName = 'propose_items';
+  }
+}
+let message = (args.message || (pocketsUsed ? '' : plainText) || '').trim();
 if (response.error || (!callItem && !plainText)) {
   // (28.10) не ответил — «Работа» падает, очередь повторит сама (автору не нужно писать ещё раз)
   const er = response.error, why = er ? [er.message || (typeof er === 'string' ? er : ''), er.description].filter(Boolean).join(' — ') : 'пустой ответ';

@@ -54,16 +54,19 @@ const card = [
 ].filter(Boolean).join('\n');
 
 const myItems = items.filter(it => sc.items.includes(it.n));
-const previewStage = myItems.some(it => it.preview);
+// (28.10) два кармашка: этап с пунктами, который говорит с автором, отвечает всегда одной формой —
+// разговор (message) + тексты пунктов (items). Кнопки «записать», которую можно забыть, нет; код не разбирает её слов.
+const pockets = myItems.length > 0 && !plan.silent;
 const itemsSpec = myItems.map(it => `  ${it.n}. ${it.name}${it.hint ? ' — ' + it.hint : ''}${it.canEmpty ? ' (можно оставить пустым: "-")' : ''}`).join('\n');
 const subs = sc.subs;
 const talk = plan.silent
   ? 'Ты работаешь молча, по заданию: сразу вызови propose_items со своими пунктами.'
   : 'Ты говоришь с автором напрямую.';
 
-const tools = [{ type: 'web_search' }];
+// интернет — только этапу, у которого в листе «Этапы» в «Справочник» написано «интернет»
+const tools = /интернет/i.test(stage.ref || '') ? [{ type: 'web_search' }] : [];
 const toolLines = [];
-if (myItems.length) {
+if (myItems.length && plan.silent) {
   tools.push({
     type: 'function', name: 'propose_items',
     description: 'Предложить или изменить свои пункты и/или отметить пункты, которые автор явно согласовала.',
@@ -77,8 +80,19 @@ if (myItems.length) {
       message: { type: 'string', description: 'Реплика автору (пункты система покажет сама)' },
     }, required: ['message'] },
   });
-  toolLines.push('- propose_items — предложить/изменить свои пункты и отметить согласованные автором (agreed — только то, что она явно одобрила; «всё ок» — все показанные). Система сама покажет автору пункты, ждущие согласования; в message их не переписывай. Изменённый пункт снова ждёт согласования.');
+  toolLines.push('- propose_items — твои пункты.');
 }
+const POCKETS = {
+  type: 'json_schema', name: 'otvet', strict: true,
+  schema: { type: 'object', additionalProperties: false, required: ['message', 'items', 'agreed', 'reopen'], properties: {
+    message: { type: 'string', description: 'Что ты говоришь автору' },
+    items: { type: 'array', description: 'Тексты твоих пунктов, которые ты в этом ответе пишешь или меняешь, — ровно то, что уйдёт в таблицу; "-" если пункт не нужен. Пусто, если текстов пунктов в этом ответе нет.',
+      items: { type: 'object', additionalProperties: false, required: ['n', 'text'], properties: {
+        n: { type: 'integer', description: 'Номер пункта' }, text: { type: 'string', description: 'Текст пункта' } } } },
+    agreed: { type: 'array', items: { type: 'integer' }, description: 'Номера пунктов, которые автор явно одобрила' },
+    reopen: { type: 'array', items: { type: 'integer' }, description: 'Номера согласованных пунктов, которые автор решила пересмотреть' },
+  } },
+};
 if (kb.notesKey && !plan.silent) {
   tools.push({
     type: 'function', name: 'save_note',
@@ -122,10 +136,12 @@ const instructions = `Ты — ${stage.icon} ${stage.name} канала "${ctx.s
 ТВОИ ПУНКТЫ В ЭТОМ ВЫПУСКЕ
 ${itemsSpec || '  (своих пунктов нет)'}
 
-ИНСТРУМЕНТЫ. За один ответ — не больше одного; если ничего не нужно — просто отвечай текстом.
+${pockets ? `ОТВЕТ — всегда два кармашка: message — что ты говоришь автору; items — тексты пунктов, когда ты их пишешь или меняешь
+(система запишет их в таблицу и покажет автору с переводом; в message их не повторяй); agreed / reopen — номера пунктов,
+которые автор явно одобрила / решила пересмотреть. Изменённый пункт снова ждёт согласования.
+` : ''}${toolLines.length ? `ИНСТРУМЕНТЫ. За один ответ — не больше одного.
 ${toolLines.join('\n')}
-Когда все твои пункты согласованы, твой этап завершён — система сама передаст выпуск дальше.
-Если по смыслу твоих слов что-то предложено, согласовано или изменено, а инструмент не вызван — вызови его в этом же ответе.
+` : ''}Когда все твои пункты согласованы, твой этап завершён — система сама передаст выпуск дальше.
 
 ТВОИ ЗНАНИЯ ИЗ ТАБЛИЦЫ КАНАЛА:
 ${kb.text || '(пусто — в Templates нет колонок с твоим значком)'}
@@ -137,22 +153,11 @@ ${fxCatalogText(ctx.effects)}
 ${card}`;
 
 // ── Сообщение ──
-// (16.10) ответ автору у этапа с пунктами — всегда пунктами: модель могла прислать текст пункта просто
-// сообщением (черновик «посмотри голос») — тогда он не записывался, не переводился автору, и выпуск стоял.
-// Начало этапа и согласование — как раньше (свободный ответ: предложить, попрощаться, памятка).
-// (24.10) пока пунктов ещё нет, а автор просит другие варианты («предложи ещё») — ответ свободный:
-// иначе этап молча писал все пункты по своему выбору вместо новых вариантов
-const noItemsYet = !myItems.some(it => String((state.items[it.n] || {}).text || '').trim());
-const asksOptions = /(ещё|еще|друг(ие|ое|ой|ую)|вариант|предлож|зёрн|зерн|идеи)/iu.test(String(plan.userText || ''));
-const forceItems = !plan.isStart && !(plan.approveNums || []).length && myItems.some(it => !state.agreed[it.n])
-  && !(noItemsYet && asksOptions);
 const text = plan.isStart
   ? `[Служебное сообщение] ${plan.event || 'Предыдущий этап завершён.'} Сейчас твой этап — начни по своим правилам.`
   : (plan.userText || '(пустое сообщение)') + ((plan.approveNums || []).length
     ? `\n\n[Система: пункты ${plan.approveNums.join(', ')} уже отмечены согласованными. Если все твои пункты согласованы, этап завершён и выпуск идёт дальше.]`
-    : forceItems && !plan.silent
-      ? '\n\n[Система: отвечай через propose_items — предложи сразу все свои пункты, которые ещё не согласованы, готовым текстом; реплика автору — в message. Автор видит пункты с переводом.]'
-      : '');
+    : '');
 let marksText = '';
 try { marksText = ($('Сервер: разметка').first().json || {}).text || ''; } catch (e) {}
 const content = [{ type: 'input_text', text: text + (marksText
@@ -176,13 +181,12 @@ const requestBody = {
   instructions,
   input,
   tools,
-  // молчаливый этап и разметка автора — это всегда работа над пунктами: ответ инструментом, тогда придёт и превью
-  // пункт с превью (оживление): автор проверяет его глазами — на любое не-одобрение отвечаем строками, тогда придёт видео
-  tool_choice: (plan.silent || marksText || forceItems || (previewStage && !(plan.approveNums || []).length)) && myItems.length
-    ? { type: 'function', name: 'propose_items' } : 'auto',
+  // молчаливый этап работает только пунктами; с автором — свободно (пункты — во втором кармашке)
+  tool_choice: plan.silent && myItems.length ? { type: 'function', name: 'propose_items' } : 'auto',
   parallel_tool_calls: false,
   truncation: 'auto',
 };
+if (pockets) requestBody.text = { format: POCKETS };
 if (['low', 'medium', 'high'].includes(stage.effort)) requestBody.reasoning = { effort: stage.effort };
 
-return [{ json: { requestBody, stageIcon: stage.icon, logUser: plan.isStart ? '[служебно] ' + (plan.event || 'этап начат') : String(plan.userText || '') } }];
+return [{ json: { requestBody, pockets, stageIcon: stage.icon, logUser: plan.isStart ? '[служебно] ' + (plan.event || 'этап начат') : String(plan.userText || '') } }];

@@ -22,7 +22,6 @@ let proposed = [];
 let speaker = stage;
 // Картинку без согласования автора (этап «авто» или молчаливый) согласуем сами после рисунка.
 let autoApprove = false;
-let lupaMoved = 0;
 let resetPicture = false;
 
 if (plan.mode === 'say') {
@@ -68,8 +67,6 @@ if (plan.mode === 'say') {
 } else if (plan.mode === 'model') {
   const r = $('Разбираем ответ этапа').first().json;
   state = stParseState(r.editorState);
-  // лупа уточнила точки оживления — берём её версию пункта
-  try { const lp = $('Лупа: итог').first().json; if (lp && lp.editorState) { state = stParseState(lp.editorState); lupaMoved = lp.moved || 0; } } catch (e) {}
   action = r.action; message = r.message; note = r.note; changed = r.changed || []; proposed = r.proposed || [];
   approveUrl = r.approveUrl; approveVariant = r.approveVariant;
   if (r.art) { art = r.art; autoApprove = !stage.approve; }
@@ -152,12 +149,11 @@ if (plan.needMarks) {
   let mk = null;
   try { mk = $('Сервер: разметка').first().json || null; } catch (e) {}
   const n = mk && Array.isArray(mk.marks) ? mk.marks.length : 0;
-  text += mk && mk.zones ? `\n\n🖍 Разметка прочитана: обводки и подписи — этап читает их по фото, точные места доводит лупа.`
+  text += mk && mk.zones ? `\n\n🖍 Разметка прочитана: обводки и подписи — этап читает их по фото.`
     : n ? `\n\n🖍 Разметка прочитана: штрихов — ${n}.`
     : `\n\n⚠️ Разметку прочитать не удалось${mk && mk.error ? ' (' + escapeHtml(String(mk.error)) + ')' : (mk ? ' — красных штрихов не нашлось' : ' — сборщик не ответил')}.`;
 }
 if (ruError) text += `\n\n⚠️ Перевод для автора: ${escapeHtml(ruError)}.`;
-if (lupaMoved) text += `\n\n🔍 Лупа уточнила точек: ${lupaMoved}.`;
 if (statusReverted) text += '\n\n⚠️ Статус «Утверждено» снят — после изменений пришлю новую сводку на ✅.';
 if (action === 'text_block' && stage) {
   const sc = stScope(stages, stage);
