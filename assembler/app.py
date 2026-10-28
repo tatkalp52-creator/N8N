@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-28-tablica"
+ASSEMBLER_VERSION = "2026-10-29-ovaly"
 
 FFMPEG_BIN = "ffmpeg"
 # (28.10) размер кадра — из таблицы (🎬 VideoWidth / VideoHeight), см. set_frame(); до первой сборки не задан
@@ -1478,6 +1478,8 @@ class FxNums(list):
     spill = []
     exact = False
     radius = None
+    oval = None   # (28.10) (полуось по ширине, полуось по высоте) в пикселях кадра 1536×864 — кружок, растянутый в овал
+    tilt = 0.0    # наклон овала, градусы
 
 
 COVER_ID = "cover"   # строки обложек в пункте оживления — не эффекты, их читает make_episode_covers
@@ -1521,6 +1523,16 @@ def parse_effects(text):
         if rm:
             radius = float(rm.group(1))
             low = low[:rm.start()] + low[rm.end():]
+        # (28.10) «овал A × B; наклон T» — кружок, растянутый и повёрнутый на страничке разметки
+        oval, tilt = None, 0.0
+        om = re.search(r"oval\w*\s*(\d+(?:[.,]\d+)?)\s*[x×х*]?\s*(\d+(?:[.,]\d+)?)", low)
+        if om:
+            oval = (float(om.group(1).replace(",", ".")), float(om.group(2).replace(",", ".")))
+            low = low[:om.start()] + low[om.end():]
+        tm = re.search(r"tilt\w*\s*(-?\d+(?:[.,]\d+)?)", low)
+        if tm:
+            tilt = float(tm.group(1).replace(",", "."))
+            low = low[:tm.start()] + low[tm.end():]
         area = "area" in low
         low = low.replace("area", " ").replace(";", " ")
         m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", low)
@@ -1531,6 +1543,7 @@ def parse_effects(text):
         nums.knobs, nums.area = knobs, area and len(nums) >= 6
         nums.exact = "exact" in low
         nums.radius = radius
+        nums.oval, nums.tilt = oval, tilt
         nums.cloud = cloud
         nums.cuts, nums.spill = polys_["cut"], polys_["spill"]
         if kind and len(nums) >= 2:
@@ -1857,7 +1870,7 @@ def find_outlined_zones(orig_path, marked_path, min_area_pct=0.15):
     return zones
 
 
-def blink_patch(src, base, px, py, k, SS=4, exact=False, radius=None):
+def blink_patch(src, base, px, py, k, SS=4, exact=False, radius=None, oval=None, tilt=0.0):
     """Глаз рядом с точкой (px, py) в пикселях: находим его и готовим «закрытый» кусочек картинки
     (веко цветом шёрстки или пёрышек вокруг) и мягкую маску. Возвращает (closed, soft, bx0, by0).
     (08.10) Ищем близко к точке автора (раньше уходило на тёмную точку под клювом); слово «точно» в строке —
@@ -1876,6 +1889,8 @@ def blink_patch(src, base, px, py, k, SS=4, exact=False, radius=None):
     lum = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(1.2 * k)), np.float32)
     wide = np.asarray(crop_l.filter(ImageFilter.GaussianBlur(5.0 * k)), np.float32)
     gy_, gx_ = np.mgrid[0:lum.shape[0], 0:lum.shape[1]].astype(np.float32)
+    if oval and not radius:
+        radius = max(oval)   # (28.10) овал: размер — по большей полуоси, форма — ниже
     if exact or radius:
         ix, iy = int(round(px - gx0)), int(round(py - gy0))
         ix = min(max(ix, 0), lum.shape[1] - 1); iy = min(max(iy, 0), lum.shape[0] - 1)
@@ -1900,7 +1915,16 @@ def blink_patch(src, base, px, py, k, SS=4, exact=False, radius=None):
     bx0, by0 = max(0, min(bx0, W - bw)), max(0, min(by0, H - bh))
     patch = base[by0:by0 + bh, bx0:bx0 + bw].copy()
     yy, xx = np.mgrid[0:bh, 0:bw].astype(np.float32)
-    dist = np.hypot(xx + bx0 - ex, yy + by0 - ey)
+    if oval:
+        # (28.10) веко по овалу глаза: расстояние меряем в «овальных» единицах (1 — край овала × rc)
+        th_ = math.radians(tilt or 0.0)
+        ax_, ay_ = max(0.5, oval[0]) * k, max(0.5, oval[1]) * k
+        dxr, dyr = xx + bx0 - ex, yy + by0 - ey
+        u_ = (dxr * math.cos(th_) + dyr * math.sin(th_)) / ax_
+        v_ = (-dxr * math.sin(th_) + dyr * math.cos(th_)) / ay_
+        dist = np.hypot(u_, v_) * rc
+    else:
+        dist = np.hypot(xx + bx0 - ex, yy + by0 - ey)
     ring = (dist > rc * 1.1) & (dist < rc * 1.7)
     feather = np.median(patch[ring], axis=0)      # цвет шёрстки или пёрышек вокруг глаза
     grain = patch[ring].std(axis=0) * 0.5   # зерно рисунка, чтобы веко не было плоской заливкой
@@ -1914,8 +1938,14 @@ def blink_patch(src, base, px, py, k, SS=4, exact=False, radius=None):
     q = r / (5 * k)   # веко — по размеру глаза
     # веко — круглая дуга «улыбкой» (08.10: стало круглее и глубже, ширина по размеру глаза)
     half_w = max(4.2 * k * q, 0.9 * rc)
-    dl.line([((ex - bx0 + dx) * SS, (ey - by0 + 0.2 * rc + 0.62 * half_w * (1 - (dx / half_w) ** 2) ** 0.5 * 0.9 - 0.2 * half_w) * SS)
-             for dx in np.linspace(-half_w, half_w, 40)],
+    lid_pts = [(dx, 0.2 * rc + 0.62 * half_w * (1 - (dx / half_w) ** 2) ** 0.5 * 0.9 - 0.2 * half_w)
+               for dx in np.linspace(-half_w, half_w, 40)]
+    if oval:   # дуга века — по овалу: сжать / растянуть по осям и повернуть
+        th_ = math.radians(tilt or 0.0)
+        sx_, sy_ = oval[0] * k / rc, oval[1] * k / rc
+        lid_pts = [(x_ * sx_ * math.cos(th_) - y_ * sy_ * math.sin(th_), x_ * sx_ * math.sin(th_) + y_ * sy_ * math.cos(th_))
+                   for x_, y_ in lid_pts]
+    dl.line([((ex - bx0 + dx) * SS, (ey - by0 + dy) * SS) for dx, dy in lid_pts],
             fill=255, width=max(1, int(1.3 * k * max(q, 0.6) * SS)), joint="curve")
     la = np.asarray(lid.resize((bw, bh), Image.LANCZOS), np.float32)[..., None] / 255 * 0.85
     closed = closed * (1 - la) + feather * 0.5 * la      # линия века — темнее своих пёрышек
@@ -2094,6 +2124,10 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             c_tr = kn(kind, nums, "transparency")    # (08.10) отдельно от густоты: больше — прозрачнее (полезно при толстых струйках)
             c_cu = kn(kind, nums, "curls")         # (08.10) 5 — как есть; больше — струйка вьётся шире и с перекруткой
             c_wd = kn(kind, nums, "width")         # (28.10) ширина: на сколько струйки расходятся друг от друга
+            ov = getattr(nums, "oval", None)
+            if ov:   # (28.10) овал поверхности напитка: струйки — со всей его ширины (с наклоном)
+                th_ = math.radians(getattr(nums, "tilt", 0.0) or 0.0)
+                c_wd *= math.hypot(ov[0] * math.cos(th_), ov[1] * math.sin(th_)) / 10.5
             hx = max(0.0, c_cu - 1.0) * 0.8          # вторая, более частая волна — завиток на изгибе
             # (10.10) по времени — ровно 2 оборота за проход: с 1.7 петля не замыкалась, пар дёргался на стыке
             bw = int(max(150 * k * max(1.0, c_th) * max(1.0, c_wd), (2 * (11 * c_wd + 24.7 * (1 + hx) * c_cu) + 30) * k))
@@ -2614,7 +2648,8 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             layers.append(rain)
 
         elif kind == "blink":
-            closed, soft, bx0, by0 = blink_patch(src, base, px, py, k, SS, getattr(nums, "exact", False), getattr(nums, "radius", None))
+            closed, soft, bx0, by0 = blink_patch(src, base, px, py, k, SS, getattr(nums, "exact", False), getattr(nums, "radius", None),
+                                                        getattr(nums, "oval", None), getattr(nums, "tilt", 0.0))
 
             # (08.10) моргание живое и неровное: одно неспешное, потом три быстрых подряд.
             # Каждое: смыкание, закрыт, открытие — (закрывается, держит, открывается) в секундах.
@@ -3123,7 +3158,8 @@ def render_blink_event(image_path, group, pattern, fps, seconds, out_path, mask_
     full = base.copy()
     patches = []
     for (px, py), nums in group:
-        closed, soft, bx0, by0 = blink_patch(src, base, px, py, k, 4, getattr(nums, "exact", False), getattr(nums, "radius", None))
+        closed, soft, bx0, by0 = blink_patch(src, base, px, py, k, 4, getattr(nums, "exact", False), getattr(nums, "radius", None),
+                                                getattr(nums, "oval", None), getattr(nums, "tilt", 0.0))
         bh, bw = soft.shape
         full[by0:by0 + bh, bx0:bx0 + bw] = closed
         patches.append((soft, bx0, by0))
