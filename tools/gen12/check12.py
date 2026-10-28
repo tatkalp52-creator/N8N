@@ -36,7 +36,7 @@ for n in wf['nodes']:
         print('NO CREDS', n['name']); bad += 1
 # 6. СТОРОЖ: код не читает колонки с содержанием по имени и не знает ролей.
 # Разрешены только служебные колонки (кнопки механики) и колонки листа выпусков (интерфейс 04_Video).
-SERVICE = {'tmpl_Channel', 'tmpl_ImageModel', 'tmpl_ImageQuality', 'tmpl_LightModel', 'tmpl_LightEffort', 'tmpl_ChannelVectorStoreId', 'tmpl_CleanMode', 'tmpl_CleanNotebook',
+SERVICE = {'tmpl_Channel', 'tmpl_ImageModel', 'tmpl_ImageQuality', 'tmpl_LightModel', 'tmpl_LightEffort', 'tmpl_ImageSize', 'tmpl_ChannelVectorStoreId', 'tmpl_CleanMode', 'tmpl_CleanNotebook',
            'tmpl_CleanAlarmHours', 'tmpl_CleanRecheckTimes', 'tmpl_CleanBlend', 'tmpl_CleanBlendStems', 'tmpl_Clean'}
 ROLE_WORDS = re.compile(r'Редактор|Писател|Художник|Технический|Pengui|Пингви', re.I)
 for n in wf['nodes']:
@@ -57,7 +57,7 @@ for n in wf['nodes']:
 # Листы, где строк много (Этапы, Пункты, Эффекты), читаются целиком: без returnAllMatches узел отдаёт одну строку
 # (05.10: так пропал пункт 9 — Аниматор остался без своего пункта)
 for n in wf['nodes']:
-    if n['type'] == 'n8n-nodes-base.googleSheets' and n['parameters'].get('sheetName', {}).get('value') in ('Этапы', 'Пункты', 'Эффекты'):
+    if n['type'] == 'n8n-nodes-base.googleSheets' and n['parameters'].get('sheetName', {}).get('value') in ('Этапы', 'Пункты', 'Эффекты', 'Слова'):
         if n['parameters'].get('options', {}).get('returnAllMatches') != 'returnAllMatches':
             print('GUARD: лист читается одной строкой', n['name']); bad += 1
 # (24.10) ПРАВИЛО ПОВТОРОВ: повторять можно только безопасное (чтение, запись в строку по ключу, запросы без памяти).

@@ -570,6 +570,7 @@ function artBuild(ctx, stage, task, edit, variantNumber) {
     revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,
     imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim(),
     imageQuality: (q => ['low', 'medium', 'high', 'auto'].includes(q) ? q : '')(String(findByLabel(tmpl, 'tmpl_ImageQuality') || '').trim().toLowerCase()),
+    imageSize: (v => /^\d+x\d+$/.test(v) ? v : '')(String(findByLabel(tmpl, 'tmpl_ImageSize') || '').trim().toLowerCase().replace(/\s+/g, '')),
     ...refs,
   };
   if (edit) {
@@ -584,9 +585,9 @@ function artBuild(ctx, stage, task, edit, variantNumber) {
   }
   if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }
   // (28.10) модель и качество — только из таблицы, своих запасных в коде нет
-  if (r.action !== 'chat' && (!r.imageModel || !r.imageQuality)) {
+  if (r.action !== 'chat' && (!r.imageModel || !r.imageQuality || !r.imageSize)) {
     r.action = 'chat';
-    r.messageToUser = '📋 Не рисую: в Templates не заполнены ' + [!r.imageModel && 'tmpl_ImageModel', !r.imageQuality && 'tmpl_ImageQuality (low / medium / high / auto)'].filter(Boolean).join(' и ') + '.';
+    r.messageToUser = '📋 Не рисую: в Templates не заполнены ' + [!r.imageModel && 'tmpl_ImageModel', !r.imageQuality && 'tmpl_ImageQuality (low / medium / high / auto)', !r.imageSize && 'tmpl_ImageSize (например 1536x864)'].filter(Boolean).join(', ') + '.';
   }
   return r;
 }

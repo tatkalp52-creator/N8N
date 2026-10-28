@@ -185,7 +185,7 @@ if (pvItem && approvedBefore && /оживл/.test(pvItem.preview) && plan.mode !
     if (label && v) fx[label.charAt(0).toLowerCase() + label.slice(1)] = v;
   }
   previewBody = { ...fx, imageUrl: approvedBefore, fx_Effects: state.items[pvItem.n].text, projectId: ctx.projectId,
-    fxTable: fxTableFor(ctx.effects) };
+    fxTable: fxTableFor(ctx.effects), fxWords: ctx.words || [] };
 }
 // (23.10) обводка без подписи ждёт слов следующим сообщением
 if (plan.marksSave || plan.marksClear) {
@@ -236,6 +236,7 @@ return [{ json: {
   editRoles: art ? art.editRoles : '',
   imageModel: art ? art.imageModel : '',
   imageQuality: art ? art.imageQuality : '',
+  imageSize: art ? art.imageSize : '',
   projectId: ctx.projectId,
   chatId: ctx.chatId,
   sheetName: ctx.sheetName,

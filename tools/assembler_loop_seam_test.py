@@ -10,6 +10,9 @@ from PIL import Image
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "assembler"))
 import app  # noqa: E402
+import json as _json
+_W = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'effects', 'slova.json')))
+app.set_vocab({'fxWords': _W}); app.set_frame({'videoWidth': 1920, 'videoHeight': 1072})   # (28.10) слова и кадр — из таблицы
 
 rng = np.random.default_rng(1)
 H, W = 864, 1536

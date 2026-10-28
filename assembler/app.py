@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-28-bright"
+ASSEMBLER_VERSION = "2026-10-28-tablica"
 
 FFMPEG_BIN = "ffmpeg"
 # (28.10) размер кадра — из таблицы (🎬 VideoWidth / VideoHeight), см. set_frame(); до первой сборки не задан
@@ -54,14 +54,15 @@ FONT_SEARCH_DIRS = (FONT_DIR, "/usr/share/fonts", "/usr/local/share/fonts")
 
 
 def font_path_for(name):
-    key = re.sub(r"[^a-z0-9]", "", str(name or "").lower())
+    norm = lambda v: re.sub(r"[\W_]", "", str(v or "").lower())
+    key = norm(name)
     if not key:
         raise RuntimeError("Таблица: в OverlayStyle не указан шрифт (font:…)")
     for d in FONT_SEARCH_DIRS:
         for root, _, files in os.walk(d):
             for fn in sorted(files):
                 stem, ext = os.path.splitext(fn)
-                if ext.lower() in (".ttf", ".otf") and re.sub(r"[^a-z0-9]", "", stem.lower()) in (key, key + "regular"):
+                if ext.lower() in (".ttf", ".otf") and norm(stem) in (key, key + "regular"):
                     return os.path.join(root, fn)
     raise RuntimeError(f"Шрифт «{name}» не найден на сервере (папки: {', '.join(FONT_SEARCH_DIRS)})")
 
@@ -1403,21 +1404,59 @@ def grade_image(image_path, data):
 # Из этого рисуется бесшовная петля EFFECTS_LOOP_SECONDS и идёт как обычная петля.
 # Вид — 🎬-настройки (steamOpacity, steamHeight); пусто — как в утверждённой пробе.
 EFFECTS_LOOP_SECONDS = 6.0
-EFFECT_NAMES = {"пар": "steam", "steam": "steam", "пузыри": "bubbles", "bubbles": "bubbles",
-                "моргание": "blink", "blink": "blink", "глаз": "blink",
-                "дымок": "smoke", "дым": "smoke", "smoke": "smoke",
-                "свеча": "candle", "свечи": "candle", "candle": "candle",
-                "гирлянда": "lights", "гирлянды": "lights", "лампочки": "lights", "lights": "lights",
-                "звёзды": "stars", "звезды": "stars", "звезда": "stars", "звёзда": "stars", "stars": "stars",
-                "дождь": "rain", "rain": "rain",
-                "огонь": "fire", "камин": "fire", "костёр": "fire", "костер": "fire", "fire": "fire"}
-# Строки листьев и края — не петля, а события (см. ЛИСТЬЯ ниже)
-EVENT_EFFECT_WORDS = ("листья", "лист", "leaves", "leaf", "край", "edge", "за:", "за ", "предмет", "behind")
+# (28.10) Основа кисти каждого эффекта — «5» на шкале ручек листа «Эффекты»; сильнее / слабее — ручками там.
+# Скрытых 🎬-колонок, перебивающих основу (steamOpacity и т. п.), больше нет.
+STEAM_OPACITY, STEAM_HEIGHT = 0.62, 1.0
+SMOKE_OPACITY, SMOKE_SIZE = 0.8, 1.0
+CANDLE_GLOW = 1.0
+RAIN_OPACITY = 1.0
+LEAF_SIZE_PX, LEAF_FALL_SECONDS = 30.0, 6.0   # длина листа в пикселях кадра высотой 864; время полёта
+# (28.10) СЛОВА — ТОЛЬКО В ТАБЛИЦЕ. Лист «Слова»: «слово → что оно значит для сборщика» (пар → steam,
+# густота → density, клён → maple…; «облак*» — с любым окончанием). Строка выпуска сначала переводится
+# в эти значения (to_ids), и дальше сборщик знает только их — механику, а не слова автора.
+EFFECT_IDS = ("steam", "bubbles", "blink", "smoke", "candle", "lights", "stars", "rain", "fire")
+# Строки листьев, края и обводки — не петля, а события (см. ЛИСТЬЯ ниже)
+EVENT_IDS = ("leaves", "leaf", "edge", "behind")
+# Ручки в строке выпуска («; density 7») и область («steam: area 30 50, 45 49, …») — 05.10.
+# Ручки — шкала листа «Эффекты»: 5 — как сейчас, меньше — слабее, больше — сильнее.
+KNOB_IDS = ("density", "thickness", "height", "speed", "curls", "transparency", "halo", "sway", "brightness",
+            "drops", "frequency", "size", "flicker", "glow", "flame", "reach")
+VOCAB = []
 
 
-# Ручки в строке выпуска («; густота 7») и область («пар: область 30 50, 45 49, …») — 05.10.
-# Ручки — шкала 1–10 листа «Эффекты»: 5 — как сейчас, 1 — вдвое слабее, 10 — вдвое сильнее.
-KNOB_WORDS = ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ореол", "раскачка", "яркость", "капли", "частота", "размер", "мерцание", "отсвет", "пламя", "разлив")
+def set_vocab(data):
+    """Словарь из листа «Слова» (04 и «восьмёрка» присылают его как fxWords)."""
+    global VOCAB
+    rows = data.get("fxWords") or []
+    if isinstance(rows, str):
+        try:
+            rows = json.loads(rows)
+        except ValueError:
+            rows = []
+    entries = []
+    for r in rows:
+        word, means = (r.get("word"), r.get("means")) if isinstance(r, dict) else (r[0], r[1]) if len(r) > 1 else ("", "")
+        w = str(word or "").strip().lower().replace("ё", "е")
+        means = str(means or "").strip()
+        if not w or not means:
+            continue
+        prefix = w.endswith("*")
+        w = w.rstrip("*").strip()
+        rx = re.compile(r"(?<!\w)" + re.escape(w) + (r"\w*" if prefix else "") + r"(?!\w)")
+        entries.append((len(w), rx, means))
+    VOCAB = [(rx, means) for _, rx, means in sorted(entries, key=lambda e: -e[0])]
+
+
+def to_ids(text):
+    """Слова автора → значения из листа «Слова». Латиница и числа не трогаются."""
+    t = str(text or "").lower().replace("ё", "е")
+    if not re.search(r"[^\W\d_a-z]", t):
+        return t
+    if not VOCAB:
+        raise RuntimeError("Таблица: нет листа «Слова» — сборщик не знает, что значат слова разметки")
+    for rx, means in VOCAB:
+        t = rx.sub(means, t)
+    return t
 
 
 class FxNums(list):
@@ -1431,17 +1470,17 @@ class FxNums(list):
     radius = None
 
 
-COVER_WORDS = ("обложк",)   # строки обложек Б/В в пункте 9 — не эффекты, их читает make_episode_covers
+COVER_ID = "cover"   # строки обложек в пункте оживления — не эффекты, их читает make_episode_covers
 
 
 def parse_effects(text):
     out = []
     for line in str(text or "").splitlines():
-        if line.strip().lower().startswith(EVENT_EFFECT_WORDS + COVER_WORDS):
+        low = to_ids(line)
+        if low.strip().startswith(EVENT_IDS + (COVER_ID,)):
             continue
-        low = line.lower()
         knobs = {}
-        for w_ in KNOB_WORDS:
+        for w_ in KNOB_IDS:
             km = re.search(w_ + r"\s*(\d+(?:\.\d+)?)", low)
             if km:
                 knobs[w_] = float(km.group(1))
@@ -1450,7 +1489,7 @@ def parse_effects(text):
         # облаков может быть несколько — пар живёт в их объединении; крошечные (кружок у глаза или свечи,
         # попавший сюда по ошибке) отбрасываем: площадь меньше 0.3 % кадра (05.10)
         cloud = []
-        for cm in reversed(list(re.finditer(r"облак\w*\s*([\d.,\s]+)", low))):
+        for cm in reversed(list(re.finditer(r"cloud\w*\s*([\d.,\s]+)", low))):
             cv = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", cm.group(1))]
             poly_ = list(zip(cv[0::2], cv[1::2]))
             if len(poly_) >= 3:
@@ -1460,7 +1499,7 @@ def parse_effects(text):
             low = low[:cm.start()] + low[cm.end():]
         # (11.10) свеча: «прорезь x y, …» — где живёт свет (рот, глаза тыквы, топка), можно несколько;
         # «пятно x y, …» — куда падает отсвет (стол, пол перед огнём)
-        polys_ = {"прорез": [], "пятн": []}
+        polys_ = {"cut": [], "spill": []}
         for w_ in polys_:
             for pm in reversed(list(re.finditer(w_ + r"\w*\s*([\d.,\s]+)", low))):
                 pv = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", pm.group(1))]
@@ -1468,22 +1507,22 @@ def parse_effects(text):
                     polys_[w_].insert(0, list(zip(pv[0::2], pv[1::2])))
                 low = low[:pm.start()] + low[pm.end():]
         radius = None
-        rm = re.search(r"радиус\w*\s*(\d+(?:\.\d+)?)", low)
+        rm = re.search(r"radius\w*\s*(\d+(?:\.\d+)?)", low)
         if rm:
             radius = float(rm.group(1))
             low = low[:rm.start()] + low[rm.end():]
-        area = "область" in low
-        low = low.replace("область", " ").replace(";", " ")
+        area = "area" in low
+        low = low.replace("area", " ").replace(";", " ")
         m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", low)
         if not m:
             continue
-        kind = EFFECT_NAMES.get(m.group(1).strip())
+        kind = m.group(1).strip() if m.group(1).strip() in EFFECT_IDS else None
         nums = FxNums(float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2)))
         nums.knobs, nums.area = knobs, area and len(nums) >= 6
-        nums.exact = "точно" in low
+        nums.exact = "exact" in low
         nums.radius = radius
         nums.cloud = cloud
-        nums.cuts, nums.spill = polys_["прорез"], polys_["пятн"]
+        nums.cuts, nums.spill = polys_["cut"], polys_["spill"]
         if kind and len(nums) >= 2:
             out.append((kind, nums))
         else:
@@ -1511,7 +1550,7 @@ def fx_knob(data, kind, nums, word):
         mech = fx_mech(kind, nums)
         for row in table:
             if str(row.get("mech", "")).strip() == mech:
-                km = re.search(word + r"\s*(\d+(?:[.,]\d+)?)", str(row.get("knobs", "")).lower())
+                km = re.search(word + r"\s*(\d+(?:[.,]\d+)?)", to_ids(row.get("knobs", "")))
                 if km:
                     v = float(km.group(1).replace(",", "."))
                 break
@@ -1881,14 +1920,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
     import numpy as np
     from PIL import Image, ImageDraw, ImageFilter
 
-    def _num(key, default):
-        try:
-            v = float(data.get(key))
-            return v if v > 0 else default
-        except (TypeError, ValueError):
-            return default
-    steam_opacity = _num("steamOpacity", 0.62)
-    steam_height = _num("steamHeight", 1.0)
+    steam_opacity, steam_height = STEAM_OPACITY, STEAM_HEIGHT
 
     src = Image.open(image_path).convert("RGB")
     W, H = src.size
@@ -1935,7 +1967,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # область, которую автор закрасила («пар: область x y, x y, …»), или старая запись
             # «пар: x, y, ширина» (тогда гладь — плоский овал). Над гладью дымка гуще, выше —
             # редеет и растворяется. Ручки: густота, высота, скорость (лист «Эффекты»).
-            dens, rise_k, spd = kn(kind, nums, "густота"), kn(kind, nums, "высота"), kn(kind, nums, "скорость")
+            dens, rise_k, spd = kn(kind, nums, "density"), kn(kind, nums, "height"), kn(kind, nums, "speed")
             if nums.area:
                 poly = list(zip(nums[0::2], nums[1::2]))
             else:
@@ -2043,11 +2075,11 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             layers.append(steam)
 
         elif kind == "steam":
-            c_op, c_h, c_sp = kn(kind, nums, "густота"), kn(kind, nums, "высота"), kn(kind, nums, "скорость")
-            c_th = kn(kind, nums, "толщина")         # (06.10) струйки толще — и мягче по краям
+            c_op, c_h, c_sp = kn(kind, nums, "density"), kn(kind, nums, "height"), kn(kind, nums, "speed")
+            c_th = kn(kind, nums, "thickness")         # (06.10) струйки толще — и мягче по краям
             c_cyc = max(1, int(round(2 * c_sp)))     # петля 6 с: столько проходов струйки
-            c_tr = kn(kind, nums, "прозрачность")    # (08.10) отдельно от густоты: больше — прозрачнее (полезно при толстых струйках)
-            c_cu = kn(kind, nums, "завитки")         # (08.10) 5 — как есть; больше — струйка вьётся шире и с перекруткой
+            c_tr = kn(kind, nums, "transparency")    # (08.10) отдельно от густоты: больше — прозрачнее (полезно при толстых струйках)
+            c_cu = kn(kind, nums, "curls")         # (08.10) 5 — как есть; больше — струйка вьётся шире и с перекруткой
             hx = max(0.0, c_cu - 1.0) * 0.8          # вторая, более частая волна — завиток на изгибе
             # (10.10) по времени — ровно 2 оборота за проход: с 1.7 петля не замыкалась, пар дёргался на стыке
             bw = int(max(150 * k * max(1.0, c_th), (2 * (11 + 24.7 * (1 + hx) * c_cu) + 30) * k))
@@ -2133,9 +2165,9 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
         elif kind == "smoke":
             # ДЫМОК (04.10): одна тонкая белая струйка из трубы, чуть сносится ветром.
             # Точка — верх трубы. Вид — 🎬 smokeOpacity / smokeSize.
-            s_op = _num("smokeOpacity", 0.8) * kn(kind, nums, "густота")
-            s_sz = _num("smokeSize", 1.0) * kn(kind, nums, "высота")
-            thick = (nums[4] if len(nums) >= 5 and nums[4] > 0 else 1.0) * kn(kind, nums, "толщина")
+            s_op = SMOKE_OPACITY * kn(kind, nums, "density")
+            s_sz = SMOKE_SIZE * kn(kind, nums, "height")
+            thick = (nums[4] if len(nums) >= 5 and nums[4] > 0 else 1.0) * kn(kind, nums, "thickness")
             lean_px = 0.6 * 38 * k * s_sz                 # снос ветром по умолчанию
             if len(nums) >= 4:   # верхний конец струйки задан: высота и снос — как нарисовано
                 top_y = nums[3] / 100 * H
@@ -2182,9 +2214,9 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # за петлю, поэтому шва нет. Ручки: яркость (сила и размер ореола), мерцание (быстрее/живее).
             # Точка притягивается к самому светлому пикселю совсем рядом (лампочка нарисована светлой);
             # «точно» — верить точке как есть.
-            bright = kn(kind, nums, "яркость")
-            flick = kn(kind, nums, "мерцание")
-            glowk = kn(kind, nums, "ореол")
+            bright = kn(kind, nums, "brightness")
+            flick = kn(kind, nums, "flicker")
+            glowk = kn(kind, nums, "halo")
             gray = base.mean(axis=2)
             pts = [(nums[i] / 100 * W, nums[i + 1] / 100 * H) for i in range(0, len(nums) - 1, 2)]
             for lx, ly in pts:
@@ -2230,14 +2262,14 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # скорость (как часто), раскачка, отсвет. «прорезь …» — свет живёт только в обведённых
             # прорезях (тыква, топка): язычок и ореол видны лишь сквозь них, снаружи — мягкий отсвет.
             # «пятно …» — тёплый отсвет на столе/полу, ярче у огня. Всё мерцает в такт; частоты кратны петле.
-            glow = _num("candleGlow", 1.0) * kn(kind, nums, "ореол")
-            swing = kn(kind, nums, "раскачка")
-            bright = kn(kind, nums, "яркость")
-            depth = kn(kind, nums, "мерцание")
-            c_spd = kn(kind, nums, "скорость")
-            spill_k = kn(kind, nums, "отсвет")
-            flame_k = kn(kind, nums, "пламя")             # (11.10) размер язычка — под нарисованный огонёк
-            reach_k = kn(kind, nums, "разлив")            # (11.10) докуда от огня расходится отсвет
+            glow = CANDLE_GLOW * kn(kind, nums, "halo")
+            swing = kn(kind, nums, "sway")
+            bright = kn(kind, nums, "brightness")
+            depth = kn(kind, nums, "flicker")
+            c_spd = kn(kind, nums, "speed")
+            spill_k = kn(kind, nums, "glow")
+            flame_k = kn(kind, nums, "flame")             # (11.10) размер язычка — под нарисованный огонёк
+            reach_k = kn(kind, nums, "reach")            # (11.10) докуда от огня расходится отсвет
             cuts, spill = list(getattr(nums, "cuts", [])), list(getattr(nums, "spill", []))
             if not cuts:
                 px, py = snap_flame(base, px, py, W, H)      # точка — к самому яркому тёплому пятну рядом
@@ -2330,10 +2362,10 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # почти неподвижно, к верху сильнее), пламя разгорается и притухает, вокруг дышит тёплый ореол.
             # «пятно …» — отсвет на полу/стене. Ручки: яркость, высота (сила языков), скорость, отсвет.
             # Петля без шва: два сдвинутых слоя шума перетекают друг в друга за петлю, частоты мерцания кратны ей.
-            f_bright = kn(kind, nums, "яркость")
-            f_lick = kn(kind, nums, "высота")
-            f_spd = kn(kind, nums, "скорость")
-            f_spill = kn(kind, nums, "отсвет")
+            f_bright = kn(kind, nums, "brightness")
+            f_lick = kn(kind, nums, "height")
+            f_spd = kn(kind, nums, "speed")
+            f_spill = kn(kind, nums, "glow")
             poly = list(zip(nums[0::2], nums[1::2]))
             # (21.10) языки выходят за обводку: рамка с запасом вверх, рисунок над огнём берётся снизу —
             # кончики пламени тянутся вверх и опадают; над обводкой видно только светлое (само пламя),
@@ -2443,9 +2475,9 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # или «звёзды: x, y; x, y; …» — по точке на звезду. Каждая тихо мерцает в своём ритме,
             # холодный свет без ореола гирлянды; частоты кратны петле — шва нет.
             # Ручки: яркость, мерцание (глубина), скорость.
-            s_bright = kn(kind, nums, "яркость")
-            s_depth = kn(kind, nums, "мерцание")
-            s_spd = kn(kind, nums, "скорость")
+            s_bright = kn(kind, nums, "brightness")
+            s_depth = kn(kind, nums, "flicker")
+            s_spd = kn(kind, nums, "speed")
             gray = base.mean(axis=2)
             found = []
             if nums.area:
@@ -2521,7 +2553,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # ДОЖДЬ ЗА ОКНОМ (04.10): прямоугольник стекла (левый верх → правый низ). За стеклом
             # тонкие струи, по стеклу изредка сползают капли. Видно только на тёмном стекле
             # (рама, цветок на подоконнике не трогаются). Петля бесшовная. Вид — 🎬 rainOpacity.
-            r_op = _num("rainOpacity", 1.0) * kn(kind, nums, "яркость")
+            r_op = RAIN_OPACITY * kn(kind, nums, "brightness")
             if nums.area:
                 # ОБЛАСТЬ (05.10): дождь ровно там, где автор закрасила стекло, — цветок и рама вне её
                 poly = list(zip(nums[0::2], nums[1::2]))
@@ -2538,10 +2570,10 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                 rw, rh = max(4, rx1 - rx0), max(4, ry1 - ry0)
                 lum = base[ry0:ry0 + rh, rx0:rx0 + rw].mean(axis=2)
                 dark = np.clip((175 - lum) / 90, 0, 1)            # стекло тёмное — там видно дождь
-            n_st = max(12, int(rw * rh / (900 * k * k) * kn(kind, nums, "густота")))
+            n_st = max(12, int(rw * rh / (900 * k * k) * kn(kind, nums, "density")))
             streaks = [dict(x=rng.uniform(0, rw), y=rng.uniform(0, rh), L=rng.uniform(10, 24) * k,
                             m=int(rng.integers(3, 6)), a=rng.uniform(0.35, 0.8)) for _ in range(n_st)]
-            n_dr = max(1, int(rw / (90 * k) * kn(kind, nums, "капли")))
+            n_dr = max(1, int(rw / (90 * k) * kn(kind, nums, "drops")))
             drops = [dict(x=rng.uniform(0.08, 0.92) * rw, ph=rng.uniform(0, 1), wob=rng.uniform(0, 6.28))
                      for _ in range(n_dr)]
             slant = 0.12
@@ -2573,7 +2605,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # (08.10) моргание живое и неровное: одно неспешное, потом три быстрых подряд.
             # Каждое: смыкание, закрыт, открытие — (закрывается, держит, открывается) в секундах.
             # Ручка «частота»: меньше 5 — только одно моргание за петлю, 5 — одно и три быстрых, больше 7 — ещё одно в начале.
-            c_fr = kn(kind, nums, "частота")
+            c_fr = kn(kind, nums, "frequency")
             slow = (0.09, 0.22, 0.16)       # неспешное
             quick = (0.06, 0.07, 0.09)      # быстрое
             blinks = [(2.4, slow)] if c_fr < 0.8 else [(1.3, slow), (3.9, quick), (4.2, quick), (4.5, quick)]
@@ -2645,29 +2677,20 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
 # маленький / крупный, вглубь (уменьшается по пути), за край (прячется за линию «край»),
 # раз в N (секунд; «раз в 4 мин» — минут), падает N (секунд полёта).
 # Общий вид — 🎬 leafSize (длина листа в пикселях кадра высотой 864) и leafFallSeconds.
+# Цвета — палитра кисти (значения из листа «Слова»: жёлтый → yellow …)
 LEAF_COLORS = {
-    "жёлт": (214, 168, 58), "желт": (214, 168, 58), "yellow": (214, 168, 58),
-    "красн": (176, 62, 42), "red": (176, 62, 42),
-    "оранж": (204, 112, 46), "orange": (204, 112, 46),
-    "охр": (178, 128, 66), "ochre": (178, 128, 66),
-    "бур": (128, 82, 48), "brown": (128, 82, 48),
+    "yellow": (214, 168, 58), "red": (176, 62, 42), "orange": (204, 112, 46),
+    "ochre": (178, 128, 66), "brown": (128, 82, 48),
 }
 
 
 def parse_leaves(text, data):
     """Строки «листья:» и «край:» из fx_Effects → список листьев и линия края."""
-    def _num(key, default):
-        try:
-            v = float(data.get(key))
-            return v if v > 0 else default
-        except (TypeError, ValueError):
-            return default
-    size0 = _num("leafSize", 30.0)
-    fall0 = _num("leafFallSeconds", 6.0)
+    size0, fall0 = LEAF_SIZE_PX, LEAF_FALL_SECONDS
     leaves, edge = [], []
     for line in str(text or "").splitlines():
-        low = line.strip().lower()
-        if low.startswith(("край", "edge")):
+        low = to_ids(line).strip()
+        if low.startswith("edge"):
             body = low.split(":", 1)[-1]
             line_pts = []
             for pair in body.split(","):
@@ -2677,7 +2700,7 @@ def parse_leaves(text, data):
             if len(line_pts) >= 2:   # (08.10) каждая строка «край:» — отдельная линия (скамейка, ствол, стена…)
                 edge.append(line_pts)
             continue
-        if not low.startswith(("листья", "лист", "leaves", "leaf")):
+        if not low.startswith(("leaves", "leaf")):
             continue
         parts = [x.strip() for x in low.split(":", 1)[-1].split(";")]
         nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", parts[0])]
@@ -2693,40 +2716,40 @@ def parse_leaves(text, data):
                     samples=list(LEAF_DEFAULT_SAMPLES), tone=None)
         fall_set = False
         for w in parts[1:]:
-            if "кругл" in w or "round" in w:
+            if "round" in w:
                 leaf["shape"] = "round"
-            elif "клён" in w or "клен" in w or "maple" in w:
+            elif "maple" in w:
                 leaf["shape"] = "maple"
-            elif "продолг" in w or "long" in w:
+            elif "long" in w:
                 leaf["shape"] = "long"
             # (15.10) образцы из библиотеки листьев: по названию дерева или номером («образец 3», «лист 3, 7»)
             picked = [n_ for key, ns in LEAF_SAMPLE_NAMES.items() if key in w for n_ in ns]
-            mnum = re.match(r"\s*(?:образ\w*|лист\w*|sample)\s*([\d,\s]+)$", w)
+            mnum = re.match(r"\s*(?:sample|leaves|leaf)\w*\s*([\d,\s]+)$", w)
             if mnum:
                 picked = [int(v) for v in re.findall(r"\d+", mnum.group(1)) if 1 <= int(v) <= 99]
             if picked:
                 leaf["samples"] = picked if not leaf.get("_named") else leaf["samples"] + picked
                 leaf["_named"] = True
-            if "крив" in w or "козявк" in w or "формул" in w:   # старый нарисованный формулой лист — для дальних, «смешных»
+            if "formula" in w:   # старый нарисованный формулой лист — для дальних, «смешных»
                 leaf["samples"] = []
-            mt = re.search(r"цвет\w*\s*(\d+(?:\.\d+)?)\s*(?:[–—-]\s*(\d+(?:\.\d+)?))?", w)
+            mt = re.search(r"color\w*\s*(\d+(?:\.\d+)?)\s*(?:[–—-]\s*(\d+(?:\.\d+)?))?", w)
             if mt:
                 lo = float(mt.group(1)); hi = float(mt.group(2) or lo)
                 leaf["tone"] = (max(1.0, min(lo, hi)), min(10.0, max(lo, hi)))
-            if "средн" in w or "medium" in w:
+            if "medium" in w:
                 leaf["size"] = size0
-            if "маленьк" in w or "мелк" in w or "small" in w:
+            if "small" in w:
                 leaf["size"] = size0 * 0.63
-            if "крупн" in w or "больш" in w or "big" in w:
+            if "big" in w:
                 leaf["size"] = size0 * 1.3
-            if "вглубь" in w or "deep" in w:
+            if "deep" in w:
                 leaf["shrink"] = 0.75
-            if "за край" in w or "за забор" in w or "behind" in w:
+            if "behind" in w:
                 leaf["behind"] = True
-            m = re.search(r"раз в\s*(\d+(?:\.\d+)?)\s*(мин)?", w)
+            m = re.search(r"every\s*(\d+(?:\.\d+)?)\s*(minutes)?", w)
             if m:
                 leaf["period"] = float(m.group(1)) * (60 if m.group(2) else 1)
-            m = re.search(r"пада\w*\s*(\d+(?:\.\d+)?)", w)
+            m = re.search(r"fall\w*\s*(\d+(?:\.\d+)?)", w)
             if m:
                 leaf["fall"] = float(m.group(1)); fall_set = True
             for name, rgb in LEAF_COLORS.items():
@@ -2739,12 +2762,12 @@ def parse_leaves(text, data):
 
 
 def parse_occluders(text):
-    """(15.10) Строки «за: x y, x y, …» — обводка предмета (голова Пингви, хвост кота, ваза): лист,
+    """(15.10) Строки «за: x y, x y, …» — обводка предмета (голова героя, хвост кота, ваза): лист,
     пролетая там, прячется за ним; если кончает путь внутри обводки — исчезает за предметом."""
     out = []
     for line in str(text or "").splitlines():
-        low = line.strip().lower()
-        if not re.match(r"^(за|предмет|behind)\s*:", low):
+        low = to_ids(line).strip()
+        if not re.match(r"^behind\s*:", low):
             continue
         pts = []
         for pair in low.split(":", 1)[-1].split(","):
@@ -2777,10 +2800,8 @@ LEAF_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leaves"
 LEAF_LIB_URL = "https://raw.githubusercontent.com/tatkalp52-creator/N8N/ccr-592d85a5-ljre1x/assembler/leaves/"
 LEAF_LIB_COUNT = 12
 # (15.10) лист образцов, нарисованный автором: 1–3 клён, 4–5 дуб, 6–7 берёза, 8–9 липа, 10 ясень, 11 сухой, 12 рваный
-LEAF_SAMPLE_NAMES = {"клён": [1, 2, 3], "клен": [1, 2, 3], "maple": [1, 2, 3], "дуб": [4, 5], "oak": [4, 5],
-                     "берёз": [6, 7], "берез": [6, 7], "birch": [6, 7], "лип": [8, 9], "linden": [8, 9],
-                     "ясен": [10], "ash": [10], "сух": [11], "скруч": [11], "рван": [12], "torn": [12],
-                     "кругл": [8, 9], "продолг": [6, 7]}
+LEAF_SAMPLE_NAMES = {"maple": [1, 2, 3], "oak": [4, 5], "birch": [6, 7], "linden": [8, 9], "ash": [10],
+                     "dry": [11], "torn": [12], "round": [8, 9], "long": [6, 7]}
 LEAF_DEFAULT_SAMPLES = [1, 2, 3, 6, 7, 8, 9]
 # шкала цвета 1…10: бурый → ржавый → красный → оранжевый → жёлтый
 LEAF_TONES = [(1, (112, 72, 42)), (3, (150, 72, 42)), (4.5, (176, 62, 42)), (7, (204, 112, 46)),
@@ -3238,7 +3259,7 @@ def edge_visible(poly, X, Y, s0, k):
     return (edge_side(poly, X, Y) * s0 >= 1 * k) | out_   # (15.10) линия — точный срез: что перешло за неё, не видно
 
 
-LEAF_LIE_SECONDS = 12.0   # (15.10) сколько лист лежит и медленно тает (🎬 leafLieSeconds)
+LEAF_LIE_SECONDS = 12.0   # (15.10) сколько лист лежит и тает на превью без колонки; в ролике — 🎬 LeafLieSeconds
 LEAF_NEAR_EDGE = 0.045    # (15.10) конец пути ближе этого (доля высоты кадра) к линии «край» — лист уходит за неё сам
 
 
@@ -3299,7 +3320,7 @@ def render_leaf_event(image_path, leaf, edge, fps, seed, out_path, mask_path, oc
         pix = base.reshape(-1, 3)
         sat = pix[(pix[:, 0] - pix[:, 2] > 75) & (pix[:, 0] > 120)]
         if len(sat) < 50:
-            color = np.array(LEAF_COLORS["охр"], np.float32)
+            color = np.array(LEAF_COLORS["ochre"], np.float32)
         else:
             sat = sat[np.argsort(sat[:, 0] - sat[:, 2])][-max(50, len(sat) // 5):]
             pal = [np.median(c, axis=0) * 0.92 for c in np.array_split(sat[np.argsort(sat[:, 1])], 3)]
@@ -3410,15 +3431,13 @@ def plan_body_periodic(duration, intro, loop_len, events, seed):
 def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, base_chain,
                             shadow_layers, main_layers, shadow_blur, overlay_visible_until,
                             audio_chain, output_path, project_id):
-    def _f(key, default):
-        try:
-            v = float(data.get(key) or default)
-            return v if v > 0 else default
-        except (TypeError, ValueError):
-            return default
-    fps = int(_f("videoFps", 24))
-    gap_min = _f("eventGapMinSeconds", 60)
-    gap_max = max(gap_min, _f("eventGapMaxSeconds", 240))
+    # (28.10) время и частота кадров оживления — только из колонок 🎬; нужной нет — сборка говорит, какой
+    def need(key):
+        v = _float_or(data.get(key), None)
+        if v is None or v <= 0:
+            raise RuntimeError(f"Таблица: для оживления не заполнена колонка {key[0].upper() + key[1:]}")
+        return v
+    fps = int(need("videoFps"))
     loop_url = str(data.get("fx_LoopUrl") or "").strip()
     event_urls = [u for u in re.split(r"[\s,;]+", str(data.get("fx_EventUrls") or "")) if u.startswith("http")]
     pdir = os.path.join(work_dir, "pieces"); os.makedirs(pdir, exist_ok=True)
@@ -3452,8 +3471,9 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
     occluders = parse_occluders(data.get("fx_Effects"))
     # (15.10) у каждого листа несколько разных полётов между теми же точками; в ролике они чередуются,
     # поэтому каждый раз лист летит по-новому, а частота падений остаётся прежней
-    variants = max(1, min(6, int(_f("leafVariants", 3))))
-    lie = _f("leafLieSeconds", LEAF_LIE_SECONDS)
+    if leaves:
+        variants = max(1, min(6, int(need("leafVariants"))))
+        lie = need("leafLieSeconds")
     t_leaves = time.time()
     for j, leaf in enumerate(leaves):
         for v in range(variants):
@@ -3472,18 +3492,18 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
                 ln = loop_len * max(1, -(-ln // loop_len))
             events.append((ev, ln))
             masks[len(events) - 1] = mask
-            periods.append((leaf["period"] or (gap_min + gap_max) / 2) * variants)
+            periods.append((leaf["period"] or (need("eventGapMinSeconds") + max(need("eventGapMinSeconds"), need("eventGapMaxSeconds"))) / 2) * variants)
     if leaves:
         print(f"[leaves] клипы листьев: {len(leaves)} × {variants} полёта за {time.time() - t_leaves:.0f} с")
     if blink_spec and not loop_url:
         try:
             from PIL import Image as _Im
             bw_, bh_ = _Im.open(image_path).size
-            every = _f("blinkEverySeconds", BLINK_EVERY_DEFAULT)
+            every = BLINK_EVERY_DEFAULT   # основа кисти; чаще / реже — ручка «частота» листа «Эффекты»
             clip_s = max(loop_len, EFFECTS_LOOP_SECONDS) if loop_len else EFFECTS_LOOP_SECONDS
             for g_i, group in enumerate(group_blinks(blink_spec, bw_, bh_)):
                 rng_b = random.Random(f"{project_id}-blink-{g_i}")
-                factor = fx_knob(data, "blink", group[0][1], "частота")   # 5 — как есть, больше — чаще
+                factor = fx_knob(data, "blink", group[0][1], "frequency")   # 5 — как есть, больше — чаще
                 # (22.10) серии вразнобой: одно неспешное (половина серий), два быстрых (треть), три быстрых (пятая часть);
                 # каждая серия — своё событие со своим периодом, моменты с разбросом → порядок случайный.
                 # В среднем одна серия раз в blinkEverySeconds / «частота».
@@ -3517,6 +3537,9 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
         intro = loop_len * max(1, -(-intro // loop_len))
     pieces = [render_intro_piece(image_path, loop_path, intro, base_chain, shadow_layers,
                                  main_layers, shadow_blur, fps, os.path.join(pdir, "intro.mp4"))]
+    # паузы между событиями — 🎬 EventGapMinSeconds / EventGapMaxSeconds (нужны, только если события есть)
+    gap_min = need("eventGapMinSeconds") if events else None
+    gap_max = max(gap_min, need("eventGapMaxSeconds")) if events else None
     if any(p is not None for p in periods):
         avg = (gap_min + gap_max) / 2
         parts, big = plan_body_periodic(duration, intro, loop_len,
@@ -3580,6 +3603,7 @@ def assemble():
 
     try:
         set_frame(data)
+        set_vocab(data)
         image_path = download_file(image_url, os.path.join(work_dir, "image.jpg"))
 
         # (28.10) яркость тоже: нет колонки TargetBrightness — картинку не осветляем
@@ -3850,10 +3874,10 @@ def parse_cover_lines(text):
     """Строки страницы разметки: «обложка Б: кадр 13 26 — 66 79, оверлей справа» → [(буква, рамка, сторона)]."""
     out = []
     for line in str(text or "").splitlines():
-        low = line.strip().lower()
-        if not low.startswith(COVER_WORDS):
+        low = to_ids(line).strip()
+        if not low.startswith(COVER_ID):
             continue
-        km = re.search(r"кадр\w*\s*(.*)", low)
+        km = re.search(r"frame\w*\s*(.*)", low)
         nums = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", km.group(1) if km else "")]
         if len(nums) < 4:
             print(f"[обложка] не поняла строку: {line!r}")
@@ -3862,14 +3886,14 @@ def parse_cover_lines(text):
         if x1 - x0 < 5 or y1 - y0 < 5:
             print(f"[обложка] слишком маленькая рамка: {line!r}")
             continue
-        side = "left" if "слева" in low else "center" if "центр" in low else "right"
-        lm = re.match(r"обложк\w*\s+([^\s:]+)\s*:", low)
+        side = next((x for x in ("left", "center", "right") if x in low), None)
+        if not side:
+            print(f"[обложка] не сказано, где надпись (слева / справа / в центре): {line!r}")
+            continue
+        lm = re.match(r"cover\w*\s+([^\s:]+)\s*:", low)
         letter = (lm.group(1) if lm else str(len(out) + 1)).upper()
         out.append((letter, (x0, y0, x1, y1), side))
     return out
-
-
-COVER_FILE_NAMES = {"Б": "B", "В": "V", "Г": "G"}
 
 
 def make_episode_covers(project_id, fx_text):
@@ -3886,7 +3910,7 @@ def make_episode_covers(project_id, fx_text):
             os.remove(listing)
         made = []
         for letter, box, side in parse_cover_lines(fx_text):
-            name = COVER_FILE_NAMES.get(letter, re.sub(r"[^A-Za-z0-9]", "", letter) or str(len(made) + 1))
+            name = re.sub(r"[^A-Za-z0-9]", "", letter) or str(len(made) + 1)   # буква — уже значение из листа «Слова» (Б → B)
             try:
                 render_cover(project_id, box, side, os.path.join(THUMBNAIL_DIR, f"{project_id}_cover_{name}.jpg"))
                 made.append({"letter": letter, "file": name})
@@ -3944,9 +3968,9 @@ def cover_route(project_id):
         box = [float(v) for v in request.args.get("box", "").split(",")]
         if len(box) != 4:
             raise ValueError("нужна рамка box=x0,y0,x1,y1")
-        side = request.args.get("side", "right")
+        side = request.args.get("side")
         if side not in ("left", "right", "center"):
-            side = "right"
+            raise ValueError("нужно side=left / right / center (где надпись)")
         if not os.path.exists(os.path.join(THUMBNAIL_DIR, f"{project_id}_cover.json")):
             return ("набора обложки нет: выпуск собирался до 22.10 — пересобери его или пришли /cover_kit\n",
                     404, {"Content-Type": "text/plain; charset=utf-8"})
@@ -4027,7 +4051,7 @@ def draw_fx_preview(image_path, fx_text, data, out_path):
     for j, leaf in enumerate(leaves):
         seed = 1.3 + 2.9 * j
         rng = np.random.default_rng(int(seed * 1000) + 7)
-        color = np.array(LEAF_COLORS["оранж"], np.float32)   # на превью — всегда оранжевый, не красный
+        color = np.array(LEAF_COLORS["orange"], np.float32)   # на превью — всегда оранжевый, не красный
         P = lambda xy: (xy[0] / 100 * W, xy[1] / 100 * H)
         (x0, y0), (x1, y1) = P(leaf["frm"]), P(leaf["to"])
         L0 = leaf["size"] * k
@@ -4087,8 +4111,8 @@ def draw_fx_preview_video(image_path, fx_text, data, out_path):
     from PIL import Image
     work = os.path.dirname(out_path)
     events_only = "\n".join(l for l in str(fx_text or "").splitlines()
-                             if l.strip().lower().startswith(EVENT_EFFECT_WORDS)
-                             and not l.strip().lower().startswith(("листья", "лист", "leaves", "leaf")))   # (15.10) на видео — только линии края и обводки, листья летят по-настоящему
+                             if to_ids(l).strip().startswith(EVENT_IDS)
+                             and not to_ids(l).strip().startswith(("leaves", "leaf")))   # (15.10) на видео — только линии края и обводки, листья летят по-настоящему
     base = os.path.join(work, "pv_base.jpg")
     draw_fx_preview(image_path, events_only, data, base)          # листья и край — линиями
     im = Image.open(base).convert("RGB")
@@ -4140,6 +4164,7 @@ def draw_fx_preview_video(image_path, fx_text, data, out_path):
 @app.route("/fx_preview_video", methods=["POST"])
 def fx_preview_video():
     data = request.json or {}
+    set_vocab(data)
     work_dir = tempfile.mkdtemp(prefix="fxpv_")
 
     @after_this_request
@@ -4170,6 +4195,7 @@ def fx_grid():
 @app.route("/fx_preview", methods=["POST"])
 def fx_preview():
     data = request.json or {}
+    set_vocab(data)
     work_dir = tempfile.mkdtemp(prefix="fxprev_")
 
     @after_this_request
@@ -4341,6 +4367,9 @@ def make_edit_mask(orig_path, marked_path, out_path, margin_pct=2.0):
     return float(edit.mean())
 
 
+EDIT_MASK_MARGIN_PCT = 2.0   # на сколько процентов кадра правка может выйти за обводку автора (механика маски)
+
+
 @app.route("/edit_mask", methods=["POST"])
 def edit_mask():
     import base64
@@ -4351,7 +4380,7 @@ def edit_mask():
         marked = os.path.join(work_dir, "marked.jpg")
         open(marked, "wb").write(base64.b64decode(str(data.get("markedDataUrl") or "").split(",", 1)[-1]))
         out = os.path.join(work_dir, "mask.png")
-        share = make_edit_mask(orig, marked, out, float(data.get("marginPct") or 2.0))
+        share = make_edit_mask(orig, marked, out, EDIT_MASK_MARGIN_PCT)
         if share > 0.6:
             raise ValueError("обведено больше половины картинки — это уже не правка, а новый рисунок")
         resp = send_file(out, mimetype="image/png")
@@ -4453,29 +4482,24 @@ def fx_marks():
             zones = []
         area_text = ""
         if zones:
-            area_text += ("\nОБВОДКИ (замкнутые, вместе с закраской внутри) — докуда живёт эффект: для пара над водой это «облако», "
-                          "пиши «пар: область <контур закраски>; облако <контур обводки>»; маленький кружок вокруг свечи или глаза — "
-                          "точка в его середине. Обводка над едой или напитком без второй замкнутой внутри — "
-                          "это место для струек пара («пар: x, y» — точки на самой еде, по листу «Эффекты»):\n" + "\n".join(
+            # (28.10) только что нашлось на фото (координаты); как это записывать — лист «Эффекты» («Как размечать»)
+            area_text += ("\nОБВОДКИ (замкнутые; рамка и контур — проценты кадра):\n" + "\n".join(
                 f"О{i}) рамка {z['box'][0]}, {z['box'][1]} — {z['box'][2]}, {z['box'][3]}; контур: "
                 + ", ".join(f"{x} {y}" for x, y in z["poly"])
-                + "".join(f"\n   О{i}-внутри) замкнутая обводка внутри О{i} — это «область» (что внутри неё: вода, еда), "
-                          f"а весь О{i} — «облако»: «пар: область <этот контур>; облако <контур О{i}>»; "
+                + "".join(f"\n   О{i}-внутри) замкнутая обводка внутри О{i}; "
                           f"рамка {z_['box'][0]}, {z_['box'][1]} — {z_['box'][2]}, {z_['box'][3]}; контур: "
                           + ", ".join(f"{x} {y}" for x, y in z_["poly"]) for z_ in z.get("inner", []))
                 for i, z in enumerate(zones, 1)))
         if areas:
-            area_text += ("\nЗАКРАСКИ (области, слева направо) — переписывай контур в строку как есть: «дождь: область …», "
-                         "«пар: область …» и т. п., что это — по подписи на фото:\n" + "\n".join(
+            area_text += ("\nЗАКРАСКИ (области, слева направо; рамка и контур — проценты кадра):\n" + "\n".join(
                 f"З{i}) рамка {a_['box'][0]}, {a_['box'][1]} — {a_['box'][2]}, {a_['box'][3]}; контур: "
                 + ", ".join(f"{x} {y}" for x, y in a_["poly"]) for i, a_ in enumerate(areas, 1)))
         if len(marks) > 12:
             # обводки «где оживить» и подписи словами: штрихов много и они мелкие — пересказывать их
             # нет смысла; этап читает разметку по самому фото, точные места доводят лупа и примагничивание
             return jsonify({"ok": True, "marks": marks[:0], "zones": True,
-                            "text": f"На фото обводки и подписи автора (мелких штрихов: {len(marks)}). Читай разметку по самому фото: "
-                                    "что обведено и что подписано. Места называй по центру обводки — точные точки "
-                                    "(пламя, глаз, стекло) дальше доведут лупа и сборщик." + area_text, "areas": areas})
+                            "text": f"На фото обводки и подписи автора (мелких штрихов: {len(marks)}); читай их по самому фото."
+                                    + area_text, "areas": areas})
         lines = []
         for i, m_ in enumerate(marks, 1):
             lines.append(f"{i}) верхний конец {m_['top'][0]}, {m_['top'][1]}; нижний конец {m_['bottom'][0]}, "

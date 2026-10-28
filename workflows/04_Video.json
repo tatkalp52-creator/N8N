@@ -185,7 +185,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\n// Модель иногда пишет метку без квадратных скобок или с другим регистром\n// ('Timecodes' вместо '[Timecodes]') — ищем её гибко, а не только точную\n// строку, чтобы замена не срабатывала молча вхолостую.\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace(/\\[?Timecodes\\]?/i, $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\n// (28.10) текст оверлея — согласованный автором пункт: пишем на кадр как есть. «-» — оверлея нет.\n// (раньше код молча выбрасывал текст длиннее 4 слов или со скобками — своё правило в коде)\nfunction sanitizeOverlayText(raw) {\n  const text = (raw || '').trim();\n  return text === '-' ? '' : text;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (19.09, ночь): раньше каждый параметр сборщика видео нужно было\n// дописывать сюда вручную (findByLabel + запись в payload) — то есть\n// добавление новой ручки в таблице требовало правки кода здесь. Теперь,\n// как у Художника (🎨) и Писателя (🖋), сборщик видео читает ВСЕ колонки\n// с иконкой 🎬 автоматически: имя колонки \"🎬tmpl_BassGainDb\" превращается\n// в поле payload \"bassGainDb\" без единой строчки кода на каждый параметр.\n// Чтобы добавить новую ручку — просто добавить колонку \"🎬tmpl_ИмяРучки\"\n// в таблицу; чтобы убрать — удалить колонку. Здесь ничего не ломается.\n//\n// tmpl_OverlayStyle исключён из автосбора: это не одно значение, а строка\n// \"font:...; size:...\", её нужно сначала разобрать на части (см. ниже).\nfunction collectByIcon(row, icon, excludeLabels) {\n  const result = {};\n  for (const key of Object.keys(row)) {\n    if (!key.includes(icon)) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '');\n    if (!label.startsWith('tmpl_')) continue;\n    if (excludeLabels.includes(label)) continue;\n    const value = row[key];\n    if (value === undefined || value === null || value === '') continue;\n    const paramName = label.slice('tmpl_'.length);\n    const camelName = paramName.charAt(0).toLowerCase() + paramName.slice(1);\n    result[camelName] = value;\n  }\n  return result;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n    if (key === 'margin') result.overlayMargin = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst autoParams = collectByIcon(styleRow, '🎬', ['tmpl_OverlayStyle']);\n// Приоритет — решение редактора конкретно для этой сцены (ai_TargetBrightness,\n// проставляется при согласовании картинки) перебивает общий дефолт канала,\n// который уже пришёл из tmpl_TargetBrightness через общий автосбор выше.\n\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ApprovedImageUrl || proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: sanitizeOverlayText(proj.ai_OverlayText),\n  ...overlayStyle,\n  ...autoParams,\n  // (28.10) положение надписи: выпуск (ai_OverlayPosition) перебивает канал (🎬tmpl_OverlayPosition); своего «center» нет\n  ...(proj.ai_OverlayPosition ? { overlayPosition: proj.ai_OverlayPosition } : {}),\n  ...(proj.ai_TargetBrightness ? { targetBrightness: proj.ai_TargetBrightness } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\n// НОВОЕ (05.10): ручки эффектов — лист «Эффекты»: служебный столбец «Механика» и столбец\n// канала (заголовок — ключ канала). Пустая клетка — эффект этому каналу не нужен.\n// Сборщик сам находит строку по механике и берёт из клетки «густота 4 · скорость 3».\nlet fxRows = [];\ntry { fxRows = $('Читаем эффекты').all().map(i => i.json); } catch (e) {}\npayload.fxTable = fxRows\n  .map(r => ({ mech: String(r['Механика'] || '').trim(), knobs: String(r[meta.channelKey] || '').trim() }))\n  .filter(r => r.mech && r.knobs);\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  tags: proj.ai_Tags || '',\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\n// Модель иногда пишет метку без квадратных скобок или с другим регистром\n// ('Timecodes' вместо '[Timecodes]') — ищем её гибко, а не только точную\n// строку, чтобы замена не срабатывала молча вхолостую.\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace(/\\[?Timecodes\\]?/i, $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\n// (28.10) текст оверлея — согласованный автором пункт: пишем на кадр как есть. «-» — оверлея нет.\n// (раньше код молча выбрасывал текст длиннее 4 слов или со скобками — своё правило в коде)\nfunction sanitizeOverlayText(raw) {\n  const text = (raw || '').trim();\n  return text === '-' ? '' : text;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (19.09, ночь): раньше каждый параметр сборщика видео нужно было\n// дописывать сюда вручную (findByLabel + запись в payload) — то есть\n// добавление новой ручки в таблице требовало правки кода здесь. Теперь,\n// как у Художника (🎨) и Писателя (🖋), сборщик видео читает ВСЕ колонки\n// с иконкой 🎬 автоматически: имя колонки \"🎬tmpl_BassGainDb\" превращается\n// в поле payload \"bassGainDb\" без единой строчки кода на каждый параметр.\n// Чтобы добавить новую ручку — просто добавить колонку \"🎬tmpl_ИмяРучки\"\n// в таблицу; чтобы убрать — удалить колонку. Здесь ничего не ломается.\n//\n// tmpl_OverlayStyle исключён из автосбора: это не одно значение, а строка\n// \"font:...; size:...\", её нужно сначала разобрать на части (см. ниже).\nfunction collectByIcon(row, icon, excludeLabels) {\n  const result = {};\n  for (const key of Object.keys(row)) {\n    if (!key.includes(icon)) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '');\n    if (!label.startsWith('tmpl_')) continue;\n    if (excludeLabels.includes(label)) continue;\n    const value = row[key];\n    if (value === undefined || value === null || value === '') continue;\n    const paramName = label.slice('tmpl_'.length);\n    const camelName = paramName.charAt(0).toLowerCase() + paramName.slice(1);\n    result[camelName] = value;\n  }\n  return result;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n    if (key === 'margin') result.overlayMargin = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst autoParams = collectByIcon(styleRow, '🎬', ['tmpl_OverlayStyle']);\n// Приоритет — решение редактора конкретно для этой сцены (ai_TargetBrightness,\n// проставляется при согласовании картинки) перебивает общий дефолт канала,\n// который уже пришёл из tmpl_TargetBrightness через общий автосбор выше.\n\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ApprovedImageUrl || proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: sanitizeOverlayText(proj.ai_OverlayText),\n  ...overlayStyle,\n  ...autoParams,\n  // (28.10) положение надписи: выпуск (ai_OverlayPosition) перебивает канал (🎬tmpl_OverlayPosition); своего «center» нет\n  ...(proj.ai_OverlayPosition ? { overlayPosition: proj.ai_OverlayPosition } : {}),\n  ...(proj.ai_TargetBrightness ? { targetBrightness: proj.ai_TargetBrightness } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\n// НОВОЕ (05.10): ручки эффектов — лист «Эффекты»: служебный столбец «Механика» и столбец\n// канала (заголовок — ключ канала). Пустая клетка — эффект этому каналу не нужен.\n// Сборщик сам находит строку по механике и берёт из клетки «густота 4 · скорость 3».\nlet fxRows = [];\ntry { fxRows = $('Читаем эффекты').all().map(i => i.json); } catch (e) {}\n// (28.10) лист «Слова»: что значат слова разметки для сборщика (пар → steam …) — слов в коде сборщика нет\nlet wordRows = [];\ntry { wordRows = $('Читаем слова').all().map(i => i.json); } catch (e) {}\npayload.fxWords = wordRows\n  .map(r => ({ word: String(r['Слово'] || '').trim(), means: String(r['Значит'] || '').trim() }))\n  .filter(r => r.word && r.means);\npayload.fxTable = fxRows\n  .map(r => ({ mech: String(r['Механика'] || '').trim(), knobs: String(r[meta.channelKey] || '').trim() }))\n  .filter(r => r.mech && r.knobs);\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  tags: proj.ai_Tags || '',\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
       },
       "id": "258c9cc8-65f8-4d4b-9832-c1f786470ee4",
       "name": "Готовим данные для сборки",
@@ -1671,6 +1671,41 @@
       "maxTries": 3,
       "waitBetweenTries": 5000,
       "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Слова",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "a4c4f160-fc22-4b93-b5a9-37d515481d60",
+      "name": "Читаем слова",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        6788,
+        3064
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     }
   ],
   "pinData": {},
@@ -2263,7 +2298,7 @@
       "main": [
         [
           {
-            "node": "Готовим данные для сборки",
+            "node": "Читаем слова",
             "type": "main",
             "index": 0
           }
@@ -2404,6 +2439,17 @@
         [
           {
             "node": "Собираем текст таймкодов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем слова": {
+      "main": [
+        [
+          {
+            "node": "Готовим данные для сборки",
             "type": "main",
             "index": 0
           }

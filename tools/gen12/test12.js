@@ -7,6 +7,7 @@ const TMPL = {
   tmpl_Channel: 'demo',
   tmpl_ImageModel: 'gpt-image-2',
   tmpl_ImageQuality: 'high',
+  tmpl_ImageSize: '1536x864',
   tmpl_LightModel: 'gpt-5-mini',
   tmpl_LightEffort: 'minimal',
   '🎨_tmpl_ReferenceImages': 'https://drive.google.com/file/d/STYLE/view\n\nhttps://drive.google.com/file/d/SHEET/view\nлист героя',
@@ -128,7 +129,7 @@ async function turn(stages, row, inc, response, subResponse) {
     // (28.10) один запрос художнику: все картинки по порядку (основа правки первой) и маска — в JSON
     const { wf } = require('./harness12.js');
     assert.ok(!wf.nodes.some(n => n.name.startsWith('gpt-image-2')), '24 узла ушли');
-    const IT = { 'Итог хода': { imageModel: 'gpt-image-2', imageQuality: 'medium', editRoles: 'R: ', drawRoles: 'D: ' } };
+    const IT = { 'Итог хода': { imageModel: 'gpt-image-2', imageQuality: 'medium', imageSize: '1536x864', editRoles: 'R: ', drawRoles: 'D: ' } };
     const withMask = { ...o, hasMask: true, revisionInstruction: 'шторка', __binary: { image_2: { mimeType: 'image/png' }, image_0: { mimeType: 'image/jpeg' }, image_1: {}, mask: { mimeType: 'image/png' } } };
     const q = (await run('Запрос художнику: правка', { nodes: { ...IT, 'Что дальше?': { next: 'edit' } }, input: [withMask] }))[0];
     assert.equal(q.body.images.length, 3); assert.ok(q.body.images[0].image_url.startsWith('data:image/jpeg;base64,'), 'основа правки — первой');
@@ -382,6 +383,7 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(r.previewBody.fx_Effects, 'дымок: 44, 37'); assert.equal(r.previewBody.imageUrl, 'U2');
     assert.equal(r.previewBody.targetLUFS, '-14', 'вид эффектов — колонки 🎬');
     assert.deepEqual(r.previewBody.fxTable, [{ mech: 'smoke', knobs: 'густота 4' }], 'ручки эффектов канала — из листа «Эффекты»');
+    assert.ok(Array.isArray(r.previewBody.fxWords), 'слова разметки — из листа «Слова» (сборщик слов не знает)');
     assert.ok(r.previewCaption.includes('ID: P1'));
     const nx = (await run('Что дальше?', { nodes: { 'Итог хода': r } }))[0];
     assert.equal(nx.preview, true);
