@@ -168,7 +168,7 @@ add({'parameters': {'httpMethod': 'POST', 'path': CAL_HOOK, 'options': {}}, 'nam
 # Всё входящее — сначала сюда: 👀 на сообщение автора, конверт в очередь на сервере (повтор того же — отсекается,
 # выпуск занят — ждёт своей очереди), «печатает…», потом «Работа» (вся остальная схема — тот же канвас, вызванный
 # сам собой и дождавшийся конца). Конец у «Работы» один: удалось — «сделано» и следующее этого выпуска;
-# упало — очередь повторит сама (5 / 15 / 30 мин), автор слышит только то, что ей нужно.
+# упало — очередь повторит сама (1 / 3 / 10 мин), автор слышит только то, что ей нужно.
 TG_API = '=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/'
 def tg_api(name, method, body_expr, pos):
     return add({'parameters': {'method': 'POST', 'url': TG_API + method, 'sendBody': True, 'specifyBody': 'json',
@@ -224,13 +224,13 @@ if_node('Сказать о сбое?', '$json.say', [RX + 3300, RY + 160])
 tg_send('Сообщаем о сбое', '={{ $json.chatId }}', '={{ $json.text }}', [RX + 3520, RY + 100])
 nodes[-1]['parameters']['additionalFields'] = {'appendAttribution': False}
 if_node('После сбоя есть следующее?', "!!$('Сбой: что сказать').first().json.next", [RX + 3740, RY + 160])
-add({'parameters': {'rule': {'interval': [{'field': 'minutes', 'minutesInterval': 5}]}},
-     'name': 'Каждые 5 минут', 'type': 'n8n-nodes-base.scheduleTrigger', 'typeVersion': 1.2, 'position': [RX, RY + 600]})
+add({'parameters': {'rule': {'interval': [{'field': 'minutes', 'minutesInterval': 1}]}},
+     'name': 'Каждую минуту', 'type': 'n8n-nodes-base.scheduleTrigger', 'typeVersion': 1.2, 'position': [RX, RY + 600]})
 inbox_http('Очередь: что повторить', "={{ JSON.stringify({ op: 'due' }) }}", [RX + 220, RY + 600], retry=False)
 code('Повторы: список', 'povtory.js', [RX + 440, RY + 600], lib=True)
 if_node('Повтор?', '!!$json.resume', [RX + 660, RY + 600])
 self_call('Повторяем', '', [RX + 880, RY + 540], each=True)
-tg_send('Сообщаем: не получилось за час', '={{ $json.chatId }}', '={{ $json.text }}', [RX + 880, RY + 700])
+tg_send('Сообщаем: не получилось за 15 минут', '={{ $json.chatId }}', '={{ $json.text }}', [RX + 880, RY + 700])
 nodes[-1]['parameters']['additionalFields'] = {'appendAttribution': False}
 
 chain('Telegram Trigger', 'Это владелец бота?', 'Приёмная: конверт', 'Сообщение автора?')
@@ -258,9 +258,9 @@ link('Сказать о сбое?', 'Сообщаем о сбое', 0)
 link('Сказать о сбое?', 'После сбоя есть следующее?', 1)
 link('Сообщаем о сбое', 'После сбоя есть следующее?')
 link('После сбоя есть следующее?', 'Следующее: конверт', 0)
-chain('Каждые 5 минут', 'Очередь: что повторить', 'Повторы: список', 'Повтор?')
+chain('Каждую минуту', 'Очередь: что повторить', 'Повторы: список', 'Повтор?')
 link('Повтор?', 'Повторяем', 0)
-link('Повтор?', 'Сообщаем: не получилось за час', 1)
+link('Повтор?', 'Сообщаем: не получилось за 15 минут', 1)
 X = 0
 
 sheets_read('Читаем каталог каналов', 'Catalog', [], [X + 900, Y - 700], always=False)
@@ -842,7 +842,7 @@ sticky("## Запись в таблицу\nПункты раскладывают
 
 # МЕТКА ВЫПУСКА (14.10, автор): каждое сообщение по проекту начинается с «🐧 16.10 · Кот в книжном» —
 # при двух-трёх выпусках сразу видно, на какое отвечать. Метку считает «Контекст проекта» (календарь + Catalog).
-NO_LABEL = {'Проект создан', 'Предлагаем каналы', 'Сообщаем о сбое', 'Сообщаем: не получилось за час'}
+NO_LABEL = {'Проект создан', 'Предлагаем каналы', 'Сообщаем о сбое', 'Сообщаем: не получилось за 15 минут'}
 LBL = "$('Контекст проекта').first().json"
 for n_ in nodes:
     if n_.get('type') != 'n8n-nodes-base.telegram' or n_['name'] in NO_LABEL:

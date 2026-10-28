@@ -726,9 +726,9 @@ async function turn(stages, row, inc, response, subResponse) {
     const s3 = await say({ notify: 'fatal' }, 'insufficient_quota');
     assert.ok(s3.text.includes('OpenAI') && s3.text.includes('Billing'));
     const s4 = await say({ notify: 'final', next: { key: 'upd:10' } }, 'ETIMEDOUT');
-    assert.ok(s4.text.includes('за час') && s4.next.key === 'upd:10', 'после «насовсем» очередь выпуска идёт дальше');
+    assert.ok(s4.text.includes('за 15 минут') && s4.next.key === 'upd:10', 'после «насовсем» очередь выпуска идёт дальше');
     const pv = await run('Повторы: список', { nodes: {}, input: [{ run: [{ key: 'a', body: {} }], final: [{ key: 'b', chatId: 7, body: { source: 'tg', body: { message: { text: 'x' } } }, error: 'timeout' }] }] });
-    assert.equal(pv.length, 2); assert.ok(pv[0].resume); assert.ok(pv[1].text.includes('за час'));
+    assert.equal(pv.length, 2); assert.ok(pv[0].resume); assert.ok(pv[1].text.includes('за 15 минут'));
   }
   {
     // бриф обогнал запуск этапа — художник не просит задание ещё раз
