@@ -78,7 +78,23 @@
     return out;
   }
 
+  // Открыто кнопкой меню бота — выпуск ещё не выбран: сначала список выпусков, которые можно оживить
+  function chooseEpisode() {
+    $('hint').textContent = 'Какой выпуск оживляем?';
+    fetch(location.pathname + '?episodes=1').then(function (r) { return r.json(); }).then(function (d) {
+      var box = $('panel'); box.innerHTML = '';
+      var list = d.episodes || [];
+      if (!list.length) { box.textContent = 'Нет выпусков с согласованной картинкой, которые ещё не вышли.'; return; }
+      list.forEach(function (e) {
+        var b = document.createElement('button'); b.className = 'btn'; b.style.cssText = 'display:block;width:100%;text-align:left;margin:6px 0;white-space:normal';
+        b.textContent = e.title + (e.status ? ' · ' + e.status : '');
+        b.onclick = function () { PROJECT = e.p; CHANNEL = e.ch; IMG = e.img; box.innerHTML = ''; load(); };
+        box.appendChild(b);
+      });
+    }).catch(function (e) { say('Не загрузился список выпусков: ' + e, 6000); });
+  }
   function load() {
+    if (!PROJECT) return chooseEpisode();
     var url = location.pathname + '?catalog=1&ch=' + encodeURIComponent(CHANNEL);
     fetch(url).then(function (r) { return r.json(); }).then(function (d) {
       (d.words || []).forEach(function (w) { if (!WORDS[w.means]) WORDS[w.means] = w.word; });

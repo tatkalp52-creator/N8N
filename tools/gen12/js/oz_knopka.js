@@ -14,4 +14,7 @@ if (!base) {
   text = ctx.labelLine + 'Разметка оживления — откройте и отметьте, что оживить. Готовые строки придут в пункт оживления выпуска.';
   markup = { inline_keyboard: [[{ text: '✨ Оживление', web_app: { url: base + '/webhook/' + OZH_HOOK + '?' + q.toString() } }]] };
 }
-return [{ json: { body: { chat_id: ctx.chatId, text, parse_mode: 'HTML', ...(markup ? { reply_markup: markup } : {}) } } }];
+// и постоянная кнопка меню бота (у поля ввода): открывает приложение со списком выпусков
+const menu = base ? { chat_id: ctx.chatId, menu_button: { type: 'web_app', text: '✨ Оживление',
+  web_app: { url: base + '/webhook/' + OZH_HOOK + '?' + new URLSearchParams({ f: 'ozhivlenie.html', submit: base + '/webhook/' + CAL_HOOK }).toString() } } } : null;
+return [{ json: { body: { chat_id: ctx.chatId, text, parse_mode: 'HTML', ...(markup ? { reply_markup: markup } : {}) }, menu } }];

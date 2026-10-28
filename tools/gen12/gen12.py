@@ -339,11 +339,25 @@ code('Оживление: кнопка', 'oz_knopka.js', [X + 3140, Y + 1700], l
 nodes[-1]['parameters']['jsCode'] = "const CAL_HOOK = " + json.dumps(CAL_HOOK) + ";\nconst OZH_HOOK = " + json.dumps(OZH_HOOK) + ";\n" + nodes[-1]['parameters']['jsCode']
 tg_api('Оживление: шлём кнопку', 'sendMessage', '={{ JSON.stringify($json.body) }}', [X + 3360, Y + 1700])
 link('Куда дальше?', 'Оживление: кнопка', 8)
-chain('Оживление: кнопка', 'Оживление: шлём кнопку')
+tg_api('Оживление: кнопка меню', 'setChatMenuButton', "={{ JSON.stringify($('Оживление: кнопка').first().json.menu) }}", [X + 3580, Y + 1700])
+chain('Оживление: кнопка', 'Оживление: шлём кнопку', 'Оживление: кнопка меню')
 # страница и каталог приложения — без очереди (только чтение)
 OY = Y + 2100
 add({'parameters': {'httpMethod': 'GET', 'path': OZH_HOOK, 'responseMode': 'responseNode', 'options': {}},
      'name': 'Оживление: вход', 'type': 'n8n-nodes-base.webhook', 'typeVersion': 2, 'position': [X, OY], 'webhookId': uid()})
+if_node('Оживление: выпуски?', "!!($json.query || {}).episodes", [X + 110, OY - 360])
+sheets_read('Оживление: каналы', 'Catalog', [], [X + 330, OY - 480])
+nodes[-1]['parameters'].pop('filtersUI')
+nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
+nodes[-1]['retryOnFail'] = True; nodes[-1]['maxTries'] = 3; nodes[-1]['waitBetweenTries'] = 3000
+sheets_read('Оживление: выпуски каналов', '={{ $json.SheetName }}', [], [X + 550, OY - 480])
+nodes[-1]['parameters'].pop('filtersUI')
+nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
+nodes[-1]['retryOnFail'] = True; nodes[-1]['maxTries'] = 3; nodes[-1]['waitBetweenTries'] = 3000
+code('Оживление: список выпусков', 'oz_epizody.js', [X + 770, OY - 480], lib=True)
+nodes[-1]['executeOnce'] = True
+add({'parameters': {'respondWith': 'json', 'responseBody': '={{ JSON.stringify($json) }}', 'options': {}},
+     'name': 'Оживление: отдаём выпуски', 'type': 'n8n-nodes-base.respondToWebhook', 'typeVersion': 1.1, 'position': [X + 990, OY - 480]})
 if_node('Оживление: каталог?', "!!($json.query || {}).catalog", [X + 220, OY])
 sheets_read('Оживление: читаем эффекты', 'Эффекты', [], [X + 440, OY - 120])
 nodes[-1]['parameters'].pop('filtersUI')
@@ -360,7 +374,10 @@ add({'parameters': {'method': 'GET', 'url': "=" + ASM + "/pages/{{ $json.f }}",
      'retryOnFail': True, 'maxTries': 3, 'waitBetweenTries': 3000})
 add({'parameters': {'respondWith': 'binary', 'options': {}},
      'name': 'Оживление: отдаём файл', 'type': 'n8n-nodes-base.respondToWebhook', 'typeVersion': 1.1, 'position': [X + 880, OY + 120]})
-link('Оживление: вход', 'Оживление: каталог?')
+link('Оживление: вход', 'Оживление: выпуски?')
+link('Оживление: выпуски?', 'Оживление: каналы', 0)
+link('Оживление: выпуски?', 'Оживление: каталог?', 1)
+chain('Оживление: каналы', 'Оживление: выпуски каналов', 'Оживление: список выпусков', 'Оживление: отдаём выпуски')
 link('Оживление: каталог?', 'Оживление: читаем эффекты', 0)
 link('Оживление: каталог?', 'Оживление: какой файл', 1)
 chain('Оживление: читаем эффекты', 'Оживление: каталог', 'Оживление: отдаём каталог')

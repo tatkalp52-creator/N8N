@@ -890,6 +890,14 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.ok(url.startsWith('https://n8n.example/webhook/ozh12-') && url.includes('f=ozhivlenie.html') && url.includes('p=P1'), url);
     assert.ok(decodeURIComponent(url).includes('img=https://lh3.googleusercontent.com/d/IMG1=s2000'), 'картинка — прямой ссылкой');
     assert.ok(decodeURIComponent(url).includes('submit=https://n8n.example/webhook/cal12-'), 'строки — во вход календаря');
+    const menu = (await run('Оживление: кнопка', { nodes: { 'Контекст проекта': ctxA } }))[0].menu;
+    assert.equal(menu.menu_button.type, 'web_app'); assert.ok(!menu.menu_button.web_app.url.includes('p='), 'кнопка меню — без выпуска: список');
+    // список выпусков для кнопки меню: картинка согласована, не опубликован
+    const ep = (await run('Оживление: список выпусков', { input: [
+      { sys_ProjectID: '20261004_120000_demo', ai_ApprovedImageUrl: 'https://drive.google.com/file/d/A/view', sys_Status: 'Картинка согласована', ai_Title: 'Grieg' },
+      { sys_ProjectID: '20261001_120000_demo', ai_ApprovedImageUrl: 'U', sys_Status: 'Опубликовано' },
+      { sys_ProjectID: '20261005_120000_demo', ai_ApprovedImageUrl: '' }] }))[0].episodes;
+    assert.equal(ep.length, 1); assert.equal(ep[0].ch, 'demo'); assert.ok(ep[0].img.includes('lh3'));
     const noImg = await context(DIRECT, { sys_Status: 'Картинка в работе' }, { kind: 'fxApp' });
     assert.ok(!(await run('Оживление: кнопка', { nodes: { 'Контекст проекта': noImg } }))[0].body.reply_markup, 'без картинки — без кнопки');
     // каталог — из листа «Эффекты»
