@@ -1525,7 +1525,7 @@ def parse_effects(text):
             low = low[:rm.start()] + low[rm.end():]
         # (28.10) «овал A × B; наклон T» — кружок, растянутый и повёрнутый на страничке разметки
         oval, tilt = None, 0.0
-        om = re.search(r"oval\w*\s*(\d+(?:[.,]\d+)?)\s*[x×х*]?\s*(\d+(?:[.,]\d+)?)", low)
+        om = re.search(r"oval\w*\s*(\d+(?:[.,]\d+)?)\s*[x×*]?\s*(\d+(?:[.,]\d+)?)", low)
         if om:
             oval = (float(om.group(1).replace(",", ".")), float(om.group(2).replace(",", ".")))
             low = low[:om.start()] + low[om.end():]
@@ -2126,7 +2126,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             c_wd = kn(kind, nums, "width")         # (28.10) ширина: на сколько струйки расходятся друг от друга
             ov = getattr(nums, "oval", None)
             if ov:   # (28.10) овал поверхности напитка: струйки — со всей его ширины (с наклоном)
-                th_ = math.radians(getattr(nums, "tilt", 0.0) or 0.0)
+                th_ = math.radians(getattr(nums, "tilt", 0.0))
                 c_wd *= math.hypot(ov[0] * math.cos(th_), ov[1] * math.sin(th_)) / 10.5
             hx = max(0.0, c_cu - 1.0) * 0.8          # вторая, более частая волна — завиток на изгибе
             # (10.10) по времени — ровно 2 оборота за проход: с 1.7 петля не замыкалась, пар дёргался на стыке
