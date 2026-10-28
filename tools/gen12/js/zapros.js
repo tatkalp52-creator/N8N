@@ -7,6 +7,7 @@ const stages = ctx.stages || [];
 const items = ctx.items || [];
 const stage = stages.find(s => bareIcon(s.icon) === bareIcon(plan.stageIcon));
 if (!stage) throw new Error('Этап ' + plan.stageIcon + ' не найден в листе «Этапы»');
+if (!stage.model) throw new Error('Таблица: у этапа ' + stage.name + ' не указана модель (лист «Этапы»)');
 const state = stParseState(row.sys_EditorState);
 stApplyApproval(state, plan.approveNums);   // карточка уже показывает согласование автора
 const sc = stScope(stages, stage);
@@ -81,13 +82,13 @@ if (myItems.length) {
 if (kb.notesKey && !plan.silent) {
   tools.push({
     type: 'function', name: 'save_note',
-    description: 'Дописать в твою памятку (колонка таблицы, её видишь ты в следующих выпусках). Прежние записи система сохраняет сама.',
+    description: 'Дописать в твою памятку (колонка таблицы). Прежние записи система сохраняет сама.',
     parameters: { type: 'object', properties: {
-      notes: { type: 'string', description: 'Только НОВОЕ, что стоит помнить: коротко, по делу' },
+      notes: { type: 'string', description: 'Что дописать' },
       message: { type: 'string', description: 'Реплика автору' },
     }, required: ['notes', 'message'] },
   });
-  toolLines.push('- save_note — дописать в памятку то, что стоит помнить в следующих выпусках (замечания автора, её вкус). Пиши только новое: прежние записи остаются сами.');
+  toolLines.push('- save_note — дописать в памятку. Когда это делать — только по твоим правилам из таблицы.');
 }
 if (subs.length && !plan.silent) {
   tools.push({
@@ -129,7 +130,7 @@ ${toolLines.join('\n')}
 ТВОИ ЗНАНИЯ ИЗ ТАБЛИЦЫ КАНАЛА:
 ${kb.text || '(пусто — в Templates нет колонок с твоим значком)'}
 ${/эффект/i.test(stage.ref || '') && (ctx.effects || []).length ? `
-КАТАЛОГ ЭФФЕКТОВ (лист «Эффекты» таблицы). Предлагай только эффекты со статусом «готов» (или «в работе», предупредив автора), которые используются на этом канале. Ручки — шкала 1–10: 5 — как обычно на канале, 1 — вдвое слабее, 10 — вдвое сильнее. Обычные значения канала сборщик возьмёт сам; в строку выпуска дописывай ручку, только если автор попросила иначе для этого выпуска: «пар: область …; густота 7».
+КАТАЛОГ ЭФФЕКТОВ (лист «Эффекты» таблицы):
 ${fxCatalogText(ctx.effects)}
 ` : ''}
 КАРТОЧКА ВЫПУСКА (актуальна на этот ход; если расходится с тем, что ты помнишь, — верь карточке):
@@ -148,7 +149,7 @@ const forceItems = !plan.isStart && !(plan.approveNums || []).length && myItems.
 const text = plan.isStart
   ? `[Служебное сообщение] ${plan.event || 'Предыдущий этап завершён.'} Сейчас твой этап — начни по своим правилам.`
   : (plan.userText || '(пустое сообщение)') + ((plan.approveNums || []).length
-    ? `\n\n[Система: пункты ${plan.approveNums.join(', ')} уже отмечены согласованными. Если все твои пункты согласованы, этап завершён и выпуск идёт дальше — просто коротко попрощайся или сохрани памятку.]`
+    ? `\n\n[Система: пункты ${plan.approveNums.join(', ')} уже отмечены согласованными. Если все твои пункты согласованы, этап завершён и выпуск идёт дальше.]`
     : forceItems && !plan.silent
       ? '\n\n[Система: отвечай через propose_items — предложи сразу все свои пункты, которые ещё не согласованы, готовым текстом; реплика автору — в message. Автор видит пункты с переводом.]'
       : '');
@@ -171,7 +172,7 @@ const input = history.map(h => h.r === 'a'
 input.push({ role: 'user', content: content.length > 1 ? content : text });
 
 const requestBody = {
-  model: stage.model || 'gpt-5',
+  model: stage.model,
   instructions,
   input,
   tools,

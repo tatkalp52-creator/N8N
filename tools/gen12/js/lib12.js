@@ -252,9 +252,11 @@ function stAddressed(stages, text) {
 // Ответ (reply) на сообщение этапа — это адрес: каждое сообщение этапа начинается со значка и имени
 // («✍️ Писатель: …»); картинка этапа-художника подписана «Вариант N».
 function stByReply(stages, replyText, replyVariant) {
-  const t = bareIcon(String(replyText || '').trim());
-  if (t) {
-    const sorted = [...stages].sort((a, b) => bareIcon(b.icon).length - bareIcon(a.icon).length);
+  // (28.10) первая строка сообщения — название выпуска: значок этапа ищем в начале любой строки, сверху вниз
+  const sorted = [...stages].sort((a, b) => bareIcon(b.icon).length - bareIcon(a.icon).length);
+  for (const line of String(replyText || '').split('\n')) {
+    const t = bareIcon(line.trim());
+    if (!t) continue;
     for (const s of sorted) { const ic = bareIcon(s.icon); if (ic && t.startsWith(ic)) return s; }
   }
   if (replyVariant) return stages.find(s => s.picture) || null;
@@ -566,8 +568,8 @@ function artBuild(ctx, stage, task, edit, variantNumber) {
     messageToUser: '',
     dallePrompt: '', revisionInstruction: '', revisionIsNewVariant: true,
     revisionTargetImageUrl: String(row.ai_ImageUrl || ''), revisionTargetVariantNumber: last ? last.n : 1,
-    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim() || 'gpt-image-2',
-    imageQuality: (q => ['low', 'medium', 'high', 'auto'].includes(q) ? q : 'high')(String(findByLabel(tmpl, 'tmpl_ImageQuality') || '').trim().toLowerCase()),
+    imageModel: stage.model || String(findByLabel(tmpl, 'tmpl_ImageModel') || '').trim(),
+    imageQuality: (q => ['low', 'medium', 'high', 'auto'].includes(q) ? q : '')(String(findByLabel(tmpl, 'tmpl_ImageQuality') || '').trim().toLowerCase()),
     ...refs,
   };
   if (edit) {
@@ -581,6 +583,11 @@ function artBuild(ctx, stage, task, edit, variantNumber) {
     r.dallePrompt = [kb.text, task].filter(Boolean).join('\n\n');
   }
   if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }
+  // (28.10) модель и качество — только из таблицы, своих запасных в коде нет
+  if (r.action !== 'chat' && (!r.imageModel || !r.imageQuality)) {
+    r.action = 'chat';
+    r.messageToUser = '📋 Не рисую: в Templates не заполнены ' + [!r.imageModel && 'tmpl_ImageModel', !r.imageQuality && 'tmpl_ImageQuality (low / medium / high / auto)'].filter(Boolean).join(' и ') + '.';
+  }
   return r;
 }
 
@@ -613,6 +620,7 @@ function inboxEnvelope(source, body) {
 
 // Сбой простыми словами. fatal — повтор не поможет (деньги, ключ, вход, место, неверный запрос): сказать сразу.
 const FAIL_RULES = [
+  [/Таблица: /, true, '📋 В таблице не хватает настройки.', 'Заполнить то, что названо в тексте ошибки.'],
   [/insufficient_quota|exceeded your current quota|billing/i, true, '💳 OpenAI: закончились деньги или лимит.', 'platform.openai.com → Billing: пополнить баланс.'],
   [/invalid_api_key|Incorrect API key/i, true, '🔑 OpenAI не принял ключ.', 'n8n → Credentials → OpenAI: проверить ключ.'],
   [/invalid_grant|token has been expired|expired or revoked|reconnect/i, true, '🔑 Истёк вход в Google или YouTube.', 'n8n → Credentials → Google / YouTube → Reconnect.'],

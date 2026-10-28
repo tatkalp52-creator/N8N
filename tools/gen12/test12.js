@@ -6,6 +6,8 @@ const { run } = require('./harness12');
 const TMPL = {
   tmpl_Channel: 'demo',
   tmpl_ImageModel: 'gpt-image-2',
+  tmpl_ImageQuality: 'high',
+  tmpl_LightModel: 'gpt-5-mini',
   '🎨_tmpl_ReferenceImages': 'https://drive.google.com/file/d/STYLE/view\n\nhttps://drive.google.com/file/d/SHEET/view\nлист героя',
   '🎨_tmpl_ArtistRules': 'Рисованная иллюстрация.',
   '🎨📍_tmpl_LocationImages': 'KITCHEN: кухн, kitchen\nУютная кухня с окном.\nhttps://drive.google.com/file/d/K1/view\nкухня как есть\n\nSUBWAY: метро\nhttps://drive.google.com/file/d/S1/view',
@@ -25,7 +27,7 @@ const ITEMS = [
   { 'Канал': 'demo', '№': '3', 'Пункт': 'Описание', 'Колонки': 'ai_DescriptionDraft, ai_DescriptionEN, ai_Description', 'Подсказка': 'история' },
   { 'Канал': 'demo', '№': '4', 'Пункт': 'Подвал', 'Колонки': 'ai_Description', 'Подсказка': 'с [Timecodes]' },
 ];
-const st = (icon, who, talks, approve, does) => ({ 'Канал': 'demo', 'Значок': icon, 'Кто': who, 'С кем говорит': talks, 'Согласование': approve, 'Делает': does });
+const st = (icon, who, talks, approve, does) => ({ 'Канал': 'demo', 'Значок': icon, 'Кто': who, 'С кем говорит': talks, 'Согласование': approve, 'Делает': does, 'Модель': /картин/.test(does) ? '' : 'gpt-5' });
 const DIRECT = [st('🎨', 'Художник', 'автор', 'да', 'картинка'), st('✍️', 'Писатель', 'автор', 'да', '3'), st('🏷️', 'Технический писатель', 'автор', 'да', '1, 2, 4')];
 const WINDOW = [st('🖋', 'Редактор', 'автор', 'да', '1, 2, 4'), st('🎨', 'Художник', 'Редактор', 'авто', 'картинка'), st('✍️', 'Писатель', 'Редактор', 'авто', '3')];
 const FACTORY = [st('🎨', 'Художник', '', 'авто', 'картинка'), st('✍️', 'Писатель', '', 'авто', '3'), st('🏷️', 'Технический писатель', '', 'авто', '1, 2, 4')];
@@ -201,7 +203,7 @@ async function turn(stages, row, inc, response, subResponse) {
     const ctxW = { ...tn.ctx, tmpl: { ...tn.ctx.tmpl, '✍️📝_tmpl_WriterNotes': '15.10 · P0 — paws, не hands' } };
     const nw = { ...tn.nodes, 'Контекст проекта': ctxW };
     const rw = (await run('Разбираем ответ этапа', { nodes: nw, input: [call('save_note', { notes: 'без крошечных стаканчиков', message: 'Запомнил.' })] }))[0];
-    assert.ok(rw.note.text.startsWith('15.10 · P0 — paws, не hands\n') && rw.note.text.endsWith('— без крошечных стаканчиков'), 'старое + новое');
+    assert.ok(rw.note.text.startsWith('15.10 · P0 — paws, не hands\n') && rw.note.text.endsWith('\nбез крошечных стаканчиков'), 'старое + новое, ровно её словами, без даты');
     const rw2 = (await run('Разбираем ответ этапа', { nodes: nw, input: [call('save_note', { notes: 'paws, не hands', message: 'Ок.' })] }))[0];
     assert.equal(rw2.note.text, '15.10 · P0 — paws, не hands', 'повтор не дописывается');
   }
@@ -842,7 +844,8 @@ async function turn(stages, row, inc, response, subResponse) {
     const ST4 = { ...AP, sys_EditorState: JSON.stringify({ v: 2, items: { 4: { text: 'Bat Air Traffic' } }, agreed: {} }) };
     t = await turn(TWO, ST4, { kind: 'message', text: 'Пункт 4, добавь: x' });
     const pv = t.nodes['Перевод для автора: что'];
-    assert.ok(pv.need && /Title Case/.test(pv.requestBody.instructions), 'переводчику: названия переводить');
+    assert.ok(pv.need && pv.requestBody.instructions.includes('Пингви in English is always Pengui'), 'переводчику — правила 🌐 из таблицы');
+    assert.ok(!/music pieces|characters/.test(pv.requestBody.instructions), 'своих правил про имена и названия в коде нет (28.10: спорили с таблицей)');
   }
   console.log('25 «предложи ещё» и перевод таймкодов OK');
 
@@ -877,5 +880,14 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('26 одновременные запуски: чистка; приёмная; повторы OK');
 
+  // 27. (28.10) ответ на сообщение этапа: первая строка — название выпуска, значок этапа — ниже
+  {
+    const lib = new Function(require('fs').readFileSync(require('path').join(__dirname, 'js', 'lib12.js'), 'utf8') + '\nreturn { stByReply };')();
+    const SS = [{ icon: '🎨', name: 'Художник', picture: true }, { icon: '✍️', name: 'Писатель' }];
+    assert.equal((lib.stByReply(SS, 'Сен-Санс · Пляска смерти\n✍️ Писатель: вот зёрна', null) || {}).name, 'Писатель');
+    assert.equal((lib.stByReply(SS, '✍️ Писатель: текст', null) || {}).name, 'Писатель');
+    assert.equal(lib.stByReply(SS, 'просто текст', null), null);
+  }
+  console.log('27 ответ на сообщение этапа под названием выпуска OK');
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

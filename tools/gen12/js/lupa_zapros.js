@@ -11,7 +11,7 @@ for (const p of points) {
   content.push({ type: 'input_image', image_url: p.dataUrl });
 }
 const requestBody = {
-  model: stage.model || 'gpt-5',
+  model: stage.model,
   instructions: 'Ты уточняешь точки оживления по увеличенным кусочкам картинки. На каждом кусочке — сетка через 1 % ' +
     'с подписями в процентах ВСЕГО кадра: синие числа сверху — слева направо, красные слева — сверху вниз. ' +
     'Голубой кружок — где точка стоит сейчас. Найди на кусочке то, на что точка должна указывать (написано рядом с ней), ' +
@@ -22,6 +22,7 @@ const requestBody = {
     parameters: { type: 'object', properties: { points: { type: 'array', items: { type: 'object', properties: {
       id: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' } }, required: ['id', 'x', 'y'] } } }, required: ['points'] } }],
   tool_choice: { type: 'function', name: 'refine_points' },
-  reasoning: { effort: 'medium' },
 };
+// усилие — то же, что у этапа в листе «Этапы» (не своё число в коде)
+if (['low', 'medium', 'high'].includes(stage.effort)) requestBody.reasoning = { effort: stage.effort };
 return [{ json: { requestBody } }];

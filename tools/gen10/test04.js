@@ -9,7 +9,7 @@ async function run(name, nodes, input){
 (async()=>{
   const tracks=[0,1,2].map(i=>({index:i,filename:'Track '+i,startSeconds:i*200}));
   const info={tracks,totalDurationSeconds:600};
-  const tmpl={'🖋_tmpl_PackagingRules':'[TIMECODES] rules here','🖋🎨_tmpl_CharacterPassport':'Pengui'};
+  const tmpl={'🖋_tmpl_PackagingRules':'[TIMECODES] rules here','🖋🎨_tmpl_CharacterPassport':'Pengui','tmpl_LightModel':'gpt-5-mini'};
   // 1) названий больше, чем треков
   let proj={ai_TimecodeNames:'A One\nB Two\nC Three\nD Four',sys_LoopCount:''};
   let b=(await run('Готовим запрос на названия треков',{'Читаем проект':proj,'Считаем длительности треков':info},tmpl))[0];
@@ -39,7 +39,7 @@ async function run(name, nodes, input){
   const data={title:"Pengui's Jazz · Park | Quiet Bench",description:'Story\n\n0:00 A\n\n#pengui',tags:'jazz, cozy, jazz',chatId:7};
   let pr=await run('Готовим переводы',{'Читаем стиль оверлея':{'tmpl_Languages':''},'Готовим данные для сборки':data});
   assert.equal(pr.length,0,'нет языков — ветка молчит');
-  pr=(await run('Готовим переводы',{'Читаем стиль оверлея':{'tmpl_Languages':'es, DE; fr en','🌐_tmpl_TranslationRules':"Keep Pengui's Jazz",'🎬tmpl_X':'no'},'Готовим данные для сборки':data}))[0];
+  pr=(await run('Готовим переводы',{'Читаем стиль оверлея':{'tmpl_Languages':'es, DE; fr en','tmpl_LightModel':'gpt-5-mini','🌐_tmpl_TranslationRules':"Keep Pengui's Jazz",'🎬tmpl_X':'no'},'Готовим данные для сборки':data}))[0];
   assert.deepEqual(pr.langs,['es','de','fr']); assert.ok(pr.systemPrompt.includes("Keep Pengui's Jazz")); assert.ok(!pr.systemPrompt.includes('no\n'));
   const ans={choices:[{message:{content:JSON.stringify({es:{title:'T es <x>',description:'D es'},de:{title:'T de',description:'D de'},fr:{title:''}})}}]};
   const bl=(await run('Собираем локализации',{'Готовим данные для сборки':data,'Загружаем на YouTube':{uploadId:'vid1'},'Готовим переводы':pr},ans))[0];
@@ -56,7 +56,7 @@ async function run(name, nodes, input){
   // 5b) (22.10) пересборка: тот же текст — переводы из строки выпуска, OpenAI не зовём; новые тайм-коды подставляются
   {
     assert.equal(pr.cached,false); assert.equal(pr.model,'gpt-5-mini');
-    const T={'tmpl_Languages':'es, DE; fr en','🌐_tmpl_TranslationRules':"Keep Pengui's Jazz"};
+    const T={'tmpl_Languages':'es, DE; fr en','tmpl_LightModel':'gpt-5-mini','🌐_tmpl_TranslationRules':"Keep Pengui's Jazz"};
     const cacheRow={sys_Translations: bl.cacheJson.replace('D es','D es 0:00 A').replace('D de','D de 0:00 A')};
     const data2={...data,description:'Story\n\n0:05 A\n\n#pengui'};
     const p2=(await run('Готовим переводы',{'Читаем стиль оверлея':T,'Готовим данные для сборки':data2,'Читаем проект':cacheRow}))[0];

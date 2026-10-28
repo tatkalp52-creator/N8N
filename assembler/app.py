@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-28-order"
+ASSEMBLER_VERSION = "2026-10-28-bright"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -3895,8 +3895,10 @@ def assemble():
 
         # (28.10) правило: нет колонки в таблице — нет этой обработки звука (никаких запасных чисел)
         target_lufs = _float_or(data.get("targetLUFS"), None)
-        target_brightness = float(data.get("targetBrightness", 64))
-        check_brightness(image_path, target_brightness)
+        # (28.10) яркость тоже: нет колонки TargetBrightness — картинку не осветляем
+        target_brightness = _float_or(data.get("targetBrightness"), None)
+        if target_brightness is not None:
+            check_brightness(image_path, target_brightness)
         try:
             grade_image(image_path, data)
         except Exception as grade_error:  # фильтр — украшение, сборку не роняем

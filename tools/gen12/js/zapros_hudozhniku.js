@@ -20,6 +20,6 @@ const prompt = !edit ? (it.drawRoles || '') + (j.dallePrompt || '')
   : (j.hasMask
     ? 'Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n'
     : 'Edit the first image. The other images are references only.\n\n') + (it.editRoles || '') + (j.revisionInstruction || '');
-const body = { model: it.imageModel, prompt, size: '1536x864', quality: it.imageQuality || 'high', images };
+const body = { model: it.imageModel, prompt, size: '1536x864', quality: it.imageQuality, images };
 if (edit && j.hasMask && bin.mask) body.mask = { image_url: await toUrl('mask') };
 return [{ json: { body, edit } }];

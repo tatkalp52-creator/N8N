@@ -6,6 +6,7 @@ const row = ctx.row || {};
 const stages = ctx.stages || [];
 const items = ctx.items || [];
 const sub = stages.find(s => bareIcon(s.icon) === bareIcon(r.delegate.stageIcon));
+if (!sub.model) throw new Error('Таблица: у этапа ' + sub.name + ' не указана модель (лист «Этапы»)');
 const state = stParseState(r.editorState);
 const kb = kbForStage(ctx.tmpl, sub.icon, r.delegate.task + ' ' + String(row.ai_UserBrief || ''));
 const myItems = items.filter(it => sub.items.includes(it.n));
@@ -35,7 +36,7 @@ const tools = [{
   }, required: ['items'] },
 }];
 const requestBody = {
-  model: sub.model || 'gpt-5', instructions, input: [{ role: 'user', content }], tools,
+  model: sub.model, instructions, input: [{ role: 'user', content }], tools,
   tool_choice: { type: 'function', name: 'propose_items' },
 };
 if (['low', 'medium', 'high'].includes(sub.effort)) requestBody.reasoning = { effort: sub.effort };
