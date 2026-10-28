@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-25-join"
+ASSEMBLER_VERSION = "2026-10-28-eq"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -588,13 +588,16 @@ def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration
 # будто через подушку — не как осознанный лоуфай-эффект, а именно как
 # потеря яркости. 19кГц — уже на самом краю слышимого диапазона у
 # взрослого человека, куда генерация обычно и мусорит сильнее всего.
-def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_duration=1.0, bass_cut_hz=30.0):
+def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_duration=1.0, bass_cut_hz=None):
     content_start, content_end = get_content_bounds(input_path, noise_threshold, min_silence_duration)
+    # (20.10) самый глубокий низ: 🎬 BassCutHz. Выше 30 — срез круче (два фильтра подряд).
+    # (28.10) нет колонки — нет среза: звук трогают только колонки таблицы.
+    cut = []
+    if bass_cut_hz:
+        cut = ["-af", (f"highpass=f={bass_cut_hz:.0f},highpass=f={bass_cut_hz:.0f}" if bass_cut_hz > 30 else "highpass=f=30") + ",lowpass=f=19000"]
     run_ffmpeg([
         "-i", input_path, "-ss", str(content_start), "-to", str(content_end),
-        # (20.10) самый глубокий низ: 🎬 BassCutHz (пусто — 30 Гц, как было). Выше 30 — срез круче
-        # (два фильтра подряд): динамик планшета не дребезжит, а контрабас слышен как был.
-        "-af", (f"highpass=f={bass_cut_hz:.0f},highpass=f={bass_cut_hz:.0f}" if bass_cut_hz > 30 else "highpass=f=30") + ",lowpass=f=19000",
+        *cut,
         out_path
     ])
     probe = subprocess.run(
@@ -628,7 +631,7 @@ def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_d
 # это пауза, которую автор расставляет намеренно при склейке, обычно
 # заметно длиннее любой паузы внутри одной фразы; 6 секунд отделяет одно
 # от другого с запасом, не трогая исходный сценарий.
-def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_duration=6.0, split_dir_name="split_tracks", min_segment_seconds=119):
+def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_duration=6.0, split_dir_name="split_tracks", min_segment_seconds=119, keep_first_seconds=None):
     detect = subprocess.run(
         [FFMPEG_BIN, "-i", input_path, "-af",
          f"silencedetect=noise={noise_threshold}:d={min_silence_duration}",
@@ -678,8 +681,11 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
         # НОВОЕ (14.10): порог — только для кусков, на которые РАЗРЕЗАЛСЯ файл-склейка.
         # Отдельный файл без внутренних пауз (короткая тема-вступление 39 с) — настоящий
         # трек, автор положила его сама: не выбрасываем, какой бы короткий он ни был.
+        # (28.10) первый кусок одной дорожки из Studio — тема (кларнет 40 с): оставляем, если он
+        # не короче keep_first_seconds; совсем короткий обрывок по-прежнему мусор.
         if end - start < min_segment_seconds and len(boundaries) > 2:
-            continue
+            if not (i == 0 and keep_first_seconds and end - start >= keep_first_seconds):
+                continue
         out_path = os.path.join(split_dir, f"{i}_track.wav")
         # НОВОЕ: было "-c copy" — стрим-копия режет только по границе кадра
         # кодека, а не по точной секунде; для сжатых форматов (mp3 и т.п.)
@@ -895,7 +901,8 @@ def track_loudness_entry(n, raw_path, source_path, faded_path, duration, target_
 
 def format_loudness_report(entries, target_lufs):
     f = lambda v: "—" if v is None else f"{v:g}"
-    lines = [f"Громкость по трекам (цель {target_lufs} LUFS)",
+    lines = [f"Громкость по трекам (цель {target_lufs} LUFS)" if target_lufs is not None
+             else "Громкость по трекам (выравнивания нет: поправка — сколько было бы до −16)",
              "№ | длит, с | было LUFS | разброс LRA | пик | поправка дБ | начало | конец | файл"]
     for e in entries:
         lines.append(" | ".join([str(e["n"]), f(e["duration"]), f(e["sourceLufs"]), f(e["lra"]), f(e["peak"]),
@@ -963,6 +970,19 @@ def add_bass_harmonics(src, dst, strength):
     return dst
 
 
+# (28.10) Эквалайзер из таблицы: 🎬 Eq1Hz / Eq1Db / Eq1Q … Eq6 — полоса = частота, на сколько дБ, ширина (Q).
+# Полоса без частоты или без дБ пропускается; все пустые — эквалайзера нет.
+def eq_chain(data):
+    parts = []
+    for n in range(1, 7):
+        hz = _float_or(data.get(f"eq{n}Hz"), None)
+        db = _float_or(data.get(f"eq{n}Db"), None)
+        q = _float_or(data.get(f"eq{n}Q"), None) or 0.71
+        if hz and db:
+            parts.append(f"equalizer=f={hz:g}:t=q:w={q:g}:g={db:g}")
+    return ",".join(parts)
+
+
 def build_audio_track(
     audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
     gap_seconds=0, loop_count=None, mix_seconds=None,
@@ -970,7 +990,7 @@ def build_audio_track(
     limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
     denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
     bass_db=0.0, bass_hz=160.0, bass_cut_hz=30.0, sound_bands=None, band_report=None,
-    intro_first=False, intro_max_seconds=90.0, bass_harmonics=0.0,
+    intro_first=False, intro_max_seconds=90.0, bass_harmonics=0.0, eq="",
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
@@ -986,7 +1006,7 @@ def build_audio_track(
     split_list = []
     first_parts = 0
     for i, raw_path in enumerate(tracks_raw):
-        parts = split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}")
+        parts = split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}", keep_first_seconds=20 if i == 0 else None)
         if i == 0:
             first_parts = len(parts)
         is_intro = bool(INTRO_RE.match(os.path.basename(raw_path)))
@@ -998,7 +1018,8 @@ def build_audio_track(
         intro_flags[0] = True
     # (20.10) сама: первый файл — один короткий кусок (тема обычно ~40 с), а треков больше одного —
     # это тема, она звучит один раз. fx_IntroOnce «нет» — выключить; 🎬 IntroMaxSeconds — порог (90 с).
-    if intro_first is None and intro_flags and not any(intro_flags) and first_parts == 1 and len(split_list) > 1:
+    # (28.10) и одна дорожка из Studio: её первый кусок короче порога — тоже тема.
+    if intro_first is None and intro_flags and not any(intro_flags) and len(split_list) > 1:
         try:
             d0 = media_duration(split_list[0])
         except Exception:
@@ -1077,8 +1098,8 @@ def build_audio_track(
         # лимитер мог чуть убавить — второй замер добивает точно в цель.
         # Фейды — последними, по уже готовому уровню.
         track_limiter = (
-            f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack={limiter_attack_ms}:"
-            f"release={limiter_release_ms}:level=disabled"
+            f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack={limiter_attack_ms or 5}:"
+            f"release={limiter_release_ms or 50}:level=disabled"
         )
         source_path = trimmed_path
         if denoise_amount:
@@ -1114,11 +1135,18 @@ def build_audio_track(
                 eq_parts.append(f"treble=g={hiss_db:.2f}:f={hiss_hz:.0f}:t=s:w=0.3")
             run_ffmpeg(["-i", source_path, "-af", ",".join(eq_parts), eq_path])
             source_path = eq_path
-        leveled_path = os.path.join(faded_dir, f"leveled_{i}.wav")
-        run_ffmpeg(["-i", source_path, "-af", f"{gain_to_target(source_path, target_lufs)},{track_limiter}", leveled_path])
-        af_parts = [
-            gain_to_target(leveled_path, target_lufs),
-            track_limiter,
+        if eq:
+            eq_path = os.path.join(faded_dir, f"eq_{i}.wav")
+            run_ffmpeg(["-i", source_path, "-af", eq, eq_path])
+            source_path = eq_path
+        # (28.10) громкость трека в цель + лимитер — только если есть колонка 🎬 TargetLUFS
+        af_parts = []
+        leveled_path = source_path
+        if target_lufs is not None:
+            leveled_path = os.path.join(faded_dir, f"leveled_{i}.wav")
+            run_ffmpeg(["-i", source_path, "-af", f"{gain_to_target(source_path, target_lufs)},{track_limiter}", leveled_path])
+            af_parts = [gain_to_target(leveled_path, target_lufs), track_limiter]
+        af_parts += [
             f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri",
             f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri",
         ]
@@ -1129,7 +1157,7 @@ def build_audio_track(
             try:
                 loudness_report.append(track_loudness_entry(
                     i + 1, tracks_raw[i], source_path, faded_path, duration,
-                    target_lufs, fade_in_seconds, fade_out_seconds))
+                    target_lufs if target_lufs is not None else -16, fade_in_seconds, fade_out_seconds))
             except Exception as report_error:
                 print(f"[громкость] трек {i + 1}: замер не удался: {report_error}")
 
@@ -1239,15 +1267,17 @@ def build_audio_track(
                 bus_in
             ])
         out = os.path.join(work_dir, f"audio_final{tag}.wav")
-        limiter = (
-            f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms}:"
-            f"release={limiter_release_ms}:level=disabled"
-        )
-        run_ffmpeg([
-            "-i", bus_in,
-            "-af", f"{gain_to_target(bus_in, target_lufs)},{limiter}",
-            out
-        ])
+        # (28.10) громкость в цель — только с колонкой 🎬 TargetLUFS, лимитер — только с 🎬 LimiterCeiling
+        af = []
+        if target_lufs is not None:
+            af.append(gain_to_target(bus_in, target_lufs))
+        if limiter_ceiling:
+            af.append(f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms or 5}:"
+                      f"release={limiter_release_ms or 50}:level=disabled")
+        if af:
+            run_ffmpeg(["-i", bus_in, "-af", ",".join(af), out])
+        else:
+            shutil.copy(bus_in, out)
         return out
 
     normalized_out = bus(concat_out, "")
@@ -3840,7 +3870,8 @@ def assemble():
     try:
         image_path = download_file(image_url, os.path.join(work_dir, "image.jpg"))
 
-        target_lufs = int(data.get("targetLUFS", -16))
+        # (28.10) правило: нет колонки в таблице — нет этой обработки звука (никаких запасных чисел)
+        target_lufs = _float_or(data.get("targetLUFS"), None)
         target_brightness = float(data.get("targetBrightness", 64))
         check_brightness(image_path, target_brightness)
         try:
@@ -3855,10 +3886,10 @@ def assemble():
         loop_count_raw = data.get("loopCount")
         loop_count = int(loop_count_raw) if loop_count_raw not in (None, "") else None
         compressor_threshold_db = float(data.get("compressorThresholdDb", -20))
-        compressor_ratio = float(data.get("compressorRatio", 2))
+        compressor_ratio = _float_or(data.get("compressorRatio"), 1.0)
         compressor_attack_sec = float(data.get("compressorAttackSec", 0.02))
         compressor_release_sec = float(data.get("compressorReleaseSec", 0.25))
-        limiter_ceiling = float(data.get("limiterCeiling", 0.89))
+        limiter_ceiling = _float_or(data.get("limiterCeiling"), None)
         limiter_attack_ms = float(data.get("limiterAttackMs", 5))
         limiter_release_ms = float(data.get("limiterReleaseMs", 50))
         denoise_amount = float(data.get("denoiseAmount", 0))
@@ -3888,9 +3919,9 @@ def assemble():
         except (TypeError, ValueError):
             bass_hz = 160.0
         try:
-            bass_cut_hz = min(120.0, max(30.0, float(str(data.get("bassCutHz") or 30).replace(",", "."))))
+            bass_cut_hz = min(120.0, max(30.0, float(str(data.get("bassCutHz")).replace(",", ".")))) if str(data.get("bassCutHz") or "").strip() else None
         except (TypeError, ValueError):
-            bass_cut_hz = 30.0
+            bass_cut_hz = None
         loudness_report = []
         band_report = []
         audio_path, duration = build_audio_track(
@@ -3913,6 +3944,7 @@ def assemble():
             bass_harmonics=_float_or(data.get("bassHarmonics"), 0.0),
             intro_max_seconds=_float_or(data.get("introMaxSeconds"), 90.0),
             sound_bands=parse_sound_bands(data.get("soundBands")), band_report=band_report,
+            eq=eq_chain(data),
         )
         if band_report:
             names = [b[0] for b in SOUND_BANDS]
@@ -3932,7 +3964,8 @@ def assemble():
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
         # просто пишет в лог сервера, если что-то разъехалось с целью.
-        check_loudness(audio_path, target_lufs)
+        if target_lufs is not None:
+            check_loudness(audio_path, target_lufs)
         if loudness_report:
             report_text = format_loudness_report(loudness_report, target_lufs)
             print(report_text)
