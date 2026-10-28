@@ -26,47 +26,44 @@ app = Flask(__name__)
 ASSEMBLER_VERSION = "2026-10-28-bright"
 
 FFMPEG_BIN = "ffmpeg"
-VIDEO_WIDTH = 1920
-VIDEO_HEIGHT = 1072
-FONT_PATH = "/home/node/.n8n/ffmpeg-root/usr/share/fonts"
+# (28.10) размер кадра — из таблицы (🎬 VideoWidth / VideoHeight), см. set_frame(); до первой сборки не задан
+VIDEO_WIDTH = None
+VIDEO_HEIGHT = None
 
 # Готовые обложки живут здесь постоянно (не в tempdir, который чистится после
 # каждой сборки) — чтобы n8n мог прийти за ними ПОСЛЕ того, как видео уже
 # отдано и его временная папка удалена.
-THUMBNAIL_DIR = "/tmp/pengui_thumbnails"
+THUMBNAIL_DIR = "/tmp/episode_thumbnails"
 os.makedirs(THUMBNAIL_DIR, exist_ok=True)
 
-FONT_MAP = {
-    "Courier Prime": "/usr/share/fonts/truetype/courier-prime/CourierPrime-Regular.ttf",
-    "DejaVu Sans": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "Pengui Hand": "/usr/share/fonts/truetype/pengui-hand/PenguiHand.ttf",
-}
-DEFAULT_FONT_PATH = FONT_MAP["Pengui Hand"]
-# (16.10) Плотные копии шрифта: буквы ближе друг к другу на 5,5 / 6,5 / 8 % (пробелы прежние).
-# В таблице — «font:Pengui Hand 55» и т.п. Файлы лежат рядом со сборщиком (/app/fonts, Deploy их
-# не трогает); нет на диске — скачиваем один раз из репозитория, как образцы листьев.
+
+def set_frame(data):
+    """Размер кадра выпуска — колонки 🎬 VideoWidth / VideoHeight. Нет — сборка говорит, чего не хватает."""
+    global VIDEO_WIDTH, VIDEO_HEIGHT
+    w, h = _float_or(data.get("videoWidth"), None), _float_or(data.get("videoHeight"), None)
+    if not w or not h:
+        raise RuntimeError("Таблица: не заполнены колонки VideoWidth / VideoHeight (размер кадра)")
+    VIDEO_WIDTH, VIDEO_HEIGHT = int(w), int(h)
+
+
+# (28.10) Шрифт надписи — по имени из таблицы (OverlayStyle «font:…»): ищем файл шрифта с таким именем
+# среди установленных (/app/fonts рядом со сборщиком — их кладёт update.sh — и системные). Списка шрифтов
+# в коде нет; не нашёлся — сборка говорит об этом, а не подставляет молча другой.
 FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
-FONT_URL = "https://raw.githubusercontent.com/tatkalp52-creator/N8N/ccr-592d85a5-ljre1x/assembler/fonts/"
-FONT_FILES = {"Pengui Hand 55": "PenguiHand55.ttf", "Pengui Hand 65": "PenguiHand65.ttf", "Pengui Hand 80": "PenguiHand80.ttf"}
+FONT_SEARCH_DIRS = (FONT_DIR, "/usr/share/fonts", "/usr/local/share/fonts")
 
 
 def font_path_for(name):
-    name = str(name or "").strip()
-    if name in FONT_MAP:
-        return FONT_MAP[name]
-    if name not in FONT_FILES:
-        return DEFAULT_FONT_PATH
-    path = os.path.join(FONT_DIR, FONT_FILES[name])
-    if not os.path.exists(path):
-        try:
-            import urllib.request
-            os.makedirs(FONT_DIR, exist_ok=True)
-            urllib.request.urlretrieve(FONT_URL + FONT_FILES[name], path + ".part")
-            os.replace(path + ".part", path)
-        except Exception as e:
-            print(f"[overlay] шрифт {name} не скачался ({e}) — беру обычный")
-            return DEFAULT_FONT_PATH
-    return path
+    key = re.sub(r"[^a-z0-9]", "", str(name or "").lower())
+    if not key:
+        raise RuntimeError("Таблица: в OverlayStyle не указан шрифт (font:…)")
+    for d in FONT_SEARCH_DIRS:
+        for root, _, files in os.walk(d):
+            for fn in sorted(files):
+                stem, ext = os.path.splitext(fn)
+                if ext.lower() in (".ttf", ".otf") and re.sub(r"[^a-z0-9]", "", stem.lower()) in (key, key + "regular"):
+                    return os.path.join(root, fn)
+    raise RuntimeError(f"Шрифт «{name}» не найден на сервере (папки: {', '.join(FONT_SEARCH_DIRS)})")
 
 
 # Раньше отступ от края (60px) был жёстко зашит в каждую строку ниже.
@@ -555,7 +552,7 @@ def resolve_audio_tracks_dir(source_url, work_dir):
 # с ОБЕИХ сторон — не только в конце (как было раньше), но и в начале,
 # если она там есть. Нужно для сценария "каждый трек на своей дорожке,
 # у второго и следующих может быть тишина и в начале, и в конце сразу".
-def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration=1.0):
+def get_content_bounds(input_path, noise_threshold, min_silence_duration):
     full_duration_probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", input_path],
         capture_output=True, text=True
@@ -611,18 +608,16 @@ def get_content_bounds(input_path, noise_threshold="-40dB", min_silence_duration
 # будто через подушку — не как осознанный лоуфай-эффект, а именно как
 # потеря яркости. 19кГц — уже на самом краю слышимого диапазона у
 # взрослого человека, куда генерация обычно и мусорит сильнее всего.
-def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_duration=1.0, bass_cut_hz=None):
-    content_start, content_end = get_content_bounds(input_path, noise_threshold, min_silence_duration)
-    # (20.10) самый глубокий низ: 🎬 BassCutHz. Выше 30 — срез круче (два фильтра подряд).
-    # (28.10) нет колонки — нет среза: звук трогают только колонки таблицы.
+def trim_to_content(input_path, out_path, trim=None, bass_cut_hz=None):
+    """(28.10) trim = (порог дБ, секунды) из 🎬 TrimSilenceDb / TrimSilenceSeconds; нет колонок — края не режем."""
+    span = []
+    if trim:
+        content_start, content_end = get_content_bounds(input_path, f"{trim[0]:g}dB", trim[1])
+        span = ["-ss", str(content_start), "-to", str(content_end)]
     cut = []
     if bass_cut_hz:
-        cut = ["-af", (f"highpass=f={bass_cut_hz:.0f},highpass=f={bass_cut_hz:.0f}" if bass_cut_hz > 30 else "highpass=f=30") + ",lowpass=f=19000"]
-    run_ffmpeg([
-        "-i", input_path, "-ss", str(content_start), "-to", str(content_end),
-        *cut,
-        out_path
-    ])
+        cut = ["-af", f"highpass=f={bass_cut_hz:.0f},highpass=f={bass_cut_hz:.0f}"]
+    run_ffmpeg(["-i", input_path, *span, *cut, out_path])
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", out_path],
         capture_output=True, text=True
@@ -654,7 +649,12 @@ def trim_to_content(input_path, out_path, noise_threshold="-40dB", min_silence_d
 # это пауза, которую автор расставляет намеренно при склейке, обычно
 # заметно длиннее любой паузы внутри одной фразы; 6 секунд отделяет одно
 # от другого с запасом, не трогая исходный сценарий.
-def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_duration=6.0, split_dir_name="split_tracks", min_segment_seconds=119, keep_first_seconds=None):
+def split_by_silence(input_path, work_dir, split, split_dir_name):
+    """(28.10) split = (порог дБ, пауза с, трек не короче с) из 🎬 SplitSilenceDb / SplitSilenceSeconds /
+    SplitMinTrackSeconds; нет колонок — файл не режем, он и есть трек."""
+    if not split:
+        return [input_path]
+    noise_threshold, min_silence_duration, min_segment_seconds = f"{split[0]:g}dB", split[1], split[2]
     detect = subprocess.run(
         [FFMPEG_BIN, "-i", input_path, "-af",
          f"silencedetect=noise={noise_threshold}:d={min_silence_duration}",
@@ -704,11 +704,8 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
         # НОВОЕ (14.10): порог — только для кусков, на которые РАЗРЕЗАЛСЯ файл-склейка.
         # Отдельный файл без внутренних пауз (короткая тема-вступление 39 с) — настоящий
         # трек, автор положила его сама: не выбрасываем, какой бы короткий он ни был.
-        # (28.10) первый кусок одной дорожки из Studio — тема (кларнет 40 с): оставляем, если он
-        # не короче keep_first_seconds; совсем короткий обрывок по-прежнему мусор.
         if end - start < min_segment_seconds and len(boundaries) > 2:
-            if not (i == 0 and keep_first_seconds and end - start >= keep_first_seconds):
-                continue
+            continue
         out_path = os.path.join(split_dir, f"{i}_track.wav")
         # НОВОЕ: было "-c copy" — стрим-копия режет только по границе кадра
         # кодека, а не по точной секунде; для сжатых форматов (mp3 и т.п.)
@@ -729,11 +726,10 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
 # вернётся как один кусок, ничего не меняя, а кластер из нескольких треков
 # правильно разрежется на составляющие. Порядок между самими файлами
 # по-прежнему определяет natural_sort_key (имя файла/номер в нём).
-def split_all_by_silence(tracks_raw, work_dir):
+def split_all_by_silence(tracks_raw, work_dir, split):
     result = []
     for i, raw_path in enumerate(tracks_raw):
-        # (28.10) как в сборке: короткая первая тема одной дорожки не выбрасывается (иначе тайм-коды сдвигаются)
-        result.extend(split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}", keep_first_seconds=20 if i == 0 else None))
+        result.extend(split_by_silence(raw_path, work_dir, split, f"split_{i}"))
     return result
 
 
@@ -772,33 +768,6 @@ def measure_loudnorm(input_path, target_lufs):
 # Здесь та же самая защита от превышения пика считается вручную, а сам
 # сигнал корректируется простым статичным volume=...dB — фильтром, у
 # которого физически нет покадрового режима, ему неоткуда провалиться.
-def linear_gain_filter(input_path, target_lufs, target_tp=-1.5):
-    measured = measure_loudnorm(input_path, target_lufs)
-    if not measured:
-        print(f"[loudnorm] измерение не удалось для {input_path} — поправка громкости не применяется (0 дБ)")
-        return "volume=0dB"
-    measured_i = float(measured["input_i"])
-    measured_tp = float(measured["input_tp"])
-    gain_db = target_lufs - measured_i
-    # Если поднятие до целевой громкости вывело бы пик выше безопасного
-    # потолка — урезаем усиление до потолка вместо целевой громкости.
-    # Это безопаснее, чем рисковать настоящим клиппингом (жёстким,
-    # необратимым искажением, которое никаким лимитером после уже не
-    # вылечить) — и, в отличие от отката на другой алгоритм, это видно
-    # в логе.
-    if measured_tp + gain_db > target_tp:
-        capped_gain_db = target_tp - measured_tp
-        print(f"[loudnorm] {input_path}: усиление {gain_db:.2f}dB подняло бы пик выше {target_tp}dB, урезано до {capped_gain_db:.2f}dB")
-        gain_db = capped_gain_db
-    return f"volume={gain_db:.4f}dB"
-
-
-# НОВОЕ (27.09, «версия 3» по прослушиванию автора): громкость доводим до
-# цели ЦЕЛИКОМ, без урезания по пику — пики после этого ловит лимитер с
-# выключенным автоподъёмом (level=disabled). Раньше усиление урезалось по
-# пику, и тихие треки оставались тише цели, а финальный компрессор и
-# лимитер с автоподъёмом (у alimiter он включён по умолчанию) сминали
-# динамику: LRA падал с 2-3 до 1.6-1.9, фон поднимался на 7-9 дБ.
 def gain_to_target(input_path, target_lufs):
     measured = measure_loudnorm(input_path, target_lufs)
     if not measured:
@@ -823,101 +792,16 @@ def segment_loudness(path, start, length):
     return float(found[-1]) if found else None
 
 
-# ── АВТОБАЛАНС ПОЛОС (22.10) ──
-# Шесть полос, как на страничке «Пульт звука»: доля каждой в громкости трека (дБ от всего трека).
-# 🎬 SoundBands — диапазоны «саб -18..-10; бас -8..-2; …». Трек, у которого полоса вышла за диапазон,
-# сборщик сам подтягивает к краю: убавляет сколько нужно, прибавляет не больше BAND_BOOST_MAX
-# (подъём тихой полосы поднимает и её шум). Пустая колонка — как раньше, полосы не трогаются.
-SOUND_BANDS = [("саб", 20, 60), ("бас", 60, 250), ("низ середины", 250, 800),
-               ("середина", 800, 3000), ("верха", 3000, 8000), ("воздух", 8000, 16000)]
-BAND_BOOST_MAX = 6.0
-
-
-def parse_sound_bands(text):
-    """«саб -18..-10; бас -8..-2» → {индекс полосы: (низ, верх)}."""
-    out = {}
-    for part in re.split(r"[;\n]", str(text or "")):
-        m = re.match(r"\s*([а-яёa-z ]+?)\s*[:=]?\s*(-?\d+(?:[.,]\d+)?)\s*(?:\.\.|…|—|–|\s)\s*(-?\d+(?:[.,]\d+)?)\s*$", part.strip().lower())
-        if not m:
-            continue
-        name = m.group(1).strip()
-        for i, (bn, _, _) in enumerate(SOUND_BANDS):
-            if name == bn:
-                a, b = float(m.group(2).replace(",", ".")), float(m.group(3).replace(",", "."))
-                out[i] = (min(a, b), max(a, b))
-    return out
-
-
-def measure_sound_bands(path, sr=44100):
-    """Доли шести полос (дБ от всего трека), как на страничке: окно 8192, шаг 0,5 с."""
-    import sys as _sys
-    if "/app/pylibs" not in _sys.path:
-        _sys.path.insert(0, "/app/pylibs")
-    import numpy as np
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"],
-                         capture_output=True, check=True).stdout
-    x = np.frombuffer(raw, dtype=np.float32)
-    n, hop = 8192, sr // 2
-    if len(x) < n:
-        return None
-    win = np.hanning(n).astype(np.float32)
-    freqs = np.fft.rfftfreq(n, 1.0 / sr)
-    acc = np.zeros(len(freqs))
-    for p0 in range(0, len(x) - n + 1, hop):
-        acc += np.abs(np.fft.rfft(x[p0:p0 + n] * win)) ** 2
-    total = acc[(freqs >= 20) & (freqs < 16000)].sum() or 1.0
-    return [10 * math.log10(acc[(freqs >= a) & (freqs < b)].sum() / total + 1e-12) for _, a, b in SOUND_BANDS]
-
-
-def band_eq_chain(gains):
-    """Поправки по полосам → цепочка ffmpeg: полки по краям, колокола посередине (ширина — в октавах полосы)."""
-    parts = []
-    for i, g in enumerate(gains):
-        if abs(g) < 0.05:
-            continue
-        _, a, b = SOUND_BANDS[i]
-        if i == 0:     # полка чуть выше края: самый низ (40 Гц) целиком внутри неё
-            parts.append(f"lowshelf=f={b * 1.4:.0f}:g={g:.2f}:t=q:w=0.6")
-        elif i == len(SOUND_BANDS) - 1:
-            parts.append(f"highshelf=f={a / 1.4:.0f}:g={g:.2f}:t=q:w=0.6")
-        else:
-            parts.append(f"equalizer=f={math.sqrt(a * b):.0f}:t=o:w={math.log2(b / a):.2f}:g={g:.2f}")
-    return ",".join(parts)
-
-
-def balance_sound_bands(src, dst, ranges, passes=4):
-    """Подтягивает полосы трека в диапазоны. Возвращает (путь, замер до, замер после, поправки)."""
-    before = measure_sound_bands(src)
-    if not before or not ranges:
-        return src, before, before, []
-    gains = [0.0] * len(SOUND_BANDS)
-    cur, out = before, src
-    for _ in range(passes):
-        step = [0.0] * len(SOUND_BANDS)
-        for i, (lo, hi) in ranges.items():
-            if cur[i] > hi:
-                step[i] = hi - cur[i]
-            elif cur[i] < lo:
-                step[i] = lo - cur[i]
-        if all(abs(v) < 1.0 for v in step):
-            break
-        gains = [g + d for g, d in zip(gains, step)]
-        gains = [min(g, BAND_BOOST_MAX) for g in gains]
-        run_ffmpeg(["-i", src, "-af", band_eq_chain(gains), dst])
-        out = dst
-        cur = measure_sound_bands(dst) or cur
-    return out, before, cur, gains
-
-
 def track_loudness_entry(n, raw_path, source_path, faded_path, duration, target_lufs, fade_in, fade_out):
-    m = measure_loudnorm(source_path, target_lufs) or {}
+    # замер (не обработка): loudnorm требует цель, на измерение громкости она не влияет
+    m = measure_loudnorm(source_path, target_lufs if target_lufs is not None else -16) or {}
     num = lambda k: float(m[k]) if k in m else None
     src_i = num("input_i")
     window = min(15.0, max(1.0, duration / 3))
     return {
         "n": n, "name": os.path.basename(raw_path), "duration": round(duration, 1),
         "sourceLufs": src_i, "lra": num("input_lra"), "peak": num("input_tp"),
-        "gainDb": round(target_lufs - src_i, 2) if src_i is not None else None,
+        "gainDb": round(target_lufs - src_i, 2) if src_i is not None and target_lufs is not None else None,
         "headLufs": segment_loudness(faded_path, fade_in, window),
         "tailLufs": segment_loudness(faded_path, duration - fade_out - window, window),
     }
@@ -926,7 +810,7 @@ def track_loudness_entry(n, raw_path, source_path, faded_path, duration, target_
 def format_loudness_report(entries, target_lufs):
     f = lambda v: "—" if v is None else f"{v:g}"
     lines = [f"Громкость по трекам (цель {target_lufs} LUFS)" if target_lufs is not None
-             else "Громкость по трекам (выравнивания нет: поправка — сколько было бы до −16)",
+             else "Громкость по трекам (выравнивания нет — колонки TargetLUFS нет)",
              "№ | длит, с | было LUFS | разброс LRA | пик | поправка дБ | начало | конец | файл"]
     for e in entries:
         lines.append(" | ".join([str(e["n"]), f(e["duration"]), f(e["sourceLufs"]), f(e["lra"]), f(e["peak"]),
@@ -946,22 +830,10 @@ def format_loudness_report(entries, target_lufs):
     return "\n".join(lines)
 
 
-# Потолок лимитера на отдельном треке: -1.5 dBFS — тот же запас по пику,
-# что и в linear_gain_filter выше.
-TRACK_PEAK_LIMIT = 10 ** (-1.5 / 20)
-
-
-INTRO_RE = re.compile(r"^00(?!\d)")
-
-
 def intro_mode(v):
-    """fx_IntroOnce: «да» — тема есть, «нет» — темы нет, пусто — сборщик решает сам по длине первого трека."""
+    """fx_IntroOnce (строка выпуска): «да» — первый трек и есть тема, иначе — нет."""
     t = str(v or "").strip().lower()
-    if t in ("да", "yes", "1", "true", "+"):
-        return True
-    if t in ("нет", "no", "0", "false", "-"):
-        return False
-    return None
+    return t in ("да", "yes", "1", "true", "+")
 
 
 def _float_or(v, default):
@@ -971,29 +843,6 @@ def _float_or(v, default):
         return default
 
 
-# (22.10) Обертоны баса — чтобы контрабас был слышен на планшете и телефоне: их динамики ниже ~200 Гц
-# не играют, основной тон баса пропадает. Низ ниже 120 Гц мягко перегружаем (tanh даёт нечётные
-# обертоны: 55 Гц → 165, 275 …), оставляем полосу 140–700 Гц и тихо подмешиваем к треку.
-# Мозг по обертонам «достраивает» основной тон. 🎬 BassHarmonics: 0 — выключено, 1–10 — сила (5 — обычно).
-BASS_HARM_BASE_DB = 3.0   # подобрано замером: сила 5 → обертоны на ≈ 12 дБ тише самого баса
-def add_bass_harmonics(src, dst, strength):
-    # перегрузка зависит от уровня: сначала меряем пик низа, разгоняем его до одной и той же
-    # перегрузки и потом возвращаем обратно — доля обертонов не зависит от громкости трека
-    out = subprocess.run(["ffmpeg", "-hide_banner", "-i", src, "-af", "lowpass=f=120,lowpass=f=120,volumedetect",
-                          "-f", "null", "-"], capture_output=True, text=True).stderr
-    m = re.search(r"max_volume:\s*(-?[\d.]+) dB", out)
-    if not m or float(m.group(1)) < -60:
-        return src                                         # низа нет — нечего достраивать
-    drive = 6.0 - float(m.group(1))
-    gain_db = -drive + BASS_HARM_BASE_DB + 2 * max(0.0, min(10.0, strength))
-    graph = ("[0:a]asplit=2[dry][low];"
-             f"[low]lowpass=f=120,lowpass=f=120,volume={drive:.1f}dB,asoftclip=type=tanh,"
-             f"highpass=f=140,highpass=f=140,lowpass=f=700,volume={gain_db:.1f}dB[h];"
-             "[dry][h]amix=inputs=2:duration=first:dropout_transition=0,volume=2")
-    run_ffmpeg(["-i", src, "-filter_complex", graph, dst])
-    return dst
-
-
 # (28.10) Эквалайзер из таблицы: 🎬 Eq1Hz / Eq1Db / Eq1Q … Eq6 — полоса = частота, на сколько дБ, ширина (Q).
 # Полоса без частоты или без дБ пропускается; все пустые — эквалайзера нет.
 def eq_chain(data):
@@ -1001,57 +850,75 @@ def eq_chain(data):
     for n in range(1, 7):
         hz = _float_or(data.get(f"eq{n}Hz"), None)
         db = _float_or(data.get(f"eq{n}Db"), None)
-        q = _float_or(data.get(f"eq{n}Q"), None) or 0.71
-        if hz and db:
+        q = _float_or(data.get(f"eq{n}Q"), None)
+        if hz is None and db is None and q is None:
+            continue
+        if not (hz and db is not None and q):
+            raise RuntimeError(f"Таблица: полоса Eq{n} заполнена не вся (нужны Hz, Db и Q)")
+        if db:
             parts.append(f"equalizer=f={hz:g}:t=q:w={q:g}:g={db:g}")
     return ",".join(parts)
 
 
-def build_audio_track(
-    audio_source_url, work_dir, target_lufs=-16, fade_in_seconds=1.5, fade_out_seconds=3,
-    gap_seconds=0, loop_count=None, mix_seconds=None,
-    compressor_threshold_db=-20, compressor_ratio=2, compressor_attack_sec=0.02, compressor_release_sec=0.25,
-    limiter_ceiling=0.89, limiter_attack_ms=5, limiter_release_ms=50,
-    denoise_amount=0, loudness_report=None, highs_db=0.0, highs_hz=7000.0, hiss_db=0.0, hiss_hz=9500.0,
-    bass_db=0.0, bass_hz=160.0, bass_cut_hz=30.0, sound_bands=None, band_report=None,
-    intro_first=False, intro_max_seconds=90.0, bass_harmonics=0.0, eq="",
-):
+def sound_settings(data):
+    """(28.10) Всё, что сборщик делает со звуком, — только из колонок 🎬 канала (и строки выпуска).
+    Нет колонки — нет этой обработки; своих запасных чисел здесь нет."""
+    f = lambda k: _float_or(data.get(k), None)
+    def group(*keys):
+        vals = [f(k) for k in keys]
+        if all(v is None for v in vals):
+            return None
+        if any(v is None for v in vals):
+            raise RuntimeError("Таблица: заполнены не все колонки " + ", ".join(keys))
+        return tuple(vals)
+    loop_raw = str(data.get("loopCount") or "").strip()
+    return {
+        "split": group("splitSilenceDb", "splitSilenceSeconds", "splitMinTrackSeconds"),
+        "trim": group("trimSilenceDb", "trimSilenceSeconds"),
+        "theme_mark": str(data.get("themeMark") or "").strip(),
+        "intro_first": intro_mode(data.get("fx_IntroOnce")),
+        "gap": f("gapSeconds"), "mix": f("mixSeconds"),
+        "fade_in": f("fadeInSeconds"), "fade_out": f("fadeOutSeconds"),
+        "target_lufs": f("targetLUFS"), "peak_db": f("peakDb"),
+        "bass_cut_hz": f("bassCutHz"),
+        "eq": eq_chain(data),
+        "loop_count": int(float(loop_raw)) if loop_raw else None,
+    }
+
+
+def is_theme_file(path, mark):
+    """Тема — файл, чьё имя начинается с метки из 🎬 ThemeMark (за меткой не цифра: «00» — тема, «001» — нет)."""
+    name = os.path.basename(path)
+    return bool(mark) and name.startswith(mark) and not name[len(mark):len(mark) + 1].isdigit()
+
+
+def build_audio_track(audio_source_url, work_dir, snd, loudness_report=None):
+    """(28.10) Звук выпуска. snd — sound_settings(data): только то, что задано в таблице."""
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
     tracks_raw = order_tracks(
         glob.glob(os.path.join(extract_dir, "*.mp3"))
         + glob.glob(os.path.join(extract_dir, "*.wav")), zip_order)
 
-    # НОВОЕ (14.10): файл, имя которого начинается с «00» (не «001»), — ВСТУПЛЕНИЕ
-    # (тема): играет один раз в начале, а повторы ролика начинаются со следующего трека.
+    # Тема — файл с меткой 🎬 ThemeMark в начале имени (или fx_IntroOnce «да» — первый трек):
+    # играет один раз в начале, повторы ролика начинаются со следующего трека.
     intro_flags = []
     split_list = []
-    first_parts = 0
     for i, raw_path in enumerate(tracks_raw):
-        parts = split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}", keep_first_seconds=20 if i == 0 else None)
-        if i == 0:
-            first_parts = len(parts)
-        is_intro = bool(INTRO_RE.match(os.path.basename(raw_path)))
+        parts = split_by_silence(raw_path, work_dir, snd["split"], f"split_{i}")
         split_list.extend(parts)
-        intro_flags.extend([is_intro] * len(parts))
+        intro_flags.extend([is_theme_file(raw_path, snd["theme_mark"])] * len(parts))
     tracks_raw = split_list
-    # или так: в строке выпуска колонка fx_IntroOnce («да») — первый трек и есть тема
-    if intro_first and intro_flags and not any(intro_flags):
+    if snd["intro_first"] and intro_flags and not any(intro_flags):
         intro_flags[0] = True
-    # (20.10) сама: первый файл — один короткий кусок (тема обычно ~40 с), а треков больше одного —
-    # это тема, она звучит один раз. fx_IntroOnce «нет» — выключить; 🎬 IntroMaxSeconds — порог (90 с).
-    # (28.10) и одна дорожка из Studio: её первый кусок короче порога — тоже тема.
-    if intro_first is None and intro_flags and not any(intro_flags) and len(split_list) > 1:
-        try:
-            d0 = media_duration(split_list[0])
-        except Exception:
-            d0 = None
-        if d0 is not None and d0 < intro_max_seconds:
-            intro_flags[0] = True
-            print(f"[intro] первый трек {d0:.0f} с — тема: один раз, повторы со следующего")
 
     if not tracks_raw:
         raise RuntimeError("No .mp3/.wav files found in ZIP or folder")
+
+    target_lufs, fade_in_seconds, fade_out_seconds = snd["target_lufs"], snd["fade_in"], snd["fade_out"]
+    gap_seconds, mix_seconds, eq = snd["gap"], snd["mix"], snd["eq"]
+    track_limiter = (f"alimiter=limit={10 ** (snd['peak_db'] / 20):.4f}:attack=5:release=50:level=disabled"
+                     if snd["peak_db"] is not None else "")
 
     trimmed_dir = os.path.join(work_dir, "trimmed")
     os.makedirs(trimmed_dir, exist_ok=True)
@@ -1059,140 +926,49 @@ def build_audio_track(
     durations = []
     for i, raw_path in enumerate(tracks_raw):
         trimmed_path = os.path.join(trimmed_dir, f"track_{i}.wav")
-        # НОВОЕ: то же самое, что и в split_by_silence — без "-c copy" рез
-        # становится сэмпл-точным, а не привязанным к границе кадра кодека.
-        # Именно это, судя по всему, было причиной щелчка/резкого обрыва на
-        # стыке треков: fade вправду применялся, но накладывался поверх уже
-        # испорченного стыка от неточного стрим-копи реза. Реальная (не
-        # теоретическая) длина — см. комментарий у trim_to_content выше.
-        real_duration = trim_to_content(raw_path, trimmed_path, bass_cut_hz=bass_cut_hz)
+        real_duration = trim_to_content(raw_path, trimmed_path, snd["trim"], snd["bass_cut_hz"])
         tracks.append(trimmed_path)
         durations.append(real_duration)
 
-    # НОВОЕ (09.09): фейд-ин и фейд-аут у КАЖДОГО трека без исключений — в том
-    # числе у самого первого и самого последнего. Раньше первый/последний были
-    # особым случаем — но это усложняло зацикливание: при повторе трек-листа
-    # стык между концом и новым началом оставался жёстким. Единая логика для
-    # всех треков решает обе задачи сразу, без особых случаев.
+    # Каждый трек: эквалайзер (🎬 Eq) → громкость в цель (🎬 TargetLUFS) и потолок пиков (🎬 PeakDb) →
+    # фейды (🎬 FadeIn / FadeOut). Чего нет в таблице — того шага нет.
     faded_dir = os.path.join(work_dir, "faded")
     os.makedirs(faded_dir, exist_ok=True)
     faded_tracks = []
     for i, (trimmed_path, duration) in enumerate(zip(tracks, durations)):
-        fade_out_start = max(0, duration - fade_out_seconds)
-        # НОВОЕ: нормализуем громкость КАЖДОГО трека отдельно, до склейки —
-        # раньше loudnorm применялся один раз на весь уже склеенный файл, и
-        # если один трек от Suno был от природы громче другого, единая
-        # цифра на выходе не убирала эту разницу внутри самого файла, только
-        # средний уровень по всей дорожке. Нормализация до фейдов и склейки
-        # выравнивает треки друг относительно друга, а не только "в среднем".
-        # Двухпроходный режим (см. linear_gain_filter выше) — точнее
-        # однопроходного, и без права молча провалиться в покадровый режим.
-        # НОВОЕ (18.09): было curve=log на обоих фейдах. Проверено по формуле
-        # самого ffmpeg (libavfilter/af_afade.c): у log почти весь подъём
-        #/спад сосредоточен в первые/последние доли секунды (для 5-секундного
-        # фейд-ина громкость уже 40% на 5-й миллисекунде), а не растянут на
-        # всю заданную длительность — отсюда фейд-ин, который не слышно (звук
-        # практически сразу на полной громкости), и фейд-аут, который держит
-        # почти полную громкость до последней доли секунды, а потом резко
-        # обрывается. Резкий подъём огибающей за единицы миллисекунд поверх
-        # уже приведённого к целевой громкости сигнала (loudnorm выше по
-        # цепочке) слышен как щелчок. curve=tri (линейная) это уже исправила,
-        # но остаточный лёгкий шорох в начале некоторых треков — как игла на
-        # пластинку — остался: даже линейный подъём начинает расти сразу же
-        # с t=0. НОВОЕ (19.09): фейд-ин переведён на curve=qua (квадратичная,
-        # "ease-in"), в теории ради мягкого "подержать у нуля". ОТКАЧЕНО
-        # (20.09): на реальном прослушивании оказалось, что qua ощущается
-        # просто как слишком медленный, тягучий фейд-ин — вернули обратно
-        # на tri (линейная), ту же кривую, что и у фейд-аута, на который
-        # жалоб не было.
-        # НОВОЕ (20.09): опциональное шумоподавление (afftdn) — по умолчанию
-        # выключено (denoise_amount=0, тогда фильтр вообще не добавляется в
-        # цепочку). Автор явно попросила ручку под конкретные шумные треки
-        # от Suno (виниловое шипение/потрескивание), а не всегда включённую
-        # обработку. denoise_amount — это параметр 'nr' у afftdn (сила
-        # подавления в dB, официальный диапазон 0.01-97, дефолт самого
-        # ffmpeg — 12) — чем больше, тем агрессивнее чистка и тем выше риск
-        # "подводного" призвука на деталях (например, рояль). Начинать
-        # стоит с малых значений (5-10) и слушать, не с дефолтных 12+.
-        # НОВОЕ (27.09): порядок «версии 3». Сначала чистка (если задана) —
-        # отдельным проходом, чтобы громкость мерилась уже по чистому звуку.
-        # Потом громкость ровно в цель и лимитер пиков трека (без автоподъёма);
-        # лимитер мог чуть убавить — второй замер добивает точно в цель.
-        # Фейды — последними, по уже готовому уровню.
-        track_limiter = (
-            f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack={limiter_attack_ms or 5}:"
-            f"release={limiter_release_ms or 50}:level=disabled"
-        )
         source_path = trimmed_path
-        if denoise_amount:
-            source_path = os.path.join(faded_dir, f"denoised_{i}.wav")
-            run_ffmpeg(["-i", trimmed_path, "-af", f"afftdn=nr={denoise_amount}", source_path])
-        # НОВОЕ (05.10): мягко приглушить верха (стеклянное пианино Suno) — 🎬 HighsDb / HighsHz.
-        # Полка с пологим наклоном: переход широкий, без ступеньки; громкость дальше меряется уже после неё.
-        # (08.10) второй срез — только самый верх (шипение выше ~9 кГц): 🎬 HissDb / HissHz.
-        # (20.10) низы: приглушить гудящий контрабас Suno — 🎬 BassDb / BassHz (канал) или fx_Bass (выпуск).
-        if bass_harmonics > 0:   # до автобаланса: он же и удержит низ середины в границах
-            try:
-                source_path = add_bass_harmonics(source_path, os.path.join(faded_dir, f"harm_{i}.wav"), bass_harmonics)
-            except Exception as harm_error:   # улучшение, сборку не роняем
-                print(f"[обертоны] трек {i + 1}: не получилось: {harm_error}")
-        if sound_bands:
-            try:
-                bal_path, b_before, b_after, b_gains = balance_sound_bands(
-                    source_path, os.path.join(faded_dir, f"bands_{i}.wav"), sound_bands)
-                source_path = bal_path
-                if band_report is not None and b_before:
-                    band_report.append({"n": i + 1, "name": os.path.basename(tracks_raw[i]),
-                                        "before": b_before, "after": b_after, "gains": b_gains})
-            except Exception as band_error:   # автобаланс — улучшение, сборку не роняем
-                print(f"[полосы] трек {i + 1}: не получилось: {band_error}")
-        elif highs_db or hiss_db or bass_db:
-            eq_path = os.path.join(faded_dir, f"highs_{i}.wav")
-            eq_parts = []
-            if bass_db:
-                eq_parts.append(f"bass=g={bass_db:.2f}:f={bass_hz:.0f}:t=s:w=0.5")
-            if highs_db:
-                eq_parts.append(f"treble=g={highs_db:.2f}:f={highs_hz:.0f}:t=s:w=0.35")
-            if hiss_db:
-                eq_parts.append(f"treble=g={hiss_db:.2f}:f={hiss_hz:.0f}:t=s:w=0.3")
-            run_ffmpeg(["-i", source_path, "-af", ",".join(eq_parts), eq_path])
-            source_path = eq_path
         if eq:
             eq_path = os.path.join(faded_dir, f"eq_{i}.wav")
             run_ffmpeg(["-i", source_path, "-af", eq, eq_path])
             source_path = eq_path
-        # (28.10) громкость трека в цель + лимитер — только если есть колонка 🎬 TargetLUFS
         af_parts = []
         leveled_path = source_path
         if target_lufs is not None:
             leveled_path = os.path.join(faded_dir, f"leveled_{i}.wav")
-            run_ffmpeg(["-i", source_path, "-af", f"{gain_to_target(source_path, target_lufs)},{track_limiter}", leveled_path])
-            af_parts = [gain_to_target(leveled_path, target_lufs), track_limiter]
-        if fade_in_seconds > 0:
+            run_ffmpeg(["-i", source_path, "-af", ",".join(x for x in (gain_to_target(source_path, target_lufs), track_limiter) if x), leveled_path])
+            af_parts = [x for x in (gain_to_target(leveled_path, target_lufs), track_limiter) if x]
+        elif track_limiter:
+            af_parts = [track_limiter]
+        if fade_in_seconds:
             af_parts.append(f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri")
-        if fade_out_seconds > 0:
-            af_parts.append(f"afade=t=out:st={fade_out_start}:d={fade_out_seconds}:curve=tri")
-        af_parts = af_parts or ["anull"]
+        if fade_out_seconds:
+            af_parts.append(f"afade=t=out:st={max(0, duration - fade_out_seconds)}:d={fade_out_seconds}:curve=tri")
         faded_path = os.path.join(faded_dir, f"faded_{i}.wav")
-        run_ffmpeg(["-i", leveled_path, "-af", ",".join(af_parts), faded_path])
+        run_ffmpeg(["-i", leveled_path, "-af", ",".join(af_parts or ["anull"]), faded_path])
         faded_tracks.append(faded_path)
         if loudness_report is not None:
             try:
                 loudness_report.append(track_loudness_entry(
                     i + 1, tracks_raw[i], source_path, faded_path, duration,
-                    target_lufs if target_lufs is not None else -16, fade_in_seconds, fade_out_seconds))
+                    target_lufs, fade_in_seconds or 0, fade_out_seconds or 0))
             except Exception as report_error:
                 print(f"[громкость] трек {i + 1}: замер не удался: {report_error}")
 
-    # НОВОЕ (09.09): два взаимоисключающих режима склейки, оба на уже
-    # готовых (сглаженных) треках — MIX (mix_seconds задан) просто честно
-    # складывает уже готовые сигналы внахлёст, без какой-либо повторной кривой
-    # затухания поверх. GAP (по умолчанию) — ставит треки друг за другом,
-    # с паузой между ними, если gap_seconds > 0.
+    # Склейка: внахлёст (🎬 MixSeconds) или друг за другом с паузой (🎬 GapSeconds).
     use_mix = bool(mix_seconds and mix_seconds > 0)
 
     gap_path = None
-    if not use_mix and gap_seconds > 0:
+    if not use_mix and gap_seconds:
         gap_path = os.path.join(work_dir, "gap_silence.wav")
         run_ffmpeg([
             "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
@@ -1241,121 +1017,33 @@ def build_audio_track(
     result_path = join_tracks(faded_tracks, durations, "audio_step")
     shutil.copy(result_path, concat_out)
 
-    # НОВОЕ (18.09): раньше здесь после склейки стоял ЕЩЁ ОДИН полнофайловый
-    # шаг коррекции громкости (сначала loudnorm, потом статичный volume=...dB
-    # взамен него) — избыточный: каждый трек уже приведён к target_lufs
-    # ПООТДЕЛЬНОСТИ выше по коду (см. linear_gain_filter в цикле фейдов), и
-    # склейка уже приведённых к одной цели отрезков не должна заметно уводить
-    # общую громкость от той же цели. Лишняя стадия, трогающая громкость ещё
-    # раз поверх уже нормализованных треков, — ровно тот риск наслоения,
-    # который стоило убрать: чем меньше отдельных шагов трогают уровень
-    # сигнала, тем меньше шансов на кумулятивные артефакты. Компрессор и
-    # лимитер остаются единственной финальной стадией — они не выравнивают
-    # громкость, а только страхуют от пиков/резких транзиентов.
-    #
-    # УПРОЩЕНО (20.09): 19.09 ночью здесь стоял трёхполосный mcompand
-    # (отдельно бас/середина/верха, 12 параметров) — задумывался, чтобы
-    # длинные басовые ноты не вызывали эффект "дышащей подушки" от одного
-    # компрессора на весь спектр. По факту три полосы утроили число мест,
-    # где что-то может звучать не так (в том числе саму гулкость/
-    # самовозбуждение на басу, ради которого их и завели) — и добавили
-    # 12 чисел в таблицу, большинство из которых никто не может объяснить
-    # на слух. Автор явно попросила вернуться к одному простому компрессору
-    # на весь спектр + отдельный лимитер для пиков — с прицелом: если бас
-    # всё-таки "задышит" на одной полосе, разбираться с этим осознанно и
-    # точечно, а не носить сложность по умолчанию. Синтаксис `acompressor`
-    # (`threshold` в дБ через суффикс, `ratio`, `attack`/`release` в мс) —
-    # официальный, стандартный параметр самого фильтра, не мой домысел.
-    #
-    # Лимитер (alimiter) остаётся последней, отдельной ступенью — не общая
-    # окраска тембра, а аварийная защита от пиков (то, что автор явно
-    # попросила оставить). Потолок 0.89 (не 1.0) — запас на случай, что
-    # YouTube при пережатии слегка поднимет пики между сэмплами (true peak),
-    # которые alimiter у ffmpeg не видит технически.
-    # НОВОЕ (27.09, «версия 3»): компрессор — только если в таблице ratio > 1
-    # (при ratio 1 он ничего не делает, лишний проход не нужен). Дальше:
-    # замер → громкость ровно в цель → лимитер ПОСЛЕДНИМ, без автоподъёма
-    # (level=disabled), чтобы он только ловил пики и не поднимал фон.
-    def bus(concat_path, tag):
-        """Компрессор (если ratio > 1) → громкость в цель → лимитер. tag — чтобы файлы не перетирались."""
-        bus_in = concat_path
-        if float(compressor_ratio or 1) > 1:
-            bus_in = os.path.join(work_dir, f"audio_compressed{tag}.wav")
-            run_ffmpeg([
-                "-i", concat_path,
-                "-af", (
-                    f"acompressor=threshold={compressor_threshold_db}dB:ratio={compressor_ratio}:"
-                    f"attack={compressor_attack_sec * 1000}:release={compressor_release_sec * 1000}"
-                ),
-                bus_in
-            ])
-        out = os.path.join(work_dir, f"audio_final{tag}.wav")
-        # (28.10) громкость в цель — только с колонкой 🎬 TargetLUFS, лимитер — только с 🎬 LimiterCeiling
-        af = []
-        if target_lufs is not None:
-            af.append(gain_to_target(bus_in, target_lufs))
-        if limiter_ceiling:
-            af.append(f"alimiter=limit={limiter_ceiling}:attack={limiter_attack_ms or 5}:"
-                      f"release={limiter_release_ms or 50}:level=disabled")
-        if af:
-            run_ffmpeg(["-i", bus_in, "-af", ",".join(af), out])
-        else:
-            shutil.copy(bus_in, out)
-        return out
+    def single(path):
+        probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
+                               capture_output=True, text=True)
+        return float(probe.stdout.strip())
 
-    normalized_out = bus(concat_out, "")
+    single_pass_duration = single(concat_out)
 
-
-    probe_single = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries",
-         "format=duration", "-of", "csv=p=0", normalized_out],
-        capture_output=True, text=True
-    )
-    single_pass_duration = float(probe_single.stdout.strip())
-
-    # НОВОЕ (13.09): если число циклов не задано вручную из таблицы — решаем
-    # сами по реальной длине одного прохода: короче часа, значит, зациклится
-    # дважды, час и длиннее — оставляем как есть. Явно заданное автором число
-    # (в том числе 1) всегда в приоритете и это решение не трогает.
+    # Повторы: колонка выпуска sys_LoopCount; пусто — правило автора: короче часа — дважды, иначе один раз.
+    loop_count = snd["loop_count"]
     if loop_count is None:
         loop_count = 2 if single_pass_duration < 3600 else 1
 
-    # ОТКАЧЕНО (23.09): пробовала здесь отдельный короткий кроссфейд вместо
-    # обычной склейки — но это тихой сапой убирало секундную паузу между
-    # проходами (GapSeconds=1.0 у pengui), которая на обычных стыках между
-    # треками сохраняется. Не тронутая пауза важнее непроверенной гипотезы —
-    # возвращаем зацикливание на ту же функцию join_tracks, что и обычные
-    # стыки между треками, с тем же самым разрывом-тишиной. Причина щелчка
-    # на стыке повтора ПО-ПРЕЖНЕМУ не найдена (см. её же обсуждение выше по
-    # файлу) — это откат к прежнему поведению, а не фикс. Нужен реальный
-    # прогон и внимательное прослушивание именно этого стыка: щёлкает ровно
-    # в начале паузы, ровно в конце, или посреди самой тишины — это разные
-    # причины, и без такого наблюдения дальше двигаться вслепую.
-    final_out = normalized_out
+    final_out = concat_out
     if loop_count > 1:
         body = [(t, d) for t, d, f in zip(faded_tracks, durations, intro_flags) if not f]
         if any(intro_flags) and body:
             # первый проход — с темой, повторы — без неё
-            body_concat = os.path.join(work_dir, "audio_concat_body.wav")
-            shutil.copy(join_tracks([t for t, _ in body], [d for _, d in body], "audio_body_step"), body_concat)
-            body_out = bus(body_concat, "_body")
-            body_probe = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", body_out],
-                capture_output=True, text=True)
-            body_duration = float(body_probe.stdout.strip())
+            body_out = os.path.join(work_dir, "audio_concat_body.wav")
+            shutil.copy(join_tracks([t for t, _ in body], [d for _, d in body], "audio_body_step"), body_out)
+            body_duration = single(body_out)
             print(f"[intro] вступление один раз, повторы ({loop_count - 1}) — со следующего трека")
-            final_out = join_tracks([normalized_out] + [body_out] * (loop_count - 1),
+            final_out = join_tracks([concat_out] + [body_out] * (loop_count - 1),
                                     [single_pass_duration] + [body_duration] * (loop_count - 1), "audio_loop")
         else:
-            final_out = join_tracks([normalized_out] * loop_count, [single_pass_duration] * loop_count, "audio_loop")
+            final_out = join_tracks([concat_out] * loop_count, [single_pass_duration] * loop_count, "audio_loop")
 
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries",
-         "format=duration", "-of", "csv=p=0", final_out],
-        capture_output=True, text=True
-    )
-    duration = float(probe.stdout.strip())
-
+    duration = single(final_out)
     return final_out, duration
 
 
@@ -3869,12 +3557,12 @@ def build_video_from_pieces(data, work_dir, image_path, audio_path, duration, ba
 @app.route("/assemble", methods=["POST"])
 def assemble():
     data = request.json
-    project_id = data.get("projectId", "unknown")
+    project_id = data.get("projectId") or "unknown"
     cleanup_old_temp()
     image_url = data["imageUrl"]
     audio_zip_url = data["audioZipUrl"]
     overlay_text = data.get("overlayText", "")
-    overlay_position = data.get("overlayPosition", "center")
+    overlay_position = data.get("overlayPosition")
 
     work_dir = tempfile.mkdtemp(prefix=f"assemble_{project_id}_")
 
@@ -3891,10 +3579,9 @@ def assemble():
         return response
 
     try:
+        set_frame(data)
         image_path = download_file(image_url, os.path.join(work_dir, "image.jpg"))
 
-        # (28.10) правило: нет колонки в таблице — нет этой обработки звука (никаких запасных чисел)
-        target_lufs = _float_or(data.get("targetLUFS"), None)
         # (28.10) яркость тоже: нет колонки TargetBrightness — картинку не осветляем
         target_brightness = _float_or(data.get("targetBrightness"), None)
         if target_brightness is not None:
@@ -3905,87 +3592,10 @@ def assemble():
             print(f"[grade] не удалось: {grade_error}")
         save_cover_kit(project_id, image_path, data)
         make_episode_covers(project_id, data.get("fx_Effects"))
-        fade_in_seconds = _float_or(data.get("fadeInSeconds"), 0.0)     # (28.10) нет колонки — нет фейда
-        fade_out_seconds = _float_or(data.get("fadeOutSeconds"), 0.0)
-        gap_seconds = float(data.get("gapSeconds", 0))
-        loop_count_raw = data.get("loopCount")
-        loop_count = int(loop_count_raw) if loop_count_raw not in (None, "") else None
-        compressor_threshold_db = float(data.get("compressorThresholdDb", -20))
-        compressor_ratio = _float_or(data.get("compressorRatio"), 1.0)
-        compressor_attack_sec = float(data.get("compressorAttackSec", 0.02))
-        compressor_release_sec = float(data.get("compressorReleaseSec", 0.25))
-        limiter_ceiling = _float_or(data.get("limiterCeiling"), None)
-        limiter_attack_ms = float(data.get("limiterAttackMs", 5))
-        limiter_release_ms = float(data.get("limiterReleaseMs", 50))
-        denoise_amount = float(data.get("denoiseAmount", 0))
-        try:
-            highs_db = -abs(float(data.get("highsDb", 0) or 0))      # всегда вниз: «на сколько тише верха»
-        except (TypeError, ValueError):
-            highs_db = 0.0
-        try:
-            highs_hz = float(data.get("highsHz", 7000) or 7000)
-        except (TypeError, ValueError):
-            highs_hz = 7000.0
-        try:
-            hiss_db = -abs(float(data.get("hissDb", 0) or 0))
-        except (TypeError, ValueError):
-            hiss_db = 0.0
-        try:
-            hiss_hz = float(data.get("hissHz", 9500) or 9500)
-        except (TypeError, ValueError):
-            hiss_hz = 9500.0
-        # (20.10) низы: fx_Bass строки выпуска («6» — на 6 дБ тише) важнее 🎬 BassDb канала
-        try:
-            bass_db = -abs(float(str(data.get("fx_Bass") or data.get("bassDb") or 0).replace(",", ".").strip() or 0))
-        except (TypeError, ValueError):
-            bass_db = 0.0
-        try:
-            bass_hz = float(data.get("bassHz", 160) or 160)
-        except (TypeError, ValueError):
-            bass_hz = 160.0
-        try:
-            bass_cut_hz = min(120.0, max(30.0, float(str(data.get("bassCutHz")).replace(",", ".")))) if str(data.get("bassCutHz") or "").strip() else None
-        except (TypeError, ValueError):
-            bass_cut_hz = None
+        snd = sound_settings(data)
+        target_lufs = snd["target_lufs"]
         loudness_report = []
-        band_report = []
-        audio_path, duration = build_audio_track(
-            audio_zip_url, work_dir, loudness_report=loudness_report,
-            target_lufs=target_lufs,
-            fade_in_seconds=fade_in_seconds,
-            fade_out_seconds=fade_out_seconds,
-            gap_seconds=gap_seconds,
-            loop_count=loop_count,
-            compressor_threshold_db=compressor_threshold_db,
-            compressor_ratio=compressor_ratio,
-            compressor_attack_sec=compressor_attack_sec,
-            compressor_release_sec=compressor_release_sec,
-            limiter_ceiling=limiter_ceiling,
-            limiter_attack_ms=limiter_attack_ms,
-            limiter_release_ms=limiter_release_ms,
-            denoise_amount=denoise_amount,
-            highs_db=highs_db, highs_hz=highs_hz, hiss_db=hiss_db, hiss_hz=hiss_hz, bass_db=bass_db, bass_hz=bass_hz, bass_cut_hz=bass_cut_hz,
-            intro_first=intro_mode(data.get("fx_IntroOnce")),
-            bass_harmonics=_float_or(data.get("bassHarmonics"), 0.0),
-            intro_max_seconds=_float_or(data.get("introMaxSeconds"), 90.0),
-            sound_bands=parse_sound_bands(data.get("soundBands")), band_report=band_report,
-            eq=eq_chain(data),
-        )
-        if band_report:
-            names = [b[0] for b in SOUND_BANDS]
-            lines = ["Полосы (дБ от всего трека): было → стало; поправка"]
-            for r in band_report:
-                lines.append(f"{r['n']:>2}. {r['name']}: " + "; ".join(
-                    f"{nm} {r['before'][k]:.0f}→{r['after'][k]:.0f}" + (f" ({r['gains'][k]:+.1f})" if r['gains'] and abs(r['gains'][k]) >= 0.05 else "")
-                    for k, nm in enumerate(names)))
-            band_text = "\n".join(lines)
-            print(band_text)
-            try:
-                os.makedirs(THUMBNAIL_DIR, exist_ok=True)
-                with open(os.path.join(THUMBNAIL_DIR, f"{project_id}_bands.txt"), "w", encoding="utf-8") as fh:
-                    fh.write(band_text + "\n")
-            except Exception as band_error:
-                print(f"[полосы] отчёт не записан: {band_error}")
+        audio_path, duration = build_audio_track(audio_zip_url, work_dir, snd, loudness_report=loudness_report)
 
         # НОВОЕ: проверка громкости готового файла — не блокирует сборку,
         # просто пишет в лог сервера, если что-то разъехалось с целью.
@@ -4001,7 +3611,11 @@ def assemble():
             except Exception as report_error:
                 print(f"[громкость] отчёт не записан: {report_error}")
 
-        fps = 5
+        # (28.10) частота кадров неподвижного ролика — 🎬 StillFps (у кусков с оживлением — 🎬 VideoFps)
+        fps = _float_or(data.get("stillFps"), None)
+        if not fps:
+            raise RuntimeError("Таблица: не заполнена колонка StillFps (кадров в секунду неподвижного ролика)")
+        fps = int(fps)
         duration_frames = int(duration * fps)
 
         video_filters = collect_fx_filters(data, EFFECT_VIDEO_REGISTRY, duration_frames)
@@ -4023,66 +3637,50 @@ def assemble():
             video_filters.extend(old_film_filters(old_film))
             print(f"[effects] старая плёнка, сила {old_film:g}")
 
-        overlay_margin = int(data.get("overlayMargin", 60))
-
-        font_name = data.get("overlayFont")
-        font_path = font_path_for(font_name)
-        font_size = data.get("overlaySize", "44")
-        font_color = data.get("overlayColor", "#FFFFFF").lstrip("#")
-
-        # НОВОЕ: было только "if(lt(t,15),1,if(lt(t,18),(18-t)/3,0))" — то есть
-        # мгновенное появление, потом 3 секунды угасания. Добавлено
-        # симметричное появление: первые 3 секунды текст плавно проявляется,
-        # с 3 по 15 держится на полной видимости, с 15 по 18 гаснет.
-        # НОВОЕ (27.09): длительность появления и угасания — из таблицы
-        # (🎬tmpl_OverlayFadeInSeconds / 🎬tmpl_OverlayFadeOutSeconds). При 5
-        # кадрах в секунду короткое угасание видно ступеньками — чем дольше
-        # фейд, тем мельче каждая ступенька. Полная видимость по-прежнему до
-        # 15-й секунды; без значений в таблице — прежние 3 и 3 секунды.
-        def _fade(key, default):
-            try:
-                v = float(data.get(key) or default)
-                return v if v > 0 else default
-            except (TypeError, ValueError):
-                return default
-        overlay_fade_in = _fade("overlayFadeInSeconds", 3.0)
-        overlay_fade_out = _fade("overlayFadeOutSeconds", 3.0)
-        overlay_hold_until = max(15.0, overlay_fade_in)
-        overlay_visible_until = overlay_hold_until + overlay_fade_out
-        overlay_alpha = (
-            f"if(lt(t,{overlay_fade_in:g}),t/{overlay_fade_in:g},"
-            f"if(lt(t,{overlay_hold_until:g}),1,"
-            f"if(lt(t,{overlay_visible_until:g}),({overlay_visible_until:g}-t)/{overlay_fade_out:g},0)))"
-        )
-
-        # НОВОЕ: тень раньше была жёсткой копией текста со сдвигом на 2px
-        # (shadowx/shadowy у drawtext не умеет размытие в принципе). Раз
-        # шрифт Pengui Hand тонкий и рукописный, жёсткая тень выглядела
-        # тяжелее самих букв. Теперь тень — отдельный текстовый слой на
-        # прозрачном фоне размером с кадр, размытый по-настоящему через
-        # gblur, и только потом наложенный под основной (чёткий) текст.
-        # overlayShadowBlur — радиус размытия (sigma), overlayShadowOpacity —
-        # непрозрачность тени на пике (до применения общего fade-in/out).
-        shadow_color = data.get("overlayShadow", "E7DFCF").lstrip("#")
-        shadow_blur = data.get("overlayShadowBlur", "4")
-        shadow_opacity = data.get("overlayShadowOpacity", "0.55")
-
+        # (28.10) надпись — только из таблицы (🎬 OverlayStyle: font/size/color/shadow/margin, OverlayPosition,
+        # OverlayHoldSeconds, OverlayFadeIn/OutSeconds, OverlayShadowBlur/Opacity, OverlayLineSpacing, OverlayBorder).
+        # Своих запасных нет: есть текст, а оформления не хватает — сборка останавливается и говорит, чего нет.
         base_chain = ",".join(video_filters)
-        try:
-            overlay_line_spacing = float(data.get("overlayLineSpacing") or 0.875)
-        except (TypeError, ValueError):
-            overlay_line_spacing = 0.875
-        try:
-            overlay_border = max(0, int(round(float(data.get("overlayBorder") or 0))))
-        except (TypeError, ValueError):
-            overlay_border = 0
-        shadow_layers, main_layers = build_overlay_drawtext(
-            overlay_text, overlay_position, font_path, font_size,
-            font_color, shadow_color, shadow_opacity, overlay_alpha,
-            margin=overlay_margin, line_spacing=overlay_line_spacing,
-            visible_until=f"{overlay_visible_until:g}",
-            border=overlay_border,
-        )
+        shadow_layers, main_layers = [], []
+        shadow_blur, overlay_visible_until, thumb_at = "0", 0.0, 0.0
+        if str(overlay_text or "").strip():
+            need = ["overlayFont", "overlaySize", "overlayColor", "overlayMargin", "overlayPosition", "overlayHoldSeconds"]
+            if str(data.get("overlayShadow") or "").strip():
+                need += ["overlayShadowBlur", "overlayShadowOpacity"]
+            missing = [k for k in need if not str(data.get(k) or "").strip()]
+            if missing:
+                raise RuntimeError("Таблица: для надписи на кадре не хватает: " + ", ".join(missing))
+            font_path = font_path_for(data.get("overlayFont"))
+            font_size = data.get("overlaySize")
+            font_color = str(data.get("overlayColor")).lstrip("#")
+            overlay_margin = int(float(data.get("overlayMargin")))
+            fade_in_o = _float_or(data.get("overlayFadeInSeconds"), None)
+            fade_out_o = _float_or(data.get("overlayFadeOutSeconds"), None)
+            hold = float(data.get("overlayHoldSeconds"))
+            # появление / держится / угасание; фейда нет в таблице — без фейда
+            t_in = fade_in_o if fade_in_o and fade_in_o > 0 else 0.0
+            t_out = fade_out_o if fade_out_o and fade_out_o > 0 else 0.0
+            hold_until = max(hold, t_in)
+            overlay_visible_until = hold_until + t_out
+            rise = f"t/{t_in:g}" if t_in else "1"
+            fall = f"({overlay_visible_until:g}-t)/{t_out:g}" if t_out else "0"
+            overlay_alpha = (f"if(lt(t,{t_in:g}),{rise},if(lt(t,{hold_until:g}),1,"
+                             f"if(lt(t,{overlay_visible_until:g}),{fall},0)))")
+            shadow_color = str(data.get("overlayShadow") or "").lstrip("#")
+            shadow_opacity = data.get("overlayShadowOpacity") if shadow_color else "0"
+            shadow_blur = data.get("overlayShadowBlur") if shadow_color else "0"
+            line_spacing = _float_or(data.get("overlayLineSpacing"), None)
+            border = _float_or(data.get("overlayBorder"), None)
+            shadow_layers, main_layers = build_overlay_drawtext(
+                overlay_text, overlay_position, font_path, font_size,
+                font_color, shadow_color or font_color, shadow_opacity, overlay_alpha,
+                margin=overlay_margin, line_spacing=line_spacing if line_spacing else 1.0,
+                visible_until=f"{overlay_visible_until:g}",
+                border=max(0, int(round(border))) if border else 0,
+            )
+            if not shadow_color:
+                shadow_layers = []
+            thumb_at = (t_in + hold_until) / 2      # кадр для обложки — когда надпись видна полностью
 
         # ОТКАЧЕНО (20.09): 19.09 ночью сюда добавили фейд ВСЕГО видео целиком
         # (вход из чёрного/выход в чёрный), синхронизировав его с
@@ -4121,10 +3719,10 @@ def assemble():
         # аудиодорожки целиком, той же длиной и той же формой кривой (tri),
         # что и межтрековые фейды — см. комментарий у per-track фейда выше.
         audio_fade = []
-        if fade_in_seconds > 0:
-            audio_fade.append(f"afade=t=in:st=0:d={fade_in_seconds}:curve=tri")
-        if fade_out_seconds > 0:
-            audio_fade.append(f"afade=t=out:st={duration-fade_out_seconds}:d={fade_out_seconds}:curve=tri")
+        if snd["fade_in"]:
+            audio_fade.append(f"afade=t=in:st=0:d={snd['fade_in']}:curve=tri")
+        if snd["fade_out"]:
+            audio_fade.append(f"afade=t=out:st={duration - snd['fade_out']}:d={snd['fade_out']}:curve=tri")
         audio_chain = ",".join(audio_filters + audio_fade) or "anull"
 
         output_path = os.path.join(work_dir, f"{project_id}.mp4")
@@ -4162,7 +3760,7 @@ def assemble():
         # ним уже ПОСЛЕ того, как получит и обработает само видео.
         thumbnail_path = os.path.join(THUMBNAIL_DIR, f"{project_id}.jpg")
         try:
-            run_ffmpeg(["-ss", f"{(overlay_fade_in + overlay_hold_until) / 2:g}", "-i", output_path, "-frames:v", "1", thumbnail_path])
+            run_ffmpeg(["-ss", f"{thumb_at:g}", "-i", output_path, "-frames:v", "1", thumbnail_path])
         except Exception as thumb_error:
             print(f"[thumbnail] не удалось вырезать кадр для {project_id}: {thumb_error}")
 
@@ -4199,7 +3797,8 @@ def get_loudness_report(project_id):
 # «набор обложки»: картинку после цветофильтра и настройки оверлея. Для выпуска, собранного раньше, —
 # POST /cover_kit/<ID> с теми же полями, что шлёт 04 (imageUrl, overlayText, стиль, цвет).
 COVER_KEYS = ("overlayText", "overlayPosition", "overlayFont", "overlaySize", "overlayColor", "overlayShadow",
-              "overlayShadowBlur", "overlayShadowOpacity", "overlayLineSpacing", "overlayBorder", "overlayMargin")
+              "overlayShadowBlur", "overlayShadowOpacity", "overlayLineSpacing", "overlayBorder", "overlayMargin",
+              "videoWidth", "videoHeight")
 
 
 def save_cover_kit(project_id, image_path, data):
@@ -4219,21 +3818,27 @@ def render_cover(project_id, box, side, out_path):
         kit = json.load(fh)
     from PIL import Image as _Im
     w, h = _Im.open(base).size
+    set_frame(kit)
     x0, y0, x1, y1 = box
     cx, cy = int(x0 / 100 * w), int(y0 / 100 * h)
     cw, ch = max(16, int((x1 - x0) / 100 * w)), max(9, int((y1 - y0) / 100 * h))
     font_path = font_path_for(kit.get("overlayFont"))
+    # (28.10) то же оформление, что и у надписи в ролике, — только из набора, сохранённого сборкой (из таблицы)
+    shadow_color = str(kit.get("overlayShadow") or "").lstrip("#")
+    line_spacing, border = _float_or(kit.get("overlayLineSpacing"), None), _float_or(kit.get("overlayBorder"), None)
     shadow_l, main_l = build_overlay_drawtext(
-        str(kit.get("overlayText") or ""), side, font_path, kit.get("overlaySize", "44"),
-        str(kit.get("overlayColor", "#FFFFFF")).lstrip("#"), str(kit.get("overlayShadow", "E7DFCF")).lstrip("#"),
-        kit.get("overlayShadowOpacity", "0.55"), "1", margin=int(kit.get("overlayMargin") or 60),
-        line_spacing=float(kit.get("overlayLineSpacing") or 0.875), visible_until="9999",
-        border=max(0, int(round(float(kit.get("overlayBorder") or 0)))))
+        str(kit.get("overlayText") or ""), side, font_path, kit.get("overlaySize"),
+        str(kit.get("overlayColor")).lstrip("#"), shadow_color or str(kit.get("overlayColor")).lstrip("#"),
+        kit.get("overlayShadowOpacity") if shadow_color else "0", "1", margin=int(float(kit.get("overlayMargin"))),
+        line_spacing=line_spacing if line_spacing else 1.0, visible_until="9999",
+        border=max(0, int(round(border))) if border else 0)
+    if not shadow_color:
+        shadow_l = []
     graph = f"[0:v]crop={cw}:{ch}:{cx}:{cy},scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:flags=lanczos,setsar=1[base]"
     if shadow_l:
         graph += (f";color=black@0.0:s={VIDEO_WIDTH}x{VIDEO_HEIGHT},format=rgba[shadowbg];"
                   + ";".join(f"[{'shadowbg' if i == 0 else f'sh{i}'}]{f}[sh{i + 1}]" for i, f in enumerate(shadow_l))
-                  + f";[sh{len(shadow_l)}]gblur=sigma={kit.get('overlayShadowBlur', '4')}[shb];[base][shb]overlay[ws]"
+                  + f";[sh{len(shadow_l)}]gblur=sigma={kit.get('overlayShadowBlur')}[shb];[base][shb]overlay[ws]"
                   + "".join(f";[{'ws' if i == 0 else f'm{i}'}]{f}[{f'm{i + 1}' if i + 1 < len(main_l) else 'v'}]" for i, f in enumerate(main_l)))
     else:
         graph += ";[base]null[v]"
@@ -4353,108 +3958,6 @@ def cover_route(project_id):
 
 
 # (22.10) замер полос последней сборки выпуска (текст): было → стало по каждому треку.
-@app.route("/bands/<project_id>", methods=["GET"])
-def get_bands_report(project_id):
-    report_path = os.path.join(THUMBNAIL_DIR, f"{project_id}_bands.txt")
-    if not os.path.exists(report_path):
-        return "замера нет: выпуск ещё не собирался с колонкой SoundBands\n", 404
-    return send_file(report_path, mimetype="text/plain; charset=utf-8")
-
-
-# ── ДИАГНОСТИКА ТРЕСКА (22.10) ──
-# Один трек на трёх шагах: сырой (Suno) → после чистки Kaggle → после ручек сборщика.
-# На каждом шаге — цифры, по которым слышимый треск видно без ушей: щелчки (резкие скачки
-# сигнала), перегруз (сэмплы у самого края), пик, «плотность» (пик/среднее), громкость, 6 полос.
-# GET /diag?raw=<ссылка на сырой архив>&clean=<ссылка kaggle …#run=метка>&n=<номер трека>
-#   &highs=16&highshz=3000&hiss=9&denoise=2&cut=55&bass=0&lufs=-14  (ручки — как в таблице)
-def diag_metrics(path):
-    import sys as _sys
-    if "/app/pylibs" not in _sys.path:
-        _sys.path.insert(0, "/app/pylibs")
-    import numpy as np
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", "44100", "-f", "f32le", "-"],
-                         capture_output=True, check=True).stdout
-    x = np.frombuffer(raw, dtype=np.float32).astype(np.float64)
-    if len(x) < 44100:
-        return None
-    minutes = len(x) / 44100 / 60
-    peak = float(np.max(np.abs(x))) or 1e-9
-    rms = float(np.sqrt(np.mean(x ** 2))) or 1e-9
-    near = np.abs(x) >= 0.98 * max(peak, 0.5)          # у самого края
-    runs = int(np.sum(near[2:] & near[1:-1] & near[:-2]))
-    d2 = x[2:] - 2 * x[1:-1] + x[:-2]                  # резкость скачка
-    scale = float(np.median(np.abs(d2))) * 1.4826 or 1e-9
-    clicks = int(np.sum(np.abs(d2) > 30 * scale))
-    m = measure_loudnorm(path, -14) or {}
-    return {"lufs": float(m.get("input_i", "nan")), "tp": float(m.get("input_tp", "nan")),
-            "crest": 20 * math.log10(peak / rms), "clip": runs / minutes, "clicks": clicks / minutes,
-            "bands": measure_sound_bands(path)}
-
-
-@app.route("/diag", methods=["GET"])
-def diag_route():
-    # (22.10) несколько треков: n=3,7,12. Шаги: после чистки → «как сейчас» (старые срезы) →
-    # «шестиполосник» (автобаланс по bands=…; без bands — диапазоны по умолчанию, как в таблице 22.10).
-    from flask import request as _rq
-    q = _rq.args
-    nums = [max(1, int(v)) for v in re.findall(r"\d+", q.get("n", "3"))] or [3]
-    num = lambda k, d: float(q.get(k, d))
-    ranges = parse_sound_bands(q.get("bands") or "саб -40..-10; бас -8..-2; низ середины -12..-4; "
-                               "середина -15..-6; верха -60..-12; воздух -60..-18")
-    work = tempfile.mkdtemp(prefix="diag_")
-    lim = f"alimiter=limit={TRACK_PEAK_LIMIT:.4f}:attack=5:release=50:level=disabled"
-    out = ["шаг | громкость LUFS | пик дБ | плотность дБ | полосы: саб бас н.сер сер верх возд"]
-    try:
-        def listing(url, sub):
-            d, order = resolve_audio_tracks_dir(url, os.path.join(work, sub))
-            return order_tracks(glob.glob(os.path.join(d, "*.mp3")) + glob.glob(os.path.join(d, "*.wav")), order)
-        files = listing(q["clean"], "clean") if q.get("clean") else (listing(q["raw"], "raw") if q.get("raw") else [])
-
-        def line(name, path):
-            r = diag_metrics(path)
-            if not r:
-                return f"{name} | слишком короткий"
-            b = " ".join(f"{v:.0f}" for v in (r["bands"] or []))
-            return f"{name} | {r['lufs']:.1f} | {r['tp']:.1f} | {r['crest']:.1f} | {b}"
-
-        for n in nums:
-            if n > len(files):
-                out.append(f"\nТрек №{n}: нет такого (всего {len(files)})"); continue
-            base = files[n - 1]
-            out.append(f"\nТрек №{n}: {os.path.basename(base)}")
-            out.append(line("после чистки", base))
-            t1 = os.path.join(work, f"{n}_t1.wav")
-            trim_to_content(base, t1, bass_cut_hz=num("cut", 55))
-            src = t1
-            if num("denoise", 2):
-                t2 = os.path.join(work, f"{n}_t2.wav"); run_ffmpeg(["-i", src, "-af", f"afftdn=nr={num('denoise', 2)}", t2]); src = t2
-            # как сейчас: старые срезы
-            eq = []
-            if num("bass", 0):
-                eq.append(f"bass=g={-abs(num('bass', 0)):.2f}:f=160:t=s:w=0.5")
-            if num("highs", 16):
-                eq.append(f"treble=g={-abs(num('highs', 16)):.2f}:f={num('highshz', 3000):.0f}:t=s:w=0.35")
-            if num("hiss", 9):
-                eq.append(f"treble=g={-abs(num('hiss', 9)):.2f}:f=9500:t=s:w=0.3")
-            old = src
-            if eq:
-                old = os.path.join(work, f"{n}_old_eq.wav"); run_ffmpeg(["-i", src, "-af", ",".join(eq), old])
-            old_f = os.path.join(work, f"{n}_old.wav")
-            run_ffmpeg(["-i", old, "-af", f"{gain_to_target(old, num('lufs', -14))},{lim}", old_f])
-            out.append(line("как сейчас", old_f))
-            # шестиполосник
-            bal, _, _, gains = balance_sound_bands(src, os.path.join(work, f"{n}_bands.wav"), ranges)
-            new_f = os.path.join(work, f"{n}_new.wav")
-            run_ffmpeg(["-i", bal, "-af", f"{gain_to_target(bal, num('lufs', -14))},{lim}", new_f])
-            out.append(line("шестиполосник", new_f))
-            out.append("   поправки: " + ", ".join(f"{SOUND_BANDS[k][0]} {g:+.1f}" for k, g in enumerate(gains) if abs(g) >= 0.05) if gains else "   поправки: не нужны")
-        return "\n".join(out) + "\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
-    except Exception as e:
-        return f"не получилось: {e}\n", 500, {"Content-Type": "text/plain; charset=utf-8"}
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
 @app.route("/clean_start", methods=["POST"])
 def clean_start_route():
     try:
@@ -4506,64 +4009,6 @@ def draw_percent_grid(image_path, out_path):
             d.text((tx, ty), txt, fill=c + (255,))
     Image.alpha_composite(im.convert("RGBA"), over).convert("RGB").save(out_path, quality=88)
     return out_path
-
-
-# ── ЛУПА (05.10): увеличенные кусочки вокруг точек эффектов — чтобы Аниматор уточнил их ──
-# Для каждой точки строки оживления (верх трубы, пламя, глаз, поверхность, углы стекла)
-# вырезается квадрат вокруг неё, увеличивается в 3 раза и размечается сеткой через 1 %
-# с подписями в процентах ВСЕГО кадра. Текущая точка — голубой кружок.
-ZOOM_POINTS = {
-    "smoke": ["верх трубы"], "steam": ["поверхность напитка или воды"], "bubbles": ["рот рыбки"],
-    "blink": ["глаз птицы"], "candle": ["середина пламени свечи"],
-    "rain": ["левый верхний угол стекла", "правый нижний угол стекла"],
-}
-
-
-def zoom_points(image_path, fx_text, half_pct=10.0, scale=3):
-    import base64, io
-    from PIL import Image, ImageDraw, ImageFont
-    im = Image.open(image_path).convert("RGB")
-    W, H = im.size
-    try:
-        font = ImageFont.load_default(size=max(12, int(13 * scale / 3 * 1.2)))
-    except TypeError:
-        font = ImageFont.load_default()
-    out = []
-    for li, line in enumerate(str(fx_text or "").splitlines()):
-        m = re.match(r"\s*([^\d:,\-]+?)\s*[:\-]?\s*(-?[\d.].*)$", line)
-        if not m or line.strip().lower().startswith(EVENT_EFFECT_WORDS):
-            continue
-        kind = EFFECT_NAMES.get(m.group(1).strip().lower())
-        nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", m.group(2))]
-        for pi, label in enumerate(ZOOM_POINTS.get(kind, [])):
-            if len(nums) < 2 * pi + 2:
-                continue
-            x, y = nums[2 * pi], nums[2 * pi + 1]
-            hp = half_pct / 100 * W
-            cx, cy = x / 100 * W, y / 100 * H
-            x0, y0 = int(max(0, min(W - 2 * hp, cx - hp))), int(max(0, min(H - 2 * hp, cy - hp)))
-            x1, y1 = int(min(W, x0 + 2 * hp)), int(min(H, y0 + 2 * hp))
-            crop = im.crop((x0, y0, x1, y1)).resize(((x1 - x0) * scale, (y1 - y0) * scale), Image.LANCZOS)
-            d = ImageDraw.Draw(crop, "RGBA")
-            for k in range(int(x0 / W * 100), int(x1 / W * 100) + 2):
-                px = (k / 100 * W - x0) * scale
-                if 0 <= px < crop.width:
-                    d.line([(px, 0), (px, crop.height)], fill=(20, 40, 160, 150 if k % 5 == 0 else 70), width=1)
-                    d.rectangle([px + 1, 1, px + 30, 17], fill=(255, 255, 255, 200))
-                    d.text((px + 3, 2), str(k), fill=(20, 40, 160, 255), font=font)
-            for k in range(int(y0 / H * 100), int(y1 / H * 100) + 2):
-                py = (k / 100 * H - y0) * scale
-                if 0 <= py < crop.height:
-                    d.line([(0, py), (crop.width, py)], fill=(170, 20, 20, 150 if k % 5 == 0 else 70), width=1)
-                    d.rectangle([1, py + 1, 30, py + 17], fill=(255, 255, 255, 200))
-                    d.text((3, py + 2), str(k), fill=(170, 20, 20, 255), font=font)
-            mx, my = (cx - x0) * scale, (cy - y0) * scale
-            d.ellipse([mx - 9, my - 9, mx + 9, my + 9], outline=(0, 190, 220, 255), width=2)
-            buf = io.BytesIO()
-            crop.save(buf, format="JPEG", quality=88)
-            out.append({"id": f"{li}:{pi}", "line": li, "pair": pi, "kind": kind, "label": label,
-                        "x": x, "y": y, "dataUrl": "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()})
-    return out
 
 
 def draw_fx_preview(image_path, fx_text, data, out_path):
@@ -4704,19 +4149,6 @@ def fx_preview_video():
     img = _fx_image(data["imageUrl"], work_dir)
     out = draw_fx_preview_video(img, data.get("fx_Effects") or "", data, os.path.join(work_dir, "preview.mp4"))
     return send_file(out, mimetype="video/mp4", download_name="preview.mp4")
-
-
-@app.route("/fx_zoom", methods=["POST"])
-def fx_zoom():
-    data = request.json or {}
-    work_dir = tempfile.mkdtemp(prefix="fxzoom_")
-    try:
-        img = _fx_image(data["imageUrl"], work_dir)
-        return jsonify({"ok": True, "points": zoom_points(img, data.get("fx_Effects", ""))})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e), "points": []}), 200
-    finally:
-        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 @app.route("/fx_grid", methods=["POST"])
@@ -5305,14 +4737,15 @@ def trackinfo():
             glob.glob(os.path.join(extract_dir, "*.mp3"))
             + glob.glob(os.path.join(extract_dir, "*.wav")), zip_order)
 
-        tracks_raw = split_all_by_silence(tracks_raw, work_dir)
+        # (28.10) те же настройки звука, что и в сборке (04 присылает все колонки 🎬) — тайм-коды совпадут
+        snd = sound_settings(data)
+        tracks_raw = split_all_by_silence(tracks_raw, work_dir, snd["split"])
 
         if not tracks_raw:
             return jsonify({"error": "No .mp3/.wav files found in ZIP or folder"}), 400
 
-        mix_seconds_raw = data.get("mixSeconds")
-        MIX_SECONDS = float(mix_seconds_raw) if mix_seconds_raw else None
-        GAP_SECONDS = float(data.get("gapSeconds", 0))
+        MIX_SECONDS = snd["mix"]
+        GAP_SECONDS = snd["gap"] or 0
         result = []
         cumulative_start = 0.0
         trackinfo_trim_dir = os.path.join(work_dir, "trackinfo_trim")
@@ -5322,7 +4755,7 @@ def trackinfo():
             # НОВОЕ: та же функция, что и в реальной сборке (trim_to_content) —
             # значит те же самые реальные числа, а не отдельная теоретическая
             # оценка, которая могла разойтись с тем, что реально соберётся.
-            duration = trim_to_content(raw_path, os.path.join(trackinfo_trim_dir, f"{i}.wav"))
+            duration = trim_to_content(raw_path, os.path.join(trackinfo_trim_dir, f"{i}.wav"), snd["trim"])
             filename = os.path.splitext(os.path.basename(raw_path))[0]
 
             result.append({

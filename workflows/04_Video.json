@@ -185,7 +185,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\n// Модель иногда пишет метку без квадратных скобок или с другим регистром\n// ('Timecodes' вместо '[Timecodes]') — ищем её гибко, а не только точную\n// строку, чтобы замена не срабатывала молча вхолостую.\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace(/\\[?Timecodes\\]?/i, $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\n// (28.10) текст оверлея — согласованный автором пункт: пишем на кадр как есть. «-» — оверлея нет.\n// (раньше код молча выбрасывал текст длиннее 4 слов или со скобками — своё правило в коде)\nfunction sanitizeOverlayText(raw) {\n  const text = (raw || '').trim();\n  return text === '-' ? '' : text;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (19.09, ночь): раньше каждый параметр сборщика видео нужно было\n// дописывать сюда вручную (findByLabel + запись в payload) — то есть\n// добавление новой ручки в таблице требовало правки кода здесь. Теперь,\n// как у Художника (🎨) и Писателя (🖋), сборщик видео читает ВСЕ колонки\n// с иконкой 🎬 автоматически: имя колонки \"🎬tmpl_BassGainDb\" превращается\n// в поле payload \"bassGainDb\" без единой строчки кода на каждый параметр.\n// Чтобы добавить новую ручку — просто добавить колонку \"🎬tmpl_ИмяРучки\"\n// в таблицу; чтобы убрать — удалить колонку. Здесь ничего не ломается.\n//\n// tmpl_OverlayStyle исключён из автосбора: это не одно значение, а строка\n// \"font:...; size:...\", её нужно сначала разобрать на части (см. ниже).\nfunction collectByIcon(row, icon, excludeLabels) {\n  const result = {};\n  for (const key of Object.keys(row)) {\n    if (!key.includes(icon)) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '');\n    if (!label.startsWith('tmpl_')) continue;\n    if (excludeLabels.includes(label)) continue;\n    const value = row[key];\n    if (value === undefined || value === null || value === '') continue;\n    const paramName = label.slice('tmpl_'.length);\n    const camelName = paramName.charAt(0).toLowerCase() + paramName.slice(1);\n    result[camelName] = value;\n  }\n  return result;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n    if (key === 'margin') result.overlayMargin = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst autoParams = collectByIcon(styleRow, '🎬', ['tmpl_OverlayStyle']);\n// Приоритет — решение редактора конкретно для этой сцены (ai_TargetBrightness,\n// проставляется при согласовании картинки) перебивает общий дефолт канала,\n// который уже пришёл из tmpl_TargetBrightness через общий автосбор выше.\n\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ApprovedImageUrl || proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: sanitizeOverlayText(proj.ai_OverlayText),\n  overlayPosition: proj.ai_OverlayPosition || 'center',\n  ...overlayStyle,\n  ...autoParams,\n  ...(proj.ai_TargetBrightness ? { targetBrightness: proj.ai_TargetBrightness } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\n// НОВОЕ (05.10): ручки эффектов — лист «Эффекты»: служебный столбец «Механика» и столбец\n// канала (заголовок — ключ канала). Пустая клетка — эффект этому каналу не нужен.\n// Сборщик сам находит строку по механике и берёт из клетки «густота 4 · скорость 3».\nlet fxRows = [];\ntry { fxRows = $('Читаем эффекты').all().map(i => i.json); } catch (e) {}\npayload.fxTable = fxRows\n  .map(r => ({ mech: String(r['Механика'] || '').trim(), knobs: String(r[meta.channelKey] || '').trim() }))\n  .filter(r => r.mech && r.knobs);\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  tags: proj.ai_Tags || '',\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\n// Модель иногда пишет метку без квадратных скобок или с другим регистром\n// ('Timecodes' вместо '[Timecodes]') — ищем её гибко, а не только точную\n// строку, чтобы замена не срабатывала молча вхолостую.\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace(/\\[?Timecodes\\]?/i, $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\n// (28.10) текст оверлея — согласованный автором пункт: пишем на кадр как есть. «-» — оверлея нет.\n// (раньше код молча выбрасывал текст длиннее 4 слов или со скобками — своё правило в коде)\nfunction sanitizeOverlayText(raw) {\n  const text = (raw || '').trim();\n  return text === '-' ? '' : text;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (19.09, ночь): раньше каждый параметр сборщика видео нужно было\n// дописывать сюда вручную (findByLabel + запись в payload) — то есть\n// добавление новой ручки в таблице требовало правки кода здесь. Теперь,\n// как у Художника (🎨) и Писателя (🖋), сборщик видео читает ВСЕ колонки\n// с иконкой 🎬 автоматически: имя колонки \"🎬tmpl_BassGainDb\" превращается\n// в поле payload \"bassGainDb\" без единой строчки кода на каждый параметр.\n// Чтобы добавить новую ручку — просто добавить колонку \"🎬tmpl_ИмяРучки\"\n// в таблицу; чтобы убрать — удалить колонку. Здесь ничего не ломается.\n//\n// tmpl_OverlayStyle исключён из автосбора: это не одно значение, а строка\n// \"font:...; size:...\", её нужно сначала разобрать на части (см. ниже).\nfunction collectByIcon(row, icon, excludeLabels) {\n  const result = {};\n  for (const key of Object.keys(row)) {\n    if (!key.includes(icon)) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '');\n    if (!label.startsWith('tmpl_')) continue;\n    if (excludeLabels.includes(label)) continue;\n    const value = row[key];\n    if (value === undefined || value === null || value === '') continue;\n    const paramName = label.slice('tmpl_'.length);\n    const camelName = paramName.charAt(0).toLowerCase() + paramName.slice(1);\n    result[camelName] = value;\n  }\n  return result;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n    if (key === 'margin') result.overlayMargin = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst autoParams = collectByIcon(styleRow, '🎬', ['tmpl_OverlayStyle']);\n// Приоритет — решение редактора конкретно для этой сцены (ai_TargetBrightness,\n// проставляется при согласовании картинки) перебивает общий дефолт канала,\n// который уже пришёл из tmpl_TargetBrightness через общий автосбор выше.\n\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ApprovedImageUrl || proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: sanitizeOverlayText(proj.ai_OverlayText),\n  ...overlayStyle,\n  ...autoParams,\n  // (28.10) положение надписи: выпуск (ai_OverlayPosition) перебивает канал (🎬tmpl_OverlayPosition); своего «center» нет\n  ...(proj.ai_OverlayPosition ? { overlayPosition: proj.ai_OverlayPosition } : {}),\n  ...(proj.ai_TargetBrightness ? { targetBrightness: proj.ai_TargetBrightness } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\n// НОВОЕ (05.10): ручки эффектов — лист «Эффекты»: служебный столбец «Механика» и столбец\n// канала (заголовок — ключ канала). Пустая клетка — эффект этому каналу не нужен.\n// Сборщик сам находит строку по механике и берёт из клетки «густота 4 · скорость 3».\nlet fxRows = [];\ntry { fxRows = $('Читаем эффекты').all().map(i => i.json); } catch (e) {}\npayload.fxTable = fxRows\n  .map(r => ({ mech: String(r['Механика'] || '').trim(), knobs: String(r[meta.channelKey] || '').trim() }))\n  .filter(r => r.mech && r.knobs);\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  tags: proj.ai_Tags || '',\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
       },
       "id": "258c9cc8-65f8-4d4b-9832-c1f786470ee4",
       "name": "Готовим данные для сборки",
@@ -339,7 +339,7 @@
         "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/trackinfo",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ audioZipUrl: $('Читаем проект').first().json.sys_AudioZipUrl, mixSeconds: (() => { const row = $('Читаем стиль оверлея').first().json; const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_MixSeconds'); return key ? row[key] : undefined; })(), gapSeconds: (() => { const row = $('Читаем стиль оверлея').first().json; const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_GapSeconds'); return key ? row[key] : undefined; })() }) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const row = $('Читаем стиль оверлея').first().json; const proj = $('Читаем проект').first().json; const out = { audioZipUrl: proj.sys_AudioZipUrl, fx_IntroOnce: proj.fx_IntroOnce }; for (const k of Object.keys(row)) { if (!k.includes('🎬')) continue; const l = k.replace(/^[^a-zA-Z]+/, ''); if (!l.startsWith('tmpl_')) continue; const v = row[k]; if (v === undefined || v === null || v === '') continue; const nm = l.slice(5); out[nm.charAt(0).toLowerCase() + nm.slice(1)] = v; } return out; })()) }}",
         "options": {
           "timeout": 120000
         }
@@ -358,10 +358,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $('Считаем длительности треков').first().json;\nconst channelRow = $json;\n// (22.10) лёгкая модель для служебных текстов — служебная колонка Templates tmpl_LightModel\nconst lightModel = String((Object.entries(channelRow).find(([k]) => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightModel') || [])[1] || '').trim();\n// (28.10) модель — только из таблицы, запасной в коде нет\nif (!lightModel) throw new Error('Таблица: в Templates не заполнена tmpl_LightModel');\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (24.09): названия тайм-кодов Редактор пишет заранее — пункт 4\n// текстового блока, согласованный автором, лежит в колонке\n// ai_TimecodeNames (по одному названию на строку). Имена файлов больше не\n// используются: переименовываются ВСЕ треки. Берём заготовленные по\n// порядку — первый трек получает первое название и т.д. Лишние названия\n// просто не используются. Если заготовленных меньше, чем треков (или их\n// нет вообще — старый проект), недостающие придумывает GPT по правилам\n// канала из таблицы.\nconst prewritten = String(proj.ai_TimecodeNames || '')\n  .split('\\n').map(s => s.trim()).filter(Boolean);\n\nconst needsNaming = info.tracks.filter((t, pos) => !prewritten[pos]);\n\nif (needsNaming.length === 0) {\n  return [{ json: { skipGpt: true, prewritten, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n}\n\n// Как называть — правила канала из таблицы (PackagingRules, раздел про\n// тайм-коды) и паспорт персонажа; в коде только формат ответа.\nconst packagingRules = findByLabel(channelRow, 'tmpl_PackagingRules') || '';\nconst characterPassport = findByLabel(channelRow, 'tmpl_CharacterPassport') || '';\n\nconst systemPrompt = 'Придумай названия для инструментальных треков YouTube-видео по правилам канала ниже.\\n\\n' +\n  (characterPassport ? 'Персонаж канала: ' + characterPassport + '\\n\\n' : '') +\n  (packagingRules ? 'Правила канала:\\n' + packagingRules + '\\n\\n' : '') +\n  'Верни JSON строго такого вида: {\"names\": {\"<index>\": \"Name\", ...}} — по одному имени на каждый индекс из списка.';\n\nconst userPrompt = 'Описание выпуска: ' + (proj.ai_DescriptionEN || proj.ai_Description || proj.ai_UserBrief || '') + '\\n\\n' +\n  (prewritten.length ? 'Уже есть названия (не повторяй их): ' + prewritten.join('; ') + '\\n\\n' : '') +\n  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');\n\nreturn [{ json: { skipGpt: false, model: lightModel, prewritten, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $('Считаем длительности треков').first().json;\n// (28.10) названия тайм-кодов пишет только Писатель — согласованный автором пункт в ai_TimecodeNames\n// (по одному названию на строку, по порядку треков). Своего «придумщика» в коде нет: не хватает\n// названий — сборка не идёт, автор получает сообщение и дописывает пункт.\nconst prewritten = String(proj.ai_TimecodeNames || '')\n  .split('\\n').map(s => s.trim()).filter(Boolean);\nif (prewritten.length < info.tracks.length) {\n  throw new Error(`Таблица: названий тайм-кодов (ai_TimecodeNames) ${prewritten.length}, а треков ${info.tracks.length}. ` +\n    'Допишите названия в пункт с тайм-кодами и пересоберите.');\n}\nreturn [{ json: { prewritten, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];"
       },
       "id": "e8a238cf-457f-43f0-ab36-5d5bffde8162",
-      "name": "Готовим запрос на названия треков",
+      "name": "Названия треков из таблицы",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -371,55 +371,7 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.skipGpt }}"
-            }
-          ]
-        }
-      },
-      "id": "4dc4c8a4-593c-4024-905b-034189fbdfbd",
-      "name": "Нужны названия?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        5792,
-        2704
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify(Object.assign({ model: $json.model, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }, /^gpt-5/.test($json.model) ? { reasoning_effort: 'minimal' } : {})) }}",
-        "options": {}
-      },
-      "id": "471febd4-9271-469d-aba8-52652c9b0515",
-      "name": "OpenAI: названия треков",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        6016,
-        2624
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "HvMLVgMnS8OU4ebj",
-          "name": "OpenAi account"
-        }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000
-    },
-    {
-      "parameters": {
-        "jsCode": "function getBase() {\n  try { return $('Готовим запрос на названия треков').first().json; } catch (e) {}\n  throw new Error('base not found');\n}\nconst base = getBase();\nlet names = {};\n\nif (!base.skipGpt) {\n  try {\n    const raw = $('OpenAI: названия треков').first().json.choices[0].message.content;\n    const parsed = JSON.parse(raw);\n    names = parsed.names || {};\n  } catch (e) {\n    names = {};\n  }\n}\n\n// НОВОЕ (01.10): после часа YouTube понимает только «1:00:22», а не «60:22».\nfunction formatTime(seconds) {\n  const h = Math.floor(seconds / 3600);\n  const m = Math.floor((seconds % 3600) / 60);\n  const s = Math.floor(seconds % 60);\n  const ss = String(s).padStart(2, '0');\n  return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + ss : m + ':' + ss;\n}\n\n// НОВОЕ (24.09): переименовываются ВСЕ треки, имена файлов не\n// используются. Сначала — названия, заготовленные Редактором и\n// согласованные автором (ai_TimecodeNames), по порядку; для треков, на\n// которые их не хватило, — придуманные GPT; имя файла — только крайний\n// запасной вариант, если не сработало ни то, ни другое.\nconst prewritten = base.prewritten || [];\nconst lines = base.tracks.map((t, pos) => {\n  const title = prewritten[pos] || names[String(t.index)] || t.filename;\n  return formatTime(t.startSeconds) + ' ' + title;\n});\n\n// Ручное значение в таблице побеждает, если оно есть. Если пусто —\n// повторяем ровно то же правило, что уже применяет питон-сборщик сам\n// (build_audio_track): меньше часа — луп x2, час и больше — без лупа.\n// Иначе тут была рассинхронизация: сборщик мог зациклить видео, а этот\n// узел ничего об этом не знал и не ставил метку Repeat в таймкоды.\nconst manualLoopCount = parseInt($('Читаем проект').first().json.sys_LoopCount);\nconst loopCount = manualLoopCount || (base.totalDurationSeconds < 3600 ? 2 : 1);\nif (loopCount > 1) {\n  // НОВОЕ (25.09): totalDurationSeconds — это КОНЕЦ последнего трека, а\n  // второй проход начинается после паузы-стыка (tmpl_GapSeconds). К тому же\n  // секунды округлялись вниз — клик по «Repeat» попадал в хвост последнего\n  // трека. Теперь: конец + пауза, с округлением ВНИЗ (27.09) — вверх уводило\n  // клик внутрь второго прохода, в середину фейда; вниз — в паузу перед ним.\n  const styleRow = $('Читаем стиль оверлея').first().json;\n  const gapKey = Object.keys(styleRow).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_GapSeconds');\n  const gap = parseFloat(gapKey ? styleRow[gapKey] : 0) || 0;\n  lines.push(formatTime(Math.floor(base.totalDurationSeconds + gap)) + ' Repeat');\n}\n\nreturn [{ json: { timecodesText: lines.join('\\n') } }];"
+        "jsCode": "function getBase() {\n  try { return $('Названия треков из таблицы').first().json; } catch (e) {}\n  throw new Error('base not found');\n}\nconst base = getBase();\n\n// НОВОЕ (01.10): после часа YouTube понимает только «1:00:22», а не «60:22».\nfunction formatTime(seconds) {\n  const h = Math.floor(seconds / 3600);\n  const m = Math.floor((seconds % 3600) / 60);\n  const s = Math.floor(seconds % 60);\n  const ss = String(s).padStart(2, '0');\n  return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + ss : m + ':' + ss;\n}\n\n// Названия — только согласованный пункт (ai_TimecodeNames), по порядку треков.\nconst prewritten = base.prewritten || [];\nconst lines = base.tracks.map((t, pos) => {\n  const title = prewritten[pos];\n  return formatTime(t.startSeconds) + ' ' + title;\n});\n\n// Ручное значение в таблице побеждает, если оно есть. Если пусто —\n// повторяем ровно то же правило, что уже применяет питон-сборщик сам\n// (build_audio_track): меньше часа — луп x2, час и больше — без лупа.\n// Иначе тут была рассинхронизация: сборщик мог зациклить видео, а этот\n// узел ничего об этом не знал и не ставил метку Repeat в таймкоды.\nconst manualLoopCount = parseInt($('Читаем проект').first().json.sys_LoopCount);\nconst loopCount = manualLoopCount || (base.totalDurationSeconds < 3600 ? 2 : 1);\nif (loopCount > 1) {\n  // НОВОЕ (25.09): totalDurationSeconds — это КОНЕЦ последнего трека, а\n  // второй проход начинается после паузы-стыка (tmpl_GapSeconds). К тому же\n  // секунды округлялись вниз — клик по «Repeat» попадал в хвост последнего\n  // трека. Теперь: конец + пауза, с округлением ВНИЗ (27.09) — вверх уводило\n  // клик внутрь второго прохода, в середину фейда; вниз — в паузу перед ним.\n  const styleRow = $('Читаем стиль оверлея').first().json;\n  const gapKey = Object.keys(styleRow).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_GapSeconds');\n  const gap = parseFloat(gapKey ? styleRow[gapKey] : 0) || 0;\n  lines.push(formatTime(Math.floor(base.totalDurationSeconds + gap)) + ' Repeat');\n}\n\nreturn [{ json: { timecodesText: lines.join('\\n') } }];"
       },
       "id": "2b661289-5e9a-4902-899e-5dfccbb4c03f",
       "name": "Собираем текст таймкодов",
@@ -1332,49 +1284,6 @@
       }
     },
     {
-      "id": "3e1ad58a-b4ad-42cf-867d-4c3f978a0902",
-      "name": "Читаем персонажа канала",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4,
-      "position": [
-        5456,
-        2704
-      ],
-      "notesInFlow": true,
-      "notes": "Конкретика про канал (персонаж, его быт, характер) живёт только в таблице (🖋🎨_tmpl_CharacterPassport в Templates), не в коде воркфлоу — так работают все остальные каналы и их персонажи, не только pengui.",
-      "parameters": {
-        "authentication": "serviceAccount",
-        "documentId": {
-          "__rl": true,
-          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Templates",
-          "mode": "name"
-        },
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "tmpl_Channel",
-              "lookupValue": "={{ $('Нормализуем вход').first().json.channelKey }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "credentials": {
-        "googleApi": {
-          "id": "PGJ3stGcaGlz0z9i",
-          "name": "Google Sheets account 2"
-        }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000
-    },
-    {
       "parameters": {
         "jsCode": "// Загрузка на YouTube не прошла. Сетевая заминка (сервер не дозвонился до Google) —\n// ждём 10 минут и пробуем снова, до трёх раз. Любая другая ошибка (ключи, лимиты,\n// «доступ запрещён») или три неудачи подряд — сразу останавливаемся, и автору\n// приходит обычное сообщение о сбое.\nconst err = $json.error || {};\nconst msg = String(err.message || err.description || err || '');\nconst network = /ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH|socket hang up|timed? ?out/i.test(msg);\nconst attempt = $runIndex + 1;\nif (!network || attempt > 3) {\n  throw new Error((network ? 'YouTube недоступен уже ~30 минут (3 попытки). ' : '') + 'Загрузка на YouTube: ' + msg);\n}\nconst src = $('Какой канал?').first();\nreturn [{ json: { ...src.json, uploadRetry: attempt, uploadRetryReason: msg }, binary: src.binary }];\n"
       },
@@ -1440,7 +1349,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Переводы названия и описания — локализации YouTube: зритель из Испании видит\n// ролик по-испански. Какие языки — служебная колонка tmpl_Languages в Templates\n// («es, de, fr»); пусто — переводов нет, ветка молча кончается. Как переводить\n// (что оставить как есть, тон) — колонки со значком 🌐: здесь только механика.\nconst tmpl = $('Читаем стиль оверлея').first().json;\nconst data = $('Готовим данные для сборки').first().json;\n// (22.10) лёгкая модель для служебных текстов — служебная колонка Templates tmpl_LightModel\nconst lightModel = String((Object.entries(tmpl).find(([k]) => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightModel') || [])[1] || '').trim();\nconst key = Object.keys(tmpl).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_Languages');\nconst langs = [...new Set(String(key ? tmpl[key] || '' : '')\n  .split(/[\\s,;]+/).map(s => s.trim().toLowerCase())\n  .filter(s => /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/.test(s) && s !== 'en'))];\nif (!langs.length) return [];\n// (28.10) модель — только из таблицы, запасной в коде нет\nif (!lightModel) throw new Error('Таблица: в Templates не заполнена tmpl_LightModel');\nconst rules = Object.keys(tmpl)\n  .filter(k => k.includes('🌐') && String(tmpl[k] || '').trim())\n  .map(k => String(tmpl[k]).trim()).join('\\n\\n');\nconst systemPrompt = 'Translate the title and the description of a YouTube video from English into these languages (codes): '\n  + langs.join(', ') + '.\\n'\n  + 'Answer with JSON only: {\"<code>\": {\"title\": \"...\", \"description\": \"...\"}} — one entry for every code.\\n'\n  + 'Keep line breaks, the timestamps at the start of lines (0:00, 12:34, 1:02:03), links and hashtags exactly as they are. '\n  + 'The title must stay under 100 characters. Never use the characters < and >.'\n  + (rules ? '\\n\\n' + rules : '');\n// (22.10) пересборка: тот же текст — те же переводы, OpenAI не зовём. Отпечаток — без тайм-кодов,\n// они при новой сборке могут сдвинуться; в готовые переводы подставляем новые по порядку.\nconst TS = /\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b/g;\nconst fp = s => { let h = 5381; for (const ch of s) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(36); };\nconst print = fp(JSON.stringify([langs, data.title, String(data.description || '').replace(TS, '#')]));\nlet cache = null;\ntry { cache = JSON.parse(String($('Читаем проект').first().json.sys_Translations || '') || 'null'); } catch (e) { cache = null; }\nconst newTs = String(data.description || '').match(TS) || [];\nif (cache && cache.print === print && cache.loc) {\n  const loc = {};\n  let ok = true;\n  for (const [l, v] of Object.entries(cache.loc)) {\n    const old = String(v.description || '').match(TS) || [];\n    if (old.length !== newTs.length) { ok = false; break; }\n    let i = 0;\n    loc[l] = { title: v.title, description: String(v.description || '').replace(TS, () => newTs[i++]) };\n  }\n  if (ok) return [{ json: { langs, cached: true, cachedLoc: loc, print } }];\n}\nreturn [{ json: { langs, cached: false, print, model: lightModel, systemPrompt, userPrompt: JSON.stringify({ title: data.title, description: data.description }) } }];"
+        "jsCode": "// Переводы названия и описания — локализации YouTube: зритель из Испании видит\n// ролик по-испански. Какие языки — служебная колонка tmpl_Languages в Templates\n// («es, de, fr»); пусто — переводов нет, ветка молча кончается. Как переводить\n// (что оставить как есть, тон) — колонки со значком 🌐: здесь только механика.\nconst tmpl = $('Читаем стиль оверлея').first().json;\nconst data = $('Готовим данные для сборки').first().json;\n// (22.10) лёгкая модель для служебных текстов — служебная колонка Templates tmpl_LightModel\nconst lightModel = String((Object.entries(tmpl).find(([k]) => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightModel') || [])[1] || '').trim();\nconst key = Object.keys(tmpl).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_Languages');\nconst langs = [...new Set(String(key ? tmpl[key] || '' : '')\n  .split(/[\\s,;]+/).map(s => s.trim().toLowerCase())\n  .filter(s => /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/.test(s) && s !== 'en'))];\nif (!langs.length) return [];\n// (28.10) модель — только из таблицы, запасной в коде нет\nif (!lightModel) throw new Error('Таблица: в Templates не заполнена tmpl_LightModel');\nconst rules = Object.keys(tmpl)\n  .filter(k => k.includes('🌐') && String(tmpl[k] || '').trim())\n  .map(k => String(tmpl[k]).trim()).join('\\n\\n');\nconst systemPrompt = 'Translate the title and the description of a YouTube video from English into these languages (codes): '\n  + langs.join(', ') + '.\\n'\n  + 'Answer with JSON only: {\"<code>\": {\"title\": \"...\", \"description\": \"...\"}} — one entry for every code.\\n'\n  + 'Keep line breaks, the timestamps at the start of lines (0:00, 12:34, 1:02:03), links and hashtags exactly as they are. '\n  + 'The title must stay under 100 characters. Never use the characters < and >.'\n  + (rules ? '\\n\\n' + rules : '');\n// (22.10) пересборка: тот же текст — те же переводы, OpenAI не зовём. Отпечаток — без тайм-кодов,\n// они при новой сборке могут сдвинуться; в готовые переводы подставляем новые по порядку.\nconst TS = /\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b/g;\nconst fp = s => { let h = 5381; for (const ch of s) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(36); };\nconst print = fp(JSON.stringify([langs, data.title, String(data.description || '').replace(TS, '#')]));\nlet cache = null;\ntry { cache = JSON.parse(String($('Читаем проект').first().json.sys_Translations || '') || 'null'); } catch (e) { cache = null; }\nconst newTs = String(data.description || '').match(TS) || [];\nif (cache && cache.print === print && cache.loc) {\n  const loc = {};\n  let ok = true;\n  for (const [l, v] of Object.entries(cache.loc)) {\n    const old = String(v.description || '').match(TS) || [];\n    if (old.length !== newTs.length) { ok = false; break; }\n    let i = 0;\n    loc[l] = { title: v.title, description: String(v.description || '').replace(TS, () => newTs[i++]) };\n  }\n  if (ok) return [{ json: { langs, cached: true, cachedLoc: loc, print } }];\n}\n// (28.10) усилие — из таблицы (tmpl_LightEffort); пусто — не задаём\nconst effortKey = Object.keys(tmpl).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightEffort');\nconst effort = String(effortKey ? tmpl[effortKey] || '' : '').trim().toLowerCase();\nreturn [{ json: { langs, cached: false, print, model: lightModel, effort: ['minimal', 'low', 'medium', 'high'].includes(effort) ? effort : '', systemPrompt, userPrompt: JSON.stringify({ title: data.title, description: data.description }) } }];"
       },
       "name": "Готовим переводы",
       "type": "n8n-nodes-base.code",
@@ -1459,7 +1368,7 @@
         "nodeCredentialType": "openAiApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify(Object.assign({ model: $json.model, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }, /^gpt-5/.test($json.model) ? { reasoning_effort: 'minimal' } : {})) }}",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ model: $json.model, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }, $json.effort ? { reasoning_effort: $json.effort } : {})) }}",
         "options": {
           "timeout": 180000
         }
@@ -1894,47 +1803,7 @@
       "main": [
         [
           {
-            "node": "Читаем персонажа канала",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Готовим запрос на названия треков": {
-      "main": [
-        [
-          {
-            "node": "Нужны названия?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Нужны названия?": {
-      "main": [
-        [
-          {
-            "node": "OpenAI: названия треков",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Собираем текст таймкодов",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "OpenAI: названия треков": {
-      "main": [
-        [
-          {
-            "node": "Собираем текст таймкодов",
+            "node": "Названия треков из таблицы",
             "type": "main",
             "index": 0
           }
@@ -2368,17 +2237,6 @@
         ]
       ]
     },
-    "Читаем персонажа канала": {
-      "main": [
-        [
-          {
-            "node": "Готовим запрос на названия треков",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Сеть подвела? Повторим": {
       "main": [
         [
@@ -2535,6 +2393,17 @@
         [
           {
             "node": "OpenAI: переводы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Названия треков из таблицы": {
+      "main": [
+        [
+          {
+            "node": "Собираем текст таймкодов",
             "type": "main",
             "index": 0
           }
