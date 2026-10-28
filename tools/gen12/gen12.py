@@ -211,7 +211,9 @@ tg_api('Печатает…', 'sendChatAction', "={{ JSON.stringify({ chat_id: $
 add({'parameters': {'source': 'database', 'workflowId': {'__rl': True, 'value': '={{ $workflow.id }}', 'mode': 'id'},
                     'options': {'waitForSubWorkflow': True}},
      'name': 'Работа', 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.1, 'position': [RX + 2420, RY],
-     'onError': 'continueErrorOutput'})
+     # (28.10) «Работа» часто кончается узлом без данных (ответ ушёл — дальше пусто); без этого n8n останавливался
+     # и «сделано» не ставилось — выпуск оставался «в работе», следующее сообщение ждало вечно
+     'alwaysOutputData': True, 'onError': 'continueErrorOutput'})
 code('Задание для работы', 'zadanie.js', [RX + 2310, RY + 160])
 inbox_http('Очередь: сделано', "={{ JSON.stringify({ op: 'done', key: $('В работу').first().json.key }) }}", [RX + 2640, RY - 120])
 if_node('Есть следующее?', '!!$json.next', [RX + 2860, RY - 120])

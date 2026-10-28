@@ -852,6 +852,7 @@ async function turn(stages, row, inc, response, subResponse) {
     const cn = wf.connections;
     assert.equal(cn['Работа'].main[0][0].node, 'Очередь: сделано');
     assert.equal(cn['Работа'].main[1][0].node, 'Разбираем сбой');
+    assert.equal(wf.nodes.find(n => n.name === 'Работа').alwaysOutputData, true, 'пустой конец «Работы» — всё равно «сделано»');
     assert.equal(cn['Telegram Trigger'].main[0][0].node, 'Это владелец бота?');
     assert.equal(cn['Это владелец бота?'].main[0][0].node, 'Приёмная: конверт');
     assert.ok(!wf.nodes.some(n => /Вахтёр|Замок|разговор/.test(n.name)), 'ни Вахтёра, ни Замка, ни узлов разговора');
