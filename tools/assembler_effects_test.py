@@ -4,7 +4,7 @@ sys.path.insert(0, '/home/user/N8N/assembler')
 import app as A
 import json as _json
 _W = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'effects', 'slova.json')))
-A.set_vocab({'fxWords': _W}); A.set_frame({'videoWidth': 1920, 'videoHeight': 1072})   # (28.10) слова и кадр — из таблицы
+A.set_vocab({'fxWords': _W}); A.set_frame({'videoWidth': 1920, 'videoHeight': 1072}); A.EFFECTS_LOOP_SECONDS = 6.0   # (28.10) слова и кадр — из таблицы
 if not shutil.which('ffprobe'):  # локально может не быть ffprobe — длительность читаем из ffmpeg
     def _dur(p):
         e = subprocess.run(['ffmpeg', '-i', p], capture_output=True, text=True).stderr

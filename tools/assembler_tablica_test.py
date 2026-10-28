@@ -30,7 +30,7 @@ BASE = {
     'overlayShadow': '#2C3036', 'overlayShadowBlur': '8', 'overlayShadowOpacity': '0.6', 'overlayMargin': '100',
     'overlayPosition': 'right', 'overlayHoldSeconds': '8', 'overlayFadeInSeconds': '2', 'overlayFadeOutSeconds': '2',
     'overlayLineSpacing': '0.75', 'overlayBorder': '1',
-    'eventGapMinSeconds': '8', 'eventGapMaxSeconds': '12', 'leafVariants': '1', 'leafLieSeconds': '3',
+    'effectsLoopSeconds': '6', 'eventGapMinSeconds': '8', 'eventGapMaxSeconds': '12', 'leafVariants': '1', 'leafLieSeconds': '3',
     'fx_Effects': 'пар: 30, 60; густота 6\nсвеча: 60, 40; ореол 7\nморгание: 50, 30\n'
                   'листья: 40, 5 → 42, 60; клён; жёлтый; раз в 10\nобложка Б: кадр 10 10 — 70 70, оверлей справа',
     'fxWords': WORDS,
@@ -45,7 +45,7 @@ print('covers', c.get('/covers/T1').get_json())
 
 # Нет нужного в таблице — сборщик говорит, чего не хватает (а не подставляет своё)
 for drop, words in (('overlayFont', 'overlayFont'), ('overlayHoldSeconds', 'overlayHoldSeconds'), ('videoWidth', 'VideoWidth'),
-                    ('stillFps', 'StillFps'), ('fxWords', 'Слова'), ('eventGapMinSeconds', 'EventGapMinSeconds')):
+                    ('stillFps', 'StillFps'), ('effectsLoopSeconds', 'EffectsLoopSeconds'), ('fxWords', 'Слово'), ('eventGapMinSeconds', 'EventGapMinSeconds')):
     bad = dict(BASE); bad.pop(drop)
     rr = c.post('/assemble', json=bad)
     txt = (rr.get_json(silent=True) or {}).get('error') or rr.get_data(as_text=True)
@@ -53,4 +53,12 @@ for drop, words in (('overlayFont', 'overlayFont'), ('overlayHoldSeconds', 'over
     print('нет', drop, '→', rr.status_code, 'говорит про', words)
 bad = dict(BASE, overlayFont='Нет Такого Шрифта')
 rr = c.post('/assemble', json=bad); assert 'не найден' in (rr.get_json(silent=True) or {}).get('error', ''), rr.get_data(as_text=True)[:300]
+# Ручки без упоров: дробь через запятую, ниже нуля; ноль — не «выключено»
+spec = A.parse_effects('пар: 30, 60; скорость -5; ширина 0,5; густота 0')
+kn = spec[0][1].knobs
+assert kn == {'speed': -5.0, 'width': 0.5, 'density': 0.0}, kn
+assert abs(A.fx_knob({}, 'steam', spec[0][1], 'speed') - 0.25) < 1e-9      # −5 → вчетверо медленнее
+assert abs(A.fx_knob({}, 'steam', spec[0][1], 'density') - 0.5) < 1e-9     # 0 → вдвое слабее, не выключено
+assert abs(A.fx_knob({}, 'steam', spec[0][1], 'width') - 2 ** -0.9) < 1e-9
+print('ручки без упоров OK')
 print('ALL OK')

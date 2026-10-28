@@ -298,9 +298,9 @@ async function turn(stages, row, inc, response, subResponse) {
   {
     const ANIM = [DIRECT[0], { ...st('🎞️', 'Аниматор', 'автор', 'да', '9'), 'Картинка': 'с сеткой', 'Справочник': 'Эффекты' }];
     const FX = [
-      { 'Семейство': 'Пар и дым', 'Эффект': 'дым', 'Механика': 'smoke', 'Строка для сборщика': 'дымок: x, y', 'Как размечать': 'кружок', 'Ручки': 'густота', 'Статус': 'готов', demo: 'густота 4', other: '' },
+      { 'Семейство': 'Пар и дым', 'Эффект': 'дым', 'Механика': 'smoke', 'Строка для сборщика': 'дымок: x, y', 'Как размечать': 'кружок', 'Ручки': 'густота', 'Статус': 'готов', demo: 'густота 4', other: '', 'Слово': 'дымок', 'Значит': 'smoke' },
       { 'Семейство': 'Осадки', 'Эффект': 'снег', 'Механика': 'snow', 'Строка для сборщика': 'снег: область', 'Как размечать': 'заливка', 'Ручки': 'густота', 'Статус': 'пока не умеет', demo: '' },
-      { 'Семейство': 'КАК ЧИТАТЬ ЛИСТ', 'Эффект': '', 'Механика': '' }];
+      { 'Семейство': 'КАК ЧИТАТЬ ЛИСТ', 'Эффект': '', 'Механика': '', 'Слово': 'густота', 'Значит': 'density' }];
     const IT9 = [...ITEMS, { 'Канал': 'demo', '№': '9', 'Пункт': 'Оживление', 'Колонки': 'fx_Effects', 'Можно пусто': 'да', 'Превью': 'оживление' }];
     const ctxA = await (async () => {
       const nodes = { 'Разбираем входящее': { kind: 'stageStart', chatId: 1, projectId: 'P1', channelKey: 'demo', text: '', event: 'Картинка согласована.' },
@@ -383,7 +383,7 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(r.previewBody.fx_Effects, 'дымок: 44, 37'); assert.equal(r.previewBody.imageUrl, 'U2');
     assert.equal(r.previewBody.targetLUFS, '-14', 'вид эффектов — колонки 🎬');
     assert.deepEqual(r.previewBody.fxTable, [{ mech: 'smoke', knobs: 'густота 4' }], 'ручки эффектов канала — из листа «Эффекты»');
-    assert.ok(Array.isArray(r.previewBody.fxWords), 'слова разметки — из листа «Слова» (сборщик слов не знает)');
+    assert.deepEqual(r.previewBody.fxWords, [{ word: 'дымок', means: 'smoke' }, { word: 'густота', means: 'density' }], 'словарик — колонки «Слово» / «Значит» листа «Эффекты»');
     assert.ok(r.previewCaption.includes('ID: P1'));
     const nx = (await run('Что дальше?', { nodes: { 'Итог хода': r } }))[0];
     assert.equal(nx.preview, true);

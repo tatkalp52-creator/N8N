@@ -15,9 +15,8 @@ try { itemRows = $('Читаем пункты').all().map(i => i.json || {}); } 
 let effectRows = [];
 try { effectRows = $('Читаем эффекты').all().map(i => i.json || {}); } catch (e) {}
 const effects = fxRows(effectRows, inc.channelKey);
-let wordRows = [];
-try { wordRows = $('Читаем слова').all().map(i => i.json || {}); } catch (e) {}
-const words = wordRows.map(r => ({ word: String(r['Слово'] || '').trim(), means: String(r['Значит'] || '').trim() })).filter(r => r.word && r.means);
+// (28.10) словарик листа «Эффекты» (колонки «Слово» → «Значит») — что значат слова разметки для сборщика
+const words = effectRows.map(r => ({ word: String(r['Слово'] || '').trim(), means: String(r['Значит'] || '').trim() })).filter(r => r.word && r.means);
 
 const found = !!row.sys_ProjectID && String(row.sys_ProjectID).trim() === inc.projectId;
 // Метка выпуска для каждого сообщения: значок канала (Catalog) + дата выхода + имя из календаря.

@@ -4,7 +4,7 @@ sys.path.insert(0, '/home/user/N8N/assembler')
 import app as A
 import json as _json
 _W = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'effects', 'slova.json')))
-A.set_vocab({'fxWords': _W}); A.set_frame({'videoWidth': 1920, 'videoHeight': 1072})   # (28.10) слова и кадр — из таблицы
+A.set_vocab({'fxWords': _W}); A.set_frame({'videoWidth': 1920, 'videoHeight': 1072}); A.EFFECTS_LOOP_SECONDS = 6.0   # (28.10) слова и кадр — из таблицы
 A.download_media = lambda url, dest: shutil.copy(url.replace('http://x/', ''), dest) or dest
 font = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 alpha = "if(lt(t,5),t/5,if(lt(t,15),1,if(lt(t,21),(21-t)/6,0)))"

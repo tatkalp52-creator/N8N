@@ -43,7 +43,7 @@ python3 tools/gen12/gen12.py && python3 tools/gen12/check12.py && node tools/gen
 ## No settings or content words in code — the guard (28.10)
 
 Code is routing only: it addresses categories and participants. Every number, word, default, model name and channel name lives in the Sheet. Missing column = no processing (or a clear «Таблица: …» message), never a fallback value in code.
-- Effects: words of the markup language (пар, густота, клён, обложка Б…) live in the sheet «Слова» (Слово → Значит); the assembler only knows the values (steam, density, maple, B…) via `to_ids()`. 04 and 12 pass the sheet as `fxWords`.
+- Effects: words of the markup language (пар, густота, клён, обложка Б…) live in the sheet «Эффекты», columns «Слово» → «Значит» (one sheet for effects; sections Анимация / Звук); the assembler only knows the values (steam, density, maple, B…) via `to_ids()`. 04 and 12 pass them as `fxWords`. Knobs: any number (fractions, below 0); 5 = base, every 5 steps doubles or halves; 0 never means off.
 - Sound, overlay, frame, theme mark, effect timing — 🎬 columns in Templates (see Бэкапы row 69 for what moved).
 - `python3 tools/guard/guard.py` must say «нарушений: 0». Allowed technical items are listed one by one, with a reason, in `tools/guard/allow.txt`; settings and content words never go there.
 - Effect parsing parity: `python3 tools/effects/fx_parse_dump.py assembler out.json tools/effects/slova.json` over `tools/effects/fx_corpus.json` (real episode lines).

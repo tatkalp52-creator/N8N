@@ -1403,7 +1403,17 @@ def grade_image(image_path, data):
 #   моргание: 74.0, 63.0        (глаз; точный центр сборщик находит сам рядом)
 # Из этого рисуется бесшовная петля EFFECTS_LOOP_SECONDS и идёт как обычная петля.
 # Вид — 🎬-настройки (steamOpacity, steamHeight); пусто — как в утверждённой пробе.
-EFFECTS_LOOP_SECONDS = 6.0
+EFFECTS_LOOP_SECONDS = None   # (28.10) длина петли оживления — 🎬 EffectsLoopSeconds, см. set_fx_loop()
+
+
+def set_fx_loop(data):
+    """Длина петли оживления из таблицы; нужна, только если в выпуске есть строки оживления."""
+    global EFFECTS_LOOP_SECONDS
+    v = _float_or(data.get("effectsLoopSeconds"), None)
+    if v and v > 0:
+        EFFECTS_LOOP_SECONDS = v
+    elif str(data.get("fx_Effects") or "").strip() not in ("", "-"):
+        raise RuntimeError("Таблица: для оживления не заполнена колонка EffectsLoopSeconds (длина петли, с)")
 # (28.10) Основа кисти каждого эффекта — «5» на шкале ручек листа «Эффекты»; сильнее / слабее — ручками там.
 # Скрытых 🎬-колонок, перебивающих основу (steamOpacity и т. п.), больше нет.
 STEAM_OPACITY, STEAM_HEIGHT = 0.62, 1.0
@@ -1411,7 +1421,7 @@ SMOKE_OPACITY, SMOKE_SIZE = 0.8, 1.0
 CANDLE_GLOW = 1.0
 RAIN_OPACITY = 1.0
 LEAF_SIZE_PX, LEAF_FALL_SECONDS = 30.0, 6.0   # длина листа в пикселях кадра высотой 864; время полёта
-# (28.10) СЛОВА — ТОЛЬКО В ТАБЛИЦЕ. Лист «Слова»: «слово → что оно значит для сборщика» (пар → steam,
+# (28.10) СЛОВА — ТОЛЬКО В ТАБЛИЦЕ. Словарик листа «Эффекты» (колонки «Слово» → «Значит») (пар → steam,
 # густота → density, клён → maple…; «облак*» — с любым окончанием). Строка выпуска сначала переводится
 # в эти значения (to_ids), и дальше сборщик знает только их — механику, а не слова автора.
 EFFECT_IDS = ("steam", "bubbles", "blink", "smoke", "candle", "lights", "stars", "rain", "fire")
@@ -1420,12 +1430,12 @@ EVENT_IDS = ("leaves", "leaf", "edge", "behind")
 # Ручки в строке выпуска («; density 7») и область («steam: area 30 50, 45 49, …») — 05.10.
 # Ручки — шкала листа «Эффекты»: 5 — как сейчас, меньше — слабее, больше — сильнее.
 KNOB_IDS = ("density", "thickness", "height", "speed", "curls", "transparency", "halo", "sway", "brightness",
-            "drops", "frequency", "size", "flicker", "glow", "flame", "reach")
+            "drops", "frequency", "size", "flicker", "glow", "flame", "reach", "width")
 VOCAB = []
 
 
 def set_vocab(data):
-    """Словарь из листа «Слова» (04 и «восьмёрка» присылают его как fxWords)."""
+    """Словарик листа «Эффекты» (04 и «восьмёрка» присылают его как fxWords)."""
     global VOCAB
     rows = data.get("fxWords") or []
     if isinstance(rows, str):
@@ -1448,12 +1458,12 @@ def set_vocab(data):
 
 
 def to_ids(text):
-    """Слова автора → значения из листа «Слова». Латиница и числа не трогаются."""
+    """Слова автора → значения из словарика листа «Эффекты». Латиница и числа не трогаются."""
     t = str(text or "").lower().replace("ё", "е")
     if not re.search(r"[^\W\d_a-z]", t):
         return t
     if not VOCAB:
-        raise RuntimeError("Таблица: нет листа «Слова» — сборщик не знает, что значат слова разметки")
+        raise RuntimeError("Таблица: в листе «Эффекты» нет словарика (колонки «Слово» / «Значит») — сборщик не знает, что значат слова разметки")
     for rx, means in VOCAB:
         t = rx.sub(means, t)
     return t
@@ -1481,9 +1491,9 @@ def parse_effects(text):
             continue
         knobs = {}
         for w_ in KNOB_IDS:
-            km = re.search(w_ + r"\s*(\d+(?:\.\d+)?)", low)
+            km = re.search(w_ + r"\s*(-?\d+(?:[.,]\d+)?)", low)   # (28.10) любое число: дробь, ниже нуля
             if km:
-                knobs[w_] = float(km.group(1))
+                knobs[w_] = float(km.group(1).replace(",", "."))
                 low = low[:km.start()] + low[km.end():]
         # «облако x y, x y, …» — докуда живёт эффект (обводка автора); пар держится внутри неё
         # облаков может быть несколько — пар живёт в их объединении; крошечные (кружок у глаза или свечи,
@@ -1550,13 +1560,14 @@ def fx_knob(data, kind, nums, word):
         mech = fx_mech(kind, nums)
         for row in table:
             if str(row.get("mech", "")).strip() == mech:
-                km = re.search(word + r"\s*(\d+(?:[.,]\d+)?)", to_ids(row.get("knobs", "")))
+                km = re.search(word + r"\s*(-?\d+(?:[.,]\d+)?)", to_ids(row.get("knobs", "")))
                 if km:
                     v = float(km.group(1).replace(",", "."))
                 break
     if v is None:
         return 1.0
-    return 2 ** ((max(0.0, min(20.0, v)) - 5) / 5)    # (08.10) шкала шире: 0…20 (5 — как есть)
+    # (28.10) без упоров: 5 — как есть, каждые 5 шагов — вдвое (10 — ×2, 0 — ×½, −5 — ×¼); ноль ничего не выключает
+    return 2 ** ((v - 5) / 5)
 
 
 # ── ПРИМАГНИЧИВАНИЕ (05.10): точки, которые можно найти счётом, а не глазом ──
@@ -2077,12 +2088,15 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
         elif kind == "steam":
             c_op, c_h, c_sp = kn(kind, nums, "density"), kn(kind, nums, "height"), kn(kind, nums, "speed")
             c_th = kn(kind, nums, "thickness")         # (06.10) струйки толще — и мягче по краям
-            c_cyc = max(1, int(round(2 * c_sp)))     # петля 6 с: столько проходов струйки
+            # столько проходов струйки за петлю (целое — иначе стык петли дёрнется): медленнее одного прохода
+            # за петлю нельзя — для медленного пара длиннее петля (🎬 EffectsLoopSeconds)
+            c_cyc = max(1, int(round(c_sp * EFFECTS_LOOP_SECONDS / 3)))
             c_tr = kn(kind, nums, "transparency")    # (08.10) отдельно от густоты: больше — прозрачнее (полезно при толстых струйках)
             c_cu = kn(kind, nums, "curls")         # (08.10) 5 — как есть; больше — струйка вьётся шире и с перекруткой
+            c_wd = kn(kind, nums, "width")         # (28.10) ширина: на сколько струйки расходятся друг от друга
             hx = max(0.0, c_cu - 1.0) * 0.8          # вторая, более частая волна — завиток на изгибе
             # (10.10) по времени — ровно 2 оборота за проход: с 1.7 петля не замыкалась, пар дёргался на стыке
-            bw = int(max(150 * k * max(1.0, c_th), (2 * (11 + 24.7 * (1 + hx) * c_cu) + 30) * k))
+            bw = int(max(150 * k * max(1.0, c_th) * max(1.0, c_wd), (2 * (11 * c_wd + 24.7 * (1 + hx) * c_cu) + 30) * k))
             bh = int(165 * k * steam_height * c_h)
             x0, y0 = int(px - bw / 2), int(py - bh)
             grain = np.asarray(Image.fromarray(rng.uniform(0, 255, (bh, bw)).astype(np.uint8))
@@ -2094,7 +2108,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
             # (06.10) несколько струек на одной тарелке были одинаковыми — «как лес»: у каждой точки
             # свой изгиб, своя фаза и свой сдвиг во времени (зависят от места, петля не рвётся)
             vr = random.Random(int(px * 7919 + py * 104729))
-            wisps = [dict(w_, ph=w_["ph"] + vr.uniform(0, 6.28), A=w_["A"] * vr.uniform(0.75, 1.3),
+            wisps = [dict(w_, bx=w_["bx"] * c_wd, ph=w_["ph"] + vr.uniform(0, 6.28), A=w_["A"] * vr.uniform(0.75, 1.3),
                           f=w_["f"] * vr.uniform(0.85, 1.15), mp=w_["mp"] + vr.uniform(0, 1),
                           end=vr.uniform(0.55, 0.95)) for w_ in wisps]
             t_shift = vr.uniform(0, 1)
@@ -2677,7 +2691,7 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
 # маленький / крупный, вглубь (уменьшается по пути), за край (прячется за линию «край»),
 # раз в N (секунд; «раз в 4 мин» — минут), падает N (секунд полёта).
 # Общий вид — 🎬 leafSize (длина листа в пикселях кадра высотой 864) и leafFallSeconds.
-# Цвета — палитра кисти (значения из листа «Слова»: жёлтый → yellow …)
+# Цвета — палитра кисти (значения из словарика листа «Эффекты»: жёлтый → yellow …)
 LEAF_COLORS = {
     "yellow": (214, 168, 58), "red": (176, 62, 42), "orange": (204, 112, 46),
     "ochre": (178, 128, 66), "brown": (128, 82, 48),
@@ -3604,6 +3618,7 @@ def assemble():
     try:
         set_frame(data)
         set_vocab(data)
+        set_fx_loop(data)
         image_path = download_file(image_url, os.path.join(work_dir, "image.jpg"))
 
         # (28.10) яркость тоже: нет колонки TargetBrightness — картинку не осветляем
@@ -3910,7 +3925,7 @@ def make_episode_covers(project_id, fx_text):
             os.remove(listing)
         made = []
         for letter, box, side in parse_cover_lines(fx_text):
-            name = re.sub(r"[^A-Za-z0-9]", "", letter) or str(len(made) + 1)   # буква — уже значение из листа «Слова» (Б → B)
+            name = re.sub(r"[^A-Za-z0-9]", "", letter) or str(len(made) + 1)   # буква — уже значение из словарика листа «Эффекты» (Б → B)
             try:
                 render_cover(project_id, box, side, os.path.join(THUMBNAIL_DIR, f"{project_id}_cover_{name}.jpg"))
                 made.append({"letter": letter, "file": name})
@@ -4165,6 +4180,7 @@ def draw_fx_preview_video(image_path, fx_text, data, out_path):
 def fx_preview_video():
     data = request.json or {}
     set_vocab(data)
+    set_fx_loop(data)
     work_dir = tempfile.mkdtemp(prefix="fxpv_")
 
     @after_this_request
@@ -4196,6 +4212,7 @@ def fx_grid():
 def fx_preview():
     data = request.json or {}
     set_vocab(data)
+    set_fx_loop(data)
     work_dir = tempfile.mkdtemp(prefix="fxprev_")
 
     @after_this_request

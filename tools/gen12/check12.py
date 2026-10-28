@@ -57,7 +57,7 @@ for n in wf['nodes']:
 # Листы, где строк много (Этапы, Пункты, Эффекты), читаются целиком: без returnAllMatches узел отдаёт одну строку
 # (05.10: так пропал пункт 9 — Аниматор остался без своего пункта)
 for n in wf['nodes']:
-    if n['type'] == 'n8n-nodes-base.googleSheets' and n['parameters'].get('sheetName', {}).get('value') in ('Этапы', 'Пункты', 'Эффекты', 'Слова'):
+    if n['type'] == 'n8n-nodes-base.googleSheets' and n['parameters'].get('sheetName', {}).get('value') in ('Этапы', 'Пункты', 'Эффекты'):
         if n['parameters'].get('options', {}).get('returnAllMatches') != 'returnAllMatches':
             print('GUARD: лист читается одной строкой', n['name']); bad += 1
 # (24.10) ПРАВИЛО ПОВТОРОВ: повторять можно только безопасное (чтение, запись в строку по ключу, запросы без памяти).

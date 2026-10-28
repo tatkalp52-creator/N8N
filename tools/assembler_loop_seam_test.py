@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "assembler"))
 import app  # noqa: E402
 import json as _json
 _W = _json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'effects', 'slova.json')))
-app.set_vocab({'fxWords': _W}); app.set_frame({'videoWidth': 1920, 'videoHeight': 1072})   # (28.10) слова и кадр — из таблицы
+app.set_vocab({'fxWords': _W}); app.set_frame({'videoWidth': 1920, 'videoHeight': 1072}); app.EFFECTS_LOOP_SECONDS = 6.0   # (28.10) слова и кадр — из таблицы
 
 rng = np.random.default_rng(1)
 H, W = 864, 1536
@@ -22,7 +22,7 @@ path = os.path.join(tempfile.mkdtemp(), "img.png")
 Image.fromarray(img).save(path)
 
 LINES = {
-    "пар: 50, 60": ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность"),
+    "пар: 50, 60": ("густота", "толщина", "высота", "скорость", "завитки", "прозрачность", "ширина"),
     "пар: область 40 70, 60 70, 60 80, 40 80; облако 35 40, 65 40, 65 82, 35 82": ("густота", "высота", "скорость"),
     "дымок: 30, 30": ("густота", "толщина", "высота", "скорость"),
     "свеча: 59, 36": ("ореол", "раскачка"),
@@ -34,7 +34,7 @@ n = int(app.EFFECTS_LOOP_SECONDS * FPS)
 bad = 0
 for line, knobs in LINES.items():
     for word in knobs:
-        for v in (1, 10):
+        for v in (-5, 1, 10):   # (28.10) ручки без упоров — и ниже нуля
             spec = app.parse_effects(f"{line}; {word} {v}")
             fr = [app.render_effects_loop(path, spec, {}, FPS, None, still_at=i / FPS) for i in range(n + 2)]
             d = np.array([np.abs(fr[i + 1] - fr[i]).mean() for i in range(n + 1)])
