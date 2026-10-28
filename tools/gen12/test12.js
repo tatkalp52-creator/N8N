@@ -697,8 +697,23 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(await dec(m, { error: { message: 'ECONNREFUSED' } }), 'run', 'сервер молчит — лучше лишний запуск, чем потерянное');
     const job = (await run('В работу', { nodes: { 'Очередь: решение': { ...m, route: 'run' } } }))[0];
     assert.equal(job.key, 'upd:9'); assert.equal(job.chatId, 7); assert.equal(job.quote, '«светлее»');
-    const job2 = (await run('В работу', { nodes: { 'Изнутри: что это?': { resume: { key: 'upd:9', body: { source: 'tg', body: m.body }, chatId: 7, tries: 2 } } } }))[0];
-    assert.equal(job2.tries, 2);
+    // повтор и «следующее» приходят из очереди в том виде, в каком положены: { body: { source, body } } —
+    // «Работа» должна получить то же, что и в первый раз (28.10: повтор принимал обёртку за календарь и молчал)
+    const fromQueue = async (e) => (await run('В работу', { nodes: { 'Изнутри: что это?': { resume: { key: e.key, body: { source: e.source, body: e.body }, chatId: e.chatId, tries: 2 } } } }))[0];
+    for (const e of [m, inner, cal, e1]) {
+      const fresh = (await run('В работу', { nodes: { 'Очередь: решение': { ...e, route: 'run' } } }))[0];
+      const again = await fromQueue(e);
+      assert.equal(again.source, fresh.source, 'повтор — тот же источник: ' + e.source);
+      assert.deepEqual(again.body, fresh.body, 'повтор — то же содержимое: ' + e.source);
+      assert.equal(again.tries, 2);
+      const z1 = (await run('Задание для работы', { nodes: { 'В работу': fresh } }))[0];
+      const z2 = (await run('Задание для работы', { nodes: { 'В работу': again } }))[0];
+      const k1 = (await run('Разбираем входящее', { nodes: { 'Вызов изнутри': z1 } }))[0];
+      const k2 = (await run('Разбираем входящее', { nodes: { 'Вызов изнутри': z2 } }))[0];
+      assert.equal(k2.kind, k1.kind, 'работа разбирает повтор так же, как первый раз: ' + k1.kind);
+      assert.notEqual(k1.kind, 'unknown', 'и это не «непонятно»: ' + e.source);
+    }
+    assert.equal((await fromQueue(m)).quote, '«светлее»', 'в повторе видно, о чём сообщение');
   }
   console.log('17 приёмная: конверт, решение очереди OK');
 

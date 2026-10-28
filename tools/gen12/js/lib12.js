@@ -629,10 +629,19 @@ function failHuman(raw) {
   return { fatal: hit ? hit[1] : false, what: hit ? hit[2] : '❓ Незнакомая ошибка.', todo: hit ? hit[3] : '', raw: text.slice(0, 300) };
 }
 // Что было в сообщении — пара слов, чтобы было понятно, о чём речь
+// Одно входящее в одном виде. Конверт Приёмной: { source, body }; из очереди (повтор, следующее):
+// { body: { source, body } } — так оно было положено. Раньше повтор принимал обёртку за «календарь» и молчал.
+function inboxJob(item) {
+  const it = item || {};
+  const w = it.body;
+  if (!it.source && w && typeof w === 'object' && typeof w.source === 'string' && 'body' in w) return { source: w.source, body: w.body || {} };
+  return { source: it.source || 'inner', body: w || {} };
+}
 function inboxQuote(item) {
-  const b = (item && item.body) || {};
+  const j = inboxJob(item);
+  const b = (j.source === 'cal' ? (j.body || {}).body : j.body) || {};
   const m = b.message || {};
-  const t = m.text || m.caption || (b.callback_query ? 'кнопка' : '') || (b.event ? b.event : '') || (b.body && b.body.action) || '';
+  const t = m.text || m.caption || (b.callback_query ? 'кнопка' : '') || b.event || b.action || '';
   const s = String(t).replace(/\s+/g, ' ').trim();
   return s ? '«' + (s.length > 60 ? s.slice(0, 60) + '…' : s) + '»' : '';
 }
