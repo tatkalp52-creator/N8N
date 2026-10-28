@@ -47,12 +47,13 @@ async function context(stages, row, inc) {
 // Один ход: Кто отвечает → (модель: запрос → ответ → разбор → поручение) → Итог хода
 const TR = { 'Pengui baked a pie.': 'Пингви испёк пирог.', 'светлее': 'brighter', 'убрать кота': 'remove the cat' };
 async function turn(stages, row, inc, response, subResponse) {
+  // ответ модели не задан — простой текстовый ответ (пустой ответ теперь — падение «Работы»)
+  response = response || { output: [{ type: 'message', content: [{ type: 'output_text', text: 'ок' }] }] };
   const ctx = await context(stages, row, inc);
   const nodes = { 'Контекст проекта': ctx };
   nodes['Кто отвечает'] = (await run('Кто отвечает', { nodes }))[0];
   let req = null;
   if (nodes['Кто отвечает'].mode === 'model') {
-    if (nodes['Кто отвечает'].needConv) nodes['OpenAI: создаём разговор'] = { id: 'conv_new' };
     req = (await run('Готовим запрос этапу', { nodes }))[0];
     nodes['Готовим запрос этапу'] = req;
     nodes['Разбираем ответ этапа'] = (await run('Разбираем ответ этапа', { nodes, input: [response] }))[0];
@@ -151,7 +152,7 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.ok(!ins.includes('Название коротко.'), 'колонка 🏷️ Писателю не идёт');
   assert.ok(!ins.includes('только редактору') && !ins.includes('служебное') && !ins.includes('Рисованная'), 'чужие и служебные колонки не идут');
   assert.ok(ins.includes('3. Описание — история'));
-  assert.equal(t.req.requestBody.conversation, 'conv_new');
+  assert.ok(!t.req.requestBody.conversation, 'разговор у OpenAI не хранится');
   assert.ok(t.req.requestBody.input[0].content.some(c => c.image_url === 'U2'), 'писатель видит согласованную картинку');
   assert.ok(t.req.requestBody.input[0].content[0].text.includes('Картинка согласована (вариант 2)'));
   const toolNames = t.req.requestBody.tools.map(x => x.name).filter(Boolean);
@@ -163,15 +164,19 @@ async function turn(stages, row, inc, response, subResponse) {
   assert.equal(t.next, 'none');
   let state = JSON.parse(t.r.editorState);
   assert.equal(state.items[3].ruOf, 'Pengui baked a pie.', 'перевод привязан к тексту, с которого сделан');
-  assert.equal(state.stages['✍'].conv, 'conv_new'); assert.equal(state.stages['✍'].pending, 'c_propose_items');
+  assert.ok(!state.stages['✍'].conv && !state.stages['✍'].pending, 'ни разговора, ни висящего вызова');
+  assert.equal(state.stages['✍'].log.length, 2, 'этап помнит: служебный старт и свой ответ');
   console.log('3 писатель: только ✍️-колонки, свой разговор, картинка OK');
 
   // ── 4. Автор согласовала описание → этап завершён → Технический писатель ──
   t = await turn(DIRECT, { ...APPROVED, sys_EditorState: t.r.editorState }, { text: 'отлично, согласовано' },
     call('propose_items', { agreed: [3], message: 'Спасибо!' }));
   assert.equal(t.plan.stageName, 'Писатель');
-  assert.equal(t.req.requestBody.conversation, 'conv_new', 'тот же разговор писателя');
-  assert.equal(t.req.requestBody.input[0].type, 'function_call_output');
+  assert.ok(!t.req.requestBody.conversation);
+  assert.equal(t.req.requestBody.input[1].role, 'assistant', 'этап помнит свой прошлый ответ');
+  assert.ok(t.req.requestBody.input[1].content[0].text.includes('Вот история.') && t.req.requestBody.input[1].content[0].text.includes('propose_items: пункты 3'));
+  assert.equal(t.req.requestBody.input[t.req.requestBody.input.length - 1].role, 'user', 'последним — то, что автор написала сейчас');
+  assert.ok(t.req.requestBody.input.slice(-1)[0].content.some(c => c.image_url === 'U2'), 'картинка видна и на этом ходу (истории у OpenAI нет)');
   assert.equal(t.next, 'next'); assert.equal(t.r.nextIcon, '🏷️');
   state = JSON.parse(t.r.editorState);
   console.log('4 описание согласовано → переход к следующему этапу OK');
@@ -290,47 +295,44 @@ async function turn(stages, row, inc, response, subResponse) {
     const n = { 'Контекст проекта': ctxA };
     n['Кто отвечает'] = (await run('Кто отвечает', { nodes: n }))[0];
     assert.equal(n['Кто отвечает'].stageName, 'Аниматор'); assert.equal(n['Кто отвечает'].needGrid, true);
-    n['OpenAI: создаём разговор'] = { id: 'cA' };
     n['Сервер: сетка'] = { ok: true, dataUrl: 'data:image/jpeg;base64,GRID' };
     const req = (await run('Готовим запрос этапу', { nodes: n }))[0];
     const imgs = req.requestBody.input[0].content.filter(c => c.type === 'input_image').map(c => c.image_url);
     assert.deepEqual(imgs, ['data:image/jpeg;base64,GRID'], 'аниматор видит картинку с сеткой');
     assert.deepEqual(req.requestBody.tool_choice, { type: 'function', name: 'propose_items' }, 'пункт с превью — всегда строками, тогда придёт видео');
-    assert.ok(req.seen.includes('grid:U2') && !req.seen.some(x => x.startsWith('data:')), 'в памяти — метка, не данные');
+    assert.ok(!('seen' in req), 'картинки не «помнятся» — показываются каждый ход');
     assert.ok(req.requestBody.instructions.includes('КАТАЛОГ ЭФФЕКТОВ') && req.requestBody.instructions.includes('строка «дымок: x, y»')
       && req.requestBody.instructions.includes('на этом канале: густота 4') && req.requestBody.instructions.includes('на этом канале: не используется'),
       'аниматор видит каталог эффектов со столбцом своего канала');
     n['Готовим запрос этапу'] = req;
     n['Разбираем ответ этапа'] = (await run('Разбираем ответ этапа', { nodes: n, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'Вот.' })] }))[0];
-    // (22.10) разговор этапа сломался: тот же код строит запрос в новый разговор, картинка с сеткой — заново
+    // (28.10) без разговора у OpenAI: следующий ход видит картинку снова и помнит прошлый ответ; ошибка OpenAI — падение «Работы»
     {
       const nr = { ...n, 'Контекст проекта': { ...ctxA, row: { ...ctxA.row, sys_EditorState: n['Разбираем ответ этапа'].editorState } } };
-      delete nr['OpenAI: создаём разговор']; delete nr['Готовим запрос этапу']; delete nr['Разбираем ответ этапа'];
+      delete nr['Готовим запрос этапу']; delete nr['Разбираем ответ этапа'];
       const r1 = (await run('Готовим запрос этапу', { nodes: nr }))[0];
-      assert.equal(r1.conversationId, 'cA'); assert.equal(r1.isNew, false);
-      const u1 = r1.requestBody.input.find(i => i.role === 'user');
-      assert.ok(!Array.isArray(u1.content) || !u1.content.some(c => c.type === 'input_image'), 'старый разговор картинку уже видел');
-      nr['Готовим запрос этапу'] = r1; nr['OpenAI: новый разговор'] = { id: 'cB' };
-      const r2 = (await run('Готовим запрос заново', { nodes: nr }))[0];
-      assert.equal(r2.requestBody.conversation, 'cB'); assert.equal(r2.isNew, true);
-      assert.ok(r2.requestBody.input.find(i => i.role === 'user').content.some(c => c.type === 'input_image' && c.image_url === 'data:image/jpeg;base64,GRID'), 'новый разговор видит картинку');
-      nr['Готовим запрос заново'] = r2;
-      const pr = (await run('Разбираем ответ этапа', { nodes: nr, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'Вот.' })] }))[0];
-      const sts = JSON.parse(pr.editorState).stages;
-      assert.ok(Object.values(sts).some(x => x.conv === 'cB'), 'в состоянии — новый разговор');
-      delete nr['Готовим запрос заново'];
-      const pe2 = (await run('Разбираем ответ этапа', { nodes: nr, input: [{ error: { message: 'Bad request - please check your parameters', description: 'Invalid image' } }] }))[0];
-      assert.ok(pe2.message.includes('Invalid image'), 'автор видит настоящую причину');
-      const stE = JSON.parse(pe2.editorState).stages, stB = JSON.parse(nr['Контекст проекта'].row.sys_EditorState).stages;
-      assert.deepEqual(Object.values(stE).map(x => x.pending), Object.values(stB).map(x => x.pending), 'ошибка не стирает ожидающий вызов');
-      // (24.10) зависший вызов инструмента — тоже новый разговор (в старом их бывало несколько)
-      const no = { ...nr, 'OpenAI: этап': { error: { message: 'Bad request - please check your parameters', description: 'No tool output found for function call call_Cf2TBtOC4kNQJ1EFrGkUrEhN.' } } };
-      const r3 = (await run('Готовим запрос заново', { nodes: no }))[0];
-      assert.equal(r3.requestBody.conversation, 'cB', 'новый разговор');
-      assert.ok(!r3.requestBody.input.some(i => i.type === 'function_call_output'), 'в новом разговоре отвечать не на что');
-      assert.equal(r3.isNew, true);
+      const last = r1.requestBody.input[r1.requestBody.input.length - 1];
+      assert.ok(last.content.some(c => c.type === 'input_image' && c.image_url === 'data:image/jpeg;base64,GRID'), 'картинка с сеткой — снова');
+      assert.ok(r1.requestBody.input.some(i => i.role === 'assistant' && i.content[0].text.includes('Вот.')), 'помнит свой ответ');
+      nr['Готовим запрос этапу'] = r1;
+      let thrown = '';
+      try { await run('Разбираем ответ этапа', { nodes: nr, input: [{ error: { message: 'Bad request - please check your parameters', description: 'Invalid image' } }] }); }
+      catch (e) { thrown = String(e.message); }
+      assert.ok(thrown.includes('Invalid image'), 'ошибка не превращается в «напишите ещё раз» — «Работа» падает, очередь разберётся');
+      const many = { ...nr, 'Контекст проекта': { ...ctxA, row: { ...ctxA.row, ai_ImageVariants: JSON.stringify([1, 2, 3, 4].map(k => ({ n: k, url: 'V' + k }))) } } };
+      delete many['Готовим запрос этапу'];
+      const r2 = (await run('Готовим запрос этапу', { nodes: many }))[0];
+      const urls = r2.requestBody.input.slice(-1)[0].content.filter(c => c.type === 'input_image').map(c => c.image_url);
+      assert.ok(!urls.includes('V1') && !urls.includes('V2'), 'старые варианты не показываются (каждый ход одной цены)');
+      let log = JSON.parse(n['Разбираем ответ этапа'].editorState);
+      for (let k = 0; k < 8; k++) {
+        const nk = { ...nr, 'Контекст проекта': { ...ctxA, row: { ...ctxA.row, sys_EditorState: JSON.stringify(log) } } };
+        nk['Готовим запрос этапу'] = (await run('Готовим запрос этапу', { nodes: nk }))[0];
+        log = JSON.parse((await run('Разбираем ответ этапа', { nodes: nk, input: [call('propose_items', { items: [{ n: 9, text: 'дымок: 44, 37' }], message: 'ход ' + k })] }))[0].editorState);
+      }
+      assert.ok(Object.values(log.stages).every(x => x.log.length <= 10), 'память этапа — не больше 10 реплик');
     }
-    console.log('18 сломанный разговор — повтор в новом OK');
+    console.log('18 разговор без OpenAI: память 10, картинки каждый ход, ошибка — падение OK');
     // (22.10) готовый текст пункта от автора — пишет код, модель не зовём, превью нет, согласовано
     {
       const ctxM = { ...ctxA, kind: 'message', text: 'Пункт 9, добавь к тому, что уже есть (остальное не трогай):\nобложка Б: кадр 1 2 — 51 52, оверлей справа',
@@ -664,19 +666,33 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('16 метка выпуска и вход из календаря OK');
 
-  // ── 17. Повторное нажатие той же кнопки (22.10) — «уже принято», второго действия нет ──
+  // ── 17. (28.10) Приёмная: конверт для очереди (повторы и порядок решает очередь на сервере) ──
   {
-    const sd = {};
-    const upd = (id) => ({ update_id: id, callback_query: { id: 'q' + id, data: 'final|20261012_092708_pengui', from: { id: 7 }, message: { message_id: 55, chat: { id: 7 } } } });
-    const a1 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': upd(1) }, staticData: sd }))[0];
-    const a2 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': upd(2) }, staticData: sd }))[0];
-    assert.equal(a1.kind, 'finalApprove');
-    assert.equal(a2.kind, 'dupButton', 'второе нажатие — повтор');
-    assert.ok(a2.callbackQueryId, 'на повтор всё равно отвечаем, чтобы кнопка не «висела»');
-    const a3 = (await run('Разбираем входящее', { nodes: { 'Telegram Trigger': { update_id: 3, callback_query: { id: 'q3', data: 'final|20261012_092708_pengui', from: { id: 7 }, message: { message_id: 56, chat: { id: 7 } } } } }, staticData: sd }))[0];
-    assert.equal(a3.kind, 'finalApprove', 'кнопка другого сообщения — не повтор');
+    const env = async (nodes) => (await run('Приёмная: конверт', { nodes }))[0];
+    const cb = (id, mid) => ({ update_id: id, callback_query: { id: 'q' + id, data: 'final|20261012_092708_pengui', from: { id: 7 }, message: { message_id: mid, chat: { id: 7 } } } });
+    const e1 = await env({ 'Telegram Trigger': cb(1, 55) }), e2 = await env({ 'Telegram Trigger': cb(2, 56) });
+    assert.equal(e1.key, e2.key, 'та же кнопка — один ключ (второе нажатие — повтор)');
+    assert.equal(e1.project, '20261012_092708_pengui'); assert.equal(e1.callbackId, 'q1'); assert.equal(e1.keep, 600);
+    const m = await env({ 'Telegram Trigger': { update_id: 9, message: { message_id: 3, chat: { id: 7 }, text: 'светлее', reply_to_message: { text: 'Вариант 1\nID: 20261012_092708_pengui' } } } });
+    assert.equal(m.key, 'upd:9'); assert.equal(m.project, '20261012_092708_pengui', 'выпуск — из сообщения, на которое ответила');
+    assert.equal(m.messageId, 3, 'на сообщение автора — 👀');
+    const inner = await env({ 'Вызов изнутри': { kind: 'stageStart', projectId: 'P7', chatId: 7 } });
+    assert.equal(inner.source, 'inner'); assert.equal(inner.project, 'P7'); assert.ok(inner.key.startsWith('inner:P7:'));
+    const cal = await env({ 'Из календаря': { body: { action: 'start', channel: 'pengui' } } });
+    assert.equal(cal.source, 'cal'); assert.equal(cal.project, '');
+    const dec = async (e, r) => (await run('Очередь: решение', { nodes: { 'Приёмная: конверт': e }, input: [r] }))[0].route;
+    assert.equal(await dec(m, { run: true }), 'run');
+    assert.equal(await dec(m, { dup: true }), 'quiet', 'повтор сообщения — молча');
+    assert.equal(await dec(e1, { dup: true }), 'dupButton', 'повтор кнопки — «уже принято»');
+    assert.equal(await dec(m, { queued: true }), 'quiet', 'выпуск занят — ждёт своей очереди, автор ничего не пишет заново');
+    assert.equal(await dec(e1, { queued: true }), 'queuedButton');
+    assert.equal(await dec(m, { error: { message: 'ECONNREFUSED' } }), 'run', 'сервер молчит — лучше лишний запуск, чем потерянное');
+    const job = (await run('В работу', { nodes: { 'Очередь: решение': { ...m, route: 'run' } } }))[0];
+    assert.equal(job.key, 'upd:9'); assert.equal(job.chatId, 7); assert.equal(job.quote, '«светлее»');
+    const job2 = (await run('В работу', { nodes: { 'Изнутри: что это?': { resume: { key: 'upd:9', body: { source: 'tg', body: m.body }, chatId: 7, tries: 2 } } } }))[0];
+    assert.equal(job2.tries, 2);
   }
-  console.log('17 повторное нажатие кнопки OK');
+  console.log('17 приёмная: конверт, решение очереди OK');
 
   // ── 19. «Пункт 9, добавь / убери» (22.10) — к тому, что уже лежит в пункте, без переписывания ──
   {
@@ -695,21 +711,26 @@ async function turn(stages, row, inc, response, subResponse) {
   }
   console.log('19 пункт: добавь / убери OK');
 
-  // 21. (23.10) Вахтёр и тихий старт
+  // 21. (28.10) сбой «Работы»: что повторять молча, что сказать сразу
   {
-    const k1 = (await run('Вахтёр: ключ', { nodes: { 'Telegram Trigger': { update_id: 77, message: { text: 'x' } } } }))[0];
-    assert.deepEqual(k1, { key: 'upd:77', ttl: 3600 });
-    const cb = m => ({ update_id: m, callback_query: { id: 'q' + m, data: 'img|20261022_113103_demo|1', message: { message_id: m } } });
-    const k2 = (await run('Вахтёр: ключ', { nodes: { 'Telegram Trigger': cb(5) } }))[0];
-    const k3 = (await run('Вахтёр: ключ', { nodes: { 'Telegram Trigger': cb(9) } }))[0];
-    assert.equal(k2.key, k3.key, 'та же кнопка под разными сообщениями — один ключ');
-    const k4 = (await run('Вахтёр: ключ', { nodes: {} }))[0];
-    assert.equal(k4.key, '', 'изнутри / из календаря — без ключа');
-    const R = { kind: 'message', text: 'бриф', callbackQueryId: '' };
-    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': R }, input: [{ first: true }] }))[0].kind, 'message');
-    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': R }, input: [{ first: false }] }))[0].kind, 'duplicate');
-    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': { ...R, callbackQueryId: 'q' } }, input: [{ first: false }] }))[0].kind, 'dupButton');
-    assert.equal((await run('Вахтёр: итог', { nodes: { 'Разбираем входящее': R }, input: [{ error: { message: 'timeout' } }] }))[0].kind, 'message', 'сервер молчит — пропускаем');
+    const job = { key: 'upd:9', chatId: 7, quote: '«светлее»' };
+    const f = async err => (await run('Разбираем сбой', { nodes: { 'В работу': job }, input: [{ error: { message: err } }] }))[0];
+    assert.equal((await f('ETIMEDOUT')).fatal, false, 'сеть — повторить');
+    assert.equal((await f('429 Too Many Requests')).fatal, false);
+    assert.equal((await f('insufficient_quota')).fatal, true, 'деньги — сразу');
+    assert.equal((await f('invalid_grant: token has been expired')).fatal, true);
+    const say = async (r, err) => (await run('Сбой: что сказать', { nodes: { 'Разбираем сбой': await f(err) }, input: [r] }))[0];
+    assert.equal((await say({ notify: 'none' }, 'ETIMEDOUT')).say, false, 'первый сбой — молча');
+    const s2 = await say({ notify: 'slow' }, 'ETIMEDOUT');
+    assert.ok(s2.say && s2.text.includes('Повторю сама') && s2.text.includes('«светлее»'));
+    const s3 = await say({ notify: 'fatal' }, 'insufficient_quota');
+    assert.ok(s3.text.includes('OpenAI') && s3.text.includes('Billing'));
+    const s4 = await say({ notify: 'final', next: { key: 'upd:10' } }, 'ETIMEDOUT');
+    assert.ok(s4.text.includes('за час') && s4.next.key === 'upd:10', 'после «насовсем» очередь выпуска идёт дальше');
+    const pv = await run('Повторы: список', { nodes: {}, input: [{ run: [{ key: 'a', body: {} }], final: [{ key: 'b', chatId: 7, body: { source: 'tg', body: { message: { text: 'x' } } }, error: 'timeout' }] }] });
+    assert.equal(pv.length, 2); assert.ok(pv[0].resume); assert.ok(pv[1].text.includes('за час'));
+  }
+  {
     // бриф обогнал запуск этапа — художник не просит задание ещё раз
     let t = await turn(DIRECT, { ai_UserBrief: 'вечерний город' }, { kind: 'stageStart', event: 'Новый выпуск.' });
     assert.equal(t.plan.mode, 'none');
@@ -725,7 +746,7 @@ async function turn(stages, row, inc, response, subResponse) {
     t = await turn(NOM, AP, { kind: 'message', text: 'Пункт 3, добавь: Pengui baked a pie.' });
     assert.equal(t.plan.mode, 'direct');
   }
-  console.log('21 вахтёр, тихий старт, этап без модели OK');
+  console.log('21 сбои: тихо, «сама повторю», сразу; тихий старт; этап без модели OK');
 
   // 22. (23.10) Пункт без этапа (оживление): автор пишет сама со странички в любой момент
   {
@@ -819,24 +840,18 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(await dal({ sys_CleanTag: '', sys_CleanState: 'ошибка: Блокнот занят' }), 'ask', 'строку затёрли — чистка всё равно наша, забираем');
     assert.equal(await dal({ sys_CleanTag: 'P1-2', sys_CleanState: 'идёт' }), 'stop', 'идёт новая чистка — старая молчит');
     assert.equal(await dal({ sys_CleanTag: 'P1-1', sys_CleanState: 'готово' }), 'stop', 'уже забрано');
-    // замок: занимается на сообщение автора, снимается после ответа; при рисовании — после картинки
-    const body = (name, nodes) => {
-      const n = wf.nodes.find(x => x.name === name);
-      const ex = n.parameters.jsonBody.replace(/^=\{\{|\}\}$/g, '');
-      return JSON.parse(new Function('$', 'return ' + ex)(k => ({ first: () => ({ json: nodes[k] }) })));
-    };
-    const C = k => ({ 'Контекст проекта': { projectId: 'P1', kind: k } });
-    assert.deepEqual(body('Замок', C('message')), { key: 'work:P1', ttl: 240, lock: true });
-    assert.equal(body('Замок: снять', { ...C('message'), 'Что дальше?': { next: 'none' } }).key, 'work:P1', 'ответ ушёл — снять');
-    assert.equal(body('Замок: снять', { ...C('message'), 'Что дальше?': { next: 'draw' } }).key, '', 'рисует — держать до картинки');
-    assert.equal(body('Замок: снять', { ...C('stageStart'), 'Что дальше?': { next: 'none' } }).key, '', 'запуск изнутри замок не брал');
-    assert.equal(body('Замок: снять (картинка)', C('message')).key, 'work:P1');
+    // (28.10) Приёмная: у «Работы» один конец — удалось → «сделано» (+ следующее выпуска), упало → разбор сбоя
     const cn = wf.connections;
-    assert.equal(cn['Куда дальше?'].main[0][0].node, 'Замок', 'сообщение автора сначала берёт замок');
-    assert.equal(cn['Замок свободен?'].main[1][0].node, 'Замок: ещё работаю', 'занято — говорим «ещё работаю», ничего не трогаем');
+    assert.equal(cn['Работа'].main[0][0].node, 'Очередь: сделано');
+    assert.equal(cn['Работа'].main[1][0].node, 'Разбираем сбой');
+    assert.equal(cn['Telegram Trigger'].main[0][0].node, 'Это владелец бота?');
+    assert.equal(cn['Это владелец бота?'].main[0][0].node, 'Приёмная: конверт');
+    assert.ok(!wf.nodes.some(n => /Вахтёр|Замок|разговор/.test(n.name)), 'ни Вахтёра, ни Замка, ни узлов разговора');
+    assert.ok(!wf.settings.errorWorkflow && wf.settings.saveDataSuccessExecution === 'none');
+    assert.equal(cn['Очередь: отпускаем (Kaggle)'].main[0][0].node, 'Ждём стук Kaggle', 'долгое ожидание Kaggle — очередь отпущена до него');
     assert.ok(wf.nodes.filter(n => n.type === 'n8n-nodes-base.code').every(n => n.retryOnFail), 'код-узлы повторяются (без этого сбой исполнителя роняет запуск)');
   }
-  console.log('26 одновременные запуски: чистка, замок, повторы OK');
+  console.log('26 одновременные запуски: чистка; приёмная; повторы OK');
 
   console.log('ALL OK');
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

@@ -128,16 +128,6 @@ def openai_http(name, body_expr, url, pos):
                 # (22.10) тихие повторы: OpenAI иногда отвечает «занят»/«слишком много запросов» — не пугать автора
                 'retryOnFail': True, 'maxTries': 3, 'waitBetweenTries': 5000})
 
-# (24.10) ЗАМОК «ПО ДЕЛУ» на сервере (тот же /gate): пока бот работает над сообщением автора по выпуску,
-# второе сообщение того же выпуска не начинает вторую работу поверх первой — автор получает «ещё работаю».
-# Снимается, когда ответ ушёл (или нарисована картинка); не снялся — истекает сам через 4 минуты.
-# Сервер не ответил — пропускаем (лучше лишний запуск, чем потерянное сообщение).
-def gate_http(name, body_expr, pos):
-    return add({'parameters': {'method': 'POST', 'url': ASM + '/gate', 'sendBody': True, 'specifyBody': 'json',
-                               'jsonBody': body_expr, 'options': {'timeout': 5000}},
-                'name': name, 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': pos,
-                'onError': 'continueRegularOutput'})
-
 def sheets_automap(name, sheet_expr, pos, match):
     """Запись с колонками из входных данных: имена колонок решает таблица, а не код."""
     return add({'parameters': {'authentication': 'serviceAccount', 'operation': 'update',
@@ -165,24 +155,113 @@ add({'parameters': {'conditions': {'options': {'caseSensitive': True, 'leftValue
                      'rightValue': '285577543', 'operator': {'type': 'string', 'operation': 'equals'}}],
      'combinator': 'and'}, 'options': {}},
      'name': 'Это владелец бота?', 'type': 'n8n-nodes-base.if', 'typeVersion': 2, 'position': [X + 220, Y]})
-# Канвас вызывает сам себя, когда выпуск переходит к следующему этапу
+# Канвас вызывает сам себя: «Работа» из Приёмной, повтор из очереди, переход к следующему этапу
 add({'parameters': {}, 'name': 'Вызов изнутри', 'type': 'n8n-nodes-base.executeWorkflowTrigger', 'typeVersion': 1,
      'position': [X, Y + 200]})
 code('Разбираем входящее', 'razbor.js', [X + 440, Y])
-switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown', 'dupButton', 'duplicate'], [X + 660, Y])
-# (23.10) вахтёр на сервере: одно сообщение / одно нажатие — один запуск (повтор — «уже принято» или тихо)
-code('Вахтёр: ключ', 'vahter_klyuch.js', [X + 500, Y - 160])
-add({'parameters': {'method': 'POST', 'url': ASM + '/gate', 'sendBody': True, 'specifyBody': 'json',
-                    'jsonBody': '={{ JSON.stringify($json) }}', 'options': {'timeout': 5000}},
-     'name': 'Вахтёр', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [X + 560, Y - 160],
-     'onError': 'continueRegularOutput'})
-code('Вахтёр: итог', 'vahter_itog.js', [X + 620, Y - 160])
-chain('Telegram Trigger', 'Это владелец бота?', 'Разбираем входящее', 'Вахтёр: ключ', 'Вахтёр', 'Вахтёр: итог', 'Что пришло?')
-link('Вызов изнутри', 'Разбираем входящее')
+switch_node('Что пришло?', '$json.kind', ['newStart', 'channelPick', 'unknown'], [X + 660, Y])
 # Из календаря (страница контент-плана): «Старт» выпуска и ссылка на треки — тем же путём, что из Телеграма
 add({'parameters': {'httpMethod': 'POST', 'path': CAL_HOOK, 'options': {}}, 'name': 'Из календаря',
      'type': 'n8n-nodes-base.webhook', 'typeVersion': 2, 'position': [X, Y + 400], 'webhookId': uid()})
-link('Из календаря', 'Разбираем входящее')
+
+# ═════════════ ПРИЁМНАЯ (28.10) ═════════════
+# Всё входящее — сначала сюда: 👀 на сообщение автора, конверт в очередь на сервере (повтор того же — отсекается,
+# выпуск занят — ждёт своей очереди), «печатает…», потом «Работа» (вся остальная схема — тот же канвас, вызванный
+# сам собой и дождавшийся конца). Конец у «Работы» один: удалось — «сделано» и следующее этого выпуска;
+# упало — очередь повторит сама (5 / 15 / 30 мин), автор слышит только то, что ей нужно.
+TG_API = '=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/'
+def tg_api(name, method, body_expr, pos):
+    return add({'parameters': {'method': 'POST', 'url': TG_API + method, 'sendBody': True, 'specifyBody': 'json',
+                               'jsonBody': body_expr, 'options': {'timeout': 10000}},
+                'name': name, 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': pos,
+                'onError': 'continueRegularOutput'})
+def inbox_http(name, body_expr, pos, retry=True):
+    n = {'parameters': {'method': 'POST', 'url': ASM + '/inbox', 'sendBody': True, 'specifyBody': 'json',
+                        'jsonBody': body_expr, 'options': {'timeout': 10000}},
+         'name': name, 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': pos,
+         'onError': 'continueRegularOutput'}
+    if retry:   # put/done/fail повторяемы: тот же запуск получает тот же ответ
+        n.update({'retryOnFail': True, 'maxTries': 3, 'waitBetweenTries': 5000})
+    return add(n)
+def self_call(name, body_expr, pos, wait=False, each=False):
+    p_ = {'source': 'database', 'workflowId': {'__rl': True, 'value': '={{ $workflow.id }}', 'mode': 'id'},
+          'options': {'waitForSubWorkflow': wait}}
+    if each:
+        p_['mode'] = 'each'
+    n = {'parameters': p_, 'name': name, 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.1, 'position': pos}
+    return add(n)
+
+RX = X - 2600; RY = Y
+code('Приёмная: конверт', 'konvert.js', [RX + 440, RY], lib=True)
+if_node('Сообщение автора?', '!!$json.messageId', [RX + 660, RY])
+tg_api('Отметка 👀', 'setMessageReaction',
+       "={{ JSON.stringify({ chat_id: $json.chatId, message_id: $json.messageId, reaction: [{ type: 'emoji', emoji: '👀' }] }) }}", [RX + 880, RY - 120])
+inbox_http('Очередь: положить', "={{ JSON.stringify({ op: 'put', key: $('Приёмная: конверт').first().json.key, project: $('Приёмная: конверт').first().json.project, "
+           "chatId: $('Приёмная: конверт').first().json.chatId, keep: $('Приёмная: конверт').first().json.keep, exec: $('Приёмная: конверт').first().json.exec, "
+           "body: { source: $('Приёмная: конверт').first().json.source, body: $('Приёмная: конверт').first().json.body } }) }}", [RX + 1100, RY])
+code('Очередь: решение', 'ochered_reshenie.js', [RX + 1320, RY], lib=True)
+switch_node('Очередь: куда?', '$json.route', ['run', 'queuedButton', 'dupButton'], [RX + 1540, RY])
+tg_api('Кнопка: после текущего', 'answerCallbackQuery',
+       "={{ JSON.stringify({ callback_query_id: $json.callbackId, text: '✅ Принято — сделаю после текущего' }) }}", [RX + 1760, RY + 160])
+tg_api('Кнопка: уже принято', 'answerCallbackQuery',
+       "={{ JSON.stringify({ callback_query_id: $json.callbackId, text: '✅ Уже принято — делаю' }) }}", [RX + 1760, RY + 320])
+switch_node('Изнутри: что это?', "$json.work ? 'work' : ($json.resume ? 'resume' : 'route')", ['work', 'resume'], [X + 220, Y + 200])
+code('В работу', 'v_rabotu.js', [RX + 1980, RY], lib=True)
+tg_api('Печатает…', 'sendChatAction', "={{ JSON.stringify({ chat_id: $json.chatId, action: 'typing' }) }}", [RX + 2200, RY])
+add({'parameters': {'source': 'database', 'workflowId': {'__rl': True, 'value': '={{ $workflow.id }}', 'mode': 'id'},
+                    'options': {'waitForSubWorkflow': True}},
+     'name': 'Работа', 'type': 'n8n-nodes-base.executeWorkflow', 'typeVersion': 1.1, 'position': [RX + 2420, RY],
+     'onError': 'continueErrorOutput'})
+code('Задание для работы', 'zadanie.js', [RX + 2310, RY + 160])
+inbox_http('Очередь: сделано', "={{ JSON.stringify({ op: 'done', key: $('В работу').first().json.key }) }}", [RX + 2640, RY - 120])
+if_node('Есть следующее?', '!!$json.next', [RX + 2860, RY - 120])
+self_call('Следующее из очереди', "", [RX + 3080, RY - 120])
+code('Следующее: конверт', 'sleduyushchee.js', [RX + 2970, RY - 260])
+code('Разбираем сбой', 'sboy.js', [RX + 2640, RY + 160], lib=True)
+inbox_http('Очередь: сбой', '={{ JSON.stringify({ op: $json.op, key: $json.key, fatal: $json.fatal, error: $json.error }) }}', [RX + 2860, RY + 160])
+code('Сбой: что сказать', 'sboy_tekst.js', [RX + 3080, RY + 160])
+if_node('Сказать о сбое?', '$json.say', [RX + 3300, RY + 160])
+tg_send('Сообщаем о сбое', '={{ $json.chatId }}', '={{ $json.text }}', [RX + 3520, RY + 100])
+nodes[-1]['parameters']['additionalFields'] = {'appendAttribution': False}
+if_node('После сбоя есть следующее?', "!!$('Сбой: что сказать').first().json.next", [RX + 3740, RY + 160])
+add({'parameters': {'rule': {'interval': [{'field': 'minutes', 'minutesInterval': 5}]}},
+     'name': 'Каждые 5 минут', 'type': 'n8n-nodes-base.scheduleTrigger', 'typeVersion': 1.2, 'position': [RX, RY + 600]})
+inbox_http('Очередь: что повторить', "={{ JSON.stringify({ op: 'due' }) }}", [RX + 220, RY + 600], retry=False)
+code('Повторы: список', 'povtory.js', [RX + 440, RY + 600], lib=True)
+if_node('Повтор?', '!!$json.resume', [RX + 660, RY + 600])
+self_call('Повторяем', '', [RX + 880, RY + 540], each=True)
+tg_send('Сообщаем: не получилось за час', '={{ $json.chatId }}', '={{ $json.text }}', [RX + 880, RY + 700])
+nodes[-1]['parameters']['additionalFields'] = {'appendAttribution': False}
+
+chain('Telegram Trigger', 'Это владелец бота?', 'Приёмная: конверт', 'Сообщение автора?')
+link('Из календаря', 'Приёмная: конверт')
+link('Вызов изнутри', 'Изнутри: что это?')
+link('Изнутри: что это?', 'Разбираем входящее', 0)
+link('Разбираем входящее', 'Что пришло?')
+link('Изнутри: что это?', 'В работу', 1)
+link('Изнутри: что это?', 'Приёмная: конверт', 2)
+link('Сообщение автора?', 'Отметка 👀', 0)
+link('Сообщение автора?', 'Очередь: положить', 1)
+link('Отметка 👀', 'Очередь: положить')
+chain('Очередь: положить', 'Очередь: решение', 'Очередь: куда?')
+link('Очередь: куда?', 'В работу', 0)
+link('Очередь: куда?', 'Кнопка: после текущего', 1)
+link('Очередь: куда?', 'Кнопка: уже принято', 2)
+chain('В работу', 'Печатает…', 'Задание для работы', 'Работа')
+link('Работа', 'Очередь: сделано', 0)
+link('Работа', 'Разбираем сбой', 1)
+chain('Очередь: сделано', 'Есть следующее?')
+link('Есть следующее?', 'Следующее: конверт', 0)
+link('Следующее: конверт', 'Следующее из очереди')
+chain('Разбираем сбой', 'Очередь: сбой', 'Сбой: что сказать', 'Сказать о сбое?')
+link('Сказать о сбое?', 'Сообщаем о сбое', 0)
+link('Сказать о сбое?', 'После сбоя есть следующее?', 1)
+link('Сообщаем о сбое', 'После сбоя есть следующее?')
+link('После сбоя есть следующее?', 'Следующее: конверт', 0)
+chain('Каждые 5 минут', 'Очередь: что повторить', 'Повторы: список', 'Повтор?')
+link('Повтор?', 'Повторяем', 0)
+link('Повтор?', 'Сообщаем: не получилось за час', 1)
+X = 0
 
 sheets_read('Читаем каталог каналов', 'Catalog', [], [X + 900, Y - 700], always=False)
 code('Кнопка на каждый канал', 'kanaly.js', [X + 1120, Y - 700], lib=True)
@@ -195,10 +274,6 @@ chain('Читаем каталог каналов', 'Кнопка на кажд�
 
 tg_answer('Отвечаем на кнопку канала', [X + 900, Y - 450])
 nodes[-1]['parameters']['additionalFields'] = {'text': '✅ Принято'}
-# (22.10) второе нажатие той же кнопки (не видно, нажалось ли) — только ответ «уже принято», без второго действия
-tg_answer('Отвечаем: уже нажато', [X + 900, Y - 650])
-nodes[-1]['parameters']['additionalFields'] = {'text': '✅ Уже принято — делаю'}
-link('Что пришло?', 'Отвечаем: уже нажато', 3)
 sheets_read('Ищем канал в каталоге', 'Catalog', [('Channel', "={{ $('Разбираем входящее').first().json.channelKey }}")], [X + 1120, Y - 450], always=False)
 code('Генерируем ProjectID', 'projectid.js', [X + 1340, Y - 450])
 add({'parameters': {'authentication': 'serviceAccount', 'operation': 'append',
@@ -248,7 +323,7 @@ if_node('Проект найден?', '$json.found', [X + 2660, Y])
 tg_send('Проект не найден', '={{ $json.chatId }}', '=Не нашла проект {{ $json.projectId }} в таблице канала — ничего не делаю.', [X + 2880, Y + 200])
 switch_node('Куда дальше?', '$json.kind', ['message', 'imgApprove', 'finalApprove', 'tracks', 'oldButton', 'build', 'cleanStatus', 'stageStart'], [X + 2880, Y])
 tg_send('Старая кнопка', '={{ $json.chatId }}', '=Эта кнопка из старой схемы — она ничего не делает.\n\nID: {{ $json.projectId }}', [X + 3140, Y + 1500])
-link('Что пришло?', 'Это кнопка?', 5)
+link('Что пришло?', 'Это кнопка?', 3)
 link('Это кнопка?', 'Отвечаем на кнопку', 0)
 link('Это кнопка?', 'Находим лист канала', 1)
 chain('Отвечаем на кнопку', 'Находим лист канала', 'Читаем строку проекта', 'Читаем шаблоны канала', 'Читаем этапы', 'Читаем пункты', 'Читаем эффекты', 'Читаем календарь (метка)', 'Контекст проекта', 'Проект найден?')
@@ -260,9 +335,6 @@ link('Куда дальше?', 'Старая кнопка', 4)
 EX = X + 3140; EY = Y - 1400
 code('Кто отвечает', 'kto.js', [EX, EY], lib=True)
 if_node('Это этап-модель?', "$('Кто отвечает').first().json.mode === 'model'", [EX + 220, EY])
-if_node('Нужен разговор?', "$('Кто отвечает').first().json.needConv", [EX + 440, EY - 180])
-openai_http('OpenAI: создаём разговор', "={{ JSON.stringify({ metadata: { project: " + CTX + ".projectId } }) }}",
-            'https://api.openai.com/v1/conversations', [EX + 660, EY - 60])
 if_node('Есть фото?', "!!$('Кто отвечает').first().json.photo", [EX + 880, EY - 180])
 add({'parameters': {'resource': 'file', 'operation': 'get', 'fileId': "={{ (function(){ const p = $('Кто отвечает').first().json.photo; return p[p.length - 1].file_id; })() }}",
                     'download': True, 'additionalFields': {}},
@@ -277,21 +349,9 @@ add({'parameters': {'method': 'POST', 'url': ASM + '/fx_grid', 'sendBody': True,
 code('Готовим запрос этапу', 'zapros.js', [EX + 1540, EY - 180], lib=True)
 openai_http('OpenAI: этап', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 1760, EY - 180])
 nodes[-1]['parameters']['options'] = {'timeout': 600000}
-nodes[-1]['onError'] = 'continueRegularOutput'
-# (24.10) разговор хранится у OpenAI: повтор запроса оставлял в нём второй ответ с вызовом без ответа
-nodes[-1]['retryOnFail'] = False
+# (28.10) запрос без памяти у OpenAI — повтор безвреден (тихие повторы из openai_http); не ответил — «Работа» упала,
+# очередь повторит сама
 code('Разбираем ответ этапа', 'parse.js', [EX + 1980, EY - 180], lib=True)
-# (22.10) разговор этапа сломался («Bad request» на старом разговоре) — один раз молча повторяем в новом разговоре
-if_node('Разговор сломался?', "!!$json.error && !!$('Готовим запрос этапу').first().json.conversationId && !$('Готовим запрос этапу').first().json.isNew"
-        " && !/timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNABORTED/i.test([$json.error.message, $json.error.description].join(' '))", [EX + 1870, EY - 20])
-openai_http('OpenAI: новый разговор', "={{ JSON.stringify({ metadata: { project: " + CTX + ".projectId } }) }}",
-            'https://api.openai.com/v1/conversations', [EX + 1870, EY + 140])
-nodes[-1]['onError'] = 'continueRegularOutput'
-code('Готовим запрос заново', 'zapros.js', [EX + 1980, EY + 140], lib=True)
-openai_http('OpenAI: этап заново', '={{ JSON.stringify($json.requestBody) }}', 'https://api.openai.com/v1/responses', [EX + 2090, EY + 140])
-nodes[-1]['parameters']['options'] = {'timeout': 600000}
-nodes[-1]['onError'] = 'continueRegularOutput'
-nodes[-1]['retryOnFail'] = False
 # ── ЛУПА: точки оживления уточняются по увеличенным кусочкам (сборщик режет, этап читает) ──
 code('Лупа: план', 'lupa_plan.js', [EX + 1980, EY - 520], lib=True)
 if_node('Нужна лупа?', "$('Лупа: план').first().json.need", [EX + 2090, EY - 680])
@@ -350,20 +410,11 @@ add({'parameters': {'resource': 'message', 'operation': 'sendVideo', 'chatId': '
      'webhookId': uid(), 'credentials': copy.deepcopy(CRED_TG), 'onError': 'continueRegularOutput'})
 switch_node('Куда после хода?', "$('Что дальше?').first().json.next", ['draw', 'edit', 'next', 'summary', 'package'], [EX + 4840, EY])
 
-gate_http('Замок', "={{ JSON.stringify({ key: 'work:' + " + CTX + ".projectId, ttl: 240, lock: true }) }}", [X + 3000, Y - 120])
-if_node('Замок свободен?', '$json.locked !== true', [X + 3060, Y - 60])
-tg_send('Замок: ещё работаю', '={{ ' + CTX + '.chatId }}', "={{ '⏳ Ещё работаю над прошлым сообщением этого выпуска. Пришлите это ещё раз, когда я отвечу.\\n\\nID: ' + " + CTX + ".projectId }}", [X + 3120, Y + 60])
-link('Куда дальше?', 'Замок', 0)
-link('Замок', 'Замок свободен?')
-link('Замок свободен?', 'Кто отвечает', 0)
-link('Замок свободен?', 'Замок: ещё работаю', 1)
+link('Куда дальше?', 'Кто отвечает', 0)
 link('Куда дальше?', 'Кто отвечает', 7)
 link('Кто отвечает', 'Это этап-модель?')
-link('Это этап-модель?', 'Нужен разговор?', 0)
+link('Это этап-модель?', 'Есть фото?', 0)
 link('Это этап-модель?', 'Итог хода: черновик', 1)
-link('Нужен разговор?', 'OpenAI: создаём разговор', 0)
-link('Нужен разговор?', 'Есть фото?', 1)
-link('OpenAI: создаём разговор', 'Есть фото?')
 link('Есть фото?', 'Скачиваем фото', 0)
 link('Есть фото?', 'Нужна сетка?', 1)
 if_node('Нужна разметка?', "$('Кто отвечает').first().json.needMarks", [EX + 1320, EY - 300])
@@ -379,10 +430,7 @@ link('Сервер: разметка', 'Нужна сетка?')
 link('Нужна сетка?', 'Сервер: сетка', 0)
 link('Нужна сетка?', 'Готовим запрос этапу', 1)
 link('Сервер: сетка', 'Готовим запрос этапу')
-chain('Готовим запрос этапу', 'OpenAI: этап', 'Разговор сломался?')
-link('Разговор сломался?', 'OpenAI: новый разговор', 0)
-link('Разговор сломался?', 'Разбираем ответ этапа', 1)
-chain('OpenAI: новый разговор', 'Готовим запрос заново', 'OpenAI: этап заново', 'Разбираем ответ этапа')
+chain('Готовим запрос этапу', 'OpenAI: этап', 'Разбираем ответ этапа')
 chain('Разбираем ответ этапа', 'Лупа: план', 'Нужна лупа?')
 link('Нужна лупа?', 'Сервер: лупа', 0)
 link('Нужна лупа?', 'Поручение?', 1)
@@ -408,10 +456,8 @@ link('Есть что сказать?', 'Что дальше?', 1)
 link('Отправляем ответ', 'Что дальше?')
 link('Что дальше?', 'Нужно превью?')
 link('Нужно превью?', 'Сервер: превью', 0)
-gate_http('Замок: снять', "={{ JSON.stringify({ key: " + CTX + ".kind === 'message' && !['draw', 'edit'].includes($('Что дальше?').first().json.next) ? 'work:' + " + CTX + ".projectId : '', release: true }) }}", [EX + 4790, EY + 160])
-link('Нужно превью?', 'Замок: снять', 1)
-chain('Сервер: превью', 'Отправляем превью', 'Замок: снять')
-link('Замок: снять', 'Куда после хода?')
+link('Нужно превью?', 'Куда после хода?', 1)
+chain('Сервер: превью', 'Отправляем превью', 'Куда после хода?')
 
 # ── переход к следующему этапу: канвас вызывает сам себя ──
 code('Передаём дальше', 'dalshe.js', [EX + 5100, EY + 300])
@@ -582,10 +628,8 @@ sheets_update('Записываем авто-картинку', "={{ $('Авто
     'ai_ApprovedImageUrl': "={{ $('Авто: согласуем картинку').first().json.approvedUrl }}",
     'sys_Status': 'Картинка согласована',
 }, [AX + 3740, DY + 300])
-gate_http('Замок: снять (картинка)', "={{ JSON.stringify({ key: " + CTX + ".kind === 'message' ? 'work:' + " + CTX + ".projectId : '', release: true }) }}", [AX + 3200, DY + 420])
-link('Отправляем картинку (B)', 'Замок: снять (картинка)')
-link('Отправляем картинку (C)', 'Замок: снять (картинка)')
-link('Замок: снять (картинка)', 'Авто: согласуем картинку')
+link('Отправляем картинку (B)', 'Авто: согласуем картинку')
+link('Отправляем картинку (C)', 'Авто: согласуем картинку')
 link('Авто: согласуем картинку', 'Согласовать самим?')
 link('Согласовать самим?', 'Записываем авто-картинку', 0)
 link('Записываем авто-картинку', 'Передаём дальше')
@@ -711,7 +755,10 @@ chain('Сервер: запусти чистку', 'Чистка: запущен
 link('Записать чистку?', 'Записываем чистку', 0)
 link('Записать чистку?', 'Сообщаем о чистке', 1)
 chain('Записываем чистку', 'Сообщаем о чистке', 'Чистка пошла?')
-link('Чистка пошла?', 'Ждём стук Kaggle', 0)
+# (28.10) долгое ожидание Kaggle (часы) — очередь отпускаем ДО него: выпуск не стоит, «Работа» не считается зависшей
+inbox_http('Очередь: отпускаем (Kaggle)', "={{ JSON.stringify({ op: 'done', key: ($('Вызов изнутри').first().json.work || {}).key }) }}", [X + 4790, KY - 160])
+link('Чистка пошла?', 'Очередь: отпускаем (Kaggle)', 0)
+link('Очередь: отпускаем (Kaggle)', 'Ждём стук Kaggle')
 chain('Ждём стук Kaggle', 'Перечитываем строку (чистка)', 'Чистка: что дальше', 'Чистка: куда?')
 link('Чистка: куда?', 'Сервер: как чистка', 0)
 link('Чистка: куда?', 'Чистка: итог', 1)
@@ -795,7 +842,7 @@ sticky("## Запись в таблицу\nПункты раскладывают
 
 # МЕТКА ВЫПУСКА (14.10, автор): каждое сообщение по проекту начинается с «🐧 16.10 · Кот в книжном» —
 # при двух-трёх выпусках сразу видно, на какое отвечать. Метку считает «Контекст проекта» (календарь + Catalog).
-NO_LABEL = {'Проект создан', 'Предлагаем каналы'}
+NO_LABEL = {'Проект создан', 'Предлагаем каналы', 'Сообщаем о сбое', 'Сообщаем: не получилось за час'}
 LBL = "$('Контекст проекта').first().json"
 for n_ in nodes:
     if n_.get('type') != 'n8n-nodes-base.telegram' or n_['name'] in NO_LABEL:
@@ -838,8 +885,10 @@ wf = {
     'nodes': nodes,
     'connections': conns,
     'active': False,
-    'settings': {'executionOrder': 'v1', 'binaryMode': 'separate', 'errorWorkflow': 'A6x2zK1xfuhc5I3E',
-                 'callerPolicy': 'workflowsFromSameOwner'},
+    # (28.10) без errorWorkflow: сбои «Работы» разбирает Приёмная (тихий повтор, автору — только нужное);
+    # успешные запуски не хранятся — только упавшие
+    'settings': {'executionOrder': 'v1', 'binaryMode': 'separate', 'callerPolicy': 'workflowsFromSameOwner',
+                 'saveDataSuccessExecution': 'none'},
     'pinData': {},
     'tags': [],
 }

@@ -1,8 +1,6 @@
 // Разбираем ответ этапа: текст и (не больше одного) вызов инструмента.
 const response = $input.first().json || {};
-let prep = $('Готовим запрос этапу').first().json;
-// (22.10) был повтор в новом разговоре — состояние берём из него
-try { const p2 = $('Готовим запрос заново').first().json; if (p2 && p2.requestBody) prep = p2; } catch (e) {}
+const prep = $('Готовим запрос этапу').first().json;
 const ctx = $('Контекст проекта').first().json;
 const plan = $('Кто отвечает').first().json;
 const row = ctx.row || {};
@@ -22,20 +20,21 @@ if (callItem) {
 }
 let message = (args.message || plainText || '').trim();
 if (response.error || (!callItem && !plainText)) {
-  // n8n пишет общее «Bad request», настоящая причина OpenAI — в description
-  const er = response.error, why = er ? [er.message || (typeof er === 'string' ? er : ''), er.description].filter(Boolean).join(' — ') : '';
-  message = `⚠️ ${stage.name} не ответил${why ? ': ' + String(why).slice(0, 400) : ''}. Напишите ещё раз.`;
+  // (28.10) не ответил — «Работа» падает, очередь повторит сама (автору не нужно писать ещё раз)
+  const er = response.error, why = er ? [er.message || (typeof er === 'string' ? er : ''), er.description].filter(Boolean).join(' — ') : 'пустой ответ';
+  throw new Error(`${stage.name} не ответил: ${String(why).slice(0, 400)}`);
 }
 
 const state = stParseState(row.sys_EditorState);
 stApplyApproval(state, plan.approveNums);   // согласование автора — до и независимо от инструмента модели
 const st = stStage(state, stage.icon);
-// (22.10) ответа нет (ошибка) — разговор и ожидающий вызов не трогаем: иначе вызов остаётся без ответа
-// и разговор ломается («No tool output found for function call»)
-if (!plan.silent && !response.error) {
-  st.conv = prep.conversationId || st.conv;
-  st.pending = callId || '';
-  st.seen = prep.seen || st.seen;
+// (28.10) память разговора этапа: реплика автора и ответ этапа (что он сделал — коротко), последние 10
+if (!plan.silent) {
+  const did = functionName ? ` [${functionName}${Array.isArray(args.items) && args.items.length ? ': пункты ' + args.items.map(i => i && i.n).filter(Boolean).join(', ') : ''}]` : '';
+  const cut = t => { t = String(t || '').trim(); return t.length > 2000 ? t.slice(0, 2000) + '…' : t; };
+  if (prep.logUser) st.log.push({ r: 'u', t: cut(prep.logUser) });
+  st.log.push({ r: 'a', t: cut(message + did) });
+  st.log = st.log.slice(-10);
 }
 
 let action = 'chat';

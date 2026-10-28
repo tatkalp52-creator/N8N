@@ -5201,10 +5201,14 @@ def inbox():
             if not key:
                 return {"run": True}
             if key in box:
-                return {"dup": True, "state": box[key].get("state")}
+                it = box[key]
+                # тот же запуск переспросил (ответ потерялся по дороге) — то же решение, а не «повтор»
+                if data.get("exec") and it.get("exec") == str(data.get("exec")):
+                    return {"run": it.get("state") == "work", "queued": it.get("state") == "wait"}
+                return {"dup": True, "state": it.get("state")}
             busy = bool(project) and any(v.get("project") == project and v.get("state") in INBOX_ACTIVE for v in box.values())
             box[key] = {"state": "wait" if busy else "work", "project": project, "body": data.get("body"),
-                        "chatId": data.get("chatId"), "created": now, "t": now, "tries": 0 if busy else 1,
+                        "chatId": data.get("chatId"), "exec": str(data.get("exec") or ""), "created": now, "t": now, "tries": 0 if busy else 1,
                         "keep": max(60, min(int(_float_or(data.get("keep"), 86400)), 86400 * 3))}
             return {"run": not busy, "queued": busy}
         if op == "done":

@@ -14,11 +14,11 @@
 //   stageStart   — изнутри: этап завершён, начинает следующий
 //   message      — обычная реплика по проекту → этапу
 const OWNER_CHAT = 285577543;   // владелец бота (тот же, что в «Это владелец бота?»)
-let t = null;
-try { t = $('Telegram Trigger').first().json; } catch (e) { t = null; }
+// (28.10) сюда приходит только «Работа» из Приёмной: { work: { source: tg | cal | inner, body } }
+const W = ($('Вызов изнутри').first().json || {}).work || {};
+let t = W.source === 'tg' ? W.body : null;
 // Из календаря (страница-контент-план): «Старт» выпуска или ссылка на треки
-let cal = null;
-if (!t) { try { cal = $('Из календаря').first().json; } catch (e) { cal = null; } }
+let cal = W.source === 'cal' ? W.body : null;
 if (cal) {
   const b = cal.body || {};
   const chatId = Number(b.chatId) || OWNER_CHAT;
@@ -38,21 +38,13 @@ if (cal) {
   return [{ json: { ...none, kind: 'unknown' } }];
 }
 if (!t) {
-  const inner = $('Вызов изнутри').first().json || {};
+  const inner = W.body || {};
   return [{ json: {
     kind: 'stageStart', chatId: inner.chatId, projectId: inner.projectId, channelKey: inner.channelKey,
     event: inner.event || '', text: '', photo: null, callbackQueryId: '', variantNumber: null, tracksUrl: '', replyVariant: null,
   } }];
 }
-// Телеграм присылает то же сообщение повторно, если бот долго отвечал (13.10 — вторая чистка).
-// Уже виденное update_id — молча пропускаем.
-if (t.update_id != null && typeof $getWorkflowStaticData === 'function') {
-  const sd = $getWorkflowStaticData('global');
-  const seen = Array.isArray(sd.seenUpdates) ? sd.seenUpdates : [];
-  if (seen.includes(t.update_id)) return [{ json: { kind: 'unknown', duplicate: true, chatId: null, text: '', photo: null, projectId: '', channelKey: '', callbackQueryId: '', variantNumber: null, tracksUrl: '', replyVariant: null, event: '' } }];
-  seen.push(t.update_id);
-  sd.seenUpdates = seen.slice(-300);
-}
+// Повтор того же сообщения или нажатия отсекает очередь в Приёмной (28.10) — здесь только разбор.
 const ID_RE = /(\d{8})_?(\d{6})_?([A-Za-z0-9]+)/;
 const fromId = m => ({ projectId: m[1] + '_' + m[2] + '_' + m[3], channelKey: m[3] });
 
@@ -64,18 +56,6 @@ if (t.callback_query) {
     callbackQueryId: cb.id, text: '', photo: null, projectId: '', channelKey: '',
     variantNumber: null, tracksUrl: '', replyVariant: null, event: '',
   };
-  // (22.10) Не видно, нажалась ли кнопка, — жмут второй раз. Та же кнопка того же сообщения
-  // в течение 10 минут — повтор: ответить «уже принято» и ничего не делать (иначе два выпуска, две сборки).
-  if (typeof $getWorkflowStaticData === 'function') {
-    const sd = $getWorkflowStaticData('global');
-    const key = [base.chatId, cb.message ? cb.message.message_id : '', data].join('|');
-    const now = Date.now();
-    const seen = sd.seenButtons && typeof sd.seenButtons === 'object' ? sd.seenButtons : {};
-    for (const k of Object.keys(seen)) if (now - seen[k] > 600000) delete seen[k];
-    if (seen[key]) { sd.seenButtons = seen; return [{ json: { ...base, kind: 'dupButton' } }]; }
-    seen[key] = now;
-    sd.seenButtons = seen;
-  }
   const parts = data.split('|');
   const idMatch = parts[1] ? parts[1].match(ID_RE) : null;
   if (parts[0] === 'img' && idMatch) return [{ json: { ...base, ...fromId(idMatch), kind: 'imgApprove', variantNumber: parseInt(parts[2], 10) || null } }];

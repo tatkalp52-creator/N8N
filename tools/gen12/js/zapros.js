@@ -14,43 +14,26 @@ const st = stStage(state, stage.icon);
 const approvedUrl = String(row.ai_ApprovedImageUrl || '').trim();
 const brief = String(row.ai_UserBrief || '').trim();
 
-// Разговор этапа: свой у каждого этапа (чистая голова). Молчаливый этап — без разговора.
-let conversationId = '';
-let isNew = false;
-// (22.10) разговор этапа сломался (OpenAI ответил «Bad request») — второй раз этот же код строит запрос
-// в новый разговор: всё, что этап знает о выпуске, — в карточке, картинки показываются заново
-let freshId = '';
-try { freshId = String($('OpenAI: новый разговор').first().json.id || ''); } catch (e) {}
-// (24.10) зависший вызов инструмента («No tool output found…») больше не чиним в старом разговоре: их там
-// бывало несколько, и починка упиралась в следующий. Любая поломка — новый разговор, всё нужное — в карточке.
-if (!plan.silent && freshId) { conversationId = freshId; isNew = true; }
-else if (!plan.silent) {
-  conversationId = String(st.conv || '').trim();
-  if (!conversationId) {
-    try { conversationId = $('OpenAI: создаём разговор').first().json.id; isNew = true; } catch (e) {}
-  }
-  if (!conversationId) throw new Error('Нет разговора для этапа ' + stage.name);
-}
-const pendingCallIds = plan.silent || isNew ? [] : [String(st.pending || '').trim()].filter(Boolean);
+// (28.10) Разговор этапа — без хранилища у OpenAI: каждый ход этап получает карточку выпуска, свои знания
+// и последние реплики разговора (log, до 10). Ломаться нечему, и ход всегда одного размера.
+const history = plan.silent ? [] : (st.log || []).slice(-10);
 
 let userImageUrl = '';
 try { userImageUrl = $('Фото в base64').first().json.userImageUrl || ''; } catch (e) {}
 
 const kb = kbForStage(ctx.tmpl, stage.icon, [plan.userText, brief].join(' '));
 
-// ── Картинки: каждая показывается этапу один раз и дальше живёт в истории разговора ──
+// ── Картинки: каждый ход — согласованная и последние 2 варианта (истории у OpenAI нет) ──
 let variants = [];
 try { variants = JSON.parse(row.ai_ImageVariants || '[]'); } catch (e) { variants = []; }
 if (!Array.isArray(variants)) variants = [];
-const seen = new Set(plan.silent || freshId ? [] : st.seen);
 const images = [];
-// key — что помнить в состоянии (картинку с сеткой помним по метке, а не по её огромным данным)
-const addImage = (url, label, key) => { const k = key || url; if (url && !seen.has(k)) { images.push({ url, label }); seen.add(k); } };
+const addImage = (url, label) => { if (url && !images.some(i => i.url === url)) images.push({ url, label }); };
 let gridUrl = '';
 try { gridUrl = ($('Сервер: сетка').first().json || {}).dataUrl || ''; } catch (e) {}
-if (gridUrl && approvedUrl) addImage(gridUrl, 'согласованная картинка выпуска с сеткой процентов: синие подписи — проценты слева направо, красные — сверху вниз', 'grid:' + approvedUrl);
+if (gridUrl && approvedUrl) addImage(gridUrl, 'согласованная картинка выпуска с сеткой процентов: синие подписи — проценты слева направо, красные — сверху вниз');
 else if (approvedUrl) addImage(approvedUrl, 'согласованная картинка выпуска');
-if (sc.picture) variants.forEach(v => addImage(v.url, 'вариант ' + v.n + ' этого выпуска'));
+if (sc.picture) variants.slice(-2).forEach(v => addImage(v.url, 'вариант ' + v.n + ' этого выпуска'));
 
 // ── Карточка выпуска ──
 const who = n => { const s = stages.find(x => x.items.includes(n)); return s ? s.name : '—'; };
@@ -182,8 +165,9 @@ for (const img of images) {
   content.push({ type: 'input_text', text: `(Служебно: ${img.label})` });
   content.push({ type: 'input_image', image_url: img.url });
 }
-const input = [];
-for (const id of pendingCallIds) input.push({ type: 'function_call_output', call_id: id, output: 'Выполнено. Актуальный результат — в карточке выпуска.' });
+const input = history.map(h => h.r === 'a'
+  ? { role: 'assistant', content: [{ type: 'output_text', text: String(h.t || '') }] }
+  : { role: 'user', content: String(h.t || '') });
 input.push({ role: 'user', content: content.length > 1 ? content : text });
 
 const requestBody = {
@@ -198,7 +182,6 @@ const requestBody = {
   parallel_tool_calls: false,
   truncation: 'auto',
 };
-if (conversationId) requestBody.conversation = conversationId;
 if (['low', 'medium', 'high'].includes(stage.effort)) requestBody.reasoning = { effort: stage.effort };
 
-return [{ json: { requestBody, conversationId, isNew, seen: Array.from(seen), stageIcon: stage.icon } }];
+return [{ json: { requestBody, stageIcon: stage.icon, logUser: plan.isStart ? '[служебно] ' + (plan.event || 'этап начат') : String(plan.userText || '') } }];

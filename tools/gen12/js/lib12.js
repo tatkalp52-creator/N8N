@@ -154,9 +154,12 @@ function stParseState(raw) {
 }
 function stStage(state, icon) {
   const k = bareIcon(icon);
-  state.stages[k] = state.stages[k] || { conv: '', pending: '', seen: [] };
-  if (!Array.isArray(state.stages[k].seen)) state.stages[k].seen = [];
-  return state.stages[k];
+  state.stages[k] = state.stages[k] || {};
+  const s = state.stages[k];
+  // (28.10) разговор у OpenAI больше не хранится — этап помнит последние реплики сам (log), остальное — в карточке
+  delete s.conv; delete s.pending; delete s.seen;
+  if (!Array.isArray(s.log)) s.log = [];
+  return s;
 }
 
 function stItemDone(state, item) {
@@ -579,5 +582,58 @@ function artBuild(ctx, stage, task, edit, variantNumber) {
   }
   if (r.action !== 'chat' && !String(task || '').trim()) { r.action = 'chat'; r.messageToUser = 'Напишите задание словами.'; }
   return r;
+}
+
+// ── Приёмная (28.10): что пришло, чей это выпуск, как это назвать в очереди ──
+const INBOX_ID_RE = /(\d{8})_?(\d{6})_?([A-Za-z0-9]+)/;
+function inboxEnvelope(source, body) {
+  const pid = s => { const m = String(s || '').match(INBOX_ID_RE); return m ? m[1] + '_' + m[2] + '_' + m[3] : ''; };
+  const rnd = () => Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  if (source === 'tg') {
+    const t = body || {};
+    if (t.callback_query) {
+      const cb = t.callback_query, data = String(cb.data || '');
+      return { source, body: t, project: pid(data), chatId: cb.message && cb.message.chat ? cb.message.chat.id : (cb.from || {}).id,
+        key: data.includes('|') ? 'btn:' + data : 'btn:' + (cb.message ? cb.message.message_id : '') + ':' + data,
+        keep: 600, callbackId: cb.id, messageId: null };
+    }
+    const m = t.message || {};
+    const text = [m.text || m.caption || '', m.reply_to_message ? (m.reply_to_message.text || m.reply_to_message.caption || '') : ''].join(' ');
+    return { source, body: t, project: pid(text), chatId: m.chat ? m.chat.id : null,
+      key: t.update_id != null ? 'upd:' + t.update_id : 'tg:' + rnd(), keep: 86400, callbackId: '', messageId: m.message_id || null };
+  }
+  if (source === 'cal') {
+    const b = (body && body.body) || body || {};
+    return { source, body, project: pid(b.projectId), chatId: Number(b.chatId) || null, key: 'cal:' + rnd(), keep: 600, callbackId: '', messageId: null };
+  }
+  const b = body || {};
+  return { source: 'inner', body: b, project: String(b.projectId || ''), chatId: b.chatId || null,
+    key: 'inner:' + (b.projectId || '') + ':' + rnd(), keep: 600, callbackId: '', messageId: null };
+}
+
+// Сбой простыми словами. fatal — повтор не поможет (деньги, ключ, вход, место, неверный запрос): сказать сразу.
+const FAIL_RULES = [
+  [/insufficient_quota|exceeded your current quota|billing/i, true, '💳 OpenAI: закончились деньги или лимит.', 'platform.openai.com → Billing: пополнить баланс.'],
+  [/invalid_api_key|Incorrect API key/i, true, '🔑 OpenAI не принял ключ.', 'n8n → Credentials → OpenAI: проверить ключ.'],
+  [/invalid_grant|token has been expired|expired or revoked|reconnect/i, true, '🔑 Истёк вход в Google или YouTube.', 'n8n → Credentials → Google / YouTube → Reconnect.'],
+  [/PERMISSION_DENIED|insufficient permission|\b403\b|forbidden/i, true, '🔒 Сервис отказал в доступе.', 'Проверить доступ сервисного аккаунта к таблице и папке Диска.'],
+  [/\b401\b|unauthori[sz]ed/i, true, '🔑 Сервис не принял вход.', 'n8n → Credentials: переподключить сервис, на котором упало.'],
+  [/No space left|ENOSPC/i, true, '💾 На сервере кончилось место.', 'Почистить n8n binary_data и старые /tmp/assemble_*.'],
+  [/Bad request|\b400\b|invalid_request|content_policy|safety/i, true, '⚠️ Сервис не принял запрос.', 'Пришли этот текст Клоду.'],
+  [/rate.?limit|Too Many Requests|\b429\b/i, false, '⏳ Сервис ответил «слишком много запросов».', ''],
+  [/timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|\b50[0234]\b|Bad Gateway|Service Unavailable|overloaded/i, false, '🌐 Сеть или сервис не ответили.', ''],
+];
+function failHuman(raw) {
+  const text = String(raw || '');
+  const hit = FAIL_RULES.find(([re]) => re.test(text));
+  return { fatal: hit ? hit[1] : false, what: hit ? hit[2] : '❓ Незнакомая ошибка.', todo: hit ? hit[3] : '', raw: text.slice(0, 300) };
+}
+// Что было в сообщении — пара слов, чтобы было понятно, о чём речь
+function inboxQuote(item) {
+  const b = (item && item.body) || {};
+  const m = b.message || {};
+  const t = m.text || m.caption || (b.callback_query ? 'кнопка' : '') || (b.event ? b.event : '') || (b.body && b.body.action) || '';
+  const s = String(t).replace(/\s+/g, ' ').trim();
+  return s ? '«' + (s.length > 60 ? s.slice(0, 60) + '…' : s) + '»' : '';
 }
 // ── конец общего куска ─────────────────────────────────────────────────────

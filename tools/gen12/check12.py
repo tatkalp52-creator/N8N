@@ -1,7 +1,8 @@
 import json, re, subprocess, os, glob
 HERE = os.path.dirname(os.path.abspath(__file__))
 wf = json.load(open(os.path.join(HERE, '..', '..', 'workflows', '12_Этапы.json')))
-TMP = '/tmp/claude-0/-home-user-N8N/994c923d-89bd-532f-b598-03f041c8a163/scratchpad/_c12.js'
+import tempfile
+TMP = os.path.join(tempfile.gettempdir(), '_c12.js')
 names = {n['name'] for n in wf['nodes']}
 bad = 0
 # 1. syntax
@@ -24,7 +25,7 @@ for src, c in wf['connections'].items():
 # 4. orphans
 targets = {o['node'] for c in wf['connections'].values() for outs in c['main'] for o in outs}
 for n in wf['nodes']:
-    if n['name'] not in targets and n['type'] not in ('n8n-nodes-base.telegramTrigger', 'n8n-nodes-base.executeWorkflowTrigger', 'n8n-nodes-base.webhook', 'n8n-nodes-base.stickyNote'):
+    if n['name'] not in targets and n['type'] not in ('n8n-nodes-base.telegramTrigger', 'n8n-nodes-base.executeWorkflowTrigger', 'n8n-nodes-base.webhook', 'n8n-nodes-base.stickyNote', 'n8n-nodes-base.scheduleTrigger'):
         print('ORPHAN', n['name']); bad += 1
 # 5. credentials
 for n in wf['nodes']:
@@ -60,19 +61,20 @@ for n in wf['nodes']:
         if n['parameters'].get('options', {}).get('returnAllMatches') != 'returnAllMatches':
             print('GUARD: лист читается одной строкой', n['name']); bad += 1
 # (24.10) ПРАВИЛО ПОВТОРОВ: повторять можно только безопасное (чтение, запись в строку по ключу, запросы без памяти).
-# Код-узлы, отправка в Телеграм, добавление строки и запросы к OpenAI с разговором — без повторов (повтор = дубль).
+# Отправка в Телеграм, добавление строки, запуск чистки — без повторов (повтор = дубль). (28.10) Запросы к OpenAI
+# теперь без памяти у OpenAI — повтор безвреден; очередь /inbox повторяема (тот же запуск — тот же ответ).
 for n in wf['nodes']:
     t = n['type']; op = n['parameters'].get('operation', '')
     body = str(n['parameters'].get('jsonBody', ''))
     unsafe = (t == 'n8n-nodes-base.telegram'
               or (t == 'n8n-nodes-base.googleSheets' and op in ('append', 'appendOrUpdate'))
               or (t == 'n8n-nodes-base.httpRequest' and ('requestBody' in body or '/clean_start' in n['parameters'].get('url', '') or '/gate' in n['parameters'].get('url', ''))
-                  and n['name'] in ('OpenAI: этап', 'OpenAI: этап заново', 'Сервер: запусти чистку') + tuple(x['name'] for x in wf['nodes'] if '/gate' in x['parameters'].get('url', ''))))
+                  and n['name'] in ('Сервер: запусти чистку',) + tuple(x['name'] for x in wf['nodes'] if '/gate' in x['parameters'].get('url', ''))))
     if unsafe and n.get('retryOnFail'):
         print('GUARD: повтор там, где повтор = дубль', n['name']); bad += 1
 # (24.10) НИ ОДНОГО ТУПИКА БЕЗ СЛОВА: у развилки (Switch) каждый выход куда-то ведёт, кроме перечисленных —
 # там молчание задумано (повтор сообщения, «ничего не нужно», чистку уже обработали).
-QUIET = {('Что пришло?', 2), ('Что пришло?', 4), ('Куда дальше?', 8), ('Куда после хода?', 5),
+QUIET = {('Что пришло?', 2), ('Очередь: куда?', 3), ('Куда дальше?', 8), ('Куда после хода?', 5),
          ('Чистка: куда?', 2), ('Чистка: куда?', 3), ('Чистка: итог куда?', 4)}
 for n in wf['nodes']:
     if n['type'] != 'n8n-nodes-base.switch':

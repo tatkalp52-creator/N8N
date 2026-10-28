@@ -140,6 +140,5 @@ return [{
     marksSave,
     marksClear,
     needGrid: mode === 'model' && !!(stage && stage.grid) && !!approvedUrl,
-    needConv: mode === 'model' && !silent && !String((state.stages[bareIcon(stage ? stage.icon : '')] || {}).conv || '').trim(),
   }
 }];
