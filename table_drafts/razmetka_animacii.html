@@ -983,7 +983,8 @@ button:focus-visible, .filebtn:focus-within, input:focus-visible, select:focus-v
   }
   var fx = $('fx'), fxc = fx.getContext('2d'), off = document.createElement('canvas'), offc = off.getContext('2d'), off2 = document.createElement('canvas'), off2c = off2.getContext('2d', { willReadFrequently: true });
   function drawSteam(now) {
-    var dw = pic.clientWidth, dh = pic.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
+    // (28.10) слой превью не больше 4096 точек по стороне: при сильном увеличении он рос до десятков тысяч точек и съедал память планшета
+    var dw = pic.clientWidth, dh = pic.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1, 4096 / Math.max(1, dw), 4096 / Math.max(1, dh));
     if (fx.width !== Math.round(dw * dpr) || fx.height !== Math.round(dh * dpr)) { fx.width = Math.round(dw * dpr); fx.height = Math.round(dh * dpr); }
     fxc.setTransform(dpr, 0, 0, dpr, 0, 0); fxc.clearRect(0, 0, dw, dh);
     var steams = marks.filter(function (m) { return m.eff === 'steam'; });
