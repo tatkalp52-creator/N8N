@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-28-inbox"
+ASSEMBLER_VERSION = "2026-10-28-order"
 
 FFMPEG_BIN = "ffmpeg"
 VIDEO_WIDTH = 1920
@@ -241,6 +241,29 @@ def natural_sort_key(path, zip_order=None):
     if zip_order and filename in zip_order:
         return (2, zip_order[filename], filename)
     return (3, 0, filename)
+
+
+# (28.10) ПОРЯДОК ТРЕКОВ — по всему списку сразу, а не по одному файлу. Номер в начале имени — порядок,
+# если номера похожи на нумерацию (0/1, 2, 3… — не больше числа файлов + 1): «0.wav», «01 [0m18s-…]», «02 […]»,
+# «1 85.wav». Диапазон Studio «[9m33s-…]» — только при одинаковых номерах (старое «01 [..]» у всех).
+# Номера — это BPM («57», «85», «133») или их нет — порядок в архиве. Раньше диапазон был главнее номера:
+# у треков, поставленных к началу дорожки, он у всех «0m00s» — порядок рассыпался, тема без диапазона уходила в конец.
+def order_tracks(paths, zip_order=None):
+    def lead(p):
+        m = re.match(r"^(\d+)", os.path.basename(p))
+        return int(m.group(1)) if m else None
+    def rng(p):
+        m = re.search(r"\[(\d+)m(\d+)s-", os.path.basename(p))
+        return int(m.group(1)) * 60 + int(m.group(2)) if m else 0
+    def zpos(p):
+        return (zip_order or {}).get(os.path.basename(p), 10 ** 6)
+    nums = [lead(p) for p in paths]
+    numbering = bool(paths) and all(n is not None for n in nums) and max(nums) <= len(paths) + 1
+    if numbering:
+        return sorted(paths, key=lambda p: (lead(p), rng(p), zpos(p), os.path.basename(p)))
+    if zip_order and all(os.path.basename(p) in zip_order for p in paths):
+        return sorted(paths, key=zpos)
+    return sorted(paths, key=natural_sort_key)
 
 
 # (25.10) склейку делает официальный выпуск ffmpeg из /app/bin (постоянная папка): ночные сборки виснут на
@@ -709,7 +732,8 @@ def split_by_silence(input_path, work_dir, noise_threshold="-40dB", min_silence_
 def split_all_by_silence(tracks_raw, work_dir):
     result = []
     for i, raw_path in enumerate(tracks_raw):
-        result.extend(split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}"))
+        # (28.10) как в сборке: короткая первая тема одной дорожки не выбрасывается (иначе тайм-коды сдвигаются)
+        result.extend(split_by_silence(raw_path, work_dir, split_dir_name=f"split_{i}", keep_first_seconds=20 if i == 0 else None))
     return result
 
 
@@ -994,11 +1018,9 @@ def build_audio_track(
 ):
     extract_dir, zip_order = resolve_audio_tracks_dir(audio_source_url, work_dir)
 
-    tracks_raw = sorted(
+    tracks_raw = order_tracks(
         glob.glob(os.path.join(extract_dir, "*.mp3"))
-        + glob.glob(os.path.join(extract_dir, "*.wav")),
-        key=lambda p: natural_sort_key(p, zip_order)
-    )
+        + glob.glob(os.path.join(extract_dir, "*.wav")), zip_order)
 
     # НОВОЕ (14.10): файл, имя которого начинается с «00» (не «001»), — ВСТУПЛЕНИЕ
     # (тема): играет один раз в начале, а повторы ролика начинаются со следующего трека.
@@ -4383,8 +4405,7 @@ def diag_route():
     try:
         def listing(url, sub):
             d, order = resolve_audio_tracks_dir(url, os.path.join(work, sub))
-            return sorted(glob.glob(os.path.join(d, "*.mp3")) + glob.glob(os.path.join(d, "*.wav")),
-                          key=lambda p: natural_sort_key(p, order))
+            return order_tracks(glob.glob(os.path.join(d, "*.mp3")) + glob.glob(os.path.join(d, "*.wav")), order)
         files = listing(q["clean"], "clean") if q.get("clean") else (listing(q["raw"], "raw") if q.get("raw") else [])
 
         def line(name, path):
@@ -5278,11 +5299,9 @@ def trackinfo():
 
     try:
         extract_dir, zip_order = resolve_audio_tracks_dir(audio_zip_url, work_dir)
-        tracks_raw = sorted(
+        tracks_raw = order_tracks(
             glob.glob(os.path.join(extract_dir, "*.mp3"))
-            + glob.glob(os.path.join(extract_dir, "*.wav")),
-            key=lambda p: natural_sort_key(p, zip_order)
-        )
+            + glob.glob(os.path.join(extract_dir, "*.wav")), zip_order)
 
         tracks_raw = split_all_by_silence(tracks_raw, work_dir)
 
