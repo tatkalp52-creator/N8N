@@ -494,54 +494,25 @@ def take(name, pos):
     return add(n)
 
 nodes_by = lambda nm: [n for n in nodes if n['name'] == nm][0]
-# Максимум картинок в одном запросе художнику (основа правки считается): для каждого числа 1…MAX свой узел запроса,
-# поэтому цифра прямо влияет на размер канваса. Меняется здесь и в lib12.js (artRefs) вместе.
-MAX_IMAGES = 8
 AX = EX + 5100
 
-def image_switch(name, counts):
-    sw = nodes_by(name)
-    tmpl_rule = sw['parameters']['rules']['values'][0]
-    rules = []
-    for c in counts[:-1]:
-        r = copy.deepcopy(tmpl_rule)
-        r['conditions']['conditions'][0]['rightValue'] = c
-        rules.append(r)
-    sw['parameters']['rules']['values'] = rules
-    sw['parameters']['options'] = {'fallbackOutput': 'extra'}
-
-def image_call(template, name, count, prompt, pos):
-    n = retarget(copy.deepcopy(art_nodes[template]))
-    n['id'] = uid(); n['name'] = name; n['position'] = pos
-    bp = [x for x in n['parameters']['bodyParameters']['parameters'] if x.get('parameterType') != 'formBinaryData']
-    for x in bp:
-        if x.get('name') == 'model':
-            x['value'] = "={{ $('Итог хода').first().json.imageModel }}"
-        if x.get('name') == 'prompt':
-            x['value'] = prompt
-    # (22.10) качество — служебная колонка Templates tmpl_ImageQuality (low / medium / high), по умолчанию high
-    QUALITY = "={{ $('Итог хода').first().json.imageQuality || 'high' }}"
-    for x in bp:
-        if x.get('name') == 'quality':
-            x['value'] = QUALITY
-    if not any(x.get('name') == 'quality' for x in bp):
-        bp.insert(3, {'name': 'quality', 'value': QUALITY})
-    bp += [{'parameterType': 'formBinaryData', 'name': 'image[]', 'inputDataFieldName': f'image_{k}'} for k in range(count)]
-    n['parameters']['bodyParameters']['parameters'] = bp
-    return add(n)
+# (28.10) Один запрос художнику: картинки — в JSON (data URL), их число не важно. Было 24 узла (1…8 картинок × 3 вида).
+code('Запрос художнику: рисуем', 'zapros_hudozhniku.js', [AX + 1100, EY - 1200])
+code('Запрос художнику: правка', 'zapros_hudozhniku.js', [AX + 1540, EY + 1100])
+add({'parameters': {'method': 'POST', 'url': 'https://api.openai.com/v1/images/edits', 'authentication': 'predefinedCredentialType',
+                    'nodeCredentialType': 'openAiApi', 'sendBody': True, 'specifyBody': 'json',
+                    'jsonBody': '={{ JSON.stringify($json.body) }}', 'options': {'timeout': 600000}},
+     'name': 'Художник: рисует', 'type': 'n8n-nodes-base.httpRequest', 'typeVersion': 4.2, 'position': [AX + 1320, EY],
+     'credentials': copy.deepcopy(CRED_OPENAI),
+     # запрос без памяти — повтор безвреден (сеть, «занят»)
+     'retryOnFail': True, 'maxTries': 2, 'waitBetweenTries': 10000})
+if_node('Это правка?', "$('Что дальше?').first().json.next === 'edit'", [AX + 1540, EY])
 
 DY = EY - 1200
-B = ['Готовим список: style guide + референсы', 'Скачиваем референс (B)', 'Собираем референсы в один item (B)', 'Сколько картинок? (B)']
+B = ['Готовим список: style guide + референсы', 'Скачиваем референс (B)', 'Собираем референсы в один item (B)']
 for i, nm in enumerate(B):
     take(nm, [AX + 440 + i * 220, DY])
 nodes_by(B[0])['parameters']['jsCode'] = open(os.path.join(JS, 'spisok_b.js')).read()
-B_COUNTS = list(range(1, MAX_IMAGES + 1))
-BG = [f'gpt-image-2: рисуем (B, {c} img)' for c in B_COUNTS]
-for i, (nm, c) in enumerate(zip(BG, B_COUNTS)):
-    image_call('gpt-image-2: рисуем (B)', nm, c,
-               "={{ $('Итог хода').first().json.drawRoles }}{{ $json.dallePrompt }}",
-               [AX + 1320, DY - 1400 + i * 160])
-image_switch('Сколько картинок? (B)', B_COUNTS)
 B2 = ['Извлекаем картинку (B)', 'Загружаем на Диск (B)', 'Открываем доступ (B)', 'Собираем ссылку (B)', 'Сохраняем картинку и промпт (B)']
 for i, nm in enumerate(B2):
     take(nm, [AX + 1540 + i * 220, DY])
@@ -552,25 +523,16 @@ tg_photo('Отправляем картинку (B)', "={{ $('Собираем �
          "=img|{{ $('Собираем ссылку (B)').first().json.sys_ProjectID }}|{{ $('Собираем ссылку (B)').first().json.variantNumber }}",
          [AX + 2640, DY])
 link('Куда после хода?', B[0], 0)
-chain(*B)
-for i, nm in enumerate(BG):
-    link('Сколько картинок? (B)', nm, i)
-    link(nm, 'Извлекаем картинку (B)')
+chain(*B, 'Запрос художнику: рисуем', 'Художник: рисует', 'Это правка?')
+link('Это правка?', 'Извлекаем картинку (C)', 0)
+link('Это правка?', 'Извлекаем картинку (B)', 1)
 chain(*B2, 'Отправляем картинку (B)')
 
 CY = EY + 1100
-C = ['Скачиваем текущую картинку (C)', 'Готовим список: доп. референсы (C)', 'Скачиваем референс (C)', 'Собираем доп. референсы в один item (C)', 'Собираем все референсы (C)', 'Сколько картинок? (C)']
+C = ['Скачиваем текущую картинку (C)', 'Готовим список: доп. референсы (C)', 'Скачиваем референс (C)', 'Собираем доп. референсы в один item (C)', 'Собираем все референсы (C)']
 for i, nm in enumerate(C):
     take(nm, [AX + 440 + i * 220, CY])
 nodes_by('Готовим список: доп. референсы (C)')['parameters']['jsCode'] = open(os.path.join(JS, 'spisok_c.js')).read()
-C_COUNTS = list(range(1, MAX_IMAGES + 1))
-CG = [f'gpt-image-2: точечная правка (C, {c} img)' for c in C_COUNTS]
-for i, (nm, c) in enumerate(zip(CG, C_COUNTS)):
-    # Первая картинка — основа правки, остальные только референсы (механика порядка картинок).
-    image_call('gpt-image-2: точечная правка (C)', nm, c,
-               "=Edit the first image. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}",
-               [AX + 1760, CY - 1400 + i * 160])
-image_switch('Сколько картинок? (C)', C_COUNTS)
 C2 = ['Извлекаем картинку (C)', 'Загружаем на Диск (C)', 'Открываем доступ (C)', 'Собираем ссылку (C)', 'Сохраняем картинку (C)']
 for i, nm in enumerate(C2):
     take(nm, [AX + 1980 + i * 220, CY])
@@ -597,27 +559,7 @@ link('Правка по обводке?', 'Скачиваем фото обво�
 link('Правка по обводке?', C[0], 1)
 chain('Скачиваем фото обводки', 'Фото обводки в base64', 'Сервер: маска', C[0])
 nodes_by('Собираем все референсы (C)')['parameters']['jsCode'] = open(os.path.join(JS, 'sobiraem_c.js')).read()
-chain(*C[:-1])
-# с маской — те же узлы правки, плюс поле mask (маска относится к первой картинке)
-if_node('С маской? (C)', "$json.hasMask", [AX + 1430, CY + 300])
-sw = copy.deepcopy(nodes_by('Сколько картинок? (C)'))
-sw['id'] = uid(); sw['name'] = 'Сколько картинок? (C, маска)'; sw['position'] = [AX + 1540, CY + 460]
-add(sw)
-CM = [f'gpt-image-2: правка по обводке (C, {c} img)' for c in C_COUNTS]
-for i, (nm, c) in enumerate(zip(CM, C_COUNTS)):
-    image_call('gpt-image-2: точечная правка (C)', nm, c,
-                   "=Edit the first image only inside the transparent area of the mask; everything outside the mask stays exactly as it is. The other images are references only.\n\n{{ $('Итог хода').first().json.editRoles }}{{ $json.revisionInstruction }}",
-                   [AX + 1760, CY + 1300 + i * 160])
-    nodes_by(nm)['parameters']['bodyParameters']['parameters'].append({'parameterType': 'formBinaryData', 'name': 'mask', 'inputDataFieldName': 'mask'})
-link(C[-2], 'С маской? (C)')
-link('С маской? (C)', 'Сколько картинок? (C, маска)', 0)
-link('С маской? (C)', C[-1], 1)
-for i, nm in enumerate(CM):
-    link('Сколько картинок? (C, маска)', nm, i)
-    link(nm, 'Извлекаем картинку (C)')
-for i, nm in enumerate(CG):
-    link('Сколько картинок? (C)', nm, i)
-    link(nm, 'Извлекаем картинку (C)')
+chain(*C, 'Запрос художнику: правка', 'Художник: рисует')
 chain(*C2, 'Отправляем картинку (C)')
 
 # ── после рисунка: этап «авто» — согласуем сами и передаём дальше ──

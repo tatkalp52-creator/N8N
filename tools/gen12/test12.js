@@ -120,11 +120,19 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(o.hasMask, false); assert.ok(!o.__binary.mask);
     o = (await run('Собираем все референсы (C)', { nodes: base, input: [extra] }))[0];
     assert.equal(o.hasMask, false, 'без фото — обычная правка');
+    // (28.10) один запрос художнику: все картинки по порядку (основа правки первой) и маска — в JSON
     const { wf } = require('./harness12.js');
-    const masked = wf.nodes.filter(n => n.name.startsWith('gpt-image-2: правка по обводке'));
-    assert.equal(masked.length, 8);
-    assert.ok(masked.every(n => n.parameters.bodyParameters.parameters.some(p => p.name === 'mask' && p.inputDataFieldName === 'mask')));
-    assert.ok(wf.connections['С маской? (C)'].main[0][0].node === 'Сколько картинок? (C, маска)');
+    assert.ok(!wf.nodes.some(n => n.name.startsWith('gpt-image-2')), '24 узла ушли');
+    const IT = { 'Итог хода': { imageModel: 'gpt-image-2', imageQuality: 'medium', editRoles: 'R: ', drawRoles: 'D: ' } };
+    const withMask = { ...o, hasMask: true, revisionInstruction: 'шторка', __binary: { image_2: { mimeType: 'image/png' }, image_0: { mimeType: 'image/jpeg' }, image_1: {}, mask: { mimeType: 'image/png' } } };
+    const q = (await run('Запрос художнику: правка', { nodes: { ...IT, 'Что дальше?': { next: 'edit' } }, input: [withMask] }))[0];
+    assert.equal(q.body.images.length, 3); assert.ok(q.body.images[0].image_url.startsWith('data:image/jpeg;base64,'), 'основа правки — первой');
+    assert.ok(q.body.mask && q.body.prompt.startsWith('Edit the first image only inside the transparent area') && q.body.prompt.endsWith('R: шторка'));
+    assert.equal(q.body.quality, 'medium'); assert.equal(q.body.size, '1536x864');
+    const d = (await run('Запрос художнику: рисуем', { nodes: { ...IT, 'Что дальше?': { next: 'draw' } }, input: [{ dallePrompt: 'кухня', __binary: { image_0: {}, image_1: {} } }] }))[0];
+    assert.equal(d.body.images.length, 2); assert.equal(d.body.prompt, 'D: кухня'); assert.ok(!d.body.mask);
+    assert.equal(wf.connections['Это правка?'].main[0][0].node, 'Извлекаем картинку (C)');
+    assert.equal(wf.connections['Это правка?'].main[1][0].node, 'Извлекаем картинку (B)');
   }
   t = await turn(DIRECT, { ai_ImageVariants: V, ai_ImageUrl: 'U2' }, { text: 'правка 2: убрать кота' });
   assert.equal(t.plan.needMask, false);
