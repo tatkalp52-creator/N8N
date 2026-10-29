@@ -27,6 +27,7 @@
   .mk .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .mk .name { font-weight: 600; flex: 1; }
   .mk label { font-size: 13px; color: var(--mute); display: inline-flex; align-items: center; gap: 4px; margin: 3px 8px 0 0; }
+  .mk label.knob .kb { padding: 3px 10px; border-radius: 8px; min-width: 2.2em; }
   .mk label input { width: 4.2em; padding: 3px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
   .mk input[type=text] { width: 100%; padding: 4px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); margin-top: 4px; }
   .mk code { font-size: 12px; color: var(--mute); word-break: break-all; display: block; margin-top: 4px; }
@@ -68,6 +69,11 @@
   // слова частей (область, овал, наклон, кадр, справа…) — из словарика («Слово» → «Значит»)
   function lead(t) { return String(t || '').split(':')[0].trim(); }
   function wordFor(val) { var w = WORDS[val]; return w ? w.replace(/\*$/, '') : ''; }
+  // значение ручки у канала — из колонки канала листа «Эффекты» («густота 5 · толщина 7»); нет — 5 (середина шкалы)
+  function chanVal(e, k) {
+    var hit = String(e.value || '').split('·').map(function (s) { return s.trim(); }).filter(function (s) { return s.indexOf(k + ' ') === 0; })[0];
+    return hit ? hit.slice(k.length).trim() : '5';
+  }
   function knobNames(txt) {
     var out = [];
     String(txt || '').split(';').forEach(function (seg) {
@@ -175,6 +181,13 @@
     var ox = g.c.x - sr.left, oy = g.c.y - sr.top;
     T.s = s; T.x = c.x - sr.left - (ox - g.T.x) * s / g.T.s; T.y = c.y - sr.top - (oy - g.T.y) * s / g.T.s; apply();
   }
+  // колесо мыши и жест трекпада — масштаб вокруг курсора (на компьютере пальцами не растянуть)
+  stage.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    var k = Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015)), s = Math.max(0.3, Math.min(12, T.s * k)), sr = stage.getBoundingClientRect();
+    var ox = ev.clientX - sr.left, oy = ev.clientY - sr.top;
+    T.x = ox - (ox - T.x) * s / T.s; T.y = oy - (oy - T.y) * s / T.s; T.s = s; apply();
+  }, { passive: false });
   $('bPan').onclick = function () { pan = !pan; this.classList.toggle('on', pan); this.style.background = pan ? 'var(--ink)' : ''; this.style.color = pan ? 'var(--bg)' : ''; };
 
   // ── Разметка ──
@@ -307,12 +320,17 @@
       var del = document.createElement('button'); del.className = 'btn'; del.textContent = '✕';
       del.onclick = function () { marks.splice(i, 1); sel = marks.length - 1; draw(); renderPanel(); }; row.appendChild(del);
       d.appendChild(row);
+      // ручка: − число + ; число — сколько сейчас (своё или канала из листа); нетронутая ручка в строку не пишется,
+      // нажатие на число возвращает как у канала
       knobNames(m.e.knobs).forEach(function (k) {
-        var lb = document.createElement('label'); lb.textContent = k;
-        var inp = document.createElement('input'); inp.type = 'text'; inp.inputMode = 'decimal'; inp.placeholder = '5'; inp.size = 4;
-        inp.value = m.k[k] == null ? '' : m.k[k];
-        inp.oninput = function () { m.k[k] = inp.value; code.textContent = lineOf(m); };
-        lb.appendChild(inp); d.appendChild(lb);
+        var lb = document.createElement('label'); lb.className = 'knob'; lb.appendChild(document.createTextNode(k));
+        var minus = document.createElement('button'), num = document.createElement('button'), plus = document.createElement('button');
+        minus.className = plus.className = num.className = 'btn kb'; minus.textContent = '−'; plus.textContent = '+';
+        function show() { var own = m.k[k] != null && m.k[k] !== ''; num.textContent = own ? m.k[k] : chanVal(m.e, k); num.style.borderColor = own ? 'var(--acc)' : ''; code.textContent = lineOf(m); }
+        function step(dv) { var v = Number(String(m.k[k] != null && m.k[k] !== '' ? m.k[k] : chanVal(m.e, k)).replace(',', '.')); m.k[k] = String(r1(v + dv)); show(); }
+        minus.onclick = function () { step(-1); }; plus.onclick = function () { step(1); }; num.onclick = function () { delete m.k[k]; show(); };
+        lb.appendChild(minus); lb.appendChild(num); lb.appendChild(plus); d.appendChild(lb);
+        setTimeout(show);
       });
       if (m.g === 'path') {
         var tx = document.createElement('input'); tx.type = 'text'; tx.placeholder = 'слова через «;» (см. «Ручки» в листе)'; tx.value = m.words || '';

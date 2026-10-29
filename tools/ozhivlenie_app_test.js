@@ -28,8 +28,13 @@ const D = process.argv[2];
   await tool('пар над кружкой'); await pg.mouse.click(...P(30, 60));
   const h = await pg.$('circle[data-h="a"]'); const hb = await h.boundingBox();
   await pg.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2); await pg.mouse.down(); await pg.mouse.move(hb.x + 60, hb.y + 3, { steps: 6 }); await pg.mouse.up();
-  await pg.fill('.mk label:has-text("скорость") input', '-5');
-  await pg.fill('.mk label:has-text("ширина") input', '0,75');
+  // ручки: − / + (нетронутая в строку не пишется); скорость 5 → 4 → 3, ширина +1
+  await pg.click('.mk label:has-text("скорость") button:text-is("−")'); await pg.click('.mk label:has-text("скорость") button:text-is("−")');
+  await pg.click('.mk label:has-text("ширина") button:text-is("+")');
+  // колесо мыши — масштаб
+  const before = await pg.$eval('#world', w => w.style.transform);
+  await pg.mouse.move(...P(50, 50)); await pg.mouse.wheel(0, -300); await pg.waitForTimeout(100);
+  console.log('колесо:', before, '→', await pg.$eval('#world', w => w.style.transform));
   // моргание: касание (круг) → радиус
   await tool('моргание'); await pg.mouse.click(...P(50, 30));
   // звёзды: обвести пальцем
