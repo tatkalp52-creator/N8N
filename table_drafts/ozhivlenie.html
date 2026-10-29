@@ -95,6 +95,8 @@
   }
   function knobNames(txt) {
     var out = [];
+    // «ручек нет — слова в строке: …» (листья): ручек нет совсем, дальше — слова для строки, а не ручки
+    if (/^\s*ручек нет/i.test(String(txt || ''))) return out;
     String(txt || '').split(';').forEach(function (seg) {
       seg = seg.trim(); if (!seg || /^—|^ручек нет/.test(seg)) return;
       var head = seg.split(' — ')[0];
@@ -311,7 +313,8 @@
         var eff = EFF[m.e.mech]; if (!eff) return;
         var k = {}; knobNames(m.e.knobs).forEach(function (n) { var own = m.k[n]; k[n] = Number(String(own != null && own !== '' ? own : chanVal(m.e, n)).replace(',', '.')) || 5; });
         ['густота', 'высота', 'толщина', 'скорость', 'завитки', 'прозрачность', 'яркость', 'пламя', 'ореол', 'мерцание', 'раскачка', 'отсвет', 'разлив'].forEach(function (n) { if (k[n] == null) k[n] = 5; });
-        marks.push({ eff: eff, pts: m.pts || [], k: k, fixed: i !== window.__sel(), r: m.a || 3, exact: false });
+        marks.push({ eff: eff, pts: m.pts || [], k: k, fixed: i !== window.__sel(), r: m.a || 3, exact: false,
+          oval: m.g === 'oval' && m.touched ? [m.a, m.b] : null, tilt: m.t || 0 });
       });
     }
       // ── Пробный пар прямо на картинке: примерно так он будет двигаться (формулы те же, что у сборщика,
@@ -340,7 +343,10 @@
             var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh;
             var cOp = mult(m.k['густота']) / mult(m.k['прозрачность']), cH = mult(m.k['высота']), cSp = mult(m.k['скорость']), cTh = mult(m.k['толщина']), cCu = mult(m.k['завитки']);
             var cyc = Math.max(1, Math.round(2 * cSp)), hx = Math.max(0, cCu - 1) * 0.8;
-            var bw = Math.max(150 * k * Math.max(1, cTh), (2 * (11 + 24.7 * (1 + hx) * cCu) + 30) * k), bh = 165 * k * cH;
+            // (29.10) ширина, как у сборщика: ручка «ширина» и овал напитка — струйки расходятся по всей его ширине
+            var cWd = mult(m.k['ширина'] == null ? 5 : m.k['ширина']);
+            if (m.oval) { var th_ = m.tilt * Math.PI / 180; cWd *= Math.hypot(m.oval[0] * Math.cos(th_), m.oval[1] * Math.sin(th_)) / 10.5; }
+            var bw = Math.max(150 * k * Math.max(1, cTh) * Math.max(1, cWd), (2 * (11 * cWd + 24.7 * (1 + hx) * cCu) + 30) * k), bh = 165 * k * cH;
             var wi = wispsFor(m), t = (tt * cyc / LOOP + wi.shift) % 1;
             // (11.10) как у сборщика: серая маска струек (без накопления на стыках) → размытие → яркость 0.62·густота/прозрачность
             off.width = Math.ceil(bw); off.height = Math.ceil(bh); offc.globalCompositeOperation = 'source-over'; offc.fillStyle = '#000'; offc.fillRect(0, 0, off.width, off.height); offc.globalCompositeOperation = 'lighten'; offc.lineCap = 'round';
@@ -348,7 +354,7 @@
               var S = 70, pts = [];
               for (var i = 0; i <= S; i++) {
                 var sx = i / S;
-                var x = bw / 2 + k * (w.bx * (1 - 0.5 * sx) + w.A * cCu * Math.pow(sx, 0.9) * (Math.sin(2 * Math.PI * (w.f * sx - t) + w.ph) + hx * Math.sin(2 * Math.PI * (2.2 * w.f * sx - 2 * t) + 1.7 * w.ph)));
+                var x = bw / 2 + k * (w.bx * cWd * (1 - 0.5 * sx) + w.A * cCu * Math.pow(sx, 0.9) * (Math.sin(2 * Math.PI * (w.f * sx - t) + w.ph) + hx * Math.sin(2 * Math.PI * (2.2 * w.f * sx - 2 * t) + 1.7 * w.ph)));
                 pts.push([x, bh - 1 - sx * (bh - 6), sx]);
               }
               for (var j = 0; j < S; j++) {
@@ -742,8 +748,42 @@
           }
         });
       }
+    // (29.10) листья: примерный полёт листа по нарисованному пути — сорвался, полетел с покачиванием, лёг и растаял.
+    // Слова строки (падает N, цвет, размер) берутся по словарику листа «Эффекты», как их прочтёт сборщик.
+    var TONE = { yellow: [222, 176, 62], red: [176, 62, 42], orange: [204, 112, 46], ochre: [214, 148, 54], brown: [112, 72, 42] };
+    function wordNum(words, mean) {
+      var w = wordFor(mean); if (!w) return null;
+      var m = yo(words).match(new RegExp(yo(w) + '\\S*\\s*(\\d+(?:[.,]\\d+)?)'));
+      return m ? Number(m[1].replace(',', '.')) : null;
+    }
+    function yo(s) { return String(s || '').toLowerCase().replace(/ё/g, 'е'); }
+    function has(words, mean) { var w = wordFor(mean); return !!w && yo(words).indexOf(yo(w)) >= 0; }
+    function drawLeaves(now) {
+      var dw = W0 * sc(), dh = H0 * sc(), k = dh / 864, all = window.__marks();
+      all.forEach(function (m, idx) {
+        if (m.g !== 'path' || !m.pts || m.pts.length < 2) return;
+        var fall = wordNum(m.words, 'fall') || 4, lie = 1.5, P = fall + lie + 0.6;
+        var size = has(m.words, 'small') ? 9 : has(m.words, 'big') ? 20 : 14;
+        var col = TONE.orange; Object.keys(TONE).forEach(function (id) { if (has(m.words, id)) col = TONE[id]; });
+        var pts = m.pts.map(function (q) { return [q.x / 100 * dw, q.y / 100 * dh]; }), seg = [], L = 0;
+        for (var i = 1; i < pts.length; i++) { var d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); L += d; }
+        var ph = ((now / 1000) + idx * 0.9) % P, u = Math.min(1, ph / fall), at = u * L, j = 0;
+        while (j < seg.length - 1 && at > seg[j]) { at -= seg[j]; j++; }
+        var f = seg[j] ? at / seg[j] : 0, x = pts[j][0] + (pts[j + 1][0] - pts[j][0]) * f, y = pts[j][1] + (pts[j + 1][1] - pts[j][1]) * f;
+        var alpha = 1, rot = 0;
+        if (ph < fall) { x += Math.sin(u * Math.PI * 4) * 7 * k * (1 - u * 0.5); rot = Math.sin(u * Math.PI * 3) * 0.9; }
+        else { alpha = Math.max(0, 1 - (ph - fall) / lie); rot = 0.3; }
+        if (alpha <= 0) return;
+        var s = size * k;
+        fxc.save(); fxc.globalAlpha = alpha; fxc.translate(x, y); fxc.rotate(rot);
+        fxc.fillStyle = 'rgb(' + col.join(',') + ')';
+        fxc.beginPath(); fxc.moveTo(0, -s); fxc.quadraticCurveTo(s * 0.9, -s * 0.2, 0, s); fxc.quadraticCurveTo(-s * 0.9, -s * 0.2, 0, -s); fxc.fill();
+        fxc.strokeStyle = 'rgba(90,50,25,0.6)'; fxc.lineWidth = Math.max(1, s / 10); fxc.beginPath(); fxc.moveTo(0, -s); fxc.lineTo(0, s * 1.25); fxc.stroke();
+        fxc.restore();
+      });
+    }
     var inner = drawSteam;
-    drawSteam = function (now) { sync(); inner(now); };
+    drawSteam = function (now) { sync(); inner(now); drawLeaves(now); };
     requestAnimationFrame(drawSteam);
   })();
 
