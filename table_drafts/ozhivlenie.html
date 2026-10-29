@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Оживление</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/konva/9.3.6/konva.min.js"></script>
+<!-- библиотека холста — с того же сервера, что и страница (внешний адрес в Telegram может не открыться) -->
+<script>document.write('<script src="' + location.pathname + '?f=konva.min.js"><\/script>');</script>
 <style>
   /* (29.10) Приложение разметки оживления в боте. Холст — библиотека Konva (как в редакторах: тянуть, растягивать,
      поворачивать, масштаб колесом и двумя пальцами). Код знает только геометрию эффекта (точка, овал, обводка,
