@@ -41,8 +41,27 @@
   .mk.sel { border-color: var(--acc); }
   .mk .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .mk .name { font-weight: 600; flex: 1; cursor: pointer; }
-  .mk label { font-size: 13px; color: var(--mute); display: inline-flex; align-items: center; gap: 4px; margin: 3px 8px 0 0; }
-  .mk label .kb { padding: 3px 10px; border-radius: 8px; min-width: 2.2em; }
+  /* ручка — своя строка: название | − ползунок + | число мелко */
+  .knob { display: grid; grid-template-columns: 6.5em 2.4em 1fr 2.4em 2.2em; align-items: center; gap: 6px; margin: 6px 0; }
+  .knob .kn { font-size: 14px; }
+  .knob .kb { padding: 4px 0; border-radius: 8px; font-size: 18px; line-height: 1; }
+  .knob input[type=range] { width: 100%; height: 28px; margin: 0; accent-color: var(--acc); }
+  .knob .kv { font-size: 12px; color: var(--mute); text-align: right; cursor: pointer; }
+  .knob .kv.own { color: var(--acc); }
+  .mk .hn, #panel .hn { font-size: 13px; color: var(--mute); margin: 4px 0; }
+  #panel .list { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  #panel .list .btn { padding: 5px 10px; font-size: 14px; }
+  /* полосы прокрутки и масштаб — поверх картинки, широкие, чтобы стилусом попадать */
+  .sb { position: absolute; z-index: 3; background: rgba(0,0,0,0.35); border-radius: 12px; touch-action: none; cursor: pointer; display: none; }
+  #sbX { left: 8px; right: 38px; bottom: 6px; height: 24px; }
+  #sbY { top: 8px; bottom: 38px; right: 6px; width: 24px; }
+  .sb i { position: absolute; background: rgba(255,255,255,0.88); border-radius: 10px; }
+  #sbX i { top: 4px; bottom: 4px; } #sbY i { left: 4px; right: 4px; }
+  #zoom { position: absolute; z-index: 3; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 8px; }
+  #zoom button { width: 42px; height: 42px; border-radius: 21px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; padding: 0; }
+  #tools { scrollbar-width: thin; }
+  /* узкий экран (телефон): пока эффект не открыт, ручек нет — картинка почти во весь экран */
+  @media (max-width: 600px) { #app.closed #panel { height: auto; max-height: 14vh; } }
   .mk input[type=text] { width: 100%; padding: 4px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); margin-top: 4px; }
   .mk code { font-size: 12px; color: var(--mute); word-break: break-all; display: block; margin-top: 4px; }
   #bar { flex: none; display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
@@ -58,7 +77,6 @@
   <div id="hint"></div>
   <div id="panel"></div>
   <div id="bar">
-    <button class="btn" id="bPan">✋ Двигать</button>
     <button class="btn" id="bDone">✓ Готово</button>
     <button class="btn" id="bUndo">↶</button>
     <button class="btn" id="bSend">📨 Отправить в бот</button>
@@ -84,7 +102,7 @@
   var FRAME_H = 864;   // овал — в пикселях кадра высотой 864 (так его читает сборщик)
   var RED = '#e11d48', BLUE = '#2563eb';
 
-  var CAT = [], WORDS = {}, cur = null, marks = [], sel = -1, pending = null, pan = false;
+  var CAT = [], WORDS = {}, cur = null, marks = [], sel = -1;
 
   // Слова строк — из листа: слово эффекта — из колонки «Строка для сборщика», ручки — из «Ручки»,
   // слова частей (область, овал, наклон, кадр, справа…) — из словарика («Слово» → «Значит»)
@@ -118,19 +136,20 @@
     rotationSnaps: [0, 90, 180, 270], flipEnabled: false,
     padding: 12 });   // ручки отступают от фигуры: у маленького овала палец попадает в середину, а не в ручку
   layer.add(tr);
-  var W0 = 1, H0 = 1, zoomed = false;
+  var W0 = 1, H0 = 1, zoomed = false, FIT = 1;   // FIT — масштаб «вся картинка в окне»: меньше не уменьшаем
   var img = new Image();
   img.onload = function () { picNode.image(img); fit(); };
   function fit() {
     stage.width(box.clientWidth); stage.height(box.clientHeight);
     W0 = stage.width(); H0 = W0 * img.height / (img.width || 1);
     picNode.width(W0); picNode.height(H0);
-    var s = Math.min(1, stage.height() / H0);
+    var s = FIT = Math.min(1, stage.height() / H0);
     stage.scale({ x: s, y: s }); stage.position({ x: (W0 - W0 * s) / 2, y: (stage.height() - H0 * s) / 2 });
-    rebuild();
+    if (!sbX.parentNode) { box.appendChild(sbX); box.appendChild(sbY); box.appendChild(zb); }
+    rebuild(); clampStage(); restyle();
   }
   // окно меняется (Telegram разворачивает приложение) — масштаб, который выбрала автор, не сбрасываем
-  window.addEventListener('resize', function () { stage.width(box.clientWidth); stage.height(box.clientHeight); if (!zoomed) fit(); });
+  window.addEventListener('resize', function () { stage.width(box.clientWidth); stage.height(box.clientHeight); if (!zoomed) fit(); else clampStage(); });
   var px = function (x) { return x / W0 * 100; }, py = function (y) { return y / H0 * 100; };
   var X = function (p) { return p / 100 * W0; }, Y = function (p) { return p / 100 * H0; };
   function sc() { return stage.scaleX(); }
@@ -140,11 +159,12 @@
   stage.on('wheel', function (ev) {
     ev.evt.preventDefault();
     var r = box.getBoundingClientRect(), p = { x: ev.evt.clientX - r.left, y: ev.evt.clientY - r.top }, k = Math.exp(-ev.evt.deltaY * (ev.evt.ctrlKey ? 0.01 : 0.0015));
-    zoomTo(Math.max(0.3, Math.min(12, sc() * k)), p);
+    zoomTo(sc() * k, p);
   });
   function zoomTo(s, p) {
+    s = Math.max(FIT, Math.min(12, s));
     var old = sc(), wp = { x: (p.x - stage.x()) / old, y: (p.y - stage.y()) / old };
-    stage.scale({ x: s, y: s }); stage.position({ x: p.x - wp.x * s, y: p.y - wp.y * s }); zoomed = true; restyle();
+    stage.scale({ x: s, y: s }); stage.position({ x: p.x - wp.x * s, y: p.y - wp.y * s }); zoomed = true; clampStage(); restyle();
   }
   var pinch = null;
   box.addEventListener('touchmove', function (e) {
@@ -153,54 +173,127 @@
     var a = e.touches[0], b = e.touches[1], r = box.getBoundingClientRect();
     var c = { x: (a.clientX + b.clientX) / 2 - r.left, y: (a.clientY + b.clientY) / 2 - r.top }, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
     if (!pinch) { pinch = { c: c, d: d }; return; }
-    zoomTo(Math.max(0.3, Math.min(12, sc() * d / pinch.d)), c);
-    stage.position({ x: stage.x() + c.x - pinch.c.x, y: stage.y() + c.y - pinch.c.y });
+    zoomTo(sc() * d / pinch.d, c);
+    stage.position({ x: stage.x() + c.x - pinch.c.x, y: stage.y() + c.y - pinch.c.y }); clampStage();
     pinch = { c: c, d: d };
   }, { passive: false });
   box.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
-  // сдвиг: «Двигать», правая или средняя кнопка мыши
   box.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  $('bPan').onclick = function () { pan = !pan; this.classList.toggle('on', pan); stage.draggable(pan); };
-  stage.on('dragend', function (ev) { if (ev.target === stage) { zoomed = true; if (!pan) stage.draggable(false); } });
 
-  // ── Рисование: нажать на картинке — новая отметка; нажать на отметку — выбрать её и тянуть ──
-  var drawing = null;
+  // ── Где картинка: не уезжает за край дальше полосы прокрутки; меньше окна — стоит посередине ──
+  var PAD = 34;
+  function clampAxis(pos, c, v) { return c + 2 * PAD <= v ? (v - c) / 2 : Math.max(v - c - PAD, Math.min(PAD, pos)); }
+  function clampStage() {
+    var s = sc();
+    stage.position({ x: clampAxis(stage.x(), W0 * s, stage.width()), y: clampAxis(stage.y(), H0 * s, stage.height()) });
+    sbUpdate(); layer.batchDraw();
+  }
+  // полосы прокрутки (для стилуса и мыши) и кнопки масштаба ＋ − (стилусу нечем крутить колесо)
+  var sbX = document.createElement('div'), sbY = document.createElement('div');
+  sbX.className = 'sb'; sbX.id = 'sbX'; sbY.className = 'sb'; sbY.id = 'sbY';
+  sbX.appendChild(document.createElement('i')); sbY.appendChild(document.createElement('i'));
+  var zb = document.createElement('div'); zb.id = 'zoom';
+  ['＋', '−'].forEach(function (t, j) {
+    var b = document.createElement('button'); b.textContent = t;
+    b.onclick = function () { zoomTo(sc() * (j ? 1 / 1.4 : 1.4), { x: stage.width() / 2, y: stage.height() / 2 }); };
+    zb.appendChild(b);
+  });
+  function sbAxis(el, pos, c, v, horiz) {
+    var full = c + 2 * PAD;
+    if (full <= v) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    var T = horiz ? el.clientWidth : el.clientHeight, th = el.firstChild, len = Math.max(30, T * v / full), off = (T - len) * (PAD - pos) / (full - v);
+    if (horiz) { th.style.width = len + 'px'; th.style.left = off + 'px'; } else { th.style.height = len + 'px'; th.style.top = off + 'px'; }
+  }
+  function sbUpdate() {
+    if (!sbX.parentNode) return;
+    var s = sc();
+    sbAxis(sbX, stage.x(), W0 * s, stage.width(), true); sbAxis(sbY, stage.y(), H0 * s, stage.height(), false);
+  }
+  // полосу тянут за ползунок или нажимают на неё — картинка едет туда же
+  function sbDrag(el, horiz) {
+    var start = null;
+    function at(e) { return horiz ? e.clientX : e.clientY; }
+    el.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId);
+      var th = el.firstChild.getBoundingClientRect(), a = horiz ? th.left : th.top, b = horiz ? th.right : th.bottom;
+      if (at(e) < a || at(e) > b) {   // мимо ползунка — ползунок встаёт серединой туда, где нажали
+        var T = horiz ? el.clientWidth : el.clientHeight, len = b - a, r = el.getBoundingClientRect();
+        move(((at(e) - (horiz ? r.left : r.top)) - len / 2) / (T - len));
+      }
+      start = { p: at(e), x: stage.x(), y: stage.y() };
+    });
+    function move(frac) {   // доля пути ползунка 0…1 → положение картинки
+      var s = sc(), c = (horiz ? W0 : H0) * s, v = horiz ? stage.width() : stage.height(), pos = PAD - Math.max(0, Math.min(1, frac)) * (c + 2 * PAD - v);
+      stage.position(horiz ? { x: pos, y: stage.y() } : { x: stage.x(), y: pos }); zoomed = true; clampStage();
+    }
+    el.addEventListener('pointermove', function (e) {
+      if (!start) return;
+      var s = sc(), c = (horiz ? W0 : H0) * s, v = horiz ? stage.width() : stage.height(), T = horiz ? el.clientWidth : el.clientHeight;
+      var len = Math.max(30, T * v / (c + 2 * PAD)), k = (c + 2 * PAD - v) / Math.max(1, T - len), d = (at(e) - start.p) * k;
+      stage.position(horiz ? { x: start.x - d, y: stage.y() } : { x: stage.x(), y: start.y - d }); zoomed = true; clampStage();
+    });
+    ['pointerup', 'pointercancel'].forEach(function (n) { el.addEventListener(n, function () { start = null; }); });
+  }
+  sbDrag(sbX, true); sbDrag(sbY, false);
+
+  // ── Жесты на картинке. Эффект выбран в полоске сверху — ставим его (пар и обводки тянутся, точки — касанием).
+  //    Эффект не выбран — картинку тянут мышью (ладошка → кулачок) или пальцем; касание мимо отметок только
+  //    снимает выбор. Открыта гирлянда (или другой эффект из точек) — касание добавляет точку, протяжка двигает картинку. ──
+  var g0 = null, MOVE = 8;   // больше 8 экранных точек — это движение, а не касание
+  function drawsByDrag() { return !!cur && ['oval', 'area', 'line', 'path'].indexOf(geom()) >= 0; }
+  function openMark() { return sel >= 0 ? marks[sel] : null; }
+  function setCursor(kind) {
+    box.style.cursor = kind || (cur || (openMark() && openMark().collect) ? 'crosshair' : 'grab');
+  }
+  function evPt(e) { var t = e.touches && e.touches[0] || e.changedTouches && e.changedTouches[0]; return t || e; }
   stage.on('mousedown touchstart', function (ev) {
-    var e = ev.evt; if (pinch || (e.touches && e.touches.length > 1)) return;
-    if (e.button === 1 || e.button === 2) { stage.draggable(true); stage.startDrag(); return; }
-    if (pan || !cur) return;
-    if (ev.target !== picNode && ev.target !== stage) return;   // по отметке — её выбор и перетаскивание (Konva)
-    var p = stage.getRelativePointerPosition(); if (!p) return;
-    drawing = { g: geom(), p0: p, pts: [p] };
+    var e = ev.evt;
+    if (pinch || (e.touches && e.touches.length > 1)) { g0 = null; cancelDraw(); return; }
+    var forcePan = e.button === 1 || e.button === 2, mi = ev.target.getAttr ? ev.target.getAttr('mi') : null;
+    // по открытой отметке — её перенос и ручки (Konva). Закрытая отметка не цепляется: с неё картинку тянут, как с фона,
+    // а касание её открывает (если в полоске не выбран новый эффект — тогда касание ставит его)
+    if (!forcePan && mi != null && mi === sel) { g0 = null; return; }
+    if (!forcePan && mi == null && ev.target !== picNode && ev.target !== stage) { g0 = null; return; }   // ручки рамки
+    var pt = evPt(e), p = stage.getRelativePointerPosition(); if (!p) return;
+    g0 = { sx: pt.clientX, sy: pt.clientY, x0: stage.x(), y0: stage.y(), p0: p, pts: [p], draw: !forcePan && drawsByDrag(), pan: forcePan, moved: false, mi: mi };
+    if (forcePan) setCursor('grabbing');
   });
-  stage.on('mousemove touchmove', function () {
-    if (!drawing || pinch) return;
+  stage.on('mousemove touchmove', function (ev) {
+    if (!g0 || pinch) return;
+    var pt = evPt(ev.evt), dx = pt.clientX - g0.sx, dy = pt.clientY - g0.sy;
+    if (!g0.moved && Math.hypot(dx, dy) > MOVE) g0.moved = true;
+    if (!g0.moved) return;
+    if (!g0.draw) {
+      g0.pan = true; setCursor('grabbing');
+      stage.position({ x: g0.x0 + dx, y: g0.y0 + dy }); zoomed = true; clampStage(); return;
+    }
     var p = stage.getRelativePointerPosition(); if (!p) return;
-    drawing.pts.push(p);
+    g0.pts.push(p);
     temp.destroyChildren();
-    if (drawing.g === 'oval') temp.add(new Konva.Ellipse({ x: drawing.p0.x, y: drawing.p0.y, radiusX: Math.abs(p.x - drawing.p0.x) || 1, radiusY: Math.abs(p.y - drawing.p0.y) || 1, stroke: BLUE, strokeWidth: 2, strokeScaleEnabled: false, listening: false }));
-    else if (isFree()) temp.add(new Konva.Line({ points: flat(drawing.pts), stroke: BLUE, strokeWidth: 2, strokeScaleEnabled: false, listening: false }));
+    if (g0.draw && geom() === 'oval') temp.add(new Konva.Ellipse({ x: g0.p0.x, y: g0.p0.y, radiusX: Math.abs(p.x - g0.p0.x) || 1, radiusY: Math.abs(p.y - g0.p0.y) || 1, stroke: BLUE, strokeWidth: 2, strokeScaleEnabled: false, listening: false }));
+    else temp.add(new Konva.Line({ points: flat(g0.pts), stroke: BLUE, strokeWidth: 2, strokeScaleEnabled: false, listening: false }));
     layer.batchDraw();
   });
-  stage.on('mouseup touchend', function () {
-    if (!drawing) return;
-    var d = drawing; drawing = null; temp.destroyChildren();
-    var last = d.pts[d.pts.length - 1], len = 0;
-    for (var i = 1; i < d.pts.length; i++) len += Math.hypot(d.pts[i].x - d.pts[i - 1].x, d.pts[i].y - d.pts[i - 1].y);
-    var moved = len * sc() > 6;   // больше 6 экранных точек — это движение, а не касание
-    if (d.g === 'oval') {
-      var r0 = 12 * H0 / FRAME_H, rx = moved ? Math.abs(last.x - d.p0.x) : r0, ry = moved ? Math.abs(last.y - d.p0.y) : r0;
-      // совсем плоский овал не нужен никогда: вторая ось — не меньше пятой части первой
-      var A = Math.max(0.5, rx * FRAME_H / H0), B = Math.max(0.5, ry * FRAME_H / H0); A = Math.max(A, B / 5); B = Math.max(B, A / 5);
-      add({ g: 'oval', pts: [inPic(d.p0)], a: r1(A), b: r1(B), t: 0, touched: moved });
-    } else if (isFree() && moved) finishFree(d.pts.map(inPic));
-    else tap(inPic(last));
+  function gestureEnd() {
+    var d = g0; g0 = null; temp.destroyChildren(); setCursor();
+    if (!d || d.pan) return layer.batchDraw();
+    if (d.draw && d.moved) {
+      var last = d.pts[d.pts.length - 1];
+      if (geom() === 'oval') {
+        // совсем плоский овал не нужен никогда: вторая ось — не меньше пятой части первой
+        var A = Math.max(0.5, Math.abs(last.x - d.p0.x) * FRAME_H / H0), B = Math.max(0.5, Math.abs(last.y - d.p0.y) * FRAME_H / H0);
+        A = Math.max(A, B / 5); B = Math.max(B, A / 5);
+        add({ g: 'oval', pts: [inPic(d.p0)], a: r1(A), b: r1(B), t: 0, touched: true });
+      } else finishFree(d.pts.map(inPic));
+    } else tap(inPic(d.p0), d.mi);
     layer.batchDraw();
-  });
-  function cancelDraw() { drawing = null; temp.destroyChildren(); }
+  }
+  stage.on('mouseup touchend', gestureEnd);
+  window.addEventListener('mouseup', function () { if (g0) gestureEnd(); });
+  function cancelDraw() { g0 = null; temp.destroyChildren(); }
   function flat(pts) { var o = []; pts.forEach(function (q) { o.push(q.x, q.y); }); return o; }
   function geom() { return cur ? GEOM[cur.mech] : ''; }
-  function isFree() { return ['area', 'line', 'path'].indexOf(geom()) >= 0; }
   function simplify(pts, maxN) {
     if (pts.length <= maxN) return pts.map(function (q) { return { x: r1(q.x), y: r1(q.y) }; });
     var step = (pts.length - 1) / (maxN - 1), out = [];
@@ -208,18 +301,44 @@
     return out;
   }
 
-  window.__marks = function () { return marks; }; window.__sel = function () { return sel; };
-  function add(m) { m.e = cur; m.k = {}; marks.push(m); sel = marks.length - 1; rebuild(); renderPanel(); }
-  function tap(p) {
+  // ── Шаг назад: каждое изменение (новая отметка, точка, перенос, размер, ручка, удаление) запоминается;
+  //    «↶» возвращает ровно одно последнее. У гирлянды это одна последняя лампочка, а не вся гирлянда. ──
+  var hist = [];
+  function copyMark(m) {
+    var o = {}; Object.keys(m).forEach(function (k) { if (k !== 'nodes' && k !== 'wl') o[k] = m[k]; });
+    if (m.pts) o.pts = m.pts.map(function (q) { return { x: q.x, y: q.y }; });
+    if (m.box) o.box = m.box.slice(); o.k = Object.assign({}, m.k);
+    return o;
+  }
+  function save() { hist.push({ marks: marks.map(copyMark), sel: sel }); if (hist.length > 200) hist.shift(); }
+  $('bUndo').onclick = function () {
+    var h = hist.pop(); if (!h) return say('Отменять нечего');
+    marks = h.marks; sel = h.sel < marks.length ? h.sel : -1; rebuild(); renderPanel();
+  };
+
+  window.__marks = function () { return marks; }; window.__sel = function () { return sel; }; window.__lines = function () { return marks.map(lineOf); };
+  // новая отметка сразу открыта (её ручки внизу); выбор в полоске на этом кончается — следующий щелчок её не повторит
+  function add(m) {
+    save(); m.e = cur; m.k = {}; marks.push(m); sel = marks.length - 1; cur = null;
+    rebuild(); renderPanel(); markTools(); setCursor();
+  }
+  function tap(p, mi) {
+    var m = openMark();
+    if (m && m.collect) {   // открыта гирлянда (листья, пузыри) — касание добавляет точку
+      save(); m.pts.push(p); if (m.g === 'two' && m.pts.length >= 2) m.collect = false;
+      rebuild(); renderPanel(); setCursor(); return;
+    }
     var g = geom();
-    if (g === 'point') add({ g: g, pts: [p] });
-    else if (g === 'two') { if (!pending) { pending = { g: g, pts: [p] }; rebuild(); } else { pending.pts.push(p); var m = pending; pending = null; add(m); } }
-    else if (g === 'points') { if (!pending) pending = { g: g, pts: [] }; pending.pts.push(p); rebuild(); }
+    if (!g && mi != null) return select(mi);
+    if (!g) { if (sel >= 0) { sel = -1; paint(); renderPanel(); markTools(); setCursor(); } return; }   // мимо — только снять выбор
+    if (g === 'oval') add({ g: g, pts: [p], a: 12, b: 12, t: 0, touched: false });
+    else if (g === 'point') add({ g: g, pts: [p] });
     else if (g === 'frame') {
       var w = 40, h = w * 9 / 16 * W0 / H0;   // рамка 16:9 в процентах кадра
       add({ g: g, box: [Math.max(0, p.x - w / 2), Math.max(0, p.y - h / 2), Math.min(100, p.x + w / 2), Math.min(100, p.y + h / 2)], side: 'right' });
     }
-    else if (g === 'path') { if (!pending) pending = { g: g, pts: [] }; pending.pts.push(p); rebuild(); }
+    else if (g === 'points' || g === 'two' || g === 'path') add({ g: g, pts: [p], collect: true, words: g === 'path' ? '' : undefined });
+    else say(cur.marks || 'Обведите место, не отпуская');
   }
   function finishFree(pts) {
     var g = geom();
@@ -227,31 +346,32 @@
     else if (g === 'line') add({ g: g, pts: simplify(pts, 30) });
     else if (g === 'path') add({ g: g, pts: simplify(pts, 10), words: '' });
   }
-  // «Готово»: эффект закончен — дорисовать начатую отметку из нескольких точек и снять выбор; можно брать следующий
+  function minPts(m) { return m.g === 'two' ? 2 : m.g === 'path' ? 2 : 1; }
+  // «Готово»: эффект закончен — закрыть его; картинку снова можно тянуть, щелчки ничего не ставят
   $('bDone').onclick = function () {
-    if (pending && pending.pts.length >= (pending.g === 'points' ? 1 : 2)) { var m = pending; pending = null; if (m.g === 'path') m.words = ''; add(m); }
-    else { pending = null; }
-    sel = -1; rebuild(); renderPanel();
-    if (marks.length) say('Готово. Выберите следующий эффект или «Отправить в бот»');
+    var m = openMark();
+    if (m && m.pts && m.pts.length < minPts(m)) { marks.splice(sel, 1); }
+    if (m) m.collect = false;
+    sel = -1; cur = null; rebuild(); renderPanel(); markTools(); setCursor();
   };
   // «Отправить в бот»: все отметки разом
   $('bSend').onclick = function () {
-    if (pending) $('bDone').onclick();
+    if (sel >= 0 || cur) $('bDone').onclick();
     if (!marks.length) return say('Сначала поставьте отметку на картинке');
     askSend();
   };
-  $('bUndo').onclick = function () { if (pending) pending = null; else { marks.pop(); sel = marks.length - 1; } rebuild(); renderPanel(); };
 
   // ── Фигуры на холсте из отметок. Пересобираются, только когда отметок стало больше или меньше; перенос, растяжение
   //    и поворот меняют числа той же фигуры (пересборка посреди жеста срывала его) ──
   function rebuild() {
     shapes.destroyChildren(); tr.nodes([]);
     marks.forEach(function (m, i) {
-      var n = null, common = { stroke: RED, strokeWidth: 2, strokeScaleEnabled: false, draggable: true, hitStrokeWidth: 24 };
-      m.nodes = [];
+      var n = null, common = { stroke: RED, strokeWidth: 2, strokeScaleEnabled: false, hitStrokeWidth: 24 };
+      m.nodes = []; m.wl = null;
       if (m.g === 'oval') {
         n = new Konva.Ellipse(Object.assign({ x: X(m.pts[0].x), y: Y(m.pts[0].y), radiusX: m.a * H0 / FRAME_H, radiusY: m.b * H0 / FRAME_H, rotation: m.t, fill: 'rgba(225,29,72,0.15)' }, common));
         // перенос меняет только место; растяжение и поворот — размер и наклон (тогда овал идёт в строку)
+        n.on('dragstart transformstart', save);
         n.on('dragend', function () { m.pts[0] = inPic({ x: n.x(), y: n.y() }); renderPanel(); });
         n.on('transformend', function () {
           n.radiusX(Math.max(0.5, n.radiusX() * Math.abs(n.scaleX()))); n.radiusY(Math.max(0.5, n.radiusY() * Math.abs(n.scaleY()))); n.scale({ x: 1, y: 1 });
@@ -262,40 +382,46 @@
       } else if (m.g === 'frame') {
         var b = m.box;
         n = new Konva.Rect(Object.assign({ x: X(b[0]), y: Y(b[1]), width: X(b[2]) - X(b[0]), height: Y(b[3]) - Y(b[1]), fill: 'rgba(255,255,255,0.12)' }, common));
+        n.on('dragstart transformstart', save);
         n.on('transformend dragend', function () {
           n.width(n.width() * n.scaleX()); n.height(n.height() * n.scaleY()); n.scale({ x: 1, y: 1 });
           m.box = [r1(px(n.x())), r1(py(n.y())), r1(px(n.x() + n.width())), r1(py(n.y() + n.height()))]; tr.forceUpdate(); renderPanel();
         });
-      } else if (m.g === 'area' || m.g === 'line' || m.g === 'path') {
+      } else if (m.g === 'area' || m.g === 'line' || (m.g === 'path' && m.pts.length > 1)) {
         n = new Konva.Line(Object.assign({ points: flat(m.pts.map(function (q) { return { x: X(q.x), y: Y(q.y) }; })), closed: m.g === 'area',
           fill: m.g === 'area' ? 'rgba(225,29,72,0.15)' : undefined, hitStrokeWidth: 14 }, common));
+        n.on('dragstart', save);
         n.on('dragend', function () {
           var dx = px(n.x()), dy = py(n.y());
           m.pts = m.pts.map(function (q) { return { x: r1(q.x + dx), y: r1(q.y + dy) }; });
           n.position({ x: 0, y: 0 }); n.points(flat(m.pts.map(function (q) { return { x: X(q.x), y: Y(q.y) }; }))); renderPanel();
         });
-      } else {
-        // точки: каждую можно передвинуть отдельно
-        m.pts.forEach(function (q, j) {
-          var c = new Konva.Circle({ x: X(q.x), y: Y(q.y), radius: 7 / sc(), fill: RED, stroke: '#fff', strokeWidth: 1, strokeScaleEnabled: false, draggable: true, name: 'dot', hitStrokeWidth: 24 });
-          c.on('dragend', function () { m.pts[j] = inPic({ x: c.x(), y: c.y() }); if (m.wl) m.wl.points([0, Y(m.pts[1].y), W0, Y(m.pts[1].y)]); renderPanel(); });
-          c.on('mousedown touchstart', function () { select(i); });
-          shapes.add(c); m.nodes.push(c);
-          if (m.g === 'two' && j === 1) { m.wl = new Konva.Line({ points: [0, Y(q.y), W0, Y(q.y)], stroke: RED, dash: [6, 4], strokeWidth: 1, strokeScaleEnabled: false, listening: false }); shapes.add(m.wl); }
-        });
       }
-      if (n) { n.on('mousedown touchstart', function () { select(i); }); shapes.add(n); m.nodes.push(n); }
+      if (n) { n.setAttr('mi', i); shapes.add(n); m.nodes.push(n); }
+      // точки: каждую можно передвинуть отдельно (у пути — поверх линии, пока он открыт)
+      if (m.g === 'points' || m.g === 'two' || m.g === 'path') m.pts.forEach(function (q, j) {
+        // попасть легко, но соседняя лампочка рядом ставится, а не хватает эту
+        var c = new Konva.Circle({ x: X(q.x), y: Y(q.y), radius: 7 / sc(), fill: RED, stroke: '#fff', strokeWidth: 1, strokeScaleEnabled: false, name: 'dot', hitStrokeWidth: 8, mi: i });
+        c.on('dragstart', save);
+        c.on('dragend', function () { m.pts[j] = inPic({ x: c.x(), y: c.y() }); rebuild(); renderPanel(); });
+        shapes.add(c); m.nodes.push(c);
+        if (m.g === 'two' && j === 1) { m.wl = new Konva.Line({ points: [0, Y(q.y), W0, Y(q.y)], stroke: RED, dash: [6, 4], strokeWidth: 1, strokeScaleEnabled: false, listening: false }); shapes.add(m.wl); }
+      });
     });
-    if (pending) pending.pts.forEach(function (q) { shapes.add(new Konva.Circle({ x: X(q.x), y: Y(q.y), radius: 6 / sc(), fill: BLUE, listening: false, name: 'dot' })); });
     paint();
   }
-  // выбранная отметка — синяя, у овала и рамки — рамка с ручками; фигуры при этом не пересоздаются
+  // открытая отметка — синяя, её можно тянуть, у овала и рамки — ручки. Закрытые не тянутся (картинку двигают — отметки
+  // не цепляются); нажать на закрытую — открыть её. У закрытой гирлянды меток не видно — только свет.
   function paint() {
     tr.nodes([]);
     marks.forEach(function (m, i) {
-      var col = i === sel ? BLUE : RED;
-      (m.nodes || []).forEach(function (n) { if (n.name() === 'dot') n.fill(col); else n.stroke(col); });
-      if (i === sel && (m.g === 'oval' || m.g === 'frame') && m.nodes && m.nodes[0]) {
+      var open = i === sel, col = open ? BLUE : RED;
+      (m.nodes || []).forEach(function (n) {
+        n.draggable(open);
+        if (n.name() === 'dot') { n.fill(col); var vis = open || m.g === 'two'; n.visible(vis); }
+        else { n.stroke(col); if (m.g === 'path') n.visible(true); }
+      });
+      if (open && (m.g === 'oval' || m.g === 'frame') && m.nodes && m.nodes[0]) {
         tr.keepRatio(m.g === 'frame'); tr.rotateEnabled(m.g === 'oval');
         tr.enabledAnchors(m.g === 'frame' ? ['top-left', 'top-right', 'bottom-left', 'bottom-right'] : ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
         tr.nodes([m.nodes[0]]); tr.moveToTop();
@@ -303,7 +429,12 @@
     });
     layer.batchDraw();
   }
-  function select(i) { if (sel === i) return; sel = i; paint(); renderPanel(); }
+  function select(i) {
+    if (sel === i) return;
+    var m = marks[i]; sel = i; cur = null;
+    m.collect = m.g === 'points' || m.g === 'path' || (m.g === 'two' && m.pts.length < 2);
+    paint(); renderPanel(); markTools(); setCursor();
+  }
   // точки остаются одного размера на экране при любом масштабе
   function restyle() { shapes.find('.dot').forEach(function (c) { c.radius(7 / sc()); }); tr.forceUpdate(); layer.batchDraw(); }
 
@@ -824,40 +955,59 @@
     return s;
   }
 
+  // Внизу: открытый эффект — его ручки, каждая своей строкой (название, −, ползунок, +; число мелко сбоку);
+  // остальные отметки — строкой кнопок, нажать — открыть
   function renderPanel() {
     var pb = $('panel'); pb.innerHTML = '';
-    marks.forEach(function (m, i) {
-      var d = document.createElement('div'); d.className = 'mk' + (i === sel ? ' sel' : '');
+    var m = openMark();
+    $('app').classList.toggle('closed', !m);
+    if (m) {
+      var d = document.createElement('div'); d.className = 'mk sel';
       var row = document.createElement('div'); row.className = 'row';
-      var nm = document.createElement('span'); nm.className = 'name'; nm.textContent = (i + 1) + '. ' + m.e.name; row.appendChild(nm);
-      nm.onclick = function () { sel = i; paint(); renderPanel(); };
+      var nm = document.createElement('span'); nm.className = 'name'; nm.textContent = (sel + 1) + '. ' + m.e.name; row.appendChild(nm);
       if (m.g === 'frame') ['left', 'center', 'right'].forEach(function (sd) {
         var b = document.createElement('button'); b.className = 'btn' + (m.side === sd ? ' on' : ''); b.textContent = wordFor(sd) || sd;
-        b.onclick = function () { m.side = sd; renderPanel(); }; row.appendChild(b);
+        b.onclick = function () { save(); m.side = sd; renderPanel(); }; row.appendChild(b);
       });
-      var del = document.createElement('button'); del.className = 'btn'; del.textContent = '✕';
-      del.onclick = function () { marks.splice(i, 1); sel = marks.length - 1; rebuild(); renderPanel(); }; row.appendChild(del);
+      var del = document.createElement('button'); del.className = 'btn'; del.textContent = '🗑 Убрать';
+      del.onclick = function () { save(); marks.splice(sel, 1); sel = -1; rebuild(); renderPanel(); markTools(); setCursor(); }; row.appendChild(del);
       d.appendChild(row);
+      if (m.collect) { var hn = document.createElement('div'); hn.className = 'hn'; hn.textContent = m.e.marks || ''; d.appendChild(hn); }
       var code = document.createElement('code');
-      // ручка: − число + ; число — сколько сейчас (своё или канала из листа); нетронутая ручка в строку не пишется,
-      // нажатие на число возвращает как у канала
+      // нетронутая ручка в строку не пишется (стоит как у канала из листа); нажатие на число — вернуть как у канала
       knobNames(m.e.knobs).forEach(function (k) {
-        var lb = document.createElement('label'); lb.className = 'knob'; lb.appendChild(document.createTextNode(k));
-        var minus = document.createElement('button'), num = document.createElement('button'), plus = document.createElement('button');
-        minus.className = plus.className = num.className = 'btn kb'; minus.textContent = '−'; plus.textContent = '+';
-        function show() { var own = m.k[k] != null && m.k[k] !== ''; num.textContent = own ? m.k[k] : chanVal(m.e, k); num.style.borderColor = own ? 'var(--acc)' : ''; code.textContent = lineOf(m); }
-        function step(dv) { var v = Number(String(m.k[k] != null && m.k[k] !== '' ? m.k[k] : chanVal(m.e, k)).replace(',', '.')) || 0; m.k[k] = String(r1(v + dv)); show(); }
-        minus.onclick = function () { step(-1); }; plus.onclick = function () { step(1); }; num.onclick = function () { delete m.k[k]; show(); };
-        lb.appendChild(minus); lb.appendChild(num); lb.appendChild(plus); d.appendChild(lb);
+        var kr = document.createElement('div'); kr.className = 'knob';
+        var lb = document.createElement('span'); lb.className = 'kn'; lb.textContent = k;
+        var minus = document.createElement('button'), plus = document.createElement('button'), num = document.createElement('span');
+        var rg = document.createElement('input'); rg.type = 'range'; rg.min = 0; rg.max = 10; rg.step = 0.1;
+        minus.className = plus.className = 'btn kb'; minus.textContent = '−'; plus.textContent = '+'; num.className = 'kv';
+        function val() { return Number(String(m.k[k] != null && m.k[k] !== '' ? m.k[k] : chanVal(m.e, k)).replace(',', '.')) || 0; }
+        function show() { var own = m.k[k] != null && m.k[k] !== ''; num.textContent = String(r1(val())); num.classList.toggle('own', own); rg.value = val(); code.textContent = lineOf(m); }
+        function setv(v) { m.k[k] = String(r1(v)); show(); }
+        minus.onclick = function () { save(); setv(val() - 0.5); }; plus.onclick = function () { save(); setv(val() + 0.5); };
+        rg.addEventListener('pointerdown', save); rg.addEventListener('keydown', save);
+        rg.oninput = function () { setv(Number(rg.value)); };
+        num.onclick = function () { save(); delete m.k[k]; show(); };
+        kr.appendChild(lb); kr.appendChild(minus); kr.appendChild(rg); kr.appendChild(plus); kr.appendChild(num); d.appendChild(kr);
         show();
       });
       if (m.g === 'path') {
         var tx = document.createElement('input'); tx.type = 'text'; tx.placeholder = 'слова через «;» (см. «Ручки» в листе)'; tx.value = m.words || '';
-        tx.oninput = function () { m.words = tx.value.trim(); code.textContent = lineOf(m); }; d.appendChild(tx);
+        tx.onfocus = save; tx.oninput = function () { m.words = tx.value.trim(); code.textContent = lineOf(m); }; d.appendChild(tx);
       }
       code.textContent = lineOf(m); d.appendChild(code);
       pb.appendChild(d);
-    });
+    }
+    if (marks.length) {
+      var ls = document.createElement('div'); ls.className = 'list';
+      marks.forEach(function (o, i) {
+        if (i === sel) return;
+        var b = document.createElement('button'); b.className = 'btn'; b.textContent = (i + 1) + '. ' + o.e.name;
+        b.onclick = function () { select(i); }; ls.appendChild(b);
+      });
+      if (ls.childNodes.length) pb.appendChild(ls);
+    }
+    if (!m && !marks.length) pb.innerHTML = '<div class="hn">' + (cur ? (cur.marks || '') : 'Выберите эффект в полоске сверху') + '</div>';
     if (tg) {
       if (marks.length) { tg.MainButton.setText('Отправить в бот (' + marks.length + ')'); tg.MainButton.show(); } else tg.MainButton.hide();
     }
@@ -885,7 +1035,7 @@
       (d.words || []).forEach(function (w) { if (!WORDS[w.means]) WORDS[w.means] = w.word; });
       CAT = (d.effects || []).filter(function (e) { return GEOM[e.mech] && /^готов/.test(e.status || ''); });
       if (!CAT.length) return say('В листе «Эффекты» нет готовых эффектов для этого канала', 5000);
-      buildTools(); pick(CAT[0]);
+      buildTools(); markTools(); renderPanel(); setCursor();
     }).catch(function (e) { say('Не загрузился лист «Эффекты»: ' + e, 6000); });
     if (IMG) img.src = IMG; else say('Нет картинки выпуска', 4000);
   }
@@ -896,11 +1046,21 @@
       e._btn = b; tb.appendChild(b);
     });
   }
+  // полоску эффектов крутит и колесо мыши
+  $('tools').addEventListener('wheel', function (e) {
+    var d = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX; if (!d) return;
+    e.preventDefault(); this.scrollLeft += d;
+  }, { passive: false });
+  // выбрать эффект в полоске — следующее касание (или протяжка) ставит его; открытый эффект при этом закрывается
   function pick(e) {
-    cur = e; pending = null;
-    CAT.forEach(function (x) { x._btn.classList.toggle('on', x === e); });
-    $('hint').textContent = e.marks || '';
-    rebuild();
+    if (cur === e) { cur = null; markTools(); setCursor(); renderPanel(); return; }
+    if (sel >= 0) $('bDone').onclick();
+    cur = e; markTools(); setCursor(); renderPanel();
+  }
+  function markTools() {
+    var on = cur || (openMark() && openMark().e);
+    CAT.forEach(function (x) { if (x._btn) x._btn.classList.toggle('on', x === on); });
+    $('hint').textContent = cur ? (cur.marks || '') : openMark() ? '' : (marks.length ? 'Картинку можно тянуть. Нажмите на отметку, чтобы поправить, или выберите следующий эффект сверху' : 'Выберите эффект в полоске сверху');
   }
 
   // ── Отправка: строки уходят в бот и записываются в пункт оживления выпуска ──
