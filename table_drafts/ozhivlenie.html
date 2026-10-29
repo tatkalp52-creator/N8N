@@ -33,6 +33,7 @@
   #tools button, .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 18px; padding: 7px 12px; font: inherit; white-space: nowrap; cursor: pointer; }
   #tools button.on, .btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   #stage { position: relative; flex: 1 1 auto; overflow: hidden; touch-action: none; background: #000; }
+  #fx { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; }
   /* высоты подсказки и панели постоянные: новая отметка не сжимает картинку и не сдвигает её */
   #hint { flex: none; padding: 6px 10px; color: var(--mute); font-size: 13px; border-top: 1px solid var(--line); height: 3.6em; overflow: auto; }
   #panel { flex: none; height: 28vh; overflow: auto; border-top: 1px solid var(--line); padding: 6px 8px 10px; }
@@ -203,6 +204,7 @@
     return out;
   }
 
+  window.__marks = function () { return marks; }; window.__sel = function () { return sel; };
   function add(m) { m.e = cur; m.k = {}; marks.push(m); sel = marks.length - 1; rebuild(); renderPanel(); }
   function tap(p) {
     var g = geom();
@@ -289,6 +291,461 @@
   function select(i) { if (sel === i) return; sel = i; paint(); renderPanel(); }
   // точки остаются одного размера на экране при любом масштабе
   function restyle() { shapes.find('.dot').forEach(function (c) { c.radius(7 / sc()); }); tr.forceUpdate(); layer.batchDraw(); }
+
+
+  // ── Живое превью прямо на картинке (перенесено из прежней страницы разметки без изменений: те же формулы,
+  //    что у сборщика). Прежний код рисует на холсте размером с картинку; здесь холст стоит ровно над картинкой
+  //    и следует за масштабом. Отметки нового приложения переводятся в прежний вид на каждом кадре. ──
+  (function () {
+    var EFF = { steam_cup: 'steam', steam_surface: 'surf', lights: 'lights', candle: 'candle', stars: 'sky', blink: 'blink', fire: 'fire', bubbles: 'bubbles' };
+    // холст превью ставим после холста Konva (Konva при старте очищает свою коробку)
+    var fxEl = document.createElement('canvas'); fxEl.id = 'fx'; box.appendChild(fxEl);
+    // прежнему коду нужны «картинка» (размер на экране) и её пиксели
+    var pic = { get clientWidth() { return W0 * sc(); }, get clientHeight() { return H0 * sc(); } };
+    var marks = [];
+    function sync() {
+      fxEl.style.left = stage.x() + 'px'; fxEl.style.top = stage.y() + 'px';
+      fxEl.style.width = (W0 * sc()) + 'px'; fxEl.style.height = (H0 * sc()) + 'px';
+      marks = []; var all = window.__marks();
+      all.forEach(function (m, i) {
+        var eff = EFF[m.e.mech]; if (!eff) return;
+        var k = {}; knobNames(m.e.knobs).forEach(function (n) { var own = m.k[n]; k[n] = Number(String(own != null && own !== '' ? own : chanVal(m.e, n)).replace(',', '.')) || 5; });
+        ['густота', 'высота', 'толщина', 'скорость', 'завитки', 'прозрачность', 'яркость', 'пламя', 'ореол', 'мерцание', 'раскачка', 'отсвет', 'разлив'].forEach(function (n) { if (k[n] == null) k[n] = 5; });
+        marks.push({ eff: eff, pts: m.pts || [], k: k, fixed: i !== window.__sel(), r: m.a || 3, exact: false });
+      });
+    }
+      // ── Пробный пар прямо на картинке: примерно так он будет двигаться (формулы те же, что у сборщика,
+      // разброс струек чуть иной). Пунктирная рамка — зона, где пар живёт; овал у основания — «посадка».
+      var LOOP = 6, steamCache = {};
+      function mult(v) { return Math.pow(2, (v - 5) / 5); }
+      function seeded(seed) { var a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+      function wispsFor(m) {
+        var key = Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729);
+        if (steamCache[key]) return steamCache[key];
+        var r = seeded(key);
+        var base = [{ bx: -10, A: 15, f: 1.6, ph: 0, m: 2.0, mp: 0.1, w: 1.1 }, { bx: 1, A: 19, f: 1.4, ph: 2.3, m: 2.4, mp: 0.55, w: 1.3 }, { bx: 11, A: 13, f: 1.8, ph: 4.1, m: 1.8, mp: 0.85, w: 1.0 }];
+        var w = base.map(function (b) { return { bx: b.bx, w: b.w, m: b.m, ph: b.ph + r() * 6.28, A: b.A * (0.75 + r() * 0.55), f: b.f * (0.85 + r() * 0.3), mp: b.mp + r(), end: 0.55 + r() * 0.4 }; });
+        return (steamCache[key] = { w: w, shift: r() });
+      }
+      var fx = $('fx'), fxc = fx.getContext('2d'), off = document.createElement('canvas'), offc = off.getContext('2d'), off2 = document.createElement('canvas'), off2c = off2.getContext('2d', { willReadFrequently: true });
+      function drawSteam(now) {
+        // (28.10) слой превью не больше 4096 точек по стороне: при сильном увеличении он рос до десятков тысяч точек и съедал память планшета
+        var dw = pic.clientWidth, dh = pic.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1, 4096 / Math.max(1, dw), 4096 / Math.max(1, dh));
+        if (fx.width !== Math.round(dw * dpr) || fx.height !== Math.round(dh * dpr)) { fx.width = Math.round(dw * dpr); fx.height = Math.round(dh * dpr); }
+        fxc.setTransform(dpr, 0, 0, dpr, 0, 0); fxc.clearRect(0, 0, dw, dh);
+        var steams = marks.filter(function (m) { return m.eff === 'steam'; });
+        if (steams.length && dh) {
+          var k = dh / 864, tt = (now / 1000) % LOOP;
+          steams.forEach(function (m) {
+            var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh;
+            var cOp = mult(m.k['густота']) / mult(m.k['прозрачность']), cH = mult(m.k['высота']), cSp = mult(m.k['скорость']), cTh = mult(m.k['толщина']), cCu = mult(m.k['завитки']);
+            var cyc = Math.max(1, Math.round(2 * cSp)), hx = Math.max(0, cCu - 1) * 0.8;
+            var bw = Math.max(150 * k * Math.max(1, cTh), (2 * (11 + 24.7 * (1 + hx) * cCu) + 30) * k), bh = 165 * k * cH;
+            var wi = wispsFor(m), t = (tt * cyc / LOOP + wi.shift) % 1;
+            // (11.10) как у сборщика: серая маска струек (без накопления на стыках) → размытие → яркость 0.62·густота/прозрачность
+            off.width = Math.ceil(bw); off.height = Math.ceil(bh); offc.globalCompositeOperation = 'source-over'; offc.fillStyle = '#000'; offc.fillRect(0, 0, off.width, off.height); offc.globalCompositeOperation = 'lighten'; offc.lineCap = 'round';
+            wi.w.forEach(function (w) {
+              var S = 70, pts = [];
+              for (var i = 0; i <= S; i++) {
+                var sx = i / S;
+                var x = bw / 2 + k * (w.bx * (1 - 0.5 * sx) + w.A * cCu * Math.pow(sx, 0.9) * (Math.sin(2 * Math.PI * (w.f * sx - t) + w.ph) + hx * Math.sin(2 * Math.PI * (2.2 * w.f * sx - 2 * t) + 1.7 * w.ph)));
+                pts.push([x, bh - 1 - sx * (bh - 6), sx]);
+              }
+              for (var j = 0; j < S; j++) {
+                var a = pts[j], b = pts[j + 1], s2 = a[2];
+                var fade = Math.min(1, s2 / 0.04) * Math.max(0, Math.min(1, (w.end - s2) / (0.45 * w.end)));
+                var dash = 0.5 + 0.5 * Math.sin(2 * Math.PI * (w.m * s2 - 2 * t) + w.mp * 6.28);
+                var al = fade * (0.3 + 0.7 * Math.pow(dash, 1.3));
+                if (al > 0.01) { var gv = Math.round(255 * al); offc.strokeStyle = 'rgb(' + gv + ',' + gv + ',' + gv + ')'; offc.lineWidth = Math.max(1, (2 + 3.8 * s2) * w.w * k * cTh); offc.beginPath(); offc.moveTo(a[0], a[1]); offc.lineTo(b[0], b[1]); offc.stroke(); }
+              }
+            });
+            off2.width = off.width; off2.height = off.height;
+            if ('filter' in off2c) off2c.filter = 'blur(' + (0.9 * k * Math.pow(cTh, 1.5)).toFixed(2) + 'px)';
+            off2c.drawImage(off, 0, 0); off2c.filter = 'none';
+            var id = off2c.getImageData(0, 0, off2.width, off2.height), px4 = id.data, gain = 0.8 * 0.62 * cOp;   // 0.8 — средняя «зернистость» сборщика
+            for (var q = 0; q < px4.length; q += 4) { var av = Math.min(255, px4[q] * gain); px4[q] = 246; px4[q + 1] = 241; px4[q + 2] = 231; px4[q + 3] = av; }
+            off2c.putImageData(id, 0, 0);
+            fxc.drawImage(off2, px - bw / 2, py - bh);
+            if (m.fixed) return;
+            fxc.save(); fxc.setLineDash([5, 4]); fxc.strokeStyle = 'rgba(37,99,235,0.8)'; fxc.lineWidth = 1.5;
+            fxc.strokeRect(px - bw / 2, py - bh, bw, bh);
+            fxc.beginPath(); fxc.ellipse(px, py, 14 * k, 4 * k, 0, 0, 7); fxc.stroke(); fxc.restore();
+          });
+        }
+        drawLights(now, dw, dh);
+        drawSurf(now, dw, dh);
+        drawCandles(now, dw, dh);
+        drawStars(now, dw, dh);
+        drawBlinks(now, dw, dh);
+        drawFire(now, dw, dh);
+        drawBubbles(now, dw, dh);
+        requestAnimationFrame(drawSteam);
+      }
+
+      // ── Пробная гирлянда: те же формулы, что у сборщика (ореол, ядро, два ритма мерцания, притягивание
+      // точки к самому светлому пикселю рядом). Разброс ритмов у каждой лампочки свой, как и в ролике.
+      var pix = null, pixSrc = '', lightCache = {};
+      function pixels() {
+        if (!img.naturalWidth) return null;
+        if (pixSrc === img.src && pix) return pix;
+        var c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+        var cc = c.getContext('2d'); cc.drawImage(img, 0, 0);
+        try { pix = cc.getImageData(0, 0, c.width, c.height); } catch (e) { pix = null; }
+        pixSrc = img.src; lightCache = {};
+        return pix;
+      }
+      function snapBulb(x, y) {
+        var P = pixels(); if (!P) return { x: x, y: y };
+        var W = P.width, H = P.height, lx = x / 100 * W, ly = y / 100 * H, r0 = Math.max(3, Math.floor(0.012 * W));
+        var xa = Math.max(0, Math.floor(lx) - r0), xb = Math.min(W, Math.floor(lx) + r0 + 1), ya = Math.max(0, Math.floor(ly) - r0), yb = Math.min(H, Math.floor(ly) + r0 + 1);
+        var best = -1, bx = lx, by = ly;
+        for (var yy = ya; yy < yb; yy++) for (var xx = xa; xx < xb; xx++) {
+          var o = (yy * W + xx) * 4, g = P.data[o] + P.data[o + 1] + P.data[o + 2];
+          if (g > best) { best = g; bx = xx; by = yy; }
+        }
+        return { x: bx / W * 100, y: by / H * 100 };
+      }
+      function sprite(R, prof, coreCol) {
+        var c = document.createElement('canvas'); c.width = c.height = Math.max(2, 2 * R);
+        var cc = c.getContext('2d'), d = cc.createImageData(c.width, c.height);
+        for (var yy = 0; yy < c.height; yy++) for (var xx = 0; xx < c.width; xx++) {
+          var rr = ((xx - R) * (xx - R) + (yy - R) * (yy - R)) / (R * R), o = (yy * c.width + xx) * 4, a = prof(rr);
+          var hot = coreCol && Math.exp(-rr / (2 * 0.09 * 0.09)) > 0.25;
+          d.data[o] = 255; d.data[o + 1] = hot ? 246 : 228; d.data[o + 2] = hot ? 214 : 168; d.data[o + 3] = Math.round(255 * Math.min(1, a));
+        }
+        cc.putImageData(d, 0, 0); return c;
+      }
+      // Пробный пар над гладью — как у сборщика: у глади лежит низкая дымка, а над ней клубится —
+      // круглые пушистые клубы рождаются вразнобой, чуть поднимаются, растут, вращаются и тают.
+      // Каждый клуб проживает целое число раз за петлю — шва нет, общая густота ровная (не пульсирует).
+      var surfCache = {};
+      function surfPrep(m, dw, dh) {
+        var k = dh / 864, rise = 70 * k * mult(m.k['высота']), spd = mult(m.k['скорость']);
+        var key = [dw, dh, m.k['высота'], m.k['скорость'], m.pts.map(function (q) { return q.x + ',' + q.y; }).join(';')].join('|');
+        if (surfCache[key]) return surfCache[key];
+        var pts = m.pts.map(function (q) { return [q.x / 100 * dw, q.y / 100 * dh]; });
+        var xs = pts.map(function (q) { return q[0]; }), ys = pts.map(function (q) { return q[1]; });
+        var pad = 45 * k, x0 = Math.min.apply(null, xs) - pad, x1 = Math.max.apply(null, xs) + pad;
+        var y1 = Math.max.apply(null, ys) + 4 * k, y0 = Math.min.apply(null, ys) - rise * 2.2;
+        var bw = Math.ceil(x1 - x0), bh = Math.ceil(y1 - y0);
+        function poly(c, up) { c.beginPath(); pts.forEach(function (q, j) { var x = q[0] - x0, y = q[1] - y0 - up; if (j) c.lineTo(x, y); else c.moveTo(x, y); }); c.closePath(); }
+        var env = document.createElement('canvas'); env.width = bw; env.height = bh; var e = env.getContext('2d');
+        var steps = 24;
+        for (var i = steps; i >= 0; i--) { e.globalAlpha = Math.exp(-i / steps * 2.0); e.fillStyle = '#fff'; poly(e, rise * 2.2 * i / steps); e.fill(); }
+        var envB = document.createElement('canvas'); envB.width = bw; envB.height = bh; var eb = envB.getContext('2d');
+        if ('filter' in eb) eb.filter = 'blur(' + (12 * k).toFixed(1) + 'px)'; eb.drawImage(env, 0, 0);
+        // низкая дымка у глади
+        var base = document.createElement('canvas'); base.width = bw; base.height = bh; var bc = base.getContext('2d');
+        if ('filter' in bc) bc.filter = 'blur(' + (10 * k).toFixed(1) + 'px)';
+        bc.fillStyle = 'rgba(244,240,232,0.45)'; poly(bc, 0); bc.fill(); poly(bc, rise * 0.25); bc.fill();
+        // клубы: точки рождения — внутри глади
+        var r = seeded(Math.round(xs[0] * 31 + ys[0] * 17)), probe = document.createElement('canvas').getContext('2d');
+        var gx0 = Math.min.apply(null, xs), gx1 = Math.max.apply(null, xs), gy0 = Math.min.apply(null, ys), gy1 = Math.max.apply(null, ys);
+        poly(probe, 0);
+        var n = Math.max(5, Math.min(60, Math.round((gx1 - gx0) / (16 * k)))), puffs = [], tries = 0;
+        while (puffs.length < n && tries++ < 4000) {
+          var px = gx0 + r() * (gx1 - gx0), py = gy0 + r() * (gy1 - gy0);
+          if (!probe.isPointInPath(px - x0, py - y0)) continue;
+          puffs.push({ x: px - x0, y: py - y0, ph: r(), dr: r() < 0.5 ? -1 : 1, a0: r() * 6.28,
+            r0: (10 + r() * 6) * k, r1: (22 + r() * 12) * k, up: rise * (0.45 + r() * 0.45), dx: (r() * 16 - 8) * k });
+        }
+        var tmp = document.createElement('canvas'); tmp.width = bw; tmp.height = bh;
+        return (surfCache[key] = { x0: x0, y0: y0, bw: bw, bh: bh, env: envB, base: base, puffs: puffs, cyc: Math.max(1, Math.round(1.5 * spd)), tmp: tmp });
+      }
+      function drawSurf(now, dw, dh) {
+        var all = marks.filter(function (m) { return m.eff === 'surf'; });
+        if (!all.length || !dh) return;
+        var t = (now / 1000) % LOOP;
+        all.forEach(function (m) {
+          var S = surfPrep(m, dw, dh), c = S.tmp.getContext('2d');
+          c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.clearRect(0, 0, S.bw, S.bh);
+          c.drawImage(S.base, 0, 0);
+          S.puffs.forEach(function (q) {
+            var ph = (S.cyc * t / LOOP + q.ph) % 1, life = Math.pow(Math.sin(Math.PI * ph), 1.3) * (1 - 0.55 * ph);
+            if (life < 0.01) return;
+            var R = q.r0 + (q.r1 - q.r0) * Math.pow(ph, 0.7), cx = q.x + q.dx * ph, cy = q.y - q.up * Math.pow(ph, 0.8);
+            var ang = q.a0 + q.dr * 2.2 * ph;
+            for (var j = 0; j < 4; j++) {
+              var a = ang + j * Math.PI / 2, bx = cx + 0.42 * R * Math.cos(a), by = cy + 0.32 * R * Math.sin(a), sg = 1.5 * R * (1 - 0.12 * j);
+              var g = c.createRadialGradient(bx, by, 0, bx, by, sg);
+              g.addColorStop(0, 'rgba(244,240,232,' + (0.42 * life).toFixed(3) + ')');
+              g.addColorStop(0.45, 'rgba(244,240,232,' + (0.2 * life).toFixed(3) + ')');
+              g.addColorStop(1, 'rgba(244,240,232,0)');
+              c.fillStyle = g; c.fillRect(bx - sg, by - sg, 2 * sg, 2 * sg);
+            }
+          });
+          c.globalCompositeOperation = 'destination-in'; c.drawImage(S.env, 0, 0);
+          fxc.save(); fxc.globalAlpha = Math.min(1, 0.85 * mult(m.k['густота'])); fxc.drawImage(S.tmp, S.x0, S.y0); fxc.restore();
+        });
+      }
+      // Пробная свеча — как у сборщика: язычок качается, ореол дышит; с прорезями свет только в них
+      // (и тёплое свечение вокруг), отсвет — пятно на столе/полу, ярче у огня. Всё мерцает в такт.
+      function drawCandles(now, dw, dh) {
+        var all = marks.filter(function (m) { return m.eff === 'candle' && m.k; });
+        if (!all.length || !dh) return;
+        var k = dh / 864, t = (now / 1000) % LOOP;
+        all.forEach(function (m, mi) {
+          var glow = mult(m.k['ореол']), swing = mult(m.k['раскачка']), bright = mult(m.k['яркость']), depth = mult(m.k['мерцание']), spd = mult(m.k['скорость']), spk = mult(m.k['отсвет']), flk = mult(m.k['пламя'] == null ? 5 : m.k['пламя']), rch = mult(m.k['разлив'] == null ? 5 : m.k['разлив']);
+          var r = seeded(Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729)), ph = [r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28];
+          var fq = [7, 13, 29, 3, 11, 4].map(function (n) { return Math.max(1, Math.round(n * spd)); });
+          var w = function (i) { return Math.sin(2 * Math.PI * fq[i] * t / LOOP + ph[i]); };
+          var f = 0.55 * w(0) + 0.3 * w(1) + 0.15 * w(2);
+          var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh, R = Math.max(60 * k * Math.sqrt(Math.max(1, glow)), 40 * k * flk);
+          var path = function (pts) { fxc.beginPath(); pts.forEach(function (q, j) { var x = q.x / 100 * dw, y = q.y / 100 * dh; if (j) fxc.lineTo(x, y); else fxc.moveTo(x, y); }); fxc.closePath(); };
+          if (m.spill && m.spill.length >= 3) {
+            var xs = m.spill.map(function (q) { return q.x / 100 * dw; }), ys = m.spill.map(function (q) { return q.y / 100 * dh; });
+            var fall = rch * 0.45 * Math.hypot(Math.max.apply(null, xs) - Math.min.apply(null, xs), Math.max.apply(null, ys) - Math.min.apply(null, ys));
+            fxc.save(); if ('filter' in fxc) fxc.filter = 'blur(' + (10 * k).toFixed(1) + 'px)';
+            var gs = fxc.createRadialGradient(px, py, 0, px, py, fall * 3);
+            var a0 = Math.min(0.9, 0.32 * spk * bright * (1 + 0.35 * depth * f));
+            gs.addColorStop(0, 'rgba(255,168,88,' + a0.toFixed(3) + ')'); gs.addColorStop(0.33, 'rgba(255,168,88,' + (a0 * 0.37).toFixed(3) + ')'); gs.addColorStop(1, 'rgba(255,168,88,0)');
+            fxc.fillStyle = gs; path(m.spill); fxc.fill(); fxc.restore();
+          }
+          var cuts = (m.cuts || []).filter(function (c) { return c.length >= 3; });
+          if (cuts.length) {
+            var u = Math.max(0, Math.min(1, 0.5 + 0.5 * depth * f));
+            var col = 'rgb(' + Math.round(150 + 105 * u) + ',' + Math.round(62 + 173 * u) + ',' + Math.round(12 + 148 * u) + ')';
+            fxc.save(); if ('filter' in fxc) fxc.filter = 'blur(' + (14 * k).toFixed(1) + 'px)';
+            fxc.globalAlpha = Math.min(0.9, 0.24 * glow * bright * (1 + 0.35 * depth * f)); fxc.fillStyle = 'rgb(255,170,90)';
+            cuts.forEach(function (c) { path(c); fxc.fill(); }); fxc.restore();
+            fxc.save(); fxc.globalAlpha = Math.min(0.9, 0.5 * Math.min(1.5, bright)); fxc.fillStyle = col;
+            cuts.forEach(function (c) { path(c); fxc.fill(); }); fxc.restore();
+            fxc.save(); fxc.beginPath();
+            cuts.forEach(function (c) { c.forEach(function (q, j) { var x = q.x / 100 * dw, y = q.y / 100 * dh; if (j) fxc.lineTo(x, y); else fxc.moveTo(x, y); }); fxc.closePath(); });
+            fxc.clip();
+          } else fxc.save();
+          var gh = fxc.createRadialGradient(px, py, 0, px, py, R), ah = Math.min(0.95, (0.2 + 0.09 * f * depth) * glow * bright);
+          gh.addColorStop(0, 'rgba(255,196,120,' + ah.toFixed(3) + ')'); gh.addColorStop(0.45, 'rgba(255,196,120,' + (ah * 0.45).toFixed(3) + ')'); gh.addColorStop(1, 'rgba(255,196,120,0)');
+          fxc.fillStyle = gh; fxc.fillRect(px - R, py - R, 2 * R, 2 * R);
+          var tip = swing * k * flk * (6 * w(3) + 2.8 * w(4)), hgt = 11 * k * flk * (1 + 0.3 * w(5) + 0.15 * f), fw = 3 * k * flk, by = py + 4.4 * k * flk;
+          fxc.globalAlpha = Math.min(1, (0.42 + 0.18 * f * depth) * bright) * 1.6; fxc.fillStyle = 'rgb(255,236,186)';
+          fxc.beginPath(); fxc.moveTo(px - fw, by); fxc.quadraticCurveTo(px - fw * 1.1, by - hgt * 0.45, px + tip, by - hgt); fxc.quadraticCurveTo(px + fw * 1.1, by - hgt * 0.45, px + fw, by); fxc.closePath(); fxc.fill();
+          fxc.restore();
+        });
+      }
+      function drawLights(now, dw, dh) {
+        var all = marks.filter(function (m) { return m.eff === 'lights'; });
+        if (!all.length || !dh) return;
+        var k = dh / 864, t = (now / 1000) % LOOP, dpr = Math.min(2, window.devicePixelRatio || 1);
+        all.forEach(function (m) {
+          var bright = mult(m.k['яркость']), flick = mult(m.k['мерцание']), glowk = mult(m.k['ореол'] == null ? 5 : m.k['ореол']);
+          var R = Math.max(2, Math.round(30 * k * Math.sqrt(Math.max(1, bright)) * dpr));
+          var Rg = Math.max(2, Math.round(R * 3.2 * Math.sqrt(glowk)));
+          m.pts.forEach(function (q, idx) {
+            var key = [q.x, q.y, m.exact ? 1 : 0, R, Rg, m.k['мерцание']].join('|');
+            var L = lightCache[key];
+            if (!L) {
+              var r = seeded(Math.round(q.x * 7919 + q.y * 104729) + idx);
+              L = lightCache[key] = {
+                at: m.exact ? { x: q.x, y: q.y } : snapBulb(q.x, q.y),
+                halo: sprite(R, function (rr) { return Math.exp(-rr / (2 * 0.35 * 0.35)) * Math.pow(Math.max(0, 1 - rr), 2); }, false),
+                core: sprite(R, function (rr) { return Math.exp(-rr / (2 * 0.09 * 0.09)); }, true),
+                outer: sprite(Rg, function (rr) { return Math.exp(-rr / (2 * 0.32 * 0.32)) * Math.pow(Math.max(0, 1 - rr), 2); }, false),
+                ph: [r() * 6.283, r() * 6.283],
+                n1: Math.max(1, Math.round(2 * flick)) + Math.floor(r() * 2),
+                n2: Math.max(2, Math.round(9 * flick)) + Math.floor(r() * 4)
+              };
+            }
+            var f = 0.65 * Math.sin(2 * Math.PI * L.n1 * t / LOOP + L.ph[0]) + 0.35 * Math.sin(2 * Math.PI * L.n2 * t / LOOP + L.ph[1]);
+            var cx = L.at.x / 100 * dw, cy = L.at.y / 100 * dh, rd = R / dpr;
+            var rgd = Rg / dpr;
+            fxc.globalAlpha = Math.min(0.9, (0.24 + 0.06 * f) * glowk); fxc.drawImage(L.outer, cx - rgd, cy - rgd, 2 * rgd, 2 * rgd);
+            fxc.globalAlpha = Math.min(0.9, (0.34 + 0.16 * f) * bright); fxc.drawImage(L.halo, cx - rd, cy - rd, 2 * rd, 2 * rd);
+            fxc.globalAlpha = Math.min(0.9, 0.55 + 0.25 * f); fxc.drawImage(L.core, cx - rd, cy - rd, 2 * rd, 2 * rd);
+            fxc.globalAlpha = 1;
+            if (!m.fixed && !m.exact && (Math.abs(L.at.x - q.x) > 0.05 || Math.abs(L.at.y - q.y) > 0.05)) {
+              fxc.save(); fxc.strokeStyle = 'rgba(37,99,235,0.9)'; fxc.lineWidth = 1.2; fxc.beginPath(); fxc.arc(cx, cy, 3, 0, 7); fxc.stroke(); fxc.restore();
+            }
+          });
+        });
+      }
+      // ── Пробные звёзды (16.10): те же правила, что у сборщика — внутри обводки неба ищем мелкие
+      // светлые точки (ярче фона на 20 и ярче 80; крупное пятно — луна — не берём; до 80 звёзд),
+      // каждая мерцает холодным светом в своём ритме.
+      var starCache = {};
+      function findStars(m) {
+        var P = pixels(); if (!P) return [];
+        var key = pixSrc.length + '|' + m.pts.map(function (q) { return q.x + ',' + q.y; }).join(';');
+        if (starCache[key]) return starCache[key];
+        var W = P.width, H = P.height, k = H / 864;
+        var xs = m.pts.map(function (q) { return q.x / 100 * W; }), ys = m.pts.map(function (q) { return q.y / 100 * H; });
+        var x0 = Math.max(0, Math.floor(Math.min.apply(null, xs))), x1 = Math.min(W, Math.ceil(Math.max.apply(null, xs)) + 1);
+        var y0 = Math.max(0, Math.floor(Math.min.apply(null, ys))), y1 = Math.min(H, Math.ceil(Math.max.apply(null, ys)) + 1);
+        var w = x1 - x0, h = y1 - y0; if (w < 3 || h < 3) return (starCache[key] = []);
+        var mc = document.createElement('canvas'); mc.width = w; mc.height = h; var mcc = mc.getContext('2d');
+        mcc.beginPath(); xs.forEach(function (x, j) { if (j) mcc.lineTo(x - x0, ys[j] - y0); else mcc.moveTo(x - x0, ys[j] - y0); }); mcc.closePath(); mcc.fill();
+        var mask = mcc.getImageData(0, 0, w, h).data;
+        var g = new Float32Array(w * h);
+        for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) { var o = ((y0 + yy) * W + x0 + xx) * 4; g[yy * w + xx] = (P.data[o] + P.data[o + 1] + P.data[o + 2]) / 3; }
+        // фон — размытие (как гаусс 5k у сборщика): три прохода скользящего среднего
+        var bg = Float32Array.from(g), tmp = new Float32Array(w * h), rad = Math.max(1, Math.round(4 * k));
+        for (var pass = 0; pass < 3; pass++) {
+          for (var y = 0; y < h; y++) { var acc = 0, n = 0; for (var x = -rad; x < w; x++) { if (x + rad < w) { acc += bg[y * w + x + rad]; n++; } if (x - rad - 1 >= 0) { acc -= bg[y * w + x - rad - 1]; n--; } if (x >= 0) tmp[y * w + x] = acc / n; } }
+          for (var x2 = 0; x2 < w; x2++) { var acc2 = 0, n2 = 0; for (var y2 = -rad; y2 < h; y2++) { if (y2 + rad < h) { acc2 += tmp[(y2 + rad) * w + x2]; n2++; } if (y2 - rad - 1 >= 0) { acc2 -= tmp[(y2 - rad - 1) * w + x2]; n2--; } if (y2 >= 0) bg[y2 * w + x2] = acc2 / n2; } }
+        }
+        var cand = new Uint8Array(w * h);
+        for (var i = 0; i < w * h; i++) cand[i] = mask[i * 4 + 3] > 127 && g[i] - bg[i] > 20 && g[i] > 80 ? 1 : 0;
+        var seen = new Uint8Array(w * h), maxa = Math.round(Math.pow(5 * k, 2) * 3), found = [];
+        for (var s0 = 0; s0 < w * h; s0++) {
+          if (!cand[s0] || seen[s0]) continue;
+          var st = [s0], comp = 0, best = s0; seen[s0] = 1;
+          while (st.length) {
+            var c = st.pop(); comp++; if (g[c] > g[best]) best = c;
+            var cx = c % w, cy = (c - cx) / w;
+            for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+              var nx = cx + dx, ny = cy + dy, ni = ny * w + nx;
+              if (nx >= 0 && ny >= 0 && nx < w && ny < h && cand[ni] && !seen[ni]) { seen[ni] = 1; st.push(ni); }
+            }
+          }
+          if (comp <= maxa) found.push({ x: (x0 + best % w) / W * 100, y: (y0 + Math.floor(best / w)) / H * 100, c: g[best] - bg[best] });
+        }
+        found.sort(function (a, b) { return b.c - a.c; });
+        return (starCache[key] = found.slice(0, 80));
+      }
+      // (17.10) Пробный огонь: тёплый свет внутри обводки и вокруг неё дышит в такт, как у сборщика.
+      // Колыхание языков видно только в ролике (сдвиг пикселей тяжёл для телефона).
+      // (22.10) Пробные пузыри — как у сборщика: в 6-секундной петле две серии по три, поднимаются от рта до глади,
+      // чуть виляя, растут и тают у поверхности.
+      function drawBubbles(now, dw, dh) {
+        var all = marks.filter(function (m) { return m.eff === 'bubbles' && m.pts.length >= 2; });
+        if (!all.length || !dh) return;
+        var t = (now / 1000) % LOOP, k = dh / 864;
+        all.forEach(function (m) {
+          var px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh, surf = m.pts[1].y / 100 * dh;
+          [0.6, 3.6].forEach(function (start) {
+            for (var j = 0; j < 3; j++) {
+              var age = t - (start + j * 0.28), life = 1.45;
+              if (age < 0 || age > life) continue;
+              var p = age / life, y = py - p * (py - surf);
+              var x = px + k * (-2 - j * 1.2 + 2.2 * Math.sin(2 * Math.PI * (p * 1.6 + j * 0.3)));
+              var a = Math.min(1, age / 0.12) * (p < 0.85 ? 1 : Math.max(0, (1 - p) / 0.15)), r = k * (1.5 + 1.3 * p) * 1.6;
+              fxc.save(); fxc.globalAlpha = 0.8 * a;
+              fxc.strokeStyle = 'rgb(236,240,236)'; fxc.lineWidth = Math.max(1, 0.8 * k * 1.6);
+              fxc.beginPath(); fxc.arc(x, y, r, 0, 7); fxc.stroke();
+              fxc.fillStyle = 'rgba(236,240,236,0.8)'; fxc.beginPath(); fxc.arc(x - r * 0.45, y - r * 0.45, r * 0.3, 0, 7); fxc.fill();
+              fxc.restore();
+            }
+          });
+        });
+      }
+      function drawFire(now, dw, dh) {
+        var all = marks.filter(function (m) { return m.eff === 'fire' && m.pts.length >= 3; });
+        if (!all.length || !dh) return;
+        var t = (now / 1000) % LOOP;
+        all.forEach(function (m, idx) {
+          var kk = m.k || {}, bright = mult(kk['яркость'] == null ? 5 : kk['яркость']), spd = mult(kk['скорость'] == null ? 5 : kk['скорость']), sk = mult(kk['отсвет'] == null ? 5 : kk['отсвет']);
+          var f = 0.5 * Math.sin(2 * Math.PI * Math.max(1, Math.round(5 * spd)) * t / LOOP + idx) + 0.3 * Math.sin(2 * Math.PI * Math.max(1, Math.round(11 * spd)) * t / LOOP + 2 * idx) + 0.2 * Math.sin(2 * Math.PI * Math.max(1, Math.round(17 * spd)) * t / LOOP);
+          function poly(pts) { fxc.beginPath(); pts.forEach(function (q, j) { var x = q.x / 100 * dw, y = q.y / 100 * dh; if (j) fxc.lineTo(x, y); else fxc.moveTo(x, y); }); fxc.closePath(); }
+          fxc.save();
+          fxc.filter = 'blur(' + Math.round(12 * dh / 864) + 'px)';
+          fxc.fillStyle = 'rgba(255,160,80,' + Math.min(0.6, 0.22 * bright * (1 + 0.45 * f)).toFixed(3) + ')';
+          poly(m.pts); fxc.fill();
+          if (m.spill && m.spill.length >= 3) { fxc.fillStyle = 'rgba(255,168,88,' + Math.min(0.7, 0.3 * sk * bright * (1 + 0.4 * f) * 0.6).toFixed(3) + ')'; poly(m.spill); fxc.fill(); }
+          fxc.restore();
+        });
+      }
+      // (24.10) моргание как в ролике: веко цветом пёрышек вокруг глаза и тёмная дуга-«улыбка» (те же формулы, что у сборщика),
+      // видно и после «ОК» — раньше на страничке только заливался кружок разметки
+      var lidCache = {}, lidPlan = {};
+      function lidShut(key, every, now) {
+        var p = lidPlan[key];
+        if (!p || now > p.until) {
+          var r = Math.random(), n = r < 0.5 ? 1 : r < 0.8 ? 2 : 3, start = (p ? p.until : now + 0.6) + (p ? every * (0.75 + Math.random() * 0.5) : 0);
+          p = lidPlan[key] = { times: [], until: start + n * 0.32 + 0.3 };
+          for (var k2 = 0; k2 < n; k2++) p.times.push(start + k2 * (n === 1 ? 0 : 0.32));
+        }
+        return p.times.some(function (t0) { return now >= t0 && now < t0 + (p.times.length === 1 ? 0.28 : 0.14); });
+      }
+      function lidSprite(P, m) {
+        var W = P.width, H = P.height, k = H / 864, ex = m.pts[0].x / 100 * W, ey = m.pts[0].y / 100 * H;
+        var rc = (m.r || 3) * k, key = [Math.round(ex), Math.round(ey), rc.toFixed(1), W].join('|');
+        if (lidCache[key]) return lidCache[key];
+        var pad = Math.ceil(rc * 1.9) + 2, bx0 = Math.round(ex) - pad, by0 = Math.round(ey) - pad, bw = 2 * pad;
+        var rs = [], gs = [], bs = [];
+        for (var yy = 0; yy < bw; yy++) for (var xx = 0; xx < bw; xx++) {
+          var X = bx0 + xx, Y = by0 + yy; if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+          var d = Math.hypot(X + 0.5 - ex, Y + 0.5 - ey);
+          if (d > rc * 1.1 && d < rc * 1.7) { var o = (Y * W + X) * 4; rs.push(P.data[o]); gs.push(P.data[o + 1]); bs.push(P.data[o + 2]); }
+        }
+        var med = function (a) { if (!a.length) return 128; a.sort(function (x, y) { return x - y; }); return a[a.length >> 1]; };
+        var fr = med(rs), fg = med(gs), fb = med(bs);
+        var c = document.createElement('canvas'); c.width = c.height = bw;
+        var cx = c.getContext('2d'), id = cx.createImageData(bw, bw);
+        for (var y2 = 0; y2 < bw; y2++) for (var x2 = 0; x2 < bw; x2++) {
+          var dd = Math.hypot(x2 + bx0 + 0.5 - ex, y2 + by0 + 0.5 - ey), a = Math.max(0, Math.min(1, (rc - dd) / (0.5 * k + 1e-6))), o2 = (y2 * bw + x2) * 4;
+          id.data[o2] = fr; id.data[o2 + 1] = fg; id.data[o2 + 2] = fb; id.data[o2 + 3] = Math.round(255 * a);
+        }
+        cx.putImageData(id, 0, 0);
+        var q = rc / (5 * k), hw = Math.max(4.2 * k * q, 0.9 * rc);
+        cx.strokeStyle = 'rgba(' + Math.round(fr * 0.5) + ',' + Math.round(fg * 0.5) + ',' + Math.round(fb * 0.5) + ',0.85)';
+        cx.lineWidth = Math.max(1, 1.3 * k * Math.max(q, 0.6)); cx.lineCap = 'round'; cx.beginPath();
+        for (var i = 0; i <= 40; i++) {
+          var dx = -hw + 2 * hw * i / 40, ly = ey - by0 + 0.2 * rc + 0.62 * hw * Math.sqrt(Math.max(0, 1 - (dx / hw) * (dx / hw))) * 0.9 - 0.2 * hw;
+          if (i) cx.lineTo(ex - bx0 + dx, ly); else cx.moveTo(ex - bx0 + dx, ly);
+        }
+        cx.stroke();
+        return (lidCache[key] = { c: c, x: bx0, y: by0 });
+      }
+      function drawBlinks(now, dw, dh) {
+        var all = marks.filter(function (m) { return m.eff === 'blink' && m.pts.length; });
+        if (!all.length || !dh) return;
+        var P = pixels(); if (!P) return;
+        var sc = dw / P.width, t = now / 1000;
+        // как у сборщика: глаза ближе 6 % ширины кадра — один зверь, моргают вместе
+        var ar = P.height / P.width, grp = [];
+        all.forEach(function (m, i) {
+          grp[i] = i;
+          for (var j = 0; j < i; j++) if (Math.hypot(m.pts[0].x - all[j].pts[0].x, (m.pts[0].y - all[j].pts[0].y) * ar) < 6) { grp[i] = grp[j]; break; }
+        });
+        all.forEach(function (m, i) {
+          // пока у глаза открыта «Настроить» — моргает каждые ~3 с, чтобы сразу видеть, куда ложится веко
+          var g = all.filter(function (o, j) { return grp[j] === grp[i]; });
+          var ev = g.some(function (o) { return o.open; }) ? 3 : (all[grp[i]].every || BLINK_BASE);
+          if (!lidShut(grp[i] + '|' + ev, ev, t)) return;
+          var s2 = lidSprite(P, m);
+          fxc.drawImage(s2.c, s2.x * sc, s2.y * sc, s2.c.width * sc, s2.c.height * sc);
+        });
+      }
+      function drawStars(now, dw, dh) {
+        var all = marks.filter(function (m) { return m.eff === 'sky' && m.pts.length >= 3; });
+        if (!all.length || !dh) return;
+        var P = pixels(); if (!P) return;
+        var t = (now / 1000) % LOOP, sc = dw / P.width, k = P.height / 864;
+        all.forEach(function (m) {
+          var kk = m.k || {}, bright = mult(kk['яркость'] == null ? 5 : kk['яркость']), depth = mult(kk['мерцание'] == null ? 5 : kk['мерцание']), spd = mult(kk['скорость'] == null ? 5 : kk['скорость']);
+          var stars = findStars(m), R = Math.max(3, Math.round(6 * k * Math.sqrt(Math.max(1, bright))));
+          var key = 'star|' + R, spr = lightCache[key];
+          if (!spr) {
+            spr = lightCache[key] = document.createElement('canvas'); spr.width = spr.height = 2 * R;
+            var sc2 = spr.getContext('2d'), d = sc2.createImageData(2 * R, 2 * R);
+            for (var yy = 0; yy < 2 * R; yy++) for (var xx = 0; xx < 2 * R; xx++) {
+              var rr = ((xx - R) * (xx - R) + (yy - R) * (yy - R)) / (R * R), o = (yy * 2 * R + xx) * 4;
+              d.data[o] = 236; d.data[o + 1] = 242; d.data[o + 2] = 255; d.data[o + 3] = Math.round(255 * Math.exp(-rr / (2 * 0.22 * 0.22)) * Math.max(0, 1 - rr));
+            }
+            sc2.putImageData(d, 0, 0);
+          }
+          stars.forEach(function (q, idx) {
+            var r = seeded(Math.round(q.x * 7919 + q.y * 104729) + idx);
+            var ph0 = r() * 6.283, ph1 = r() * 6.283;
+            var n1 = Math.max(1, Math.round((1 + Math.floor(r() * 3)) * spd)), n2 = Math.max(2, Math.round((4 + Math.floor(r() * 5)) * spd));
+            var f = 0.6 * Math.sin(2 * Math.PI * n1 * t / LOOP + ph0) + 0.4 * Math.sin(2 * Math.PI * n2 * t / LOOP + ph1);
+            var u = Math.max(0, 0.42 + 0.30 * depth * f);
+            fxc.globalAlpha = Math.min(0.85, u * bright);
+            var rd = R * sc; fxc.drawImage(spr, q.x / 100 * dw - rd, q.y / 100 * dh - rd, 2 * rd, 2 * rd);
+          });
+          fxc.globalAlpha = 1;
+          if (!m.fixed) {
+            var lx = Math.min.apply(null, m.pts.map(function (q) { return q.x; })) / 100 * dw, ly = Math.min.apply(null, m.pts.map(function (q) { return q.y; })) / 100 * dh;
+            fxc.save(); fxc.font = '600 13px Onest, sans-serif'; fxc.fillStyle = 'rgba(15,23,42,0.75)';
+            var txt = 'звёзд: ' + stars.length, tw = fxc.measureText(txt).width;
+            fxc.fillRect(lx + 4, ly + 4, tw + 12, 20); fxc.fillStyle = '#fff'; fxc.fillText(txt, lx + 10, ly + 19); fxc.restore();
+          }
+        });
+      }
+    var inner = drawSteam;
+    drawSteam = function (now) { sync(); inner(now); };
+    requestAnimationFrame(drawSteam);
+  })();
 
   // ── Строка для сборщика: слова — из листа, числа — из разметки ──
   function lineOf(m) {
