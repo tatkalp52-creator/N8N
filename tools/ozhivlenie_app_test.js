@@ -132,6 +132,13 @@ async function runProfile(b, prof) {
   L = await all(); ok(/^звёзды: область /.test(L[2] || ''), 'область обводкой');
   await tool('листья'); await dragPath([P(40, 5), P(41, 30), P(42, 60)]);
   L = await all(); ok(/^листья: [\d.]+, [\d.]+ → /.test(L[3] || ''), 'листья путём');
+  // панель листа: плитки, размер, как часто, цвет; превью рисует лист
+  await pg.click('.tile:has(span:text-is("3"))'); await pg.click('.tile:has(span:text-is("5"))');
+  await pg.click('.lrow button:text-is("крупный")'); await pg.selectOption('.lrow select', '40');
+  await pg.click('.lrow label:has-text("как нарисован") input');
+  await pg.click('.lrow label:has-text("вглубь") input');
+  L = await all(); ok(/^листья: .*; образ\S* 3, 5; цвет 6; крупн\S*; вглубь; раз в 40$/.test(L[3] || ''), 'панель листа: ' + L[3]);
+  await pg.click('#bUndo'); L = await all(); ok(!/вглубь/.test(L[3]) && /раз в 40/.test(L[3]), '«↶» снимает одну галочку листа');
   await tool('обложка'); await tapAt(P(75, 60)); await pg.click('.mk.sel button:text-is("слева")');
   L = await all(); ok(/^обложка Б: кадр [\d. ]+ — [\d. ]+, слева$/.test(L[4] || ''), 'обложка: ' + L[4]);
   await pg.click('#bDone');
