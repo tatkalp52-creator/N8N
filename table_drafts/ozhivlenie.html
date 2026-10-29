@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Оживление</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/konva/9.3.6/konva.min.js"></script>
 <style>
-  /* (29.10) Приложение разметки оживления в боте. Код знает только геометрию эффекта (точка, овал, обводка,
+  /* (29.10) Приложение разметки оживления в боте. Холст — библиотека Konva (как в редакторах: тянуть, растягивать,
+     поворачивать, масштаб колесом и двумя пальцами). Код знает только геометрию эффекта (точка, овал, обводка,
      путь, рамка); какие эффекты есть, их названия, подсказки, ручки и слова строк — из листа «Эффекты». */
   :root { --bg: #f6f3ee; --ink: #2b2620; --mute: #786e62; --line: #d9d0c3; --mark: #e11d48; --acc: #2563eb; --card: #fffdf9; }
   @media (prefers-color-scheme: dark) { :root { --bg: #1d1a17; --ink: #ece6dc; --mute: #a69b8d; --line: #3a342d; --card: #26221e; } }
@@ -14,21 +16,18 @@
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.35 -apple-system, system-ui, sans-serif; overflow: hidden; }
   #app { display: flex; flex-direction: column; height: 100%; }
   #tools { display: flex; gap: 6px; overflow-x: auto; padding: 8px; border-bottom: 1px solid var(--line); flex: none; }
-  #tools button, .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 18px; padding: 7px 12px; font: inherit; white-space: nowrap; }
-  #tools button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  #tools button, .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 18px; padding: 7px 12px; font: inherit; white-space: nowrap; cursor: pointer; }
+  #tools button.on, .btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   #stage { position: relative; flex: 1 1 auto; overflow: hidden; touch-action: none; background: #000; }
-  #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-  #pic { display: block; width: 100%; user-select: none; -webkit-user-drag: none; }
-  #ov { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
-  #hint { flex: none; padding: 6px 10px; color: var(--mute); font-size: 13px; border-top: 1px solid var(--line); max-height: 3.6em; overflow: auto; }
-  #panel { flex: none; max-height: 34vh; overflow: auto; border-top: 1px solid var(--line); padding: 6px 8px 10px; }
+  /* высоты подсказки и панели постоянные: новая отметка не сжимает картинку и не сдвигает её */
+  #hint { flex: none; padding: 6px 10px; color: var(--mute); font-size: 13px; border-top: 1px solid var(--line); height: 3.6em; overflow: auto; }
+  #panel { flex: none; height: 28vh; overflow: auto; border-top: 1px solid var(--line); padding: 6px 8px 10px; }
   .mk { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 6px 8px; margin: 6px 0; }
   .mk.sel { border-color: var(--acc); }
   .mk .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .mk .name { font-weight: 600; flex: 1; }
+  .mk .name { font-weight: 600; flex: 1; cursor: pointer; }
   .mk label { font-size: 13px; color: var(--mute); display: inline-flex; align-items: center; gap: 4px; margin: 3px 8px 0 0; }
-  .mk label.knob .kb { padding: 3px 10px; border-radius: 8px; min-width: 2.2em; }
-  .mk label input { width: 4.2em; padding: 3px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .mk label .kb { padding: 3px 10px; border-radius: 8px; min-width: 2.2em; }
   .mk input[type=text] { width: 100%; padding: 4px; font: inherit; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); margin-top: 4px; }
   .mk code { font-size: 12px; color: var(--mute); word-break: break-all; display: block; margin-top: 4px; }
   #bar { flex: none; display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
@@ -39,13 +38,14 @@
 <body>
 <div id="app">
   <div id="tools"></div>
-  <div id="stage"><div id="world"><img id="pic" alt=""><svg id="ov"></svg></div></div>
+  <div id="stage"></div>
   <div id="hint"></div>
   <div id="panel"></div>
   <div id="bar">
     <button class="btn" id="bPan">✋ Двигать</button>
     <button class="btn" id="bDone">Готово</button>
     <button class="btn" id="bUndo">↶</button>
+    <button class="btn" id="bClose">✕ Закрыть</button>
   </div>
 </div>
 <div id="msg"></div>
@@ -57,11 +57,15 @@
   var $ = function (id) { return document.getElementById(id); };
   function say(t, ms) { var m = $('msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(say.t); say.t = setTimeout(function () { m.style.display = 'none'; }, ms || 2200); }
   function r1(v) { return Math.round(v * 10) / 10; }
-  function f(v) { return String(r1(v)).replace('.', '.'); }
+  function f(v) { return String(r1(v)); }
+  $('bClose').onclick = function () { if (tg) tg.close(); else window.close(); };
+  if (!window.Konva) { say('Не загрузилась библиотека холста — проверьте интернет и откройте ещё раз', 8000); return; }
 
   // ── Геометрия по механике (это механика, не содержание): как ставится разметка ──
   var GEOM = { steam_cup: 'oval', blink: 'oval', smoke: 'point', candle: 'point', bubbles: 'two', lights: 'points',
     steam_surface: 'area', rain: 'area', stars: 'area', fire: 'area', behind: 'area', edge: 'line', leaves: 'path', cover: 'frame' };
+  var FRAME_H = 864;   // овал — в пикселях кадра высотой 864 (так его читает сборщик)
+  var RED = '#e11d48', BLUE = '#2563eb';
 
   var CAT = [], WORDS = {}, cur = null, marks = [], sel = -1, pending = null, pan = false;
 
@@ -84,18 +88,269 @@
     return out;
   }
 
+  // ── Холст ──
+  var box = $('stage');
+  var stage = new Konva.Stage({ container: 'stage', width: box.clientWidth, height: box.clientHeight });
+  var layer = new Konva.Layer(); stage.add(layer);
+  var picNode = new Konva.Image({ x: 0, y: 0 }); layer.add(picNode);
+  var shapes = new Konva.Group(); layer.add(shapes);
+  var temp = new Konva.Group(); layer.add(temp);   // то, что рисуется прямо сейчас
+  var tr = new Konva.Transformer({ rotateEnabled: true, ignoreStroke: true, anchorSize: 14, borderStroke: BLUE, anchorStroke: BLUE,
+    rotationSnaps: [0, 90, 180, 270], flipEnabled: false,
+    padding: 12 });   // ручки отступают от фигуры: у маленького овала палец попадает в середину, а не в ручку
+  layer.add(tr);
+  var W0 = 1, H0 = 1, zoomed = false;
+  var img = new Image();
+  img.onload = function () { picNode.image(img); fit(); };
+  function fit() {
+    stage.width(box.clientWidth); stage.height(box.clientHeight);
+    W0 = stage.width(); H0 = W0 * img.height / (img.width || 1);
+    picNode.width(W0); picNode.height(H0);
+    var s = Math.min(1, stage.height() / H0);
+    stage.scale({ x: s, y: s }); stage.position({ x: (W0 - W0 * s) / 2, y: (stage.height() - H0 * s) / 2 });
+    rebuild();
+  }
+  // окно меняется (Telegram разворачивает приложение) — масштаб, который выбрала автор, не сбрасываем
+  window.addEventListener('resize', function () { stage.width(box.clientWidth); stage.height(box.clientHeight); if (!zoomed) fit(); });
+  var px = function (x) { return x / W0 * 100; }, py = function (y) { return y / H0 * 100; };
+  var X = function (p) { return p / 100 * W0; }, Y = function (p) { return p / 100 * H0; };
+  function sc() { return stage.scaleX(); }
+  function inPic(p) { return { x: Math.max(0, Math.min(100, px(p.x))), y: Math.max(0, Math.min(100, py(p.y))) }; }
+
+  // масштаб: колесо мыши / трекпад — вокруг курсора; два пальца — щипок
+  stage.on('wheel', function (ev) {
+    ev.evt.preventDefault();
+    var p = stage.getPointerPosition(), k = Math.exp(-ev.evt.deltaY * (ev.evt.ctrlKey ? 0.01 : 0.0015));
+    zoomTo(Math.max(0.3, Math.min(12, sc() * k)), p);
+  });
+  function zoomTo(s, p) {
+    var old = sc(), wp = { x: (p.x - stage.x()) / old, y: (p.y - stage.y()) / old };
+    stage.scale({ x: s, y: s }); stage.position({ x: p.x - wp.x * s, y: p.y - wp.y * s }); zoomed = true; restyle();
+  }
+  var pinch = null;
+  box.addEventListener('touchmove', function (e) {
+    if (e.touches.length !== 2) return;
+    e.preventDefault(); cancelDraw();
+    var a = e.touches[0], b = e.touches[1], r = box.getBoundingClientRect();
+    var c = { x: (a.clientX + b.clientX) / 2 - r.left, y: (a.clientY + b.clientY) / 2 - r.top }, d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    if (!pinch) { pinch = { c: c, d: d }; return; }
+    zoomTo(Math.max(0.3, Math.min(12, sc() * d / pinch.d)), c);
+    stage.position({ x: stage.x() + c.x - pinch.c.x, y: stage.y() + c.y - pinch.c.y });
+    pinch = { c: c, d: d };
+  }, { passive: false });
+  box.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  // сдвиг: «Двигать», правая или средняя кнопка мыши
+  box.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  $('bPan').onclick = function () { pan = !pan; this.classList.toggle('on', pan); stage.draggable(pan); };
+  stage.on('dragend', function (ev) { if (ev.target === stage) { zoomed = true; if (!pan) stage.draggable(false); } });
+
+  // ── Рисование: нажать на картинке — новая отметка; нажать на отметку — выбрать её и тянуть ──
+  var drawing = null;
+  stage.on('mousedown touchstart', function (ev) {
+    var e = ev.evt; if (pinch || (e.touches && e.touches.length > 1)) return;
+    if (e.button === 1 || e.button === 2) { stage.draggable(true); stage.startDrag(); return; }
+    if (pan || !cur) return;
+    if (ev.target !== picNode && ev.target !== stage) return;   // по отметке — её выбор и перетаскивание (Konva)
+    var p = stage.getRelativePointerPosition(); if (!p) return;
+    drawing = { g: geom(), p0: p, pts: [p] };
+  });
+  stage.on('mousemove touchmove', function () {
+    if (!drawing || pinch) return;
+    var p = stage.getRelativePointerPosition(); if (!p) return;
+    drawing.pts.push(p);
+    temp.destroyChildren();
+    if (drawing.g === 'oval') temp.add(new Konva.Ellipse({ x: drawing.p0.x, y: drawing.p0.y, radiusX: Math.abs(p.x - drawing.p0.x) || 1, radiusY: Math.abs(p.y - drawing.p0.y) || 1, stroke: BLUE, strokeWidth: 2, strokeScaleEnabled: false, listening: false }));
+    else if (isFree()) temp.add(new Konva.Line({ points: flat(drawing.pts), stroke: BLUE, strokeWidth: 2, strokeScaleEnabled: false, listening: false }));
+    layer.batchDraw();
+  });
+  stage.on('mouseup touchend', function () {
+    if (!drawing) return;
+    var d = drawing; drawing = null; temp.destroyChildren();
+    var last = d.pts[d.pts.length - 1], len = 0;
+    for (var i = 1; i < d.pts.length; i++) len += Math.hypot(d.pts[i].x - d.pts[i - 1].x, d.pts[i].y - d.pts[i - 1].y);
+    var moved = len * sc() > 6;   // больше 6 экранных точек — это движение, а не касание
+    if (d.g === 'oval') {
+      var r0 = 12 * H0 / FRAME_H, rx = moved ? Math.abs(last.x - d.p0.x) : r0, ry = moved ? Math.abs(last.y - d.p0.y) : r0;
+      // совсем плоский овал не нужен никогда: вторая ось — не меньше пятой части первой
+      var A = Math.max(0.5, rx * FRAME_H / H0), B = Math.max(0.5, ry * FRAME_H / H0); A = Math.max(A, B / 5); B = Math.max(B, A / 5);
+      add({ g: 'oval', pts: [inPic(d.p0)], a: r1(A), b: r1(B), t: 0, touched: moved });
+    } else if (isFree() && moved) finishFree(d.pts.map(inPic));
+    else tap(inPic(last));
+    layer.batchDraw();
+  });
+  function cancelDraw() { drawing = null; temp.destroyChildren(); }
+  function flat(pts) { var o = []; pts.forEach(function (q) { o.push(q.x, q.y); }); return o; }
+  function geom() { return cur ? GEOM[cur.mech] : ''; }
+  function isFree() { return ['area', 'line', 'path'].indexOf(geom()) >= 0; }
+  function simplify(pts, maxN) {
+    if (pts.length <= maxN) return pts.map(function (q) { return { x: r1(q.x), y: r1(q.y) }; });
+    var step = (pts.length - 1) / (maxN - 1), out = [];
+    for (var i = 0; i < maxN; i++) { var q = pts[Math.round(i * step)]; out.push({ x: r1(q.x), y: r1(q.y) }); }
+    return out;
+  }
+
+  function add(m) { m.e = cur; m.k = {}; marks.push(m); sel = marks.length - 1; rebuild(); renderPanel(); }
+  function tap(p) {
+    var g = geom();
+    if (g === 'point') add({ g: g, pts: [p] });
+    else if (g === 'two') { if (!pending) { pending = { g: g, pts: [p] }; rebuild(); } else { pending.pts.push(p); var m = pending; pending = null; add(m); } }
+    else if (g === 'points') { if (!pending) pending = { g: g, pts: [] }; pending.pts.push(p); rebuild(); }
+    else if (g === 'frame') {
+      var w = 40, h = w * 9 / 16 * W0 / H0;   // рамка 16:9 в процентах кадра
+      add({ g: g, box: [Math.max(0, p.x - w / 2), Math.max(0, p.y - h / 2), Math.min(100, p.x + w / 2), Math.min(100, p.y + h / 2)], side: 'right' });
+    }
+    else if (g === 'path') { if (!pending) pending = { g: g, pts: [] }; pending.pts.push(p); rebuild(); }
+  }
+  function finishFree(pts) {
+    var g = geom();
+    if (g === 'area') add({ g: g, pts: simplify(pts, 40) });
+    else if (g === 'line') add({ g: g, pts: simplify(pts, 30) });
+    else if (g === 'path') add({ g: g, pts: simplify(pts, 10), words: '' });
+  }
+  $('bDone').onclick = function () {
+    if (pending && pending.pts.length >= (pending.g === 'points' ? 1 : 2)) { var m = pending; pending = null; if (m.g === 'path') m.words = ''; add(m); }
+    else { pending = null; rebuild(); }
+  };
+  $('bUndo').onclick = function () { if (pending) pending = null; else { marks.pop(); sel = marks.length - 1; } rebuild(); renderPanel(); };
+
+  // ── Фигуры на холсте из отметок. Пересобираются, только когда отметок стало больше или меньше; перенос, растяжение
+  //    и поворот меняют числа той же фигуры (пересборка посреди жеста срывала его) ──
+  function rebuild() {
+    shapes.destroyChildren(); tr.nodes([]);
+    marks.forEach(function (m, i) {
+      var n = null, common = { stroke: RED, strokeWidth: 2, strokeScaleEnabled: false, draggable: true };
+      m.nodes = [];
+      if (m.g === 'oval') {
+        n = new Konva.Ellipse(Object.assign({ x: X(m.pts[0].x), y: Y(m.pts[0].y), radiusX: m.a * H0 / FRAME_H, radiusY: m.b * H0 / FRAME_H, rotation: m.t, fill: 'rgba(225,29,72,0.15)' }, common));
+        n.on('transformend dragend', function () {
+          n.radiusX(Math.max(0.5, n.radiusX() * Math.abs(n.scaleX()))); n.radiusY(Math.max(0.5, n.radiusY() * Math.abs(n.scaleY()))); n.scale({ x: 1, y: 1 });
+          m.pts[0] = inPic({ x: n.x(), y: n.y() });
+          m.a = r1(n.radiusX() * FRAME_H / H0); m.b = r1(n.radiusY() * FRAME_H / H0);
+          m.t = ((Math.round(n.rotation()) % 360) + 540) % 360 - 180; m.touched = true; tr.forceUpdate(); renderPanel();
+        });
+      } else if (m.g === 'frame') {
+        var b = m.box;
+        n = new Konva.Rect(Object.assign({ x: X(b[0]), y: Y(b[1]), width: X(b[2]) - X(b[0]), height: Y(b[3]) - Y(b[1]), fill: 'rgba(255,255,255,0.12)' }, common));
+        n.on('transformend dragend', function () {
+          n.width(n.width() * n.scaleX()); n.height(n.height() * n.scaleY()); n.scale({ x: 1, y: 1 });
+          m.box = [r1(px(n.x())), r1(py(n.y())), r1(px(n.x() + n.width())), r1(py(n.y() + n.height()))]; tr.forceUpdate(); renderPanel();
+        });
+      } else if (m.g === 'area' || m.g === 'line' || m.g === 'path') {
+        n = new Konva.Line(Object.assign({ points: flat(m.pts.map(function (q) { return { x: X(q.x), y: Y(q.y) }; })), closed: m.g === 'area',
+          fill: m.g === 'area' ? 'rgba(225,29,72,0.15)' : undefined, hitStrokeWidth: 14 }, common));
+        n.on('dragend', function () {
+          var dx = px(n.x()), dy = py(n.y());
+          m.pts = m.pts.map(function (q) { return { x: r1(q.x + dx), y: r1(q.y + dy) }; });
+          n.position({ x: 0, y: 0 }); n.points(flat(m.pts.map(function (q) { return { x: X(q.x), y: Y(q.y) }; }))); renderPanel();
+        });
+      } else {
+        // точки: каждую можно передвинуть отдельно
+        m.pts.forEach(function (q, j) {
+          var c = new Konva.Circle({ x: X(q.x), y: Y(q.y), radius: 7 / sc(), fill: RED, stroke: '#fff', strokeWidth: 1, strokeScaleEnabled: false, draggable: true, name: 'dot' });
+          c.on('dragend', function () { m.pts[j] = inPic({ x: c.x(), y: c.y() }); if (m.wl) m.wl.points([0, Y(m.pts[1].y), W0, Y(m.pts[1].y)]); renderPanel(); });
+          c.on('mousedown touchstart', function () { select(i); });
+          shapes.add(c); m.nodes.push(c);
+          if (m.g === 'two' && j === 1) { m.wl = new Konva.Line({ points: [0, Y(q.y), W0, Y(q.y)], stroke: RED, dash: [6, 4], strokeWidth: 1, strokeScaleEnabled: false, listening: false }); shapes.add(m.wl); }
+        });
+      }
+      if (n) { n.on('mousedown touchstart', function () { select(i); }); shapes.add(n); m.nodes.push(n); }
+    });
+    if (pending) pending.pts.forEach(function (q) { shapes.add(new Konva.Circle({ x: X(q.x), y: Y(q.y), radius: 6 / sc(), fill: BLUE, listening: false, name: 'dot' })); });
+    paint();
+  }
+  // выбранная отметка — синяя, у овала и рамки — рамка с ручками; фигуры при этом не пересоздаются
+  function paint() {
+    tr.nodes([]);
+    marks.forEach(function (m, i) {
+      var col = i === sel ? BLUE : RED;
+      (m.nodes || []).forEach(function (n) { if (n.name() === 'dot') n.fill(col); else n.stroke(col); });
+      if (i === sel && (m.g === 'oval' || m.g === 'frame') && m.nodes && m.nodes[0]) {
+        tr.keepRatio(m.g === 'frame'); tr.rotateEnabled(m.g === 'oval');
+        tr.enabledAnchors(m.g === 'frame' ? ['top-left', 'top-right', 'bottom-left', 'bottom-right'] : ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']);
+        tr.nodes([m.nodes[0]]); tr.moveToTop();
+      }
+    });
+    layer.batchDraw();
+  }
+  function select(i) { if (sel === i) return; sel = i; paint(); renderPanel(); }
+  // точки остаются одного размера на экране при любом масштабе
+  function restyle() { shapes.find('.dot').forEach(function (c) { c.radius(7 / sc()); }); tr.forceUpdate(); layer.batchDraw(); }
+
+  // ── Строка для сборщика: слова — из листа, числа — из разметки ──
+  function lineOf(m) {
+    var e = m.e, tpl = e.template, W1 = lead(tpl).split(' ')[0];
+    var xy = function (q) { return f(q.x) + ', ' + f(q.y); }, sp = function (q) { return f(q.x) + ' ' + f(q.y); };
+    var s;
+    if (m.g === 'point' || m.g === 'oval') s = W1 + ': ' + xy(m.pts[0]);
+    if (m.g === 'oval' && m.touched) {
+      if (Math.abs(m.a - m.b) > 0.4 || m.t) s += '; ' + wordFor('oval') + ' ' + f(m.a) + ' × ' + f(m.b) + (m.t ? '; ' + wordFor('tilt') + ' ' + m.t : '');
+      else s += '; ' + wordFor('radius') + ' ' + f(m.a);
+    }
+    if (m.g === 'two') s = W1 + ': ' + xy(m.pts[0]) + ', ' + f(m.pts[1].y);
+    if (m.g === 'points') s = W1 + ': ' + m.pts.map(xy).join('; ');
+    if (m.g === 'area') s = W1 + ': ' + wordFor('area') + ' ' + m.pts.map(sp).join(', ');
+    if (m.g === 'line') s = W1 + ': ' + m.pts.map(sp).join(', ');
+    if (m.g === 'path') s = W1 + ': ' + m.pts.map(xy).join(' → ') + (m.words ? '; ' + m.words : '');
+    if (m.g === 'frame') {
+      var n = marks.filter(function (o) { return o.g === 'frame'; }).indexOf(m), letter = (wordFor(['B', 'V', 'G'][n] || '') || String(n + 1)).toUpperCase();
+      var b = m.box;
+      s = W1 + ' ' + letter + ': ' + wordFor('frame') + ' ' + sp({ x: b[0], y: b[1] }) + ' — ' + sp({ x: b[2], y: b[3] }) + ', ' + wordFor(m.side);
+    }
+    Object.keys(m.k).forEach(function (k) { var v = String(m.k[k] == null ? '' : m.k[k]).trim().replace('−', '-'); if (/^-?\d+([.,]\d+)?$/.test(v)) s += '; ' + k + ' ' + v; });
+    return s;
+  }
+
+  function renderPanel() {
+    var pb = $('panel'); pb.innerHTML = '';
+    marks.forEach(function (m, i) {
+      var d = document.createElement('div'); d.className = 'mk' + (i === sel ? ' sel' : '');
+      var row = document.createElement('div'); row.className = 'row';
+      var nm = document.createElement('span'); nm.className = 'name'; nm.textContent = (i + 1) + '. ' + m.e.name; row.appendChild(nm);
+      nm.onclick = function () { sel = i; paint(); renderPanel(); };
+      if (m.g === 'frame') ['left', 'center', 'right'].forEach(function (sd) {
+        var b = document.createElement('button'); b.className = 'btn' + (m.side === sd ? ' on' : ''); b.textContent = wordFor(sd) || sd;
+        b.onclick = function () { m.side = sd; renderPanel(); }; row.appendChild(b);
+      });
+      var del = document.createElement('button'); del.className = 'btn'; del.textContent = '✕';
+      del.onclick = function () { marks.splice(i, 1); sel = marks.length - 1; rebuild(); renderPanel(); }; row.appendChild(del);
+      d.appendChild(row);
+      var code = document.createElement('code');
+      // ручка: − число + ; число — сколько сейчас (своё или канала из листа); нетронутая ручка в строку не пишется,
+      // нажатие на число возвращает как у канала
+      knobNames(m.e.knobs).forEach(function (k) {
+        var lb = document.createElement('label'); lb.className = 'knob'; lb.appendChild(document.createTextNode(k));
+        var minus = document.createElement('button'), num = document.createElement('button'), plus = document.createElement('button');
+        minus.className = plus.className = num.className = 'btn kb'; minus.textContent = '−'; plus.textContent = '+';
+        function show() { var own = m.k[k] != null && m.k[k] !== ''; num.textContent = own ? m.k[k] : chanVal(m.e, k); num.style.borderColor = own ? 'var(--acc)' : ''; code.textContent = lineOf(m); }
+        function step(dv) { var v = Number(String(m.k[k] != null && m.k[k] !== '' ? m.k[k] : chanVal(m.e, k)).replace(',', '.')) || 0; m.k[k] = String(r1(v + dv)); show(); }
+        minus.onclick = function () { step(-1); }; plus.onclick = function () { step(1); }; num.onclick = function () { delete m.k[k]; show(); };
+        lb.appendChild(minus); lb.appendChild(num); lb.appendChild(plus); d.appendChild(lb);
+        show();
+      });
+      if (m.g === 'path') {
+        var tx = document.createElement('input'); tx.type = 'text'; tx.placeholder = 'слова через «;» (см. «Ручки» в листе)'; tx.value = m.words || '';
+        tx.oninput = function () { m.words = tx.value.trim(); code.textContent = lineOf(m); }; d.appendChild(tx);
+      }
+      code.textContent = lineOf(m); d.appendChild(code);
+      pb.appendChild(d);
+    });
+    if (tg) {
+      if (marks.length) { tg.MainButton.setText('Отправить в бот (' + marks.length + ')'); tg.MainButton.show(); } else tg.MainButton.hide();
+    }
+  }
+
   // Открыто кнопкой меню бота — выпуск ещё не выбран: сначала список выпусков, которые можно оживить
   function chooseEpisode() {
     $('hint').textContent = 'Какой выпуск оживляем?';
     fetch(location.pathname + '?episodes=1').then(function (r) { return r.json(); }).then(function (d) {
-      var box = $('panel'); box.innerHTML = '';
+      var pb = $('panel'); pb.innerHTML = '';
       var list = d.episodes || [];
-      if (!list.length) { box.textContent = 'Нет выпусков с согласованной картинкой, которые ещё не вышли.'; return; }
+      if (!list.length) { pb.textContent = 'Нет выпусков с согласованной картинкой, которые ещё не вышли.'; return; }
       list.forEach(function (e) {
         var b = document.createElement('button'); b.className = 'btn'; b.style.cssText = 'display:block;width:100%;text-align:left;margin:6px 0;white-space:normal';
         b.textContent = e.title + (e.status ? ' · ' + e.status : '');
-        b.onclick = function () { PROJECT = e.p; CHANNEL = e.ch; IMG = e.img; box.innerHTML = ''; load(); };
-        box.appendChild(b);
+        b.onclick = function () { PROJECT = e.p; CHANNEL = e.ch; IMG = e.img; pb.innerHTML = ''; load(); };
+        pb.appendChild(b);
       });
     }).catch(function (e) { say('Не загрузился список выпусков: ' + e, 6000); });
   }
@@ -108,241 +363,20 @@
       if (!CAT.length) return say('В листе «Эффекты» нет готовых эффектов для этого канала', 5000);
       buildTools(); pick(CAT[0]);
     }).catch(function (e) { say('Не загрузился лист «Эффекты»: ' + e, 6000); });
-    if (IMG) $('pic').src = IMG; else say('Нет картинки выпуска', 4000);
+    if (IMG) img.src = IMG; else say('Нет картинки выпуска', 4000);
   }
   function buildTools() {
-    var box = $('tools'); box.innerHTML = '';
+    var tb = $('tools'); tb.innerHTML = '';
     CAT.forEach(function (e) {
       var b = document.createElement('button'); b.textContent = e.name; b.onclick = function () { pick(e); };
-      e._btn = b; box.appendChild(b);
+      e._btn = b; tb.appendChild(b);
     });
   }
   function pick(e) {
     cur = e; pending = null;
     CAT.forEach(function (x) { x._btn.classList.toggle('on', x === e); });
     $('hint').textContent = e.marks || '';
-    draw();
-  }
-
-  // ── Масштаб и сдвиг: двумя пальцами всегда, одним — в режиме «Двигать» ──
-  var T = { s: 1, x: 0, y: 0 }, world = $('world'), stage = $('stage'), pic = $('pic');
-  function fit() {
-    var w = stage.clientWidth, h = stage.clientHeight, iw = pic.naturalWidth || 16, ih = pic.naturalHeight || 9;
-    world.style.width = w + 'px';
-    var s = Math.min(1, h / (w * ih / iw)); T = { s: s, x: (w - w * s) / 2, y: (h - w * ih / iw * s) / 2 }; apply();
-  }
-  function apply() { world.style.transform = 'translate(' + T.x + 'px,' + T.y + 'px) scale(' + T.s + ')'; }
-  pic.onload = function () { fit(); draw(); };
-  window.addEventListener('resize', fit);
-  function toPct(cx, cy) {
-    var r = pic.getBoundingClientRect();
-    return { x: Math.max(0, Math.min(100, (cx - r.left) / r.width * 100)), y: Math.max(0, Math.min(100, (cy - r.top) / r.height * 100)) };
-  }
-  var ptrs = {}, gesture = null, stroke = null, drag = null;
-  stage.addEventListener('pointerdown', function (ev) {
-    stage.setPointerCapture(ev.pointerId); ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
-    var ids = Object.keys(ptrs);
-    if (ids.length === 2 || pan) { stroke = null; drag = null; startGesture(); return; }
-    var p = toPct(ev.clientX, ev.clientY);
-    var h = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-h');
-    if (h) { drag = { h: h, i: +ev.target.getAttribute('data-i'), p0: p }; var dm = marks[drag.i]; drag.a0 = dm.a; drag.b0 = dm.b; drag.t0 = dm.t; return; }
-    stroke = { pts: [p], t0: Date.now() };
-  });
-  stage.addEventListener('pointermove', function (ev) {
-    if (!ptrs[ev.pointerId]) return;
-    ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
-    if (gesture) return moveGesture();
-    var p = toPct(ev.clientX, ev.clientY);
-    if (drag) return moveHandle(drag, p);
-    if (stroke) { stroke.pts.push(p); if (isFree()) drawStroke(stroke.pts); }
-  });
-  function end(ev) {
-    delete ptrs[ev.pointerId];
-    if (gesture) { if (!Object.keys(ptrs).length) gesture = null; return; }
-    if (drag) { drag = null; renderPanel(); return; }
-    if (!stroke) return;
-    var pts = stroke.pts; stroke = null;
-    // касание или линия — по длине всего пути (обводка по кругу кончается там же, где началась)
-    var b = pts[pts.length - 1], len = 0;
-    for (var i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-    var moved = len > 1.2;
-    if (isFree() && moved) finishFree(pts); else tap(b);
-  }
-  stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
-  function startGesture() {
-    var p = Object.values(ptrs), c = mid(p), d = p.length > 1 ? Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) : 0;
-    gesture = { c: c, d: d, T: { s: T.s, x: T.x, y: T.y } };
-  }
-  function mid(p) { var x = 0, y = 0; p.forEach(function (q) { x += q.x; y += q.y; }); return { x: x / p.length, y: y / p.length }; }
-  function moveGesture() {
-    var p = Object.values(ptrs), c = mid(p), g = gesture, k = 1;
-    if (p.length > 1 && g.d) k = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) / g.d;
-    var s = Math.max(0.3, Math.min(12, g.T.s * k)), sr = stage.getBoundingClientRect();
-    var ox = g.c.x - sr.left, oy = g.c.y - sr.top;
-    T.s = s; T.x = c.x - sr.left - (ox - g.T.x) * s / g.T.s; T.y = c.y - sr.top - (oy - g.T.y) * s / g.T.s; apply();
-  }
-  // колесо мыши и жест трекпада — масштаб вокруг курсора (на компьютере пальцами не растянуть)
-  stage.addEventListener('wheel', function (ev) {
-    ev.preventDefault();
-    var k = Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015)), s = Math.max(0.3, Math.min(12, T.s * k)), sr = stage.getBoundingClientRect();
-    var ox = ev.clientX - sr.left, oy = ev.clientY - sr.top;
-    T.x = ox - (ox - T.x) * s / T.s; T.y = oy - (oy - T.y) * s / T.s; T.s = s; apply();
-  }, { passive: false });
-  $('bPan').onclick = function () { pan = !pan; this.classList.toggle('on', pan); this.style.background = pan ? 'var(--ink)' : ''; this.style.color = pan ? 'var(--bg)' : ''; };
-
-  // ── Разметка ──
-  function geom() { return cur ? GEOM[cur.mech] : ''; }
-  function isFree() { return ['area', 'line', 'path'].indexOf(geom()) >= 0; }
-  function simplify(pts, n) {
-    if (pts.length <= n) return pts.slice();
-    var out = [], step = (pts.length - 1) / (n - 1);
-    for (var i = 0; i < n; i++) out.push(pts[Math.round(i * step)]);
-    return out;
-  }
-  function add(m) { m.e = cur; m.k = {}; marks.push(m); sel = marks.length - 1; draw(); renderPanel(); }
-  function tap(p) {
-    var g = geom();
-    if (g === 'point') add({ g: g, pts: [p] });
-    else if (g === 'oval') add({ g: g, pts: [p], a: 12, b: 12, t: 0, touched: false });   // кружок-заготовка; не тронут — в строку не идёт
-    else if (g === 'two') { if (!pending) { pending = { g: g, pts: [p] }; draw(); } else { pending.pts.push(p); var m = pending; pending = null; add(m); } }
-    else if (g === 'points') { if (!pending) pending = { g: g, pts: [] }; pending.pts.push(p); draw(); }
-    else if (g === 'frame') {
-      var w = 40, h = w * ((pic.naturalWidth || 16) / (pic.naturalHeight || 9)) * 9 / 16;   // рамка 16:9 в процентах кадра
-      add({ g: g, box: [Math.max(0, p.x - w / 2), Math.max(0, p.y - h / 2), Math.min(100, p.x + w / 2), Math.min(100, p.y + h / 2)], side: 'right' });
-    }
-    else if (g === 'path' && pending) { pending.pts.push(p); draw(); }
-    else if (g === 'path') { pending = { g: g, pts: [p] }; draw(); }
-  }
-  function finishFree(pts) {
-    var g = geom();
-    if (g === 'area') add({ g: g, pts: simplify(pts, 40) });
-    else if (g === 'line') add({ g: g, pts: simplify(pts, 30) });
-    else if (g === 'path') add({ g: g, pts: simplify(pts, 10), words: '' });
-  }
-  $('bDone').onclick = function () {
-    if (pending && pending.pts.length >= (pending.g === 'points' ? 1 : 2)) { var m = pending; pending = null; if (m.g === 'path') m.words = ''; add(m); }
-    else pending = null;
-    draw();
-  };
-  $('bUndo').onclick = function () { if (pending) pending = null; else { marks.pop(); sel = marks.length - 1; } draw(); renderPanel(); };
-
-  // овал: ручки — ширина (по оси наклона), высота (поперёк) и наклон
-  function moveHandle(d, p) {
-    var m = marks[d.i], c = m.pts[0], ar = (pic.naturalWidth || 16) / (pic.naturalHeight || 9);
-    if (m.g === 'frame') {
-      var bx = m.box;
-      if (d.h === 'move') { var w = bx[2] - bx[0], h = bx[3] - bx[1]; bx[0] = p.x - w / 2; bx[1] = p.y - h / 2; bx[2] = bx[0] + w; bx[3] = bx[1] + h; }
-      else { bx[2] = Math.max(bx[0] + 5, p.x); bx[3] = bx[1] + (bx[2] - bx[0]) * 9 / 16 * ar; }
-      return draw();
-    }
-    // сдвиг пальца от места, где взялась ручка (в процентах высоты кадра) — овал меняется плавно, без прыжка
-    var t = d.t0 * Math.PI / 180, ddx = (p.x - d.p0.x) * ar, ddy = p.y - d.p0.y, px = 864 / 100;   // пиксели кадра высотой 864
-    var along = ddx * Math.cos(t) + ddy * Math.sin(t), across = -ddx * Math.sin(t) + ddy * Math.cos(t);
-    m.touched = true;
-    if (d.h === 'a') m.a = Math.max(0.5, d.a0 + along * px);
-    else if (d.h === 'b') m.b = Math.max(0.5, d.b0 + across * px);
-    else if (d.h === 't') m.t = Math.round(Math.atan2(p.y - c.y, (p.x - c.x) * ar) * 180 / Math.PI);
-    draw();
-  }
-
-  // ── Рисуем ──
-  var NS = 'http://www.w3.org/2000/svg';
-  function el(tag, at) { var n = document.createElementNS(NS, tag); for (var k in at) n.setAttribute(k, at[k]); return n; }
-  function draw() {
-    var ov = $('ov'), W = pic.clientWidth || 1, H = pic.clientHeight || 1;
-    ov.setAttribute('viewBox', '0 0 ' + W + ' ' + H); ov.innerHTML = '';
-    var X = function (x) { return x / 100 * W; }, Y = function (y) { return y / 100 * H; }, sw = 2 / T.s;
-    function poly(pts, closed, i) {
-      ov.appendChild(el(closed ? 'polygon' : 'polyline', { points: pts.map(function (q) { return X(q.x) + ',' + Y(q.y); }).join(' '),
-        fill: closed ? 'rgba(225,29,72,0.15)' : 'none', stroke: i === sel ? '#2563eb' : '#e11d48', 'stroke-width': sw }));
-    }
-    marks.forEach(function (m, i) {
-      var col = i === sel ? '#2563eb' : '#e11d48';
-      if (m.g === 'area') poly(m.pts, true, i);
-      else if (m.g === 'line' || m.g === 'path') poly(m.pts, false, i);
-      else if (m.g === 'frame') {
-        var b = m.box;
-        ov.appendChild(el('rect', { x: X(b[0]), y: Y(b[1]), width: X(b[2]) - X(b[0]), height: Y(b[3]) - Y(b[1]), fill: 'rgba(255,255,255,0.12)', stroke: col, 'stroke-width': sw, 'data-h': 'move', 'data-i': i }));
-        ov.appendChild(el('circle', { cx: X(b[2]), cy: Y(b[3]), r: 9 / T.s, fill: '#fff', stroke: col, 'stroke-width': sw, 'data-h': 'size', 'data-i': i }));
-      } else if (m.g === 'oval') {
-        var c = m.pts[0], k = H / 864, t = m.t * Math.PI / 180;
-        ov.appendChild(el('ellipse', { cx: X(c.x), cy: Y(c.y), rx: m.a * k, ry: m.b * k, transform: 'rotate(' + m.t + ' ' + X(c.x) + ' ' + Y(c.y) + ')', fill: 'rgba(225,29,72,0.12)', stroke: col, 'stroke-width': sw }));
-        if (i === sel) {
-          // ручки — не ближе 22 экранных точек к центру, чтобы палец попадал в нужную даже на маленьком глазу
-          var ra = Math.max(m.a * k, 22 / T.s), rb = Math.max(m.b * k, 22 / T.s);
-          var hs = [['a', ra * Math.cos(t), ra * Math.sin(t)], ['b', -rb * Math.sin(t), rb * Math.cos(t)],
-                    ['t', -(ra + 4 / T.s) * Math.cos(t), -(ra + 4 / T.s) * Math.sin(t)]];
-          hs.forEach(function (h) { ov.appendChild(el('circle', { cx: X(c.x) + h[1], cy: Y(c.y) + h[2], r: 9 / T.s, fill: h[0] === 't' ? '#facc15' : '#fff', stroke: col, 'stroke-width': sw, 'data-h': h[0], 'data-i': i })); });
-        }
-      } else m.pts.forEach(function (q) { ov.appendChild(el('circle', { cx: X(q.x), cy: Y(q.y), r: 6 / T.s, fill: col, stroke: '#fff', 'stroke-width': sw / 2 })); });
-    });
-    if (pending) pending.pts.forEach(function (q) { ov.appendChild(el('circle', { cx: X(q.x), cy: Y(q.y), r: 6 / T.s, fill: '#2563eb' })); });
-  }
-  function drawStroke(pts) {
-    draw(); var ov = $('ov'), W = pic.clientWidth, H = pic.clientHeight;
-    ov.appendChild(el('polyline', { points: pts.map(function (q) { return q.x / 100 * W + ',' + q.y / 100 * H; }).join(' '), fill: 'none', stroke: '#2563eb', 'stroke-width': 2 / T.s }));
-  }
-
-  // ── Строка для сборщика: слова — из листа, числа — из разметки ──
-  function lineOf(m) {
-    var e = m.e, tpl = e.template, W0 = lead(tpl).split(' ')[0];
-    var xy = function (q) { return f(q.x) + ', ' + f(q.y); }, sp = function (q) { return f(q.x) + ' ' + f(q.y); };
-    var s;
-    if (m.g === 'point' || m.g === 'oval') s = W0 + ': ' + xy(m.pts[0]);
-    if (m.g === 'oval' && m.touched) {
-      if (Math.abs(m.a - m.b) > 0.4 || m.t) s += '; ' + wordFor('oval') + ' ' + f(m.a) + ' × ' + f(m.b) + (m.t ? '; ' + wordFor('tilt') + ' ' + m.t : '');
-      else s += '; ' + wordFor('radius') + ' ' + f(m.a);
-    }
-    if (m.g === 'two') s = W0 + ': ' + xy(m.pts[0]) + ', ' + f(m.pts[1].y);
-    if (m.g === 'points') s = W0 + ': ' + m.pts.map(xy).join('; ');
-    if (m.g === 'area') s = W0 + ': ' + wordFor('area') + ' ' + m.pts.map(sp).join(', ');
-    if (m.g === 'line') s = W0 + ': ' + m.pts.map(sp).join(', ');
-    if (m.g === 'path') s = W0 + ': ' + m.pts.map(xy).join(' → ') + (m.words ? '; ' + m.words : '');
-    if (m.g === 'frame') {
-      var n = marks.filter(function (o) { return o.g === 'frame'; }).indexOf(m), letter = (wordFor(['B', 'V', 'G'][n] || '') || String(n + 1)).toUpperCase();
-      var b = m.box;
-      s = W0 + ' ' + letter + ': ' + wordFor('frame') + ' ' + sp({ x: b[0], y: b[1] }) + ' — ' + sp({ x: b[2], y: b[3] }) + ', ' + wordFor(m.side);
-    }
-    Object.keys(m.k).forEach(function (k) { var v = String(m.k[k] == null ? '' : m.k[k]).trim().replace('−', '-'); if (/^-?\d+([.,]\d+)?$/.test(v)) s += '; ' + k + ' ' + v; });
-    return s;
-  }
-
-  function renderPanel() {
-    var box = $('panel'); box.innerHTML = '';
-    marks.forEach(function (m, i) {
-      var d = document.createElement('div'); d.className = 'mk' + (i === sel ? ' sel' : '');
-      var row = document.createElement('div'); row.className = 'row';
-      var nm = document.createElement('span'); nm.className = 'name'; nm.textContent = (i + 1) + '. ' + m.e.name; row.appendChild(nm);
-      if (m.g === 'frame') ['left', 'center', 'right'].forEach(function (sd) {
-        var b = document.createElement('button'); b.className = 'btn'; b.textContent = wordFor(sd) || sd; if (m.side === sd) b.style.borderColor = 'var(--acc)';
-        b.onclick = function () { m.side = sd; renderPanel(); }; row.appendChild(b);
-      });
-      var del = document.createElement('button'); del.className = 'btn'; del.textContent = '✕';
-      del.onclick = function () { marks.splice(i, 1); sel = marks.length - 1; draw(); renderPanel(); }; row.appendChild(del);
-      d.appendChild(row);
-      // ручка: − число + ; число — сколько сейчас (своё или канала из листа); нетронутая ручка в строку не пишется,
-      // нажатие на число возвращает как у канала
-      knobNames(m.e.knobs).forEach(function (k) {
-        var lb = document.createElement('label'); lb.className = 'knob'; lb.appendChild(document.createTextNode(k));
-        var minus = document.createElement('button'), num = document.createElement('button'), plus = document.createElement('button');
-        minus.className = plus.className = num.className = 'btn kb'; minus.textContent = '−'; plus.textContent = '+';
-        function show() { var own = m.k[k] != null && m.k[k] !== ''; num.textContent = own ? m.k[k] : chanVal(m.e, k); num.style.borderColor = own ? 'var(--acc)' : ''; code.textContent = lineOf(m); }
-        function step(dv) { var v = Number(String(m.k[k] != null && m.k[k] !== '' ? m.k[k] : chanVal(m.e, k)).replace(',', '.')); m.k[k] = String(r1(v + dv)); show(); }
-        minus.onclick = function () { step(-1); }; plus.onclick = function () { step(1); }; num.onclick = function () { delete m.k[k]; show(); };
-        lb.appendChild(minus); lb.appendChild(num); lb.appendChild(plus); d.appendChild(lb);
-        setTimeout(show);
-      });
-      if (m.g === 'path') {
-        var tx = document.createElement('input'); tx.type = 'text'; tx.placeholder = 'слова через «;» (см. «Ручки» в листе)'; tx.value = m.words || '';
-        tx.oninput = function () { m.words = tx.value.trim(); code.textContent = lineOf(m); }; d.appendChild(tx);
-      }
-      var code = document.createElement('code'); code.textContent = lineOf(m); d.appendChild(code);
-      d.onclick = function (ev) { if (ev.target.tagName === 'DIV' || ev.target.tagName === 'SPAN') { sel = i; draw(); renderPanel(); } };
-      box.appendChild(d);
-    });
-    if (tg) {
-      if (marks.length) { tg.MainButton.setText('Отправить в бот (' + marks.length + ')'); tg.MainButton.show(); } else tg.MainButton.hide();
-    }
+    rebuild();
   }
 
   // ── Отправка: строки уходят в бот и записываются в пункт оживления выпуска ──
