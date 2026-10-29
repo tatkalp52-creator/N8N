@@ -160,11 +160,24 @@ async function runProfile(b, prof) {
     if (wide) { await pg.mouse.move(...(await pg.$eval('#tools', e => { const r = e.getBoundingClientRect(); return [r.left + 50, r.top + r.height / 2]; }))); await pg.mouse.wheel(0, 300); }
     ok(!wide || await pg.$eval('#tools', e => e.scrollLeft > 0), 'полоска эффектов колесом' + (wide ? '' : ' (влезает целиком)'));
   }
+  // пелена (овал) и струйка (точка): строки и ручки
+  await pg.click('#bDone');
+  await tool('пелена'); await dragPath([P(45, 46), P(49, 48)]); await pg.waitForTimeout(100);
+  L = await all(); ok(/^пелена: (44\.\d|45(\.\d)?), (45\.\d|46(\.\d)?); овал \d/.test(L[6] || ''), 'пелена овалом: ' + L[6]);
+  ok((await pg.$$('.knob')).length === 6, 'у пелены шесть ручек');
+  await knob('высота', '−'); L = await all(); ok(/высота 4\.5/.test(L[6]), 'ручка пелены: ' + L[6]);
+  await pg.click('#bDone');
+  await tool('струйка'); await tapAt(P(60, 46));
+  L = await all(); ok(/^струйка: (59\.\d|60(\.\d)?), (45\.\d|46(\.\d)?)$/.test(L[7] || ''), 'струйка точкой: ' + L[7]);
+  await knob('толщина', '+'); L = await all(); ok(/толщина 5\.5/.test(L[7]), 'ручка струйки: ' + L[7]);
+  await pg.waitForTimeout(300);
+  const lit = await pg.evaluate(() => { const c = document.getElementById('fx'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 20) n++; return n; });
+  ok(lit > 200, 'превью рисует пар на картинке: ' + lit + ' точек');
   // 6. «Готово» ничего не отправляет; отправка — своей кнопкой
   await pg.click('#bDone'); await pg.waitForTimeout(100);
   ok(!posted && (await pg.$$('.mk.sel')).length === 0, '«Готово» — эффект закончен, ничего не ушло');
   await pg.click('#bSend'); await pg.waitForTimeout(300);
-  ok(posted && posted.action === 'fx' && posted.lines.split('\n').length === 6, 'ушло в бот: ' + (posted ? posted.lines.split('\n').length + ' строк' : 'нет'));
+  ok(posted && posted.action === 'fx' && posted.lines.split('\n').length === 8, 'ушло в бот: ' + (posted ? posted.lines.split('\n').length + ' строк' : 'нет'));
   // 7. окошко строк — те же строки, что ушли
   await pg.click('#bLines'); const lbox = await pg.$eval('#linesText', e => e.value);
   ok(posted && lbox === posted.lines, 'окошко «Строки» — те же строки, что ушли в бот');

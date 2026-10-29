@@ -23,7 +23,7 @@ app = Flask(__name__)
 # в обход обычной сборки (см. историю с ручным wget поверх persistent
 # storage при восстановлении после падения 17.09) — без блуждания по SSH
 # и логам, когда есть подозрение на рассинхронизацию.
-ASSEMBLER_VERSION = "2026-10-29-ovaly"
+ASSEMBLER_VERSION = "2026-10-29-pelena"
 
 FFMPEG_BIN = "ffmpeg"
 # (28.10) размер кадра — из таблицы (🎬 VideoWidth / VideoHeight), см. set_frame(); до первой сборки не задан
@@ -1424,7 +1424,7 @@ LEAF_SIZE_PX, LEAF_FALL_SECONDS = 30.0, 6.0   # длина листа в пик�
 # (28.10) СЛОВА — ТОЛЬКО В ТАБЛИЦЕ. Словарик листа «Эффекты» (колонки «Слово» → «Значит») (пар → steam,
 # густота → density, клён → maple…; «облак*» — с любым окончанием). Строка выпуска сначала переводится
 # в эти значения (to_ids), и дальше сборщик знает только их — механику, а не слова автора.
-EFFECT_IDS = ("steam", "bubbles", "blink", "smoke", "candle", "lights", "stars", "rain", "fire")
+EFFECT_IDS = ("steam", "veil", "wisp", "bubbles", "blink", "smoke", "candle", "lights", "stars", "rain", "fire")
 # Строки листьев, края и обводки — не петля, а события (см. ЛИСТЬЯ ниже)
 EVENT_IDS = ("leaves", "leaf", "edge", "behind")
 # Ручки в строке выпуска («; density 7») и область («steam: area 30 50, 45 49, …») — 05.10.
@@ -2175,6 +2175,129 @@ def render_effects_loop(image_path, spec, data, fps, out_path, still_at=None):
                                 np.float32) / 255 * grain * steam_opacity * c_op / c_tr
                 return x0, y0, np.clip(al, 0, 1), np.array([246, 241, 231], np.float32)
             layers.append(steam)
+        elif kind == "veil":
+            # (29.10) ПЕЛЕНА: мягкий пар со всей глади напитка (овал), кверху сужается лепестком, колышется,
+            # по ней бегут вверх сгущения; по краям отрываются и закручиваются завитки; наверху рвётся на
+            # клочья и тает. Ручки: густота, прозрачность, высота, толщина (ширина), завитки (колыхание), скорость.
+            v_op, v_h, v_sp = kn(kind, nums, "density") / kn(kind, nums, "transparency"), kn(kind, nums, "height"), kn(kind, nums, "speed")
+            v_th, v_cu = kn(kind, nums, "thickness"), kn(kind, nums, "curls")
+            ov = getattr(nums, "oval", None) or (getattr(nums, "radius", None) and (nums.radius, nums.radius / 4)) or (20.0, 5.0)
+            vA, vB = ov[0] * k * math.sqrt(v_th), ov[1] * k
+            vH = 150 * k * v_h
+            v_cyc = max(1, int(round(v_sp * EFFECTS_LOOP_SECONDS / 4)))
+            vbw, vbh = int(2 * vA + 90 * k * max(1.0, v_cu)), int(vH + 2 * vB + 6 * k)
+            vr = random.Random(int(px * 7919 + py * 104729))
+            vph = [vr.uniform(0, 6.28) for _ in range(8)]
+            nrng = np.random.default_rng(int(px * 7919 + py * 104729) % 2 ** 32)
+            NN = 256
+
+            def tile_noise(cells, octs):
+                acc, amp, tot = np.zeros((NN, NN), np.float32), 1.0, 0.0
+                for o in range(octs):
+                    c = cells * 2 ** o
+                    g = np.tile(nrng.random((c, c)).astype(np.float32), (3, 3))
+                    a = np.asarray(Image.fromarray((g * 255).astype(np.uint8)).resize((3 * NN, 3 * NN), Image.BICUBIC), np.float32)
+                    acc += a[NN:2 * NN, NN:2 * NN] / 255 * amp; tot += amp; amp *= 0.5
+                return acc / tot
+            vT1, vT2 = tile_noise(4, 3), tile_noise(2, 2)
+
+            def samp(T_, u, v):
+                xi, yi = (u % 1) * NN, (v % 1) * NN
+                xa_, ya_ = np.floor(xi).astype(int) % NN, np.floor(yi).astype(int) % NN
+                fx, fy = xi - np.floor(xi), yi - np.floor(yi)
+                xb_, yb_ = (xa_ + 1) % NN, (ya_ + 1) % NN
+                return (T_[ya_, xa_] * (1 - fx) + T_[ya_, xb_] * fx) * (1 - fy) + (T_[yb_, xa_] * (1 - fx) + T_[yb_, xb_] * fx) * fy
+
+            def smst(a, b, x):
+                q = np.clip((x - a) / (b - a), 0, 1)
+                return q * q * (3 - 2 * q)
+            VX = (np.arange(vbw) - vbw / 2)[None, :].astype(np.float32)
+            VY = np.arange(vbh)[:, None].astype(np.float32)
+            ysurf = vbh - 1 - vB - 2 * k
+            vs = (ysurf - VY) / vH
+            curls = [dict(side=-1, sh=0.0, c=5.5, R=13, L=0.32), dict(side=1, sh=0.25, c=6.0, R=12, L=0.3),
+                     dict(side=-1, sh=0.5, c=5.0, R=11, L=0.28), dict(side=1, sh=0.75, c=5.8, R=12, L=0.33)]
+            vx0, vy0 = int(px - vbw / 2), int(py + vB + 2 * k - vbh + 1)
+
+            def veil(t, vx0=vx0, vy0=vy0):
+                t = (t * v_cyc / EFFECTS_LOOP_SECONDS) % 1.0
+                T_ = 2 * math.pi * t
+                sc = np.clip(vs, 0, 1)
+                cx = k * v_cu * (7 * sc ** 1.4 * np.sin(2 * math.pi * 1.0 * sc - T_ + vph[0]) + 3 * sc ** 1.8 * np.sin(2 * math.pi * 2.4 * sc - 2 * T_ + vph[1]))
+                hw = vA * (1 - 0.82 * sc ** 1.15) + 1.2 * k
+                u = (VX - cx) / hw
+                u = u * (1 + 0.18 * np.sin(2 * math.pi * (2.2 * sc - t) + vph[2] + np.sign(u) * 1.3))
+                prof = np.exp(-np.abs(u) ** 3)
+                rise = 0.55 + 0.45 * (0.5 + 0.5 * np.sin(2 * math.pi * (2.6 * sc - t) + vph[3] + 0.06 * (VX - cx) / k))
+                fade = np.clip(1 - sc / 0.92, 0, 1) ** 1.3
+                col = prof * fade * rise * (vs >= 0)
+                uu = (VX - cx) / (2.5 * vA) + 0.5
+                warp = (samp(vT2, uu * 0.6 + 0.61, sc * 0.5 - t) - 0.5) * 1.1 * (0.2 + sc)
+                nz = smst(0.32, 0.72, 0.65 * samp(vT1, uu * 1.4 + warp, sc * 0.6 - t) + 0.35 * samp(vT2, uu * 0.5 + 0.37, sc * 0.45 - t))
+                brk = np.clip(sc / 0.75, 0, 1) ** 1.2
+                col = col * ((1 - brk) + brk * nz * 1.25)
+                ell = (VX / vA) ** 2 + ((VY - ysurf) / max(vB, 1.0)) ** 2
+                film = np.clip(1 - ell, 0, 1) ** 0.7 * (0.55 + 0.15 * math.sin(T_ + vph[4]))
+                m = np.maximum(col * 0.85, film * 0.6)
+                m = np.asarray(Image.fromarray((np.clip(m, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2.2 * k)), np.float32) / 255
+                can = Image.new("L", (vbw * 2, vbh * 2), 0)
+                d = ImageDraw.Draw(can)
+                for w in curls:
+                    p_ = (t + w["sh"]) % 1
+                    life = math.sin(math.pi * p_) ** 1.2
+                    lift, phimax, pts = 0.1 + p_ * 0.5, w["c"] * (0.6 + 0.9 * p_), []
+                    for i in range(61):
+                        q = i / 60
+                        sq = min(1.0, lift + w["L"] * q)
+                        ccx = k * v_cu * (7 * sq ** 1.4 * math.sin(2 * math.pi * 1.0 * sq - T_ + vph[0]) + 3 * sq ** 1.8 * math.sin(2 * math.pi * 2.4 * sq - 2 * T_ + vph[1]))
+                        ex = ccx + w["side"] * (vA * (1 - 0.82 * sq ** 1.15) + 1.2 * k) * 0.9
+                        phi = phimax * max(0, (q - 0.15) / 0.85) ** 1.2
+                        r = w["R"] * k * (1 - 0.6 * q)
+                        pts.append((ex - w["side"] * r * (1 - math.cos(phi)) + vbw / 2, ysurf - sq * vH - r * math.sin(phi), q))
+                    for i in range(60):
+                        xa, ya, q = pts[i]
+                        xb, yb, _ = pts[i + 1]
+                        a = life * min(1, q / 0.1) * max(0, min(1, (1 - q) / 0.35)) * 0.75
+                        if a > 0.01:
+                            d.line([(xa * 2, ya * 2), (xb * 2, yb * 2)], fill=int(255 * a), width=max(1, int((3.2 - 1.6 * q) * k * 2)))
+                cm = np.asarray(can.resize((vbw, vbh), Image.LANCZOS).filter(ImageFilter.GaussianBlur(1.3 * k)), np.float32) / 255
+                m = 1 - (1 - m) * (1 - cm * 0.9)
+                return vx0, vy0, np.clip(m * 0.8 * v_op, 0, 1), np.array([246, 241, 231], np.float32)
+            layers.append(veil)
+        elif kind == "wisp":
+            # (29.10) СТРУЙКА: одна мягкая лента (дым сигареты, струйка над пеленой) — тонкая у основания, кверху
+            # шире и мягче, по ней бежит волна, кончик тает. Точка — откуда идёт. Ручки — как у пара.
+            w_op, w_h, w_sp = kn(kind, nums, "density") / kn(kind, nums, "transparency"), kn(kind, nums, "height"), kn(kind, nums, "speed")
+            w_th, w_cu = kn(kind, nums, "thickness"), kn(kind, nums, "curls")
+            wH = 140 * k * w_h
+            w_cyc = max(1, int(round(w_sp * EFFECTS_LOOP_SECONDS / 4)))
+            wbw, wbh = int(60 * k * w_th + 40 * k * w_cu), int(wH + 12 * k)
+            vr = random.Random(int(px * 7919 + py * 104729))
+            wph = [vr.uniform(0, 6.28) for _ in range(6)]
+            wx0, wy0 = int(px - wbw / 2), int(py - wbh + 2)
+
+            def wisp(t, wx0=wx0, wy0=wy0):
+                t = (t * w_cyc / EFFECTS_LOOP_SECONDS) % 1.0
+                T_ = 2 * math.pi * t
+                can = Image.new("L", (wbw * 2, wbh * 2), 0)
+                d = ImageDraw.Draw(can)
+                pts = []
+                for i in range(121):
+                    q = i / 120
+                    x = wbw / 2 + k * w_cu * (10 * q ** 1.3 * math.sin(2 * math.pi * (1.1 * q - t) + wph[0]) + 4 * q ** 1.6 * math.sin(2 * math.pi * (2.6 * q - 2 * t) + wph[1])) + 4 * k * q * math.sin(T_ + wph[2])
+                    pts.append((x, wbh - 2 - q * wH, q))
+                for i in range(120):
+                    xa, ya, q = pts[i]
+                    xb, yb, _ = pts[i + 1]
+                    dens = 0.55 + 0.45 * (0.5 + 0.5 * math.sin(2 * math.pi * (3.0 * q - 2 * t) + wph[3]))
+                    a = min(1, q / 0.05) * max(0, min(1, (1 - q) / 0.55)) * dens * 0.8
+                    if a > 0.01:
+                        d.line([(xa * 2, ya * 2), (xb * 2, yb * 2)], fill=int(255 * a), width=max(1, int((1.6 + 7 * q ** 1.2) * k * w_th * 2)))
+                small = can.resize((wbw, wbh), Image.LANCZOS)
+                m = np.asarray(small.filter(ImageFilter.GaussianBlur(1.0 * k * w_th)), np.float32) / 255
+                m2 = np.asarray(small.filter(ImageFilter.GaussianBlur(4 * k * w_th)), np.float32) / 255
+                return wx0, wy0, np.clip(np.maximum(m, m2 * 0.9) * 0.85 * w_op, 0, 1), np.array([246, 241, 231], np.float32)
+            layers.append(wisp)
 
         elif kind == "bubbles":
             surf = (nums[2] / 100 * H) if len(nums) > 2 else py - 0.07 * H

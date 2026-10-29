@@ -121,7 +121,7 @@
   if (!window.Konva) { say('Не загрузилась библиотека холста — проверьте интернет и откройте ещё раз', 8000); return; }
 
   // ── Геометрия по механике (это механика, не содержание): как ставится разметка ──
-  var GEOM = { steam_cup: 'oval', blink: 'oval', smoke: 'point', candle: 'point', bubbles: 'two', lights: 'points',
+  var GEOM = { steam_cup: 'oval', veil: 'oval', wisp: 'point', blink: 'oval', smoke: 'point', candle: 'point', bubbles: 'two', lights: 'points',
     steam_surface: 'area', rain: 'area', stars: 'area', fire: 'area', behind: 'area', edge: 'line', leaves: 'path', cover: 'frame' };
   var FRAME_H = 864;   // овал — в пикселях кадра высотой 864 (так его читает сборщик)
   var RED = '#e11d48', BLUE = '#2563eb';
@@ -468,7 +468,7 @@
   //    что у сборщика). Прежний код рисует на холсте размером с картинку; здесь холст стоит ровно над картинкой
   //    и следует за масштабом. Отметки нового приложения переводятся в прежний вид на каждом кадре. ──
   (function () {
-    var EFF = { steam_cup: 'steam', steam_surface: 'surf', lights: 'lights', candle: 'candle', stars: 'sky', blink: 'blink', fire: 'fire', bubbles: 'bubbles' };
+    var EFF = { steam_cup: 'steam', veil: 'veil', wisp: 'wisp', steam_surface: 'surf', lights: 'lights', candle: 'candle', stars: 'sky', blink: 'blink', fire: 'fire', bubbles: 'bubbles' };
     // холст превью ставим после холста Konva (Konva при старте очищает свою коробку)
     var fxEl = document.createElement('canvas'); fxEl.id = 'fx'; box.appendChild(fxEl);
     // прежнему коду нужны «картинка» (размер на экране) и её пиксели
@@ -483,7 +483,9 @@
         var k = {}; knobNames(m.e.knobs).forEach(function (n) { var own = m.k[n]; k[n] = Number(String(own != null && own !== '' ? own : chanVal(m.e, n)).replace(',', '.')) || 5; });
         ['густота', 'высота', 'толщина', 'скорость', 'завитки', 'прозрачность', 'яркость', 'пламя', 'ореол', 'мерцание', 'раскачка', 'отсвет', 'разлив'].forEach(function (n) { if (k[n] == null) k[n] = 5; });
         marks.push({ eff: eff, pts: m.pts || [], k: k, fixed: i !== window.__sel(), r: m.a || 3, exact: false,
-          oval: m.g === 'oval' && m.touched ? [m.a, m.b] : null, tilt: m.t || 0 });
+          oval: m.g === 'oval' && m.touched ? [m.a, m.b] : null, tilt: m.t || 0,
+          // пелена читает овал так же, как сборщик: овал → как есть, круг → радиус и четверть, нет → 20 × 5
+          veilOval: m.g === 'oval' && m.touched ? (Math.abs(m.a - m.b) > 0.4 || m.t ? [m.a, m.b] : [m.a, m.a / 4]) : [20, 5] });
       });
     }
       // ── Пробный пар прямо на картинке: примерно так он будет двигаться (формулы те же, что у сборщика,
@@ -500,6 +502,118 @@
         return (steamCache[key] = { w: w, shift: r() });
       }
       var fx = $('fx'), fxc = fx.getContext('2d'), off = document.createElement('canvas'), offc = off.getContext('2d'), off2 = document.createElement('canvas'), off2c = off2.getContext('2d', { willReadFrequently: true });
+      // ── (29.10) Пелена и струйка — те же формулы, что у сборщика (шум — свой, того же рода) ──
+      var NN = 256, noiseT = {};
+      function tileNoise(seed, cells, octs) {
+        var key = seed + '|' + cells + '|' + octs; if (noiseT[key]) return noiseT[key];
+        var r = seeded(seed), out = new Float32Array(NN * NN), amp = 1, tot = 0;
+        for (var o = 0; o < octs; o++) {
+          var c = cells * Math.pow(2, o), g = []; for (var i = 0; i < c * c; i++) g.push(r());
+          for (var y = 0; y < NN; y++) for (var x = 0; x < NN; x++) {
+            var gx = x / NN * c, gy = y / NN * c, x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
+            fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+            var a = g[(y0 % c) * c + x0 % c], b = g[(y0 % c) * c + (x0 + 1) % c], cc = g[((y0 + 1) % c) * c + x0 % c], d = g[((y0 + 1) % c) * c + (x0 + 1) % c];
+            out[y * NN + x] += ((a * (1 - fx) + b * fx) * (1 - fy) + (cc * (1 - fx) + d * fx) * fy) * amp;
+          }
+          tot += amp; amp *= 0.5;
+        }
+        for (var q = 0; q < out.length; q++) out[q] /= tot;
+        return (noiseT[key] = out);
+      }
+      function samp(T, u, v) {
+        var xi = ((u % 1) + 1) % 1 * NN, yi = ((v % 1) + 1) % 1 * NN, x0 = Math.floor(xi), y0 = Math.floor(yi), fx = xi - x0, fy = yi - y0;
+        var x1 = (x0 + 1) % NN, y1 = (y0 + 1) % NN; x0 %= NN; y0 %= NN;
+        return (T[y0 * NN + x0] * (1 - fx) + T[y0 * NN + x1] * fx) * (1 - fy) + (T[y1 * NN + x0] * (1 - fx) + T[y1 * NN + x1] * fx) * fy;
+      }
+      function smst(a, b, x) { var q = Math.max(0, Math.min(1, (x - a) / (b - a))); return q * q * (3 - 2 * q); }
+      function sway(sq, T, cu, k, ph) { return k * cu * (7 * Math.pow(sq, 1.4) * Math.sin(2 * Math.PI * sq - T + ph[0]) + 3 * Math.pow(sq, 1.8) * Math.sin(2 * Math.PI * 2.4 * sq - 2 * T + ph[1])); }
+      var vOff = document.createElement('canvas'), vOffC = vOff.getContext('2d'), vOff2 = document.createElement('canvas'), vOff2C = vOff2.getContext('2d');
+      function knob(m, n) { return mult(m.k[n] == null ? 5 : m.k[n]); }
+      function phases(m, n) { var r = seeded(Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729)); var o = []; for (var i = 0; i < n; i++) o.push(r() * 6.28); return o; }
+      function drawVeil(now, dw, dh) {
+        marks.filter(function (m) { return m.eff === 'veil'; }).forEach(function (m) {
+          var k = dh / 864, px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh;
+          var op = knob(m, 'густота') / knob(m, 'прозрачность'), vh = knob(m, 'высота'), sp = knob(m, 'скорость'), th = knob(m, 'толщина'), cu = knob(m, 'завитки');
+          var ov = m.veilOval, A = ov[0] * k * Math.sqrt(th), B = ov[1] * k, H = 150 * k * vh, cyc = Math.max(1, Math.round(sp * LOOP / 4));
+          var bw = Math.max(4, Math.round(2 * A + 90 * k * Math.max(1, cu))), bh = Math.max(4, Math.round(H + 2 * B + 6 * k));
+          var ph = phases(m, 8), seed = Math.round(m.pts[0].x * 7919 + m.pts[0].y * 104729), T1 = tileNoise(seed, 4, 3), T2 = tileNoise(seed + 1, 2, 2);
+          var t = ((now / 1000) % LOOP) * cyc / LOOP % 1, T = 2 * Math.PI * t, ysurf = bh - 1 - B - 2 * k;
+          vOff.width = bw; vOff.height = bh; var id = vOffC.createImageData(bw, bh), p = id.data;
+          for (var y = 0; y < bh; y++) {
+            var s = (ysurf - y) / H, sc = Math.max(0, Math.min(1, s)), cx = sway(sc, T, cu, k, ph), hw = A * (1 - 0.82 * Math.pow(sc, 1.15)) + 1.2 * k;
+            var fade = Math.pow(Math.max(0, Math.min(1, 1 - sc / 0.92)), 1.3), brk = Math.pow(Math.min(1, sc / 0.75), 1.2);
+            for (var x = 0; x < bw; x++) {
+              var X = x - bw / 2, u = (X - cx) / hw;
+              u = u * (1 + 0.18 * Math.sin(2 * Math.PI * (2.2 * sc - t) + ph[2] + (u > 0 ? 1.3 : u < 0 ? -1.3 : 0)));
+              var col = 0;
+              if (s >= 0) {
+                var prof = Math.exp(-Math.pow(Math.abs(u), 3)), rise = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(2 * Math.PI * (2.6 * sc - t) + ph[3] + 0.06 * (X - cx) / k));
+                col = prof * fade * rise;
+                if (col > 0.003) {
+                  var uu = (X - cx) / (2.5 * A) + 0.5, warp = (samp(T2, uu * 0.6 + 0.61, sc * 0.5 - t) - 0.5) * 1.1 * (0.2 + sc);
+                  var nz = smst(0.32, 0.72, 0.65 * samp(T1, uu * 1.4 + warp, sc * 0.6 - t) + 0.35 * samp(T2, uu * 0.5 + 0.37, sc * 0.45 - t));
+                  col *= (1 - brk) + brk * nz * 1.25;
+                }
+              }
+              var ell = (X / A) * (X / A) + ((y - ysurf) / Math.max(B, 1)) * ((y - ysurf) / Math.max(B, 1));
+              var film = Math.pow(Math.max(0, 1 - ell), 0.7) * (0.55 + 0.15 * Math.sin(T + ph[4]));
+              var mm = Math.max(col * 0.85, film * 0.6), o = (y * bw + x) * 4;
+              p[o] = 246; p[o + 1] = 241; p[o + 2] = 231; p[o + 3] = Math.min(255, mm * 255);
+            }
+          }
+          vOffC.putImageData(id, 0, 0);
+          var x0 = px - bw / 2, y0 = py + B + 2 * k - bh + 1;
+          fxc.save(); if ('filter' in fxc) fxc.filter = 'blur(' + (2.2 * k).toFixed(2) + 'px)'; fxc.globalAlpha = Math.min(1, 0.8 * op); fxc.drawImage(vOff, x0, y0); fxc.restore();
+          // завитки по краям: отрываются, поднимаются, закручиваются внутрь и тают
+          vOff2.width = bw; vOff2.height = bh; vOff2C.clearRect(0, 0, bw, bh); vOff2C.lineCap = 'round';
+          [[-1, 0, 5.5, 13, 0.32], [1, 0.25, 6, 12, 0.3], [-1, 0.5, 5, 11, 0.28], [1, 0.75, 5.8, 12, 0.33]].forEach(function (w) {
+            var pp = (t + w[1]) % 1, life = Math.pow(Math.sin(Math.PI * pp), 1.2), lift = 0.1 + pp * 0.5, phimax = w[2] * (0.6 + 0.9 * pp), pts = [];
+            for (var i = 0; i <= 60; i++) {
+              var q = i / 60, sq = Math.min(1, lift + w[4] * q), ex = sway(sq, T, cu, k, ph) + w[0] * (A * (1 - 0.82 * Math.pow(sq, 1.15)) + 1.2 * k) * 0.9;
+              var phi = phimax * Math.pow(Math.max(0, (q - 0.15) / 0.85), 1.2), r = w[3] * k * (1 - 0.6 * q);
+              pts.push([ex - w[0] * r * (1 - Math.cos(phi)) + bw / 2, ysurf - sq * H - r * Math.sin(phi), q]);
+            }
+            for (var j = 0; j < 60; j++) {
+              var a = life * Math.min(1, pts[j][2] / 0.1) * Math.max(0, Math.min(1, (1 - pts[j][2]) / 0.35)) * 0.75;
+              if (a <= 0.01) continue;
+              vOff2C.strokeStyle = 'rgba(246,241,231,' + a.toFixed(3) + ')'; vOff2C.lineWidth = Math.max(1, (3.2 - 1.6 * pts[j][2]) * k);
+              vOff2C.beginPath(); vOff2C.moveTo(pts[j][0], pts[j][1]); vOff2C.lineTo(pts[j + 1][0], pts[j + 1][1]); vOff2C.stroke();
+            }
+          });
+          fxc.save(); if ('filter' in fxc) fxc.filter = 'blur(' + (1.3 * k).toFixed(2) + 'px)'; fxc.globalAlpha = Math.min(1, 0.72 * op); fxc.drawImage(vOff2, x0, y0); fxc.restore();
+        });
+      }
+      function drawWisp(now, dw, dh) {
+        marks.filter(function (m) { return m.eff === 'wisp'; }).forEach(function (m) {
+          var k = dh / 864, px = m.pts[0].x / 100 * dw, py = m.pts[0].y / 100 * dh;
+          var op = knob(m, 'густота') / knob(m, 'прозрачность'), wh = knob(m, 'высота'), sp = knob(m, 'скорость'), th = knob(m, 'толщина'), cu = knob(m, 'завитки');
+          var H = 140 * k * wh, cyc = Math.max(1, Math.round(sp * LOOP / 4)), bw = Math.max(4, Math.round(60 * k * th + 40 * k * cu)), bh = Math.max(4, Math.round(H + 12 * k));
+          var ph = phases(m, 6), t = ((now / 1000) % LOOP) * cyc / LOOP % 1, T = 2 * Math.PI * t;
+          off.width = bw; off.height = bh; offc.globalCompositeOperation = 'source-over'; offc.fillStyle = '#000'; offc.fillRect(0, 0, bw, bh); offc.globalCompositeOperation = 'lighten'; offc.lineCap = 'round';
+          var pts = [];
+          for (var i = 0; i <= 120; i++) {
+            var q = i / 120;
+            pts.push([bw / 2 + k * cu * (10 * Math.pow(q, 1.3) * Math.sin(2 * Math.PI * (1.1 * q - t) + ph[0]) + 4 * Math.pow(q, 1.6) * Math.sin(2 * Math.PI * (2.6 * q - 2 * t) + ph[1])) + 4 * k * q * Math.sin(T + ph[2]), bh - 2 - q * H, q]);
+          }
+          for (var j = 0; j < 120; j++) {
+            var q2 = pts[j][2], dens = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(2 * Math.PI * (3 * q2 - 2 * t) + ph[3]));
+            var a = Math.min(1, q2 / 0.05) * Math.max(0, Math.min(1, (1 - q2) / 0.55)) * dens * 0.8;
+            if (a <= 0.01) continue;
+            var g = Math.round(255 * a); offc.strokeStyle = 'rgb(' + g + ',' + g + ',' + g + ')'; offc.lineWidth = Math.max(1, (1.6 + 7 * Math.pow(q2, 1.2)) * k * th);
+            offc.beginPath(); offc.moveTo(pts[j][0], pts[j][1]); offc.lineTo(pts[j + 1][0], pts[j + 1][1]); offc.stroke();
+          }
+          // мягкость: резкая и сильно размытая копии, светлее из двух
+          off2.width = bw; off2.height = bh; off2c.globalCompositeOperation = 'source-over';
+          if ('filter' in off2c) off2c.filter = 'blur(' + (1 * k * th).toFixed(2) + 'px)'; off2c.drawImage(off, 0, 0);
+          off2c.globalCompositeOperation = 'lighten'; off2c.globalAlpha = 0.9;
+          if ('filter' in off2c) off2c.filter = 'blur(' + (4 * k * th).toFixed(2) + 'px)'; off2c.drawImage(off, 0, 0);
+          off2c.filter = 'none'; off2c.globalAlpha = 1; off2c.globalCompositeOperation = 'source-over';
+          var id = off2c.getImageData(0, 0, bw, bh), p = id.data, gain = 0.85 * op;
+          for (var o = 0; o < p.length; o += 4) { var av = Math.min(255, p[o] * gain); p[o] = 246; p[o + 1] = 241; p[o + 2] = 231; p[o + 3] = av; }
+          off2c.putImageData(id, 0, 0);
+          fxc.drawImage(off2, px - bw / 2, py - bh + 2);
+        });
+      }
       function drawSteam(now) {
         // (28.10) слой превью не больше 4096 точек по стороне: при сильном увеличении он рос до десятков тысяч точек и съедал память планшета
         var dw = pic.clientWidth, dh = pic.clientHeight, dpr = Math.min(2, window.devicePixelRatio || 1, 4096 / Math.max(1, dw), 4096 / Math.max(1, dh));
@@ -548,6 +662,8 @@
           });
         }
         drawLights(now, dw, dh);
+        drawVeil(now, dw, dh);
+        drawWisp(now, dw, dh);
         drawSurf(now, dw, dh);
         drawCandles(now, dw, dh);
         drawStars(now, dw, dh);
