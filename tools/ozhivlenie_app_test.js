@@ -83,6 +83,18 @@ async function runProfile(b, prof) {
   await dragPath([ec, [ec[0] + G.w * 0.1, ec[1]]]);
   L = await lines(); const after = L[0].match(/^пар: ([\d.]+), ([\d.]+)/);
   ok(after && Math.abs(after[1] - before[1] - 10) < 0.6 && Math.abs(after[2] - before[2]) < 0.6 && L.length === 1, 'овал переносится на 10%: ' + before[1] + ' → ' + (after && after[1]) + ', отметок ' + L.length);
+  // маленький кружок (касание) легко схватить и перетащить, новая отметка при этом не ставится
+  await tapAt(P(80, 80));
+  const nBefore = (await lines()).length;
+  await dragPath([P(80.6, 80.4), P(85, 85)]);
+  L = await lines();
+  ok(L.length === nBefore && /^пар: (84\.\d|85(\.\d)?|85\.\d), (84\.\d|85(\.\d)?)$/.test(L[L.length - 1]), 'маленький кружок перетаскивается: ' + L[L.length - 1]);
+  await pg.click('#bUndo');
+  // «Двигать»: картинка едет, отметки не ставятся
+  await pg.click('#bPan'); const st0 = await pg.evaluate(() => Konva.stages[0].x());
+  await dragPath([P(50, 30), P(55, 35)]); const st1 = await pg.evaluate(() => Konva.stages[0].x());
+  ok(Math.abs(st1 - st0) > 5 && (await lines()).length === nBefore - 1, '«Двигать» двигает картинку, отметок не ставит');
+  await pg.click('#bPan'); G = await geo();
   // касание — кружок-заготовка без размера
   await tapAt(P(70, 40));
   L = await lines();
@@ -104,7 +116,7 @@ async function runProfile(b, prof) {
   await tool('листья'); await dragPath([P(40, 5), P(41, 30), P(42, 60)]);
   L = await lines(); ok(/^листья: [\d.]+, [\d.]+ → /.test(L[4] || ''), 'листья путём');
   // 5. обложка: касание → рамка; сторона
-  await tool('обложка'); await tapAt(P(50, 50)); await pg.click('.mk:last-child button:text-is("слева")');
+  await tool('обложка'); await tapAt(P(75, 60)); await pg.click('.mk:last-child button:text-is("слева")');
   L = await lines(); ok(/^обложка Б: кадр [\d. ]+ — [\d. ]+, слева$/.test(L[5] || ''), 'обложка: ' + L[5]);
   // 6. масштаб: колесо (мышь) или два пальца, и после него отметка — в правильном месте картинки
   if (!prof.touch) { await pg.mouse.move(...P(50, 50)); await pg.mouse.wheel(0, -400); }
@@ -119,8 +131,10 @@ async function runProfile(b, prof) {
   G = G3; await tool('дым'); await tapAt(P(75, 28));
   L = await lines(); ok(/^дым(ок)?: (74\.\d|75(\.\d)?), (27\.\d|28(\.\d)?)$/.test(L[6] || ''), 'точка после масштаба на своём месте: ' + L[6]);
   // 7. отправка
-  // отправка кнопкой «Готово» (синей кнопки Telegram на компьютере может не быть)
-  await pg.click('#bDone'); await pg.waitForTimeout(300);
+  // «Готово» снимает выбор и ничего не отправляет; отправка — своей кнопкой
+  await pg.click('#bDone'); await pg.waitForTimeout(100);
+  ok(!posted && (await pg.$$('.mk.sel')).length === 0, '«Готово» — эффект закончен, ничего не ушло');
+  await pg.click('#bSend'); await pg.waitForTimeout(300);
   ok(posted && posted.action === 'fx' && posted.lines.split('\n').length === 7, 'ушло в бот: ' + (posted ? posted.lines.split('\n').length + ' строк' : 'нет'));
   ok(!errors.length, 'ошибок на странице нет' + (errors.length ? ': ' + errors.join('; ') : ''));
   await pg.screenshot({ path: path.join(D, 'shot_' + prof.viewport.width + '.png') });
