@@ -5,7 +5,7 @@
 const draft = $('Итог хода: черновик').first().json;
 const ctx = $('Контекст проекта').first().json;
 const state = stParseState(draft.editorState);
-const todo = itRuTodo(state);
+const todo = itRuTodo(state, ctx.items);
 const stages = ctx.stages || [];
 const textModel = s => s && s.model && !/image|dall/i.test(s.model) ? s.model : '';
 const lightModel = String(findByLabel(ctx.tmpl || {}, 'tmpl_LightModel') || '').trim();
@@ -16,6 +16,10 @@ const lightEffort = String(findByLabel(ctx.tmpl || {}, 'tmpl_LightEffort') || ''
 // (28.10) что переводить, а что оставить (имена, названия) — только там: правило в коде спорило с таблицей
 const trRules = Object.keys(ctx.tmpl || {}).filter(k => k.includes('🌐')).map(k => String(ctx.tmpl[k] == null ? '' : ctx.tmpl[k]).trim()).filter(Boolean).join('\n');
 const withRules = t => t + (trRules ? '\n\nThe channel\'s translation rules (follow them, e.g. for names):\n' + trRules : '');
+// (29.10) перевод ДЛЯ АВТОРА — свои правила, колонки со значком 🔤 (🌐 — правила для зрителей других стран:
+// «названия не переводить» там верно, а автору оставляло оверлей, название и тайм-коды английскими)
+const authorRules = Object.keys(ctx.tmpl || {}).filter(k => k.includes('🔤')).map(k => String(ctx.tmpl[k] == null ? '' : ctx.tmpl[k]).trim()).filter(Boolean).join('\n');
+const withAuthorRules = t => t + (authorRules ? '\n\nThe author\'s translation rules (follow them):\n' + authorRules : '');
 // (20.10) Задание художнику — наоборот, на английский: по-русски модель картинок дорисовывает
 // «русский дух» (сани, гобелен с тройкой). Переводится только смысл задания, ничего не добавляется.
 const plan = $('Кто отвечает').first().json;
@@ -50,7 +54,7 @@ const src = {};
 for (const t of todo) src[String(t.n)] = t.text;
 const requestBody = {
   model,
-  instructions: withRules('Translate each text into Russian exactly as it is written. Do not add, drop, improve or explain anything; '
+  instructions: withAuthorRules('Translate each text into Russian exactly as it is written. Do not add, drop, improve or explain anything; '
     + 'keep line breaks, numbers, timestamps and hashtags as they are. '
     + 'Answer with JSON only: {"<key>": "<Russian translation>"} with the same keys.'),
   // слово JSON обязано стоять в самом запросе — иначе OpenAI отказывает в формате json_object

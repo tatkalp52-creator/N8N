@@ -135,6 +135,8 @@ function itParseItems(rows) {
     canEmpty: /^да/i.test(cell(r, 'Можно пусто')),
     // «Превью: оживление» — после изменения пункта автору приходит картинка-превью от сборщика
     preview: cell(r, 'Превью').toLowerCase(),
+    // (29.10) «Перевод автору: да» — переводчик переводит этот пункт для автора; остальные она читает как есть
+    toAuthor: /^да/i.test(cell(r, 'Перевод автору')),
   })).filter(i => i.n > 0 && i.name).sort((a, b) => a.n - b.n);
 }
 
@@ -360,15 +362,16 @@ function itShow(state, item, forModel) {
   const v = itValue(state, item.n);
   if (!(item.n in state.items)) return '';
   if (!v.text) return '— пусто';
-  if (forModel || !itNeedsRu(v.text)) return v.text;
+  if (forModel || !item.toAuthor || !itNeedsRu(v.text)) return v.text;
   const long = v.text.includes('\n') || v.text.length > 200;
   if (!v.ru || v.ruOf !== v.text) return long ? `${v.text}\n\n— Перевод для автора не получен —` : `${v.text} (перевод не получен)`;
   return long ? `${v.text}\n\n— Перевод для автора —\n${v.ru}` : `${v.text} (${v.ru})`;
 }
 // Пункты, которым нужен свежий перевод: текст не по-русски, а перевода с этого текста ещё нет.
-function itRuTodo(state) {
+function itRuTodo(state, items) {
+  const toAuthor = new Set((items || []).filter(it => it.toAuthor).map(it => it.n));
   return Object.keys(state.items || {}).map(n => ({ n: Number(n), v: itValue(state, n) }))
-    .filter(x => x.v.text && itNeedsRu(x.v.text) && !(x.v.ru && x.v.ruOf === x.v.text))
+    .filter(x => toAuthor.has(x.n) && x.v.text && itNeedsRu(x.v.text) && !(x.v.ru && x.v.ruOf === x.v.text))
     .map(x => ({ n: x.n, text: x.v.text }));
 }
 // Кладём в состояние ответ переводчика — только тем пунктам, чей текст не изменился с тех пор.

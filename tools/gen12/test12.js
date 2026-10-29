@@ -22,11 +22,12 @@ const TMPL = {
   '⚙️_tmpl_Secret': 'служебное',
   '🎬tmpl_TargetLUFS': '-14',
   '🌐_tmpl_TranslationRules': 'Пингви in English is always Pengui (he).',
+  '🔤_tmpl_AuthorTranslationRules': 'Pengui is Пингви for the author.',
 };
 const ITEMS = [
-  { 'Канал': 'demo', '№': '1', 'Пункт': 'Оверлей', 'Колонки': 'ai_OverlayText | ai_OverlayPosition', 'Подсказка': 'текст | позиция', 'Можно пусто': 'да' },
-  { 'Канал': 'demo', '№': '2', 'Пункт': 'Название', 'Колонки': 'ai_Title', 'Подсказка': '' },
-  { 'Канал': 'demo', '№': '3', 'Пункт': 'Описание', 'Колонки': 'ai_DescriptionDraft, ai_DescriptionEN, ai_Description', 'Подсказка': 'история' },
+  { 'Канал': 'demo', '№': '1', 'Пункт': 'Оверлей', 'Колонки': 'ai_OverlayText | ai_OverlayPosition', 'Подсказка': 'текст | позиция', 'Можно пусто': 'да', 'Перевод автору': 'да' },
+  { 'Канал': 'demo', '№': '2', 'Пункт': 'Название', 'Колонки': 'ai_Title', 'Подсказка': '', 'Перевод автору': 'да' },
+  { 'Канал': 'demo', '№': '3', 'Пункт': 'Описание', 'Колонки': 'ai_DescriptionDraft, ai_DescriptionEN, ai_Description', 'Подсказка': 'история', 'Перевод автору': 'да' },
   { 'Канал': 'demo', '№': '4', 'Пункт': 'Подвал', 'Колонки': 'ai_Description', 'Подсказка': 'с [Timecodes]' },
 ];
 const st = (icon, who, talks, approve, does) => ({ 'Канал': 'demo', 'Значок': icon, 'Кто': who, 'С кем говорит': talks, 'Согласование': approve, 'Делает': does, 'Модель': /картин/.test(does) ? '' : 'gpt-5' });
@@ -828,9 +829,14 @@ async function turn(stages, row, inc, response, subResponse) {
     t = await turn(TWO, AP, { kind: 'message', text: 'Привет' }, txt);
     assert.ok(t.r.chunks[0].includes('Ещё зёрна'));
     const ST4 = { ...AP, sys_EditorState: JSON.stringify({ v: 2, items: { 4: { text: 'Bat Air Traffic' } }, agreed: {} }) };
+    // (29.10) автору переводятся только пункты с «Перевод автору: да»; правила — колонки 🔤 (🌐 — для зрителей)
     t = await turn(TWO, ST4, { kind: 'message', text: 'Пункт 4, добавь: x' });
+    assert.equal(t.nodes['Перевод для автора: что'].need, false, 'пункт без «Перевод автору» не переводится');
+    const ITEMS4 = ITEMS.map(it => it['№'] === '4' ? { ...it, 'Перевод автору': 'да' } : it);
+    t = await turn(TWO, ST4, { kind: 'message', text: 'Пункт 4, добавь: x', __items: ITEMS4 });
     const pv = t.nodes['Перевод для автора: что'];
-    assert.ok(pv.need && pv.requestBody.instructions.includes('Пингви in English is always Pengui'), 'переводчику — правила 🌐 из таблицы');
+    assert.ok(pv.need && pv.requestBody.instructions.includes('Pengui is Пингви for the author'), 'переводчику автора — правила 🔤 из таблицы');
+    assert.ok(!pv.requestBody.instructions.includes('Пингви in English is always Pengui'), 'правила для зрителей (🌐) автору не мешают');
     assert.equal(pv.requestBody.reasoning.effort, 'minimal', 'усилие переводчика — tmpl_LightEffort из таблицы');
     assert.ok(!/music pieces|characters/.test(pv.requestBody.instructions), 'своих правил про имена и названия в коде нет (28.10: спорили с таблицей)');
   }
