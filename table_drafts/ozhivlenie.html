@@ -67,6 +67,12 @@
   #bar { flex: none; display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
   #bar .btn { flex: 1; padding: 7px 6px; }
   #bar #bClose { flex: 0 0 auto; }
+  /* окошко строк: можно выделить и скопировать руками на всякий случай */
+  #linesBox { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; z-index: 8; align-items: center; justify-content: center; padding: 16px; }
+  #linesBox .card { background: var(--card); border-radius: 12px; padding: 12px; width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 8px; }
+  #linesBox .row { display: flex; justify-content: space-between; align-items: center; }
+  #linesBox textarea { width: 100%; height: 45vh; font: 13px/1.4 ui-monospace, monospace; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); resize: vertical; }
+  @media (max-width: 600px) { #bar .btn { font-size: 13px; padding: 7px 3px; } }
   #msg { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); background: var(--ink); color: var(--bg); padding: 12px 16px; border-radius: 12px; display: none; max-width: 86vw; text-align: center; z-index: 9; pointer-events: none; }
 </style>
 </head>
@@ -79,11 +85,17 @@
   <div id="bar">
     <button class="btn" id="bDone">✓ Готово</button>
     <button class="btn" id="bUndo">↶</button>
+    <button class="btn" id="bLines">📋 Строки</button>
     <button class="btn" id="bSend">📨 Отправить в бот</button>
     <button class="btn" id="bClose">✕</button>
   </div>
 </div>
 <div id="msg"></div>
+<div id="linesBox"><div class="card">
+  <div class="row"><b>Строки оживления</b><button class="btn" id="bLinesClose">✕</button></div>
+  <textarea id="linesText" readonly></textarea>
+  <button class="btn" id="bCopy">Скопировать</button>
+</div></div>
 <script>
 (function () {
   var tg = window.Telegram && Telegram.WebApp; if (tg) { tg.ready(); tg.expand(); }
@@ -1007,7 +1019,6 @@
       });
       if (ls.childNodes.length) pb.appendChild(ls);
     }
-    if (!m && !marks.length) pb.innerHTML = '<div class="hn">' + (cur ? (cur.marks || '') : 'Выберите эффект в полоске сверху') + '</div>';
     if (tg) {
       if (marks.length) { tg.MainButton.setText('Отправить в бот (' + marks.length + ')'); tg.MainButton.show(); } else tg.MainButton.hide();
     }
@@ -1035,7 +1046,7 @@
       (d.words || []).forEach(function (w) { if (!WORDS[w.means]) WORDS[w.means] = w.word; });
       CAT = (d.effects || []).filter(function (e) { return GEOM[e.mech] && /^готов/.test(e.status || ''); });
       if (!CAT.length) return say('В листе «Эффекты» нет готовых эффектов для этого канала', 5000);
-      buildTools(); markTools(); renderPanel(); setCursor();
+      buildTools(); restore(); markTools(); renderPanel(); setCursor();
     }).catch(function (e) { say('Не загрузился лист «Эффекты»: ' + e, 6000); });
     if (IMG) img.src = IMG; else say('Нет картинки выпуска', 4000);
   }
@@ -1063,14 +1074,57 @@
     $('hint').textContent = cur ? (cur.marks || '') : openMark() ? '' : (marks.length ? 'Картинку можно тянуть. Нажмите на отметку, чтобы поправить, или выберите следующий эффект сверху' : 'Выберите эффект в полоске сверху');
   }
 
+  // ── Разметка запоминается на этом устройстве (для каждого выпуска своя): закрыли приложение, не дошла отправка —
+  //    при следующем открытии всё на месте. Пишется после каждого изменения. ──
+  var KEY = 'ozhivlenie:' + PROJECT, savedJson = '';
+  function snapshot() {
+    return JSON.stringify(marks.map(function (m) { var o = copyMark(m); o.e = { mech: m.e.mech, name: m.e.name }; delete o.collect; return o; }));
+  }
+  function persist() {
+    if (!PROJECT || !CAT.length) return;
+    var s = snapshot(); if (s === savedJson) return;
+    try { localStorage.setItem(KEY, s); savedJson = s; } catch (e) { }
+  }
+  function restore() {
+    var s = null; try { s = localStorage.getItem(KEY); } catch (e) { }
+    if (!s) return;
+    try {
+      var list = JSON.parse(s), out = [];
+      list.forEach(function (o) {
+        var e = CAT.filter(function (x) { return x.mech === o.e.mech && x.name === o.e.name; })[0] || CAT.filter(function (x) { return x.mech === o.e.mech; })[0];
+        if (e) { o.e = e; out.push(o); }
+      });
+      if (!out.length) return;
+      marks = out; sel = -1; savedJson = s; rebuild();
+      say('Разметка на месте: ' + out.length + ' ' + (out.length === 1 ? 'отметка' : out.length < 5 ? 'отметки' : 'отметок'), 2600);
+    } catch (e) { }
+  }
+  setInterval(persist, 700);
+  window.addEventListener('pagehide', persist);
+  document.addEventListener('visibilitychange', persist);
+
+  // окошко со строками — выделить и скопировать руками
+  function allLines() { return marks.map(lineOf).join('\n'); }
+  $('bLines').onclick = function () {
+    if (!marks.length) return say('Отметок пока нет');
+    $('linesText').value = allLines(); $('linesBox').style.display = 'flex';
+  };
+  $('bLinesClose').onclick = function () { $('linesBox').style.display = 'none'; };
+  $('bCopy').onclick = function () {
+    var ta = $('linesText'); ta.focus(); ta.select();
+    var done = function () { say('Скопировано'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, function () { try { document.execCommand('copy'); done(); } catch (e) { say('Выделено — скопируйте сами'); } });
+    else { try { document.execCommand('copy'); done(); } catch (e) { say('Выделено — скопируйте сами'); } }
+  };
+
   // ── Отправка: строки уходят в бот и записываются в пункт оживления выпуска ──
   function send(mode) {
-    var lines = marks.map(lineOf).join('\n');
+    persist(); var lines = allLines();
     var chatId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
     fetch(SUBMIT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'fx', projectId: PROJECT, chatId: chatId, mode: mode, lines: lines }) })
       .then(function (r) { if (!r.ok) throw new Error(r.status); say('Отправлено ✅'); setTimeout(function () { if (tg) tg.close(); }, 900); })
-      .catch(function (e) { say('Не отправилось: ' + e, 5000); });
+      .catch(function (e) { say('Не отправилось: ' + e + '. Разметка сохранена, строки — в окошке', 6000); $('bLines').onclick(); });
   }
   function askSend() {
     if (tg && tg.showPopup) tg.showPopup({ message: 'Строки оживления в выпуске:', buttons: [{ id: 'replace', type: 'default', text: 'Записать вместо прежних' },

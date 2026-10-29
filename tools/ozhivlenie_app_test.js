@@ -158,6 +158,16 @@ async function runProfile(b, prof) {
   ok(!posted && (await pg.$$('.mk.sel')).length === 0, '«Готово» — эффект закончен, ничего не ушло');
   await pg.click('#bSend'); await pg.waitForTimeout(300);
   ok(posted && posted.action === 'fx' && posted.lines.split('\n').length === 6, 'ушло в бот: ' + (posted ? posted.lines.split('\n').length + ' строк' : 'нет'));
+  // 7. окошко строк — те же строки, что ушли
+  await pg.click('#bLines'); const lbox = await pg.$eval('#linesText', e => e.value);
+  ok(posted && lbox === posted.lines, 'окошко «Строки» — те же строки, что ушли в бот');
+  await pg.click('#bLinesClose');
+  // 8. закрыли и открыли снова — разметка на месте
+  await pg.waitForTimeout(900);
+  await pg.reload(); await pg.waitForTimeout(1200);
+  const back = await all();
+  ok(posted && back.join('\n') === posted.lines, 'после повторного открытия разметка на месте: ' + back.length + ' отметок');
+  ok((await pg.$$eval('#panel .hn', h => h.filter(x => /Выберите эффект/.test(x.textContent)).length)) === 0, 'подсказка «выберите эффект» не дублируется внизу');
   ok(!errors.length, 'ошибок на странице нет' + (errors.length ? ': ' + errors.join('; ') : ''));
   await pg.screenshot({ path: path.join(D, 'shot_' + prof.viewport.width + '.png') });
   await ctx.close();
