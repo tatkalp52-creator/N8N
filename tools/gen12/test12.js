@@ -949,6 +949,12 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.equal(t.plan.mode, 'direct'); assert.equal(t.plan.directN, 9);
     assert.equal(JSON.parse(t.r.editorState).items[9].text, 'пар: 30, 60; овал 20 × 8', 'перепиши целиком');
     assert.ok(t.r.previewBody && t.r.previewBody.fx_Effects === 'пар: 30, 60; овал 20 × 8', 'из приложения — превью приходит');
+    // (29.10) в «Пунктах» нет «Превью: оживление» — бот не молчит: говорит почему и присылает сами строки
+    const ITnone = IT9.map(r => ({ ...r, 'Превью': '' }));
+    const t2 = await turn(ANIM2, { ...APPROVED, sys_EditorState: JSON.stringify({ v: 2, items: {}, agreed: {} }) },
+      { kind: 'message', text: '', fxApp: rf.fxApp, __items: ITnone });
+    assert.equal(t2.plan.mode, 'say');
+    assert.ok(/не записано/.test(t2.r.chunks.join('')) && t2.r.chunks.join('').includes('пар: 30, 60; овал 20 × 8'), 'сказала и прислала строки: ' + t2.r.chunks.join(''));
   }
   console.log('28 приложение «Оживление» OK');
   console.log('ALL OK');
