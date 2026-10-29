@@ -374,25 +374,40 @@ function itRuTodo(state, items) {
     .filter(x => toAuthor.has(x.n) && x.v.text && itNeedsRu(x.v.text) && !(x.v.ru && x.v.ruOf === x.v.text))
     .map(x => ({ n: x.n, text: x.v.text }));
 }
-// Кладём в состояние ответ переводчика — только тем пунктам, чей текст не изменился с тех пор.
-function itApplyRu(state) {
-  let todo = [], resp = null;
-  try { todo = $('Перевод для автора: что').first().json.todo || []; } catch (e) { return; }
-  try { resp = $('OpenAI: перевод для автора').first().json || null; } catch (e) { return; }
-  if (!todo.length) return;
+// (29.10) Ответ переводчика проверяется, а не принимается на веру: перевод для автора годится, только если
+// он действительно по-русски (по буквам, без списков слов). Иначе переводчик вернул английский как есть —
+// и раньше автор видела его в скобках как «перевод».
+function ruRead(resp) {
   if (!resp || resp.error) {
     const er = resp && resp.error;
-    return 'переводчик не ответил' + (er ? ': ' + String(er.message || (typeof er === 'string' ? er : JSON.stringify(er))).slice(0, 200) : '');
+    return { map: {}, error: 'переводчик не ответил' + (er ? ': ' + String(er.message || (typeof er === 'string' ? er : JSON.stringify(er))).slice(0, 200) : '') };
   }
   const out = (resp.output || []).filter(i => i.type === 'message')
     .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('').trim();
-  let map = {};
-  try { map = JSON.parse(out.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch (e) { return 'переводчик ответил не JSON'; }
+  try { return { map: JSON.parse(out.replace(/^```(?:json)?\s*|\s*```$/g, '')) || {}, error: '' }; } catch (e) { return { map: {}, error: 'переводчик ответил не JSON' }; }
+}
+function ruGood(ru) {
+  const s = String(ru == null ? '' : ru).trim();
+  return !!s && !itNeedsRu(s);
+}
+// Кладём в состояние ответ переводчика (и его повтора) — только тем пунктам, чей текст не изменился с тех пор
+// и чей перевод прошёл проверку. Что не прошло — называем автору прямо.
+function itApplyRu(state) {
+  let todo = [], resp = null, again = null;
+  try { todo = $('Перевод для автора: что').first().json.todo || []; } catch (e) { return; }
+  try { resp = $('OpenAI: перевод для автора').first().json || null; } catch (e) { return; }
+  try { again = $('OpenAI: перевод для автора (повтор)').first().json || null; } catch (e) { again = null; }
+  if (!todo.length) return;
+  const first = ruRead(resp);
+  const second = again ? ruRead(again) : { map: {}, error: '' };
+  const failed = [];
   for (const t of todo) {
     const v = state.items[t.n];
-    const ru = String(map[String(t.n)] == null ? '' : map[String(t.n)]).trim();
-    if (v && typeof v === 'object' && v.text === t.text && ru) { v.ru = ru; v.ruOf = t.text; }
+    const pick = [second.map[String(t.n)], first.map[String(t.n)]].find(ruGood);
+    if (v && typeof v === 'object' && v.text === t.text && pick) { v.ru = String(pick).trim(); v.ruOf = t.text; }
+    else if (!pick) failed.push(t.n);
   }
+  if (failed.length) return 'не получен для пунктов ' + failed.join(', ') + ((second.error || first.error) ? ' (' + (second.error || first.error) + ')' : '');
 }
 
 // (20.10) Английский перевод задания художнику (второй проход «Итог хода»); пусто — рисуем по исходному.

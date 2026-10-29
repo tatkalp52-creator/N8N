@@ -416,6 +416,11 @@ if_node('Нужен перевод?', "$('Перевод для автора: ч
 openai_http('OpenAI: перевод для автора', "={{ JSON.stringify($('Перевод для автора: что').first().json.requestBody) }}", 'https://api.openai.com/v1/responses', [EX + 2860, EY + 380])
 nodes[-1]['parameters']['options'] = {'timeout': 180000}
 nodes[-1]['onError'] = 'continueRegularOutput'
+code('Перевод: проверка', 'perevod_proverka.js', [EX + 2970, EY + 380], lib=True)
+if_node('Повтор перевода?', "$('Перевод: проверка').first().json.retry", [EX + 3080, EY + 380])
+openai_http('OpenAI: перевод для автора (повтор)', "={{ JSON.stringify($('Перевод: проверка').first().json.requestBody) }}", 'https://api.openai.com/v1/responses', [EX + 3190, EY + 380])
+nodes[-1]['parameters']['options'] = {'timeout': 180000}
+nodes[-1]['onError'] = 'continueRegularOutput'
 code('Итог хода', 'itog.js', [EX + 2860, EY], lib=True)
 sheets_update('Сохраняем ход', '={{ ' + R + '.sheetName }}', {
     'sys_ProjectID': '={{ ' + R + '.projectId }}',
@@ -473,7 +478,8 @@ chain('Разбираем ответ этапа', 'Поручение?')
 link('Поручение?', 'Готовим поручение', 0)
 link('Поручение?', 'Итог хода: черновик', 1)
 chain('Готовим поручение', 'OpenAI: поручение', 'Итог хода: черновик')
-chain('Итог хода: черновик', 'Перевод для автора: что', 'Нужен перевод?', 'OpenAI: перевод для автора', 'Итог хода')
+chain('Итог хода: черновик', 'Перевод для автора: что', 'Нужен перевод?', 'OpenAI: перевод для автора', 'Перевод: проверка', 'Повтор перевода?', 'OpenAI: перевод для автора (повтор)', 'Итог хода')
+link('Повтор перевода?', 'Итог хода', 1)
 link('Нужен перевод?', 'Итог хода', 1)
 chain('Итог хода', 'Сохраняем ход', 'Согласованное есть?')
 link('Согласованное есть?', 'Согласованное по колонкам', 0)

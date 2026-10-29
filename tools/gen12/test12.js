@@ -53,6 +53,8 @@ async function context(stages, row, inc) {
 
 // Один ход: Кто отвечает → (модель: запрос → ответ → разбор → поручение) → Итог хода
 const TR = { 'Pengui baked a pie.': 'Пингви испёк пирог.', 'светлее': 'brighter', 'убрать кота': 'remove the cat' };
+// «русский перевод» для тестов: латиница → кириллица, детерминированно
+const ru = s => 'РУ ' + String(s).replace(/[A-Za-z]/g, c => 'абвгдежзийклмнопрстуфхцчшщ'[c.toLowerCase().charCodeAt(0) - 97]);
 async function turn(stages, row, inc, response, subResponse) {
   // ответ модели не задан — простой текстовый ответ (пустой ответ теперь — падение «Работы»)
   response = response || { output: [{ type: 'message', content: [{ type: 'output_text', text: 'ок' }] }] };
@@ -77,9 +79,18 @@ async function turn(stages, row, inc, response, subResponse) {
     assert.ok(pv.requestBody.input[0].content.includes('JSON'), 'слово JSON — в самом запросе');
     const src = JSON.parse(pv.requestBody.input[0].content.replace(/^[^\n]*\n/, ''));
     const outMap = {};
-    for (const k of Object.keys(src)) outMap[k] = TR[src[k]] || 'RU: ' + src[k];
-    nodes['OpenAI: перевод для автора'] = turn.trFail ? { error: { message: 'timeout' } }
-      : { output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(outMap) }] }] };
+    for (const k of Object.keys(src)) outMap[k] = TR[src[k]] || (pv.art ? 'RU: ' + src[k] : ru(src[k]));
+    // (29.10) trEnglish — переводчик вернул английский как есть (бывает); trRetryEnglish — и при повторе
+    const echo = Object.fromEntries(Object.keys(src).map(k => [k, src[k]]));
+    const answer = m => ({ output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(m) }] }] });
+    nodes['OpenAI: перевод для автора'] = turn.trFail ? { error: { message: 'timeout' } } : answer(turn.trEnglish ? echo : outMap);
+    const chk = (await run('Перевод: проверка', { nodes }))[0];
+    nodes['Перевод: проверка'] = chk;
+    if (chk.retry) {
+      const src2 = JSON.parse(chk.requestBody.input[0].content.replace(/^[^\n]*\n/, ''));
+      const m2 = Object.fromEntries(Object.keys(src2).map(k => [k, turn.trRetryEnglish ? src2[k] : ru(src2[k])]));
+      nodes['OpenAI: перевод для автора (повтор)'] = answer(m2);
+    }
   }
   const r = (await run('Итог хода', { nodes }))[0];
   nodes['Итог хода'] = r;
@@ -571,19 +582,33 @@ async function turn(stages, row, inc, response, subResponse) {
     // этап «переводит» пометки автора, а английский оставил прежним — автор видит честный перевод английского
     let u = await turn(DIRECT, A, { kind: 'stageStart', event: 'Картинка согласована (вариант 2).' },
       call('propose_items', { items: [{ n: 3, text: 'Old line with a cart.', ru: 'Новая строка без тележки.' }], message: 'Внёс правки.' }));
-    assert.ok(u.r.chunks[0].includes('RU: Old line with a cart.') && !u.r.chunks[0].includes('без тележки'));
+    assert.ok(u.r.chunks[0].includes(ru('Old line with a cart.')) && !u.r.chunks[0].includes('без тележки'));
     // следующий ход, текст тот же — второй раз не переводим, перевод на месте
     const row2 = { ...A, sys_EditorState: u.r.editorState };
     let u2 = await turn(DIRECT, row2, { text: 'хорошо' }, call('propose_items', { items: [], message: 'Ок.' }));
     assert.equal(u2.nodes['Перевод для автора: что'].need, false);
-    assert.equal(JSON.parse(u2.r.editorState).items[3].ru, 'RU: Old line with a cart.');
+    assert.equal(JSON.parse(u2.r.editorState).items[3].ru, ru('Old line with a cart.'));
     // переводчик не ответил — так и пишем, старый перевод не показываем
-    turn.trFail = true;
+    // переводчик не ответил, а повтор вернул английский — так и пишем, старый перевод не показываем
+    turn.trFail = true; turn.trRetryEnglish = true;
     let u3 = await turn(DIRECT, row2, { text: 'поправь' }, call('propose_items', { items: [{ n: 3, text: 'New line.' }], message: 'Готово.' }));
-    turn.trFail = false;
+    turn.trFail = false; turn.trRetryEnglish = false;
     assert.ok(u3.r.chunks[0].includes('New line. (перевод не получен)'), u3.r.chunks[0]);
-    assert.ok(u3.r.chunks[0].includes('⚠️ Перевод для автора: переводчик не ответил: timeout'));
+    assert.ok(u3.r.chunks[0].includes('⚠️ Перевод для автора: не получен для пунктов 3 (переводчик не ответил: timeout)'), u3.r.chunks[0]);
     assert.ok(!u3.r.chunks[0].includes('Old line'));
+    // (29.10) переводчик вернул английский как есть — это не перевод: повтор только этого пункта, и он засчитан
+    turn.trEnglish = true;
+    let u4 = await turn(DIRECT, row2, { text: 'поправь' }, call('propose_items', { items: [{ n: 3, text: 'New line.' }], message: 'Готово.' }));
+    assert.equal(u4.nodes['Перевод: проверка'].retry, true, 'английский вместо перевода — повтор');
+    assert.ok(u4.r.chunks[0].includes('New line. (' + ru('New line.') + ')'), u4.r.chunks[0]);
+    assert.ok(!u4.r.chunks[0].includes('⚠️'));
+    // и повтор вернул английский — английский под видом перевода не показываем, говорим прямо
+    turn.trRetryEnglish = true;
+    let u5 = await turn(DIRECT, row2, { text: 'поправь' }, call('propose_items', { items: [{ n: 3, text: 'New line.' }], message: 'Готово.' }));
+    turn.trEnglish = false; turn.trRetryEnglish = false;
+    assert.ok(u5.r.chunks[0].includes('New line. (перевод не получен)'), u5.r.chunks[0]);
+    assert.ok(u5.r.chunks[0].includes('⚠️ Перевод для автора: не получен для пунктов 3'), u5.r.chunks[0]);
+    assert.ok(!u5.r.chunks[0].includes('(New line.)'));
   }
   console.log('12 перевод для автора — переводчиком, с текста для таблицы OK');
 
