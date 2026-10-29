@@ -225,9 +225,12 @@
     else if (g === 'line') add({ g: g, pts: simplify(pts, 30) });
     else if (g === 'path') add({ g: g, pts: simplify(pts, 10), words: '' });
   }
+  // «Готово»: дорисовать отметку из нескольких точек, если она начата; иначе — отправить все отметки в бот
   $('bDone').onclick = function () {
-    if (pending && pending.pts.length >= (pending.g === 'points' ? 1 : 2)) { var m = pending; pending = null; if (m.g === 'path') m.words = ''; add(m); }
-    else { pending = null; rebuild(); }
+    if (pending && pending.pts.length >= (pending.g === 'points' ? 1 : 2)) { var m = pending; pending = null; if (m.g === 'path') m.words = ''; add(m); return; }
+    pending = null; rebuild();
+    if (!marks.length) return say('Сначала поставьте отметку на картинке');
+    askSend();
   };
   $('bUndo').onclick = function () { if (pending) pending = null; else { marks.pop(); sel = marks.length - 1; } rebuild(); renderPanel(); };
 
@@ -899,10 +902,12 @@
       .then(function (r) { if (!r.ok) throw new Error(r.status); say('Отправлено ✅'); setTimeout(function () { if (tg) tg.close(); }, 900); })
       .catch(function (e) { say('Не отправилось: ' + e, 5000); });
   }
-  if (tg) tg.MainButton.onClick(function () {
-    tg.showPopup({ message: 'Строки оживления в выпуске:', buttons: [{ id: 'replace', type: 'default', text: 'Записать вместо прежних' },
+  function askSend() {
+    if (tg && tg.showPopup) tg.showPopup({ message: 'Строки оживления в выпуске:', buttons: [{ id: 'replace', type: 'default', text: 'Записать вместо прежних' },
       { id: 'add', type: 'default', text: 'Дописать к прежним' }, { type: 'cancel' }] }, function (id) { if (id) send(id); });
-  });
+    else if (window.confirm('Записать вместо прежних строк оживления? (Отмена — дописать к прежним)')) send('replace'); else send('add');
+  }
+  if (tg) tg.MainButton.onClick(askSend);
   load();
 })();
 </script>

@@ -119,7 +119,8 @@ async function runProfile(b, prof) {
   G = G3; await tool('дым'); await tapAt(P(75, 28));
   L = await lines(); ok(/^дым(ок)?: (74\.\d|75(\.\d)?), (27\.\d|28(\.\d)?)$/.test(L[6] || ''), 'точка после масштаба на своём месте: ' + L[6]);
   // 7. отправка
-  await pg.evaluate(() => window.__mbClick()); await pg.waitForTimeout(300);
+  // отправка кнопкой «Готово» (синей кнопки Telegram на компьютере может не быть)
+  await pg.click('#bDone'); await pg.waitForTimeout(300);
   ok(posted && posted.action === 'fx' && posted.lines.split('\n').length === 7, 'ушло в бот: ' + (posted ? posted.lines.split('\n').length + ' строк' : 'нет'));
   ok(!errors.length, 'ошибок на странице нет' + (errors.length ? ': ' + errors.join('; ') : ''));
   await pg.screenshot({ path: path.join(D, 'shot_' + prof.viewport.width + '.png') });
