@@ -23,7 +23,8 @@ async function run(nodeName, ctx) {
   const DateTime = { now: () => ({ toFormat: () => '20261004_120000' }) };
   // статические данные workflow — только если тест их передал (ctx.staticData)
   const sdFn = ctx.staticData ? () => ctx.staticData : undefined;
-  const f = new Function('$', '$input', 'items', 'DateTime', '$getWorkflowStaticData', '$execution', '$env', `return (async () => {\n${code}\n})();`);
+  // (29.10) URLSearchParams и URL в Code-узле n8n нет — в тестах их тоже нет, чтобы такое падало здесь, а не у автора
+  const f = new Function('$', '$input', 'items', 'DateTime', '$getWorkflowStaticData', '$execution', '$env', 'URLSearchParams', 'URL', `return (async () => {\n${code}\n})();`);
   const out = await f.call({ helpers: { getBinaryDataBuffer: async (i, k) => Buffer.from(String(((input[i] || {}).binary || {})[k] || '')) } }, $, $input, input, DateTime, sdFn, { id: 'E1' }, ctx.env || { WEBHOOK_URL: 'https://n8n.example/' });
   return out.map(o => (o.binary ? { ...o.json, __binary: o.binary } : o.json));
 }

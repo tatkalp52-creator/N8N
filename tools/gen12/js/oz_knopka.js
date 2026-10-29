@@ -3,18 +3,20 @@
 const ctx = $('Контекст проекта').first().json;
 const base = String($env.WEBHOOK_URL || '').replace(/\/+$/, '');
 const img = String((ctx.row || {}).ai_ApprovedImageUrl || '').trim();
+// (29.10) в Code-узле n8n нет URLSearchParams — строку запроса собираем сами
+const qs = o => Object.entries(o).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');
 let text, markup = null;
 if (!base) {
   text = '⚙️ На сервере n8n не задан WEBHOOK_URL — приложению не на что открыться.';
 } else if (!img) {
   text = 'Картинка выпуска ещё не согласована — оживлять пока нечего.';
 } else {
-  const q = new URLSearchParams({ f: 'ozhivlenie.html', p: ctx.projectId, ch: ctx.channelKey,
+  const q = qs({ f: 'ozhivlenie.html', p: ctx.projectId, ch: ctx.channelKey,
     img: toDirectImageUrl(img), submit: base + '/webhook/' + CAL_HOOK });
   text = ctx.labelLine + 'Разметка оживления — откройте и отметьте, что оживить. Готовые строки придут в пункт оживления выпуска.';
-  markup = { inline_keyboard: [[{ text: '✨ Оживление', web_app: { url: base + '/webhook/' + OZH_HOOK + '?' + q.toString() } }]] };
+  markup = { inline_keyboard: [[{ text: '✨ Оживление', web_app: { url: base + '/webhook/' + OZH_HOOK + '?' + q } }]] };
 }
 // и постоянная кнопка меню бота (у поля ввода): открывает приложение со списком выпусков
 const menu = base ? { chat_id: ctx.chatId, menu_button: { type: 'web_app', text: '✨ Оживление',
-  web_app: { url: base + '/webhook/' + OZH_HOOK + '?' + new URLSearchParams({ f: 'ozhivlenie.html', submit: base + '/webhook/' + CAL_HOOK }).toString() } } } : null;
+  web_app: { url: base + '/webhook/' + OZH_HOOK + '?' + qs({ f: 'ozhivlenie.html', submit: base + '/webhook/' + CAL_HOOK }) } } } : null;
 return [{ json: { body: { chat_id: ctx.chatId, text, parse_mode: 'HTML', ...(markup ? { reply_markup: markup } : {}) }, menu } }];
