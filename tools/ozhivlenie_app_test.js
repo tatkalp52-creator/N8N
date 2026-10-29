@@ -21,7 +21,6 @@ async function runProfile(b, prof) {
     const u = new URL(r.request().url());
     if (u.hostname === 'telegram.org') return r.fulfill({ body: `window.Telegram={WebApp:{ready(){},expand(){},close(){window.__closed=1},initDataUnsafe:{user:{id:285577543}},
       MainButton:{setText(t){window.__mb=t},show(){},hide(){},onClick(f){window.__mbClick=f}},showPopup(o,cb){cb('replace')}}}`, contentType: 'application/javascript' });
-    if (u.searchParams.get('f') === 'konva.min.js') return r.fulfill({ body: fs.readFileSync(path.join(D, 'konva.min.js')), contentType: 'application/javascript' });
     if (u.searchParams.get('catalog')) return r.fulfill({ body: fs.readFileSync(path.join(D, 'catalog.json')), contentType: 'application/json' });
     if (u.pathname.endsWith('pic.jpg')) return r.fulfill({ body: fs.readFileSync(path.join(D, 'pic.jpg')), contentType: 'image/jpeg' });
     if (u.pathname.endsWith('/submit')) { posted = JSON.parse(r.request().postData()); return r.fulfill({ body: '{}', contentType: 'application/json' }); }
