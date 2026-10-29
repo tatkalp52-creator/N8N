@@ -355,7 +355,6 @@ nodes[-1]['parameters'].pop('filtersUI')
 nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
 nodes[-1]['retryOnFail'] = True; nodes[-1]['maxTries'] = 3; nodes[-1]['waitBetweenTries'] = 3000
 code('Оживление: список выпусков', 'oz_epizody.js', [X + 770, OY - 480], lib=True)
-nodes[-1]['executeOnce'] = True
 add({'parameters': {'respondWith': 'json', 'responseBody': '={{ JSON.stringify($json) }}', 'options': {}},
      'name': 'Оживление: отдаём выпуски', 'type': 'n8n-nodes-base.respondToWebhook', 'typeVersion': 1.1, 'position': [X + 990, OY - 480]})
 if_node('Оживление: каталог?', "!!($json.query || {}).catalog", [X + 220, OY])
@@ -364,7 +363,6 @@ nodes[-1]['parameters'].pop('filtersUI')
 nodes[-1]['parameters']['options'] = {'returnAllMatches': 'returnAllMatches'}
 nodes[-1]['retryOnFail'] = True; nodes[-1]['maxTries'] = 3; nodes[-1]['waitBetweenTries'] = 3000
 code('Оживление: каталог', 'oz_katalog.js', [X + 660, OY - 120])
-nodes[-1]['executeOnce'] = True
 add({'parameters': {'respondWith': 'json', 'responseBody': '={{ JSON.stringify($json) }}', 'options': {}},
      'name': 'Оживление: отдаём каталог', 'type': 'n8n-nodes-base.respondToWebhook', 'typeVersion': 1.1, 'position': [X + 880, OY - 120]})
 code('Оживление: какой файл', 'oz_fayl.js', [X + 440, OY + 120])

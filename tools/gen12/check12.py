@@ -60,6 +60,11 @@ for n in wf['nodes']:
     if n['type'] == 'n8n-nodes-base.googleSheets' and n['parameters'].get('sheetName', {}).get('value') in ('Этапы', 'Пункты', 'Эффекты'):
         if n['parameters'].get('options', {}).get('returnAllMatches') != 'returnAllMatches':
             print('GUARD: лист читается одной строкой', n['name']); bad += 1
+# (29.10) Code-узел с «выполнить один раз» видит только ПЕРВЫЙ входной элемент — $input.all() тогда врёт
+# (каталог «Оживления» показывал один эффект из листа). Такой узел и так выполняется один раз на все элементы.
+for n in wf['nodes']:
+    if n['type'] == 'n8n-nodes-base.code' and n.get('executeOnce') and '$input.all()' in n['parameters'].get('jsCode', ''):
+        print('GUARD: Code-узел «один раз» читает $input.all() — увидит одну строку', n['name']); bad += 1
 # (24.10) ПРАВИЛО ПОВТОРОВ: повторять можно только безопасное (чтение, запись в строку по ключу, запросы без памяти).
 # Отправка в Телеграм, добавление строки, запуск чистки — без повторов (повтор = дубль). (28.10) Запросы к OpenAI
 # теперь без памяти у OpenAI — повтор безвреден; очередь /inbox повторяема (тот же запуск — тот же ответ).
