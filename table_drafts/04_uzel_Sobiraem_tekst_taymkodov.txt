@@ -1,0 +1,46 @@
+function getBase() {
+  try { return $('Готовим запрос на названия треков').first().json; } catch (e) {}
+  throw new Error('base not found');
+}
+const base = getBase();
+let names = {};
+
+if (!base.skipGpt) {
+  try {
+    const raw = $('OpenAI: названия треков').first().json.choices[0].message.content;
+    const parsed = JSON.parse(raw);
+    names = parsed.names || {};
+  } catch (e) {
+    names = {};
+  }
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+// НОВОЕ (24.09): переименовываются ВСЕ треки, имена файлов не
+// используются. Сначала — названия, заготовленные Редактором и
+// согласованные автором (ai_TimecodeNames), по порядку; для треков, на
+// которые их не хватило, — придуманные GPT; имя файла — только крайний
+// запасной вариант, если не сработало ни то, ни другое.
+const prewritten = base.prewritten || [];
+const lines = base.tracks.map((t, pos) => {
+  const title = prewritten[pos] || names[String(t.index)] || t.filename;
+  return formatTime(t.startSeconds) + ' ' + title;
+});
+
+// Ручное значение в таблице побеждает, если оно есть. Если пусто —
+// повторяем ровно то же правило, что уже применяет питон-сборщик сам
+// (build_audio_track): меньше часа — луп x2, час и больше — без лупа.
+// Иначе тут была рассинхронизация: сборщик мог зациклить видео, а этот
+// узел ничего об этом не знал и не ставил метку Repeat в таймкоды.
+const manualLoopCount = parseInt($('Читаем проект').first().json.sys_LoopCount);
+const loopCount = manualLoopCount || (base.totalDurationSeconds < 3600 ? 2 : 1);
+if (loopCount > 1) {
+  lines.push(formatTime(base.totalDurationSeconds) + ' Repeat');
+}
+
+return [{ json: { timecodesText: lines.join('\n') } }];

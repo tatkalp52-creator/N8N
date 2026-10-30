@@ -1,0 +1,208 @@
+{
+  "name": "13 Сторож",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "062cb550-b2e9-4e8b-8ebe-8cc59ad507df",
+      "name": "Ошибка в workflow",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ошибка любого workflow → понятное сообщение: где упало, причина простыми словами, что делать.\nconst j = $json || {};\nconst ex = j.execution || {};\nconst err = ex.error || (j.trigger && j.trigger.error) || {};\nconst raw = String(err.message || err.description || '') + ' ' + String(err.description || '') + ' ' + String((err.cause && err.cause.message) || '');\nconst wf = (j.workflow && j.workflow.name) || 'workflow';\nconst node = ex.lastNodeExecuted || (err.node && err.node.name) || '';\nconst id = (raw.match(/\\d{8}_\\d{6}_[a-z0-9]+/i) || [])[0] || '';\nconst RULES = [\n  [/No space left|ENOSPC/i, '💾 На сервере кончилось место на диске.', 'Почистить: старые /tmp/assemble_* и n8n binary_data (как 13.10). Сборщик новой версии чистит старые папки сам.'],\n  [/insufficient_quota|exceeded your current quota|billing/i, '💳 OpenAI: закончились деньги или лимит.', 'platform.openai.com → Billing: пополнить баланс.'],\n  [/invalid_api_key|Incorrect API key/i, '🔑 OpenAI не принял ключ.', 'n8n → Credentials → OpenAI: проверить ключ.'],\n  [/rate.?limit|Too Many Requests|\\b429\\b/i, '⏳ Сервис ответил «слишком много запросов».', 'Подождать 10–15 минут и повторить.'],\n  [/invalid_grant|token has been expired|expired or revoked|reconnect/i, '🔑 Истёк вход в Google или YouTube.', 'n8n → Credentials → YouTube / Google → Reconnect.'],\n  [/uploadLimitExceeded|quotaExceeded|dailyLimitExceeded/i, '📺 YouTube: исчерпан дневной лимит.', 'Подождать до завтра (лимит сбрасывается раз в сутки) и повторить.'],\n  [/PERMISSION_DENIED|forbidden|\\b403\\b|insufficient permission/i, '🔒 Google отказал в доступе.', 'Проверить, что у сервисного аккаунта есть доступ к таблице и папке Диска.'],\n  [/\\b401\\b|unauthori[sz]ed/i, '🔑 Сервис не принял вход (401).', 'n8n → Credentials: переподключить тот сервис, на котором упало (см. шаг).'],\n  [/kaggle/i, '🧹 Ошибка чистки в Kaggle.', 'kaggle.com → Code: открыть последний запуск; квота GPU — в профиле.'],\n  [/ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|ECONNRESET/i, '🛠 Сервис не отвечает (сборщик или сеть).', 'Coolify → сборщик: открыть Terminal, проверить wget -qO- http://localhost:8100/health; если молчит — Restart.'],\n  [/timeout|timed out|ETIMEDOUT|\\b50[234]\\b|Bad Gateway|Service Unavailable/i, '⌛ Сервис не успел ответить.', 'Чаще всего сборщик занят или завис: Coolify → сборщик → логи; если завис — Restart, потом «пересобери».'],\n];\nconst hit = RULES.find(([re]) => re.test(raw));\nconst lines = ['⚠️ Сбой в «' + wf + '»' + (id ? ' · ' + id : '')];\nif (node) lines.push('Шаг: ' + node);\nlines.push(hit ? hit[1] : '❓ Незнакомая ошибка.');\nlines.push(hit ? 'Что делать: ' + hit[2] : 'Пришли этот текст Клоду.');\nlines.push('Текст ошибки: ' + raw.trim().slice(0, 300));\nif (ex.url) lines.push(ex.url);\nreturn [{ json: { chatId: '285577543', text: lines.join('\\n') } }];"
+      },
+      "id": "b3cbb538-0174-47cd-91d5-48b73dd21413",
+      "name": "Разбираем ошибку",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "b7f66ec9-a55b-438a-b016-a994435b1b5a",
+      "name": "Сообщаем об ошибке",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "8896f27a-aa69-477f-bfeb-cef2635f4ddf",
+      "name": "Каждый час",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/health",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "af8e79f7-951d-4324-b418-fb3f3fdea04b",
+      "name": "Сборщик: здоровье",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        260
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Сторож: сборщик жив? места хватает? Одно и то же — не чаще раза в 6 часов.\nconst h = $json || {};\nconst problems = [];\nif (h.error || h.status !== 'ok') problems.push(['down', '🛠 Сборщик не ответил за 20 секунд. Если сейчас идёт сборка — это бывает, подожди. Если нет: Coolify → сборщик: Terminal → wget -qO- http://localhost:8100/health; если молчит — Restart.']);\nif (typeof h.diskFreeGb === 'number' && h.diskFreeGb < 15) problems.push(['disk', '💾 На сервере осталось ' + h.diskFreeGb + ' ГБ (сборке нужно ~15). Почистить n8n binary_data и docker (как 13.10).']);\nif (h.oldTempDirs > 0) problems.push(['tmp', '🧹 На сервере ' + h.oldTempDirs + ' старых временных папок сборки — видимо, сборка зависла. Сборщик удалит их сам перед следующей сборкой.']);\nconst sd = typeof $getWorkflowStaticData === 'function' ? $getWorkflowStaticData('global') : {};\nconst last = sd.alerted || {};\nconst now = Date.now();\nconst fresh = problems.filter(([k]) => !last[k] || now - last[k] > 6 * 3600 * 1000);\nfor (const [k] of fresh) last[k] = now;\nfor (const k of Object.keys(last)) if (!problems.some(([p]) => p === k)) delete last[k];   // починилось — забываем\nsd.alerted = last;\nif (!fresh.length) return [];\nreturn [{ json: { chatId: '285577543', text: '👀 Сторож:\\n' + fresh.map(([, t]) => t).join('\\n') } }];"
+      },
+      "id": "1500fa56-250e-4545-8935-61662b6b7082",
+      "name": "Сторож: итог",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "af374f4b-e54c-4156-a97d-f88ef78f6718",
+      "name": "Сторож: сообщаем",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        260
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "UW2MJh6bPIyVZeig",
+          "name": "Telegram account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "width": 720,
+        "height": 220,
+        "content": "## Сторож и ошибки\n1) Этот workflow назначить **Error workflow** в Settings у 04, 11 и 12 — тогда любое падение приходит в Телеграм простыми словами.\n2) Раз в час проверяет сборщик: жив ли, сколько места на диске, нет ли зависших временных папок.\nЕсли упадёт весь сервер, этот workflow тоже молчит — для этого внешний пинг (UptimeRobot) на /health."
+      },
+      "id": "5803dce9-4043-47f2-ac9a-76d97678d8e6",
+      "name": "Заметка",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -260
+      ]
+    }
+  ],
+  "connections": {
+    "Ошибка в workflow": {
+      "main": [
+        [
+          {
+            "node": "Разбираем ошибку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Разбираем ошибку": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем об ошибке",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Каждый час": {
+      "main": [
+        [
+          {
+            "node": "Сборщик: здоровье",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сборщик: здоровье": {
+      "main": [
+        [
+          {
+            "node": "Сторож: итог",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сторож: итог": {
+      "main": [
+        [
+          {
+            "node": "Сторож: сообщаем",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none"
+  },
+  "pinData": {}
+}

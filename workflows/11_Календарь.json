@@ -1,0 +1,2187 @@
+{
+  "name": "11_Календарь",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "5f39782b-fd68-402d-9674-0e5e0e314fd7",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "webhookId": "c3edf478-dc4b-4a7d-96ec-1d691cb98990"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "9cb9f8cd-ba4c-4f1b-81c0-722436a2b038",
+      "name": "Каждый понедельник",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ String($json.message?.from?.id || $json.callback_query?.from?.id || '') }}",
+              "rightValue": "285577543",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d8c4d14f-3307-4995-a8cf-63ca72400ec3",
+      "name": "Это владелец?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "id": "15d3d56d-8bd8-404b-a4ec-c92492965202",
+      "name": "Читаем календарь",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        440,
+        120
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Вся логика календаря в одном месте. На входе — строки листа «Календарь»\n// и событие (сообщение / кнопка из Телеграма или еженедельный будильник).\n// На выходе один пакет: какие строки записать в таблицу (upserts) и какие\n// сообщения отправить/поправить (messages). Нейросети тут нет: разбор дат,\n// склейка повторов и статусы — обычный код.\nconst OWNER = 285577543;\nconst MON_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];\nconst MON_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];\nconst MON_KEYS = [['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];\nconst STATUS = { i: 'Идея', p: 'Выбран', w: 'В работе', d: 'Вышел', s: 'Отклонён' };\nconst MARK = { 'Идея': '', 'Выбран': ' ⭐', 'В работе': ' 🛠', 'Вышел': ' ✓', 'Отклонён': ' ✖' };\nconst CH = { pengui: '🔴 Pengui', tapestry: '🟡 Гобелены' };\nconst COLS = ['id','year','month','day','title','channel','status','project','note','sources','createdAt','updatedAt'];\n\nconst store = $getWorkflowStaticData('global');\nstore.pending = store.pending || {};\nconst nowIso = new Date().toISOString();\nfor (const k of Object.keys(store.pending)) {\n  if (Date.now() - (store.pending[k].t || 0) > 3 * 86400000) delete store.pending[k];\n}\n\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst chName = c => CH[c] || ('⚪ ' + c);\nconst srcList = r => String(r.sources || '').split(';').map(s => s.trim()).filter(Boolean);\nconst newId = () => 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);\n\nconst rows = $('Читаем календарь').all().map(i => i.json)\n  .filter(r => r && String(r.id || '').trim())\n  .map(r => ({ ...r, id: String(r.id).trim(), month: Number(r.month), day: Number(r.day),\n    year: r.year ? Number(r.year) : null, status: r.status || 'Идея', channel: r.channel || 'pengui' }));\n\nconst upserts = [];\nconst messages = [];\nfunction toSheet(r) {\n  const o = {};\n  for (const c of COLS) o[c] = r[c] === null || r[c] === undefined ? '' : String(r[c]);\n  return o;\n}\nfunction put(r) { r.updatedAt = nowIso; upserts.push(toSheet(r)); }\n\n// ---------- даты ----------\nconst today = new Date(); today.setHours(0, 0, 0, 0);\nfunction nextDate(r, from) {\n  for (const y of [from.getFullYear(), from.getFullYear() + 1]) {\n    if (r.year && r.year !== y) continue;\n    const d = new Date(y, r.month - 1, r.day);\n    if (d >= from) return d;\n  }\n  return null;\n}\nconst short = d => d.getDate() + ' ' + MON_GEN[d.getMonth()].slice(0, 3);\n\n// ---------- разбор списка ----------\nfunction monthFromWord(w) { w = w.toLowerCase(); for (let i = 0; i < 12; i++) if (MON_KEYS[i].some(k => w.startsWith(k))) return i + 1; return 0; }\nfunction parseLine(raw) {\n  let line = raw.replace(/^[\\s\\-–—•*·>\\d]*[.)]\\s+/, '').replace(/^[\\s\\-–—•*·>]+/, '').replace(/\\*\\*/g, '').trim();\n  if (!line) return null;\n  let m, mo = 0, d = 0, y = null, matched = '';\n  if ((m = line.match(/(\\d{4})-(\\d{1,2})-(\\d{1,2})/))) { y = +m[1]; mo = +m[2]; d = +m[3]; matched = m[0]; }\n  else if ((m = line.match(/(\\d{1,2})(?:\\s*[–-]\\s*\\d{1,2})?\\s+([А-Яа-яЁёA-Za-z]{3,})\\.?(?:\\s+(\\d{4}))?/)) && monthFromWord(m[2])) { d = +m[1]; mo = monthFromWord(m[2]); y = m[3] ? +m[3] : null; matched = m[0]; }\n  else if ((m = line.match(/\\b([A-Za-z]{3,})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?/)) && monthFromWord(m[1])) { mo = monthFromWord(m[1]); d = +m[2]; y = m[3] ? +m[3] : null; matched = m[0]; }\n  else if ((m = line.match(/\\b(\\d{1,2})[./](\\d{1,2})(?:[./](\\d{2,4}))?\\b/))) { d = +m[1]; mo = +m[2]; y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : null; matched = m[0]; }\n  let title = matched ? line.replace(matched, ' ') : line;\n  title = title.replace(/^[\\s\\-–—:|,.()]+|[\\s\\-–—:|,(]+$/g, '').replace(/\\s{2,}/g, ' ').trim();\n  const ok = mo >= 1 && mo <= 12 && d >= 1 && d <= 31;\n  return { title: title || line, rest: title, month: ok ? mo : 0, day: ok ? d : 0, year: y, ok, raw: line };\n}\n// Список целиком. Понимает и «дата — название — идея» в одну строку, и блоки:\n// строка с датой, под ней название, под ним идея (как присылает ChatGPT).\n// Строки-сноски («National Day Calendar», ссылки, «�») выбрасываются.\nfunction isNoise(l) {\n  return /^(national day calendar|days of the year|checkiday|wikipedia|timeanddate(\\.com)?|источник|source)\\s*:?\\s*$/i.test(l) || /^https?:\\/\\//i.test(l);\n}\nconst isDateOnlyTitle = s => /^[\\d.\\/\\s–-]*$/.test(String(s || ''));\nfunction parseList(text) {\n  const items = [];\n  let cur = null;\n  const flush = () => { if (cur) { cur.ok = cur.ok && !!cur.title; items.push(cur); cur = null; } };\n  for (let raw of String(text).split(/\\n/)) {\n    raw = raw.replace(/\\uFFFD/g, '').trim();\n    if (!raw || isNoise(raw)) continue;\n    const p = parseLine(raw);\n    if (!p) continue;\n    if (p.ok) {\n      flush();\n      let title = p.rest || '', note = '';\n      const sp = title.split(/\\s+[—–]\\s+/);\n      if (sp.length > 1) { title = sp.shift().trim(); note = sp.join(' — ').trim(); }\n      cur = { title, note, month: p.month, day: p.day, year: p.year, ok: true, raw: p.raw };\n    } else if (cur && !cur.title) {\n      cur.title = p.raw;\n    } else if (cur) {\n      cur.note = cur.note ? cur.note + '\\n' + p.raw : p.raw;\n    } else {\n      items.push({ title: p.raw, note: '', month: 0, day: 0, year: null, ok: false, raw: p.raw });\n    }\n  }\n  flush();\n  return items;\n}\nconst STOP = new Set(['день','дня','всемирный','всемирного','международный','международного','национальный','day','world','international','national','the','of','and','для','рождения','birthday','born']);\nfunction words(s) { return new Set(String(s).toLowerCase().replace(/[^a-zа-яё0-9 ]/gi, ' ').split(/\\s+/).filter(w => w.length > 2 && !STOP.has(w)).map(w => w.slice(0, 6))); }\nfunction similar(a, b) { const A = words(a), B = words(b); if (!A.size || !B.size) return a.trim().toLowerCase() === b.trim().toLowerCase(); let k = 0; for (const w of A) if (B.has(w)) k++; return k / Math.min(A.size, B.size) >= 0.5; }\nfunction classify(p) {\n  // для текущего канала: новый / уже есть (какая строка) / повтор внутри списка / нет даты\n  const ch = p.channel;\n  const out = { fresh: [], dup: [], bad: [] };\n  const batch = [];\n  for (const it of p.lines) {\n    if (!it.ok) { out.bad.push(it); continue; }\n    const hit = rows.find(r => r.channel === ch && r.month === it.month && r.day === it.day && similar(r.title, it.title));\n    if (hit) { out.dup.push({ it, hit }); continue; }\n    const junk = rows.find(r => r.channel === ch && r.month === it.month && r.day === it.day && isDateOnlyTitle(r.title) && !out.fresh.some(f => f.repair === r));\n    if (junk) { it.repair = junk; out.fresh.push(it); batch.push(it); continue; }\n    if (batch.some(b => b.month === it.month && b.day === it.day && similar(b.title, it.title))) continue;\n    batch.push(it); out.fresh.push(it);\n  }\n  return out;\n}\nconst dstr = it => it.day + ' ' + MON_GEN[it.month - 1].slice(0, 3) + (it.year ? ' ' + it.year : '');\nfunction previewText(p) {\n  const c = classify(p);\n  const L = [];\n  L.push(`<b>Список поводов</b>: поводов ${p.lines.length}`);\n  L.push(`🆕 новых: ${c.fresh.length}   🔁 уже есть: ${c.dup.length}${c.bad.length ? `   ⚠️ без даты: ${c.bad.length}` : ''}`);\n  L.push(`Канал: <b>${esc(chName(p.channel))}</b>`);\n  if (c.fresh.length) { L.push('', '<b>Новые</b>'); c.fresh.slice(0, 30).forEach(it => L.push(`• ${dstr(it)} — <b>${esc(it.title)}</b>${it.note ? '\\n   <i>' + esc(it.note.slice(0, 90)) + (it.note.length > 90 ? '…' : '') + '</i>' : ''}`)); if (c.fresh.length > 30) L.push(`…и ещё ${c.fresh.length - 30}`); }\n  if (c.dup.length) { L.push('', '<b>Уже в календаре</b> (станут ×' + '2+)'); c.dup.slice(0, 15).forEach(({ it, hit }) => L.push(`• ${dstr(it)} — ${esc(hit.title)} ×${srcList(hit).length + 1}`)); if (c.dup.length > 15) L.push(`…и ещё ${c.dup.length - 15}`); }\n  if (c.bad.length) { L.push('', '<b>Не поняла дату</b>'); c.bad.slice(0, 10).forEach(it => L.push(`• ${esc((it.raw || it.title).slice(0, 80))}`)); }\n  L.push('', 'Выбери канал и нажми «✅ Добавить».');\n  return L.join('\\n').slice(0, 4000);\n}\nfunction cardText(r) {\n  const d = nextDate(r, today) || new Date(r.year || today.getFullYear(), r.month - 1, r.day);\n  const n = srcList(r).length;\n  const L = [`<b>${short(d)}</b> · ${esc(chName(r.channel))}`, `<b>${esc(r.title)}</b>${n > 1 ? ' ×' + n : ''}`, `Статус: <b>${esc(r.status)}</b>${MARK[r.status] || ''}`];\n  if (r.project) L.push(`Проект: <code>${esc(r.project)}</code>`);\n  if (r.note) L.push('', `<i>${esc(String(r.note).slice(0, 1500))}</i>`);\n  if (n) L.push('', `Откуда: ${esc(srcList(r).join(', '))}`);\n  L.push(`<code>id:${esc(r.id)}</code>`);\n  return L.join('\\n');\n}\nfunction summary(from, days, title) {\n  const end = new Date(from); end.setDate(end.getDate() + days);\n  const list = [];\n  for (const r of rows) { if (r.status === 'Отклонён') continue; const d = nextDate(r, from); if (d && d <= end) list.push([d, r]); }\n  list.sort((a, b) => a[0] - b[0]);\n  if (!list.length) return `${title}\\n\\nПоводов нет.`;\n  const L = [title, ''];\n  let last = '';\n  for (const [d, r] of list) {\n    const k = short(d);\n    const n = srcList(r).length;\n    L.push(`${k === last ? '       ' : '<b>' + k + '</b>'} ${r.channel === 'tapestry' ? '🟡' : r.channel === 'pengui' ? '🔴' : '⚪'} ${esc(r.title)}${n > 1 ? ' ×' + n : ''}${MARK[r.status] || ''}`);\n    last = k;\n  }\n  return L.join('\\n').slice(0, 4000);\n}\nconst HELP = [\n  '<b>Studio Calendar</b>',\n  '',\n  '• Вставь список поводов от любой нейросети — одна строка, один повод. Даты: «20 января», «20.01», «January 20». Я покажу, что нового, а что уже есть.',\n  '• <b>ближайшие</b> — поводы на 30 дней вперёд.',\n  '• <b>октябрь</b> (или любой месяц) — поводы месяца списком.',\n  '• Кнопка <b>«Календарь»</b> внизу слева — красивый календарь по месяцам: там выбираешь поводы и пишешь заметки.',\n  '• <b>выбранные</b> — что ты выбрала на 3 месяца вперёд.',\n  '• Ответь на карточку повода любым текстом — он добавится в заметки.',\n  '',\n  '⭐ выбран · 🛠 в работе · ✓ вышел · ×3 — предложили три источника.',\n].join('\\n');\n\n// ---------- событие ----------\nlet tg = null;\nif ($('Telegram Trigger').isExecuted) tg = $('Telegram Trigger').first().json;\n\nif (!tg) {\n  // еженедельный будильник\n  const picked = rows.filter(r => ['Выбран', 'В работе'].includes(r.status));\n  let text = summary(today, 14, '<b>Поводы на две недели</b>');\n  if (!picked.length) text += '\\n\\nВыбранных пока нет — пришли «октябрь» или нужный месяц, чтобы выбрать.';\n  messages.push({ type: 'send', chatId: OWNER, text });\n} else if (tg.callback_query) {\n  const cb = tg.callback_query;\n  const chatId = cb.message.chat.id, messageId = cb.message.message_id, queryId = cb.id;\n  const parts = String(cb.data || '').split('|');\n  if (parts[0] === 'imp') {\n    const p = store.pending[parts[1]];\n    if (!p) {\n      messages.push({ type: 'edit', chatId, messageId, text: 'Этот список уже обработан или устарел. Пришли его ещё раз.' });\n      messages.push({ type: 'answer', queryId, text: 'Список устарел' });\n    } else if (parts[2] === 'ch') {\n      p.channel = parts[3];\n      messages.push({ type: 'editImport', chatId, messageId, importId: parts[1], text: previewText(p) });\n      messages.push({ type: 'answer', queryId, text: 'Канал: ' + chName(p.channel) });\n    } else if (parts[2] === 'src') {\n      p.source = parts[3];\n      messages.push({ type: 'editImport', chatId, messageId, importId: parts[1], text: previewText(p) });\n      messages.push({ type: 'answer', queryId, text: 'Источник: ' + p.source });\n    } else if (parts[2] === 'no') {\n      delete store.pending[parts[1]];\n      messages.push({ type: 'edit', chatId, messageId, text: 'Отменила, ничего не добавлено.' });\n      messages.push({ type: 'answer', queryId, text: 'Отменено' });\n    } else if (parts[2] === 'go') {\n      const c = classify(p);\n      const d0 = new Date(p.t); const src = 'список ' + String(d0.getDate()).padStart(2, '0') + '.' + String(d0.getMonth() + 1).padStart(2, '0') + ' ' + parts[1].slice(-4);\n      for (const it of c.fresh) {\n        const base = it.repair ? { ...it.repair } : { id: newId(), status: 'Идея', project: '', createdAt: nowIso };\n        const r = { ...base, year: it.year || '', month: it.month, day: it.day, title: it.title, channel: p.channel, note: it.note || '', sources: src };\n        put(r);\n      }\n      let merged = 0;\n      const touched = new Set();\n      for (const { hit } of c.dup) {\n        if (touched.has(hit.id)) continue;\n        touched.add(hit.id);\n        const s = srcList(hit);\n        let changed = false;\n        if (!s.includes(src)) { s.push(src); hit.sources = s.join('; '); merged++; changed = true; }\n        const idea = (c.dup.find(x => x.hit === hit).it.note || '').trim();\n        if (idea && !String(hit.note || '').includes(idea)) { hit.note = (hit.note ? String(hit.note) + '\\n\\n' : '') + idea; changed = true; }\n        if (changed) put(hit);\n      }\n      // пустышки (вместо названия — одна дата): не нашли замену — прячем\n      let junkHidden = 0;\n      const repaired = new Set(c.fresh.filter(it => it.repair).map(it => it.repair.id));\n      for (const r of rows) {\n        if (isDateOnlyTitle(r.title) && !repaired.has(r.id) && r.status !== 'Отклонён') { r.status = 'Отклонён'; put(r); junkHidden++; }\n      }\n      delete store.pending[parts[1]];\n      messages.push({ type: 'edit', chatId, messageId, text: `✅ Готово · ${chName(p.channel)}\\nНовых поводов: ${c.fresh.length}\\nСовпадений (стали ×N+1): ${merged}${c.bad.length ? `\\nБез даты, пропущено: ${c.bad.length}` : ''}${junkHidden ? `\\nПустых строк спрятано: ${junkHidden}` : ''}\\n\\nКалендарь — кнопка «Календарь» внизу слева.` });\n      messages.push({ type: 'answer', queryId, text: 'Добавлено' });\n    }\n  } else if (parts[0] === 'st') {\n    const r = rows.find(x => x.id === parts[1]);\n    const st = STATUS[parts[2]];\n    if (!r || !st) {\n      messages.push({ type: 'answer', queryId, text: 'Не нашла этот повод в таблице' });\n    } else {\n      r.status = st; put(r);\n      messages.push({ type: 'editCard', chatId, messageId, rowId: r.id, text: cardText(r) });\n      messages.push({ type: 'answer', queryId, text: 'Статус: ' + st });\n    }\n  } else {\n    messages.push({ type: 'answer', queryId, text: '' });\n  }\n} else if (tg.message) {\n  const msg = tg.message;\n  const chatId = msg.chat.id;\n  const text = String(msg.text || msg.caption || '').trim();\n  const low = text.toLowerCase().replace(/^\\//, '');\n  const replyTo = msg.reply_to_message ? String(msg.reply_to_message.text || '') : '';\n  const idInReply = replyTo.match(/id:([A-Za-z0-9_-]+)/);\n  const monM = low.match(/^(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-я]*\\s*(\\d{4})?$/);\n\n  if (idInReply && text) {\n    const r = rows.find(x => x.id === idInReply[1]);\n    if (!r) messages.push({ type: 'send', chatId, text: 'Не нашла этот повод в таблице.' });\n    else {\n      r.note = (r.note ? String(r.note) + '\\n\\n' : '') + text;\n      put(r);\n      messages.push({ type: 'send', chatId, text: `📝 Добавила в заметки: <b>${esc(r.title)}</b>` });\n    }\n  } else if (!text || ['start', 'help', 'помощь', 'меню'].includes(low)) {\n    messages.push({ type: 'send', chatId, text: HELP });\n  } else if (['ближайшие', 'soon', 'скоро'].includes(low)) {\n    messages.push({ type: 'send', chatId, text: summary(today, 30, '<b>Ближайшие 30 дней</b>') });\n  } else if (['выбранные', 'план'].includes(low)) {\n    const end = new Date(today); end.setDate(end.getDate() + 92);\n    const list = rows.filter(r => ['Выбран', 'В работе'].includes(r.status)).map(r => [nextDate(r, today), r]).filter(([d]) => d && d <= end).sort((a, b) => a[0] - b[0]);\n    messages.push({ type: 'send', chatId, text: list.length ? '<b>Выбранные на 3 месяца</b>\\n\\n' + list.map(([d, r]) => `<b>${short(d)}</b> ${r.channel === 'tapestry' ? '🟡' : '🔴'} ${esc(r.title)}${MARK[r.status]}`).join('\\n') : 'Выбранных поводов на 3 месяца пока нет.' });\n  } else if (monM) {\n    const mi = MON_KEYS.findIndex(k => k.some(x => monM[1].startsWith(x.slice(0, 3)))) ;\n    const mIdx = mi >= 0 ? mi : 0;\n    let y = monM[2] ? +monM[2] : today.getFullYear();\n    if (!monM[2] && mIdx < today.getMonth()) y++;\n    const from = new Date(y, mIdx, 1);\n    const days = new Date(y, mIdx + 1, 0).getDate() - 1;\n    messages.push({ type: 'send', chatId, text: summary(from, days, `<b>${MON_NOM[mIdx]} ${y}</b>`) + '\\n\\n⭐ выбран · 🛠 в работе · ✓ вышел. Выбирать — в «Календаре» (кнопка внизу слева).' });\n  } else {\n    const lines = parseList(text);\n    if (!lines.some(l => l.ok)) {\n      messages.push({ type: 'send', chatId, text: 'Не нашла в сообщении ни одной даты.\\n\\n' + HELP });\n    } else {\n      const importId = Date.now().toString(36).slice(-6) + Math.random().toString(36).slice(2, 4);\n      store.pending[importId] = { t: Date.now(), channel: 'pengui', source: '', lines };\n      messages.push({ type: 'sendImport', chatId, importId, text: previewText(store.pending[importId]) });\n    }\n  }\n}\n\nreturn [{ json: { upserts, messages } }];\n"
+      },
+      "id": "4602f95b-0254-4b96-8675-ab476619a5d3",
+      "name": "Логика",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.upserts.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b9eac95c-ecd7-42fa-a514-81923804629c",
+      "name": "Есть что записать?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// каждая строка — отдельный элемент для записи в лист\nreturn $('Логика').first().json.upserts.map(r => ({ json: r }));"
+      },
+      "id": "597fb88b-4c34-44ac-a2c5-fd8475a5fd81",
+      "name": "Строки для записи",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "id"
+          ],
+          "value": {
+            "id": "={{ $json.id }}",
+            "year": "={{ $json.year }}",
+            "month": "={{ $json.month }}",
+            "day": "={{ $json.day }}",
+            "title": "={{ $json.title }}",
+            "channel": "={{ $json.channel }}",
+            "status": "={{ $json.status }}",
+            "project": "={{ $json.project }}",
+            "note": "={{ $json.note }}",
+            "sources": "={{ $json.sources }}",
+            "createdAt": "={{ $json.createdAt }}",
+            "updatedAt": "={{ $json.updatedAt }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "025ce29e-fd9d-44df-aef0-40fca1c64434",
+      "name": "Записываем в календарь",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1320,
+        40
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// что отправить в Телеграм — по одному элементу на сообщение\nreturn $('Логика').first().json.messages.map(m => ({ json: m }));"
+      },
+      "id": "d329e55e-0db1-47e5-96fa-927dcb65960e",
+      "name": "Сообщения",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "send",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "sendImport",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "editImport",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "edit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "card",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "editCard",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "answer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1eed9099-5205-4216-b816-d305c8c00692",
+      "name": "Что отправить?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1760,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "bb43b8d6-8493-4110-a5f4-289e151a33a8",
+      "name": "Отправляем текст",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        -240
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🔴 Pengui",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|ch|pengui"
+                    }
+                  },
+                  {
+                    "text": "🟡 Гобелены",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|ch|tapestry"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ Добавить",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|go"
+                    }
+                  },
+                  {
+                    "text": "✖ Отмена",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|no"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "f8216071-aa74-4260-88dd-1d47327215f6",
+      "name": "Отправляем список на проверку",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        -80
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "messageType": "message",
+        "chatId": "={{ $json.chatId }}",
+        "messageId": "={{ $json.messageId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🔴 Pengui",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|ch|pengui"
+                    }
+                  },
+                  {
+                    "text": "🟡 Гобелены",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|ch|tapestry"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ Добавить",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|go"
+                    }
+                  },
+                  {
+                    "text": "✖ Отмена",
+                    "additionalFields": {
+                      "callback_data": "=imp|{{ $json.importId }}|no"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "f0d334b6-77b1-4fb5-a7ec-20d5c9e46569",
+      "name": "Обновляем проверку списка",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        80
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "messageType": "message",
+        "chatId": "={{ $json.chatId }}",
+        "messageId": "={{ $json.messageId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "e34d1e9f-5cf0-4750-a494-9ca08fff92c6",
+      "name": "Правим сообщение",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        240
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "⭐ Выбрать",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|p"
+                    }
+                  },
+                  {
+                    "text": "🛠 В работе",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|w"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✓ Вышел",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|d"
+                    }
+                  },
+                  {
+                    "text": "💡 Идея",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|i"
+                    }
+                  },
+                  {
+                    "text": "✖ Отклонить",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|s"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "262c2075-230d-4426-959b-c63c4dc041c1",
+      "name": "Отправляем карточку",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        400
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "editMessageText",
+        "messageType": "message",
+        "chatId": "={{ $json.chatId }}",
+        "messageId": "={{ $json.messageId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "⭐ Выбрать",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|p"
+                    }
+                  },
+                  {
+                    "text": "🛠 В работе",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|w"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✓ Вышел",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|d"
+                    }
+                  },
+                  {
+                    "text": "💡 Идея",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|i"
+                    }
+                  },
+                  {
+                    "text": "✖ Отклонить",
+                    "additionalFields": {
+                      "callback_data": "=st|{{ $json.rowId }}|s"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "fbdc57bf-b55c-48fb-8c0b-fa41780ef990",
+      "name": "Обновляем карточку",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        560
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $json.queryId }}",
+        "additionalFields": {
+          "text": "={{ $json.text }}"
+        }
+      },
+      "id": "d9b812bb-dfbe-49ed-a6cc-aa00ac6a1b8d",
+      "name": "Закрываем часики на кнопке",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        720
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Studio Calendar\nОтдельный бот (@studio_calendar_1976_bot), с Редактором не пересекается.\n\nВсё решает узел «Логика»: разбор списков, склейка повторов, статусы. Нейросети нет.\nДанные — лист «Календарь» в основной таблице (колонки: id, year, month, day, title, channel, status, project, note, sources, createdAt, updatedAt).\nНезавершённые списки (до кнопки «Добавить») хранятся в памяти воркфлоу 3 дня.\n\nПо понедельникам в 9:00 бот сам присылает поводы на две недели.",
+        "height": 320,
+        "width": 520,
+        "color": 4
+      },
+      "id": "41ace8c2-24d0-447b-ba2e-7eceb50a45b7",
+      "name": "Заметка",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "cal-rk7shuoXXwcvXvJ8CH8cyQoI",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2c04f3ea-3c59-4bb5-a730-e4435d2bc88c",
+      "name": "Страница календаря",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1000
+      ],
+      "webhookId": "987953e7-46af-45bb-b564-9722635aec39"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!doctype html>\n<html lang=\"ru\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n<script src=\"https://telegram.org/js/telegram-web-app.js\"></script>\n<title>Контент-план</title>\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Nunito+Sans:wght@400;600;700&display=swap\">\n<style>\n/* Раскладка: сверху месяц-сетка с выпусками по дням, ниже — карточка выбранного дня, ещё ниже копилка идей. Телефон первым. */\n:root {\n  --bg: #f6f1e8;\n  --paper: #fffdf8;\n  --ink: #2c2620;\n  --muted: #7a6e60;\n  --line: #e4dacb;\n  --accent: #8a5a2b;\n  --pengui: #c0463a;\n  --lumos: #4a5fb0;\n  --unicorn: #b88a1e;\n  --c3: #2f7a78; --c4: #8a4f9e;\n  --soft: #efe6d7;\n  --display: \"Lora\", Georgia, serif;\n  --body: \"Nunito Sans\", system-ui, -apple-system, \"Segoe UI\", sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  :root:not([data-theme=\"light\"]) {\n    --bg: #1c1915; --paper: #26221d; --ink: #f1ebe1; --muted: #a99d8d; --line: #3a342c;\n    --accent: #d9a36a; --pengui: #e07063; --lumos: #8b9ee8; --unicorn: #dcb24a; --soft: #2f2a23;\n    color-scheme: dark;\n  }\n}\n:root[data-theme=\"dark\"] {\n  --bg: #1c1915; --paper: #26221d; --ink: #f1ebe1; --muted: #a99d8d; --line: #3a342c;\n  --accent: #d9a36a; --pengui: #e07063; --lumos: #8b9ee8; --unicorn: #dcb24a; --soft: #2f2a23;\n  color-scheme: dark;\n}\n* { box-sizing: border-box; }\nhtml, body { height: 100%; }\nbody { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 12px; overflow: hidden; }\n.wrap { max-width: 1200px; margin-inline: auto; height: 100%; display: flex; flex-direction: column; gap: 10px; }\n.cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 10px; }\n.col { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 10px; }\n.kopcard { flex: 1 1 0; min-height: 0; }\n.kopcard #kop { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }\n/* всегда две колонки: слева месяц, справа поводы. День — всплывающим окном по касанию дня */\n.sheetbg { position: fixed; inset: 0; background: rgba(28, 25, 21, .45); display: flex; align-items: flex-end; justify-content: center; z-index: 20; padding: 12px; }\n.sheetbg[hidden] { display: none; }\n.sheet { width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 -6px 30px rgba(0,0,0,.25); }\n.sheethead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }\n.x { min-height: 36px; min-width: 36px; padding: 0; font-size: 18px; line-height: 1; }\n@media (orientation: landscape) { .sheetbg { align-items: center; } }\n@media (max-width: 700px) {\n  .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }\n  .erow { gap: 6px; }\n  .edate { width: 28px; font-size: 15px; }\n  .ev { font-size: 12px; min-height: 28px; padding: 2px 8px; }\n}\n.idea .where { font-size: 12px; color: var(--muted); }\n/* поводы облачками: дата слева, поводы дня рядом; касание — суть и кнопки каналов */\n.erow { display: flex; gap: 10px; align-items: flex-start; border-top: 1px solid var(--line); padding: 6px 0; }\n.erow:first-child { border-top: 0; }\n.edate { flex: none; width: 40px; text-align: center; font-family: var(--display); font-weight: 600; font-size: 19px; line-height: 1.1; }\n.edate small { display: block; font-family: var(--body); font-size: 11px; font-weight: 400; color: var(--muted); }\n.edate.today { color: var(--accent); }\n.chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; }\n.ev { min-height: 32px; border-radius: 999px; padding: 3px 10px; font-size: 13px; background: var(--bg); text-align: left; max-width: 100%; overflow-wrap: anywhere; }\n.ev[aria-expanded=\"true\"] { border-color: var(--accent); background: var(--soft); font-weight: 700; }\n.ev.inplan { color: var(--muted); border-style: dashed; }\n.about { flex-basis: 100%; background: var(--soft); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }\n.about .ru { font-weight: 600; color: var(--ink); }\n.about p { margin: 0; font-size: 13.5px; }\n.idea.planned .t { color: var(--muted); }\n/* готовность выпуска: цвет — шаг, 🎵 — треки есть, ✓ — выложен */\n:root { --st-plan: transparent; --st-red: #c94a3d; --st-orange: #d9822b; --st-yellow: #e2b93b; --st-green: #4f8a4b; }\n.pill.st-plan { background: var(--paper) !important; color: var(--ink); border: 1px solid var(--line); }\n.pill.st-red { background: var(--st-red) !important; }\n.pill.st-orange { background: var(--st-orange) !important; }\n.pill.st-yellow { background: var(--st-yellow) !important; color: #2c2620; }\n.pill.st-green { background: var(--st-green) !important; }\n.stline { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; }\n.stdot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line); flex: none; }\n.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--muted); }\n.legend span { display: inline-flex; align-items: center; gap: 4px; }\n.legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }\n.tick[aria-pressed=\"true\"] { background: var(--st-green); color: #fff; border-color: var(--st-green); }\n.own { display: flex; flex-direction: column; gap: 6px; }\n.own input, .own select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 10px; width: 100%; }\nh1 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; text-wrap: balance; }\n.sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }\n.badge { display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle; font-family: var(--body); font-weight: 700; }\n.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }\nbutton { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 12px; cursor: pointer; }\nbutton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }\n/* кнопка должна чувствоваться нажатой (14.10, автор: «плоская, глухая, не понять, нажала ли») */\nbutton { transition: transform .08s, filter .08s, box-shadow .08s; box-shadow: 0 1px 0 rgba(0,0,0,.12); }\nbutton:active:not(:disabled) { transform: translateY(1px) scale(.97); filter: brightness(.88); box-shadow: none; }\nbutton:disabled { opacity: .7; cursor: default; }\n@media (prefers-reduced-motion: reduce) { button { transition: none; } }\n.chip[aria-pressed=\"true\"] { border-color: currentColor; font-weight: 700; background: var(--soft); }\n.chip .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }\n.c-pengui { color: var(--pengui); } .c-lumos { color: var(--lumos); } .c-unicorn { color: var(--unicorn); }\n.ru { color: var(--muted); font-weight: 400; }\n.chbtn { min-height: 30px; padding: 2px 8px; font-size: 12px; color: #fff; border: 0; }\n.save { font-size: 12px; color: var(--muted); }\n.card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }\n.monthbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }\n.monthbar h2 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0; }\n.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }\n.wd { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-align: center; padding-bottom: 2px; }\n.day { min-height: 64px; border: 1px solid var(--line); border-radius: 9px; padding: 3px; display: flex; flex-direction: column; gap: 2px; background: var(--bg); cursor: pointer; text-align: left; min-width: 0; }\n.day.out { visibility: hidden; }\n.day.today { border-color: var(--accent); border-width: 2px; }\n.day.sel { background: var(--soft); outline: 2px solid var(--accent); }\n.day .n { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }\n.pill { font-size: 10px; line-height: 1.2; color: #fff; border-radius: 5px; padding: 2px 4px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }\n.pill.done { opacity: .55; text-decoration: line-through; }\n.hint { font-size: 12px; color: var(--muted); }\n.dayhead { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 0; }\n.slot { border-left: 4px solid currentColor; padding: 6px 8px; border-radius: 6px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }\n.slot .t { color: var(--ink); font-weight: 700; }\n.slot .note { color: var(--muted); font-size: 13px; }\n.steps { display: flex; flex-wrap: wrap; gap: 4px; }\n.step { font-size: 12px; min-height: 30px; padding: 3px 8px; border-radius: 999px; }\n.step[aria-pressed=\"true\"] { background: currentColor; }\n.step[aria-pressed=\"true\"] span { color: var(--paper); }\n.empty { color: var(--muted); font-style: italic; margin: 0; }\n.dgroup { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }\n.dgroup:first-child { border-top: 0; padding-top: 0; }\n.dgroup h4 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 600; color: var(--ink); }\n.idea { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }\n.idea .date { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; padding-top: 2px; }\n.idea .t { font-weight: 600; overflow-wrap: anywhere; }\n.idea .note { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }\n.idea button { min-height: 34px; font-size: 13px; white-space: nowrap; }\n.label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }\n@media (orientation: landscape) {\n  .col:first-child > .card { flex: 1; min-height: 0; }\n  .col:first-child .grid { flex: 1; min-height: 0; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); }\n}\nheader { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 4px; }\nheader .sub { flex-basis: 100%; order: 3; }\n.col:first-child .grid .wd { align-self: end; }\n.day { min-height: 0; overflow: hidden; }\n#ghint:empty { display: none; }\n@media (orientation: landscape) and (max-height: 600px) {\n  body { padding-block: 6px; padding-inline: 10px; font-size: 13.5px; }\n  .wrap { gap: 6px; }\n  header .sub { display: none; }\n  h1 { font-size: 16px; }\n  .chip { min-height: 28px; padding: 2px 8px; font-size: 12.5px; }\n  .card { padding: 6px 8px; gap: 6px; }\n  .monthbar h2 { font-size: 14px; }\n  .monthbar button { min-height: 28px; padding: 0 8px; }\n  .grid { gap: 2px; }\n  .wd { font-size: 9.5px; padding: 0; }\n  .day { padding: 1px 3px; border-radius: 6px; }\n  .day .n { font-size: 10.5px; }\n  .pill { font-size: 9px; padding: 0 3px; }\n  .dayhead { font-size: 15px; }\n}\n.toast { z-index: 40; position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }\n.toast.on { opacity: 1; }\n@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }\n.day.target { border-style: dashed; border-color: var(--accent); }\n@media (max-width: 700px) {\n  body { padding-inline: 8px; font-size: 14px; }\n  .card { padding: 8px; }\n  .grid { gap: 2px; }\n  .day { min-height: 38px; padding: 2px; border-radius: 6px; }\n  .day .n { font-size: 10.5px; }\n  .pill { font-size: 0; height: 5px; padding: 0; border-radius: 3px; }\n  .wd { font-size: 9px; }\n  .monthbar h2 { font-size: 15px; }\n  .monthbar button { min-height: 32px; padding: 2px 8px; }\n  .idea { gap: 6px; }\n  .idea button { padding: 3px 8px; min-height: 30px; font-size: 12px; }\n  .sub { display: none; }\n  .chip { min-height: 32px; padding: 3px 8px; font-size: 13px; }\n}\n</style>\n</head>\n<body>\n<div class=\"wrap\">\n  <header>\n    <h1>Контент-план <span class=\"save\" id=\"savest\"></span></h1>\n    <p class=\"sub\">Слева план выпусков, справа поводы из листа «Календарь». Цвет выпуска — сам, по строке выпуска в таблице.</p>\n    <div class=\"row\" id=\"chans\" role=\"group\" aria-label=\"Каналы\"></div>\n    <div class=\"legend\"><span><i style=\"background:var(--st-red)\"></i>картинка</span><span><i style=\"background:var(--st-orange)\"></i>описание</span><span><i style=\"background:var(--st-yellow)\"></i>утверждено</span><span><i style=\"background:var(--st-green)\"></i>на YouTube</span><span>🎵 треки есть</span><span>✓ выложен</span></div>\n  </header>\n\n  <div class=\"cols\">\n  <div class=\"col\">\n  <section class=\"card\" aria-label=\"Месяц\">\n    <div class=\"monthbar\">\n      <button id=\"prev\" type=\"button\" aria-label=\"Предыдущий месяц\">‹</button>\n      <h2 id=\"mname\"></h2>\n      <button id=\"next\" type=\"button\" aria-label=\"Следующий месяц\">›</button>\n    </div>\n    <div class=\"grid\" id=\"grid\"></div>\n    <p class=\"hint\" id=\"ghint\"></p>\n  </section>\n\n  </div>\n\n  <div class=\"col\">\n  <section class=\"card kopcard\" aria-label=\"Поводы\">\n    <div class=\"row\" style=\"justify-content: space-between\">\n      <div class=\"label\">Поводы — <span id=\"kcount\"></span></div>\n      <span class=\"hint\" id=\"khint\"></span>\n    </div>\n    <div id=\"kop\"></div>\n  </section>\n  </div>\n  </div>\n</div>\n<div class=\"sheetbg\" id=\"sheetbg\" hidden><section class=\"card sheet\" aria-label=\"Выбранный день\" id=\"daycard\" role=\"dialog\" aria-modal=\"true\"></section></div>\n<div class=\"toast\" id=\"toast\" role=\"status\"></div>\n\n<script>\n(function () {\n  if (window.Telegram && Telegram.WebApp) { try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {} }\n  var BASE = location.pathname.replace(/\\/+$/, '');\n  // вход в бота (12) из календаря: «Старт» выпуска и ссылка на треки\n  var BOT = '/webhook/cal12-pDjXqAmp9bfKxK9RRByEPOci';\n  function me() { try { return Telegram.WebApp.initDataUnsafe.user.id || null; } catch (e) { return null; } }\n  // btn — кнопка, на которой показываем, что происходит: «Отправляю…» → «✓ …» или ошибка и снова можно нажать\n  function toBot(body, ok, btn) {\n    body.chatId = me();\n    var was = btn ? btn.textContent : '';\n    if (btn) { btn.disabled = true; btn.textContent = 'Отправляю…'; }\n    return fetch(BOT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })\n      .then(function (x) {\n        if (!x.ok) throw new Error(x.status === 404 ? 'бот (12) не принял: адрес не найден — 12 включён (Active)?' : 'бот ответил ошибкой ' + x.status);\n        if (btn) btn.textContent = '✓ ' + ok;\n        toast(ok); setTimeout(load, 6000); setTimeout(load, 20000);\n      })\n      .catch(function (e) {\n        var why = e && e.message && !/fetch/i.test(e.message) ? e.message : 'нет связи с сервером';\n        if (btn) { btn.disabled = false; btn.textContent = was; }\n        toast('Не ушло: ' + why);\n      });\n  }\n  var COLORS = ['var(--pengui)', 'var(--lumos)', 'var(--unicorn)', 'var(--c3)', 'var(--c4)'];\n  var MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];\n  var MGEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];\n  var WD = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];\n  var PLANNED = { 'Выбран': 0, 'В работе': 1, 'Вышел': 5 };\n  var TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);\n  var CH = [], items = [], active = {}, placing = null, choose = null, PROJ = {}, PLIST = [], ownFor = null, openEv = null, dayOpen = false;\n  var view = { y: TODAY.getFullYear(), m: TODAY.getMonth() + 1 };\n  var sel = { y: view.y, m: view.m, d: TODAY.getDate() };\n  var $ = function (id) { return document.getElementById(id); };\n  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }\n  function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { x.classList.remove('on'); }, 2200); }\n  function color(k) { var i = CH.findIndex(function (c) { return c.key === k; }); return COLORS[(i < 0 ? 0 : i) % COLORS.length]; }\n  function chName(k) { var c = CH.find(function (c) { return c.key === k; }); return c ? c.name : k; }\n  function chIcon(k) { var c = CH.find(function (c) { return c.key === k; }); return c && c.icon ? c.icon : ''; }\n  // шаг выпуска — из его строки в таблице (sys_Status), а не руками\n  var ST = { plan: 'не начат', red: 'картинка в работе', orange: 'описание в работе', yellow: 'утверждено — ждёт треки и сборку', green: 'на YouTube' };\n  function proj(it) { return it.project ? PROJ[it.project] || null : null; }\n  function stOf(it) {\n    var p = proj(it); if (!p) return 'plan';\n    if (p.status === 'Опубликовано') return 'green';\n    if (p.status === 'Утверждено') return 'yellow';\n    if (p.status === 'Картинка согласована') return 'orange';\n    return 'red';\n  }\n  function short(it) { return it.ru || it.title; }\n  function mark(it) { return (chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + it.pd + '.' + String(it.pm).padStart(2, '0') + ' · ' + short(it); }\n  function ptitle(p) { var t = String(p.title || ''); var m = t.match(/·\\s*([^|]+)/); return (m ? m[1] : t).trim() || p.id; }\n  function iso(y, m, d) { return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }\n\n  function fromRow(r) {\n    var m = Number(r.month), d = Number(r.day), y = Number(r.year) || 0;\n    if (!y) { y = TODAY.getFullYear(); if (new Date(y, m - 1, d) < new Date(TODAY.getFullYear(), TODAY.getMonth() - 2, 1)) y++; }\n    var chs = String(r.channel || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);\n    var rel = String(r.release || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n    var step = r.step !== '' && r.step != null && !isNaN(Number(r.step)) ? Number(r.step) : PLANNED[r.status];\n    return { row: r, id: String(r.id), y: y, m: m, d: d, chs: chs, orig: chs.slice(),\n      title: String(r.title || ''), ru: String(r.title_ru || ''), note: String(r.note || '').replace(/\\n?#+ [^\\n]*/g, '').trim(),\n      planned: r.status in PLANNED, step: step == null ? 0 : step,\n      project: String(r.project || '').trim(), posted: String(r.posted || '').trim() === 'да', tag: String(r.tag || '').trim(),\n      py: rel ? +rel[1] : y, pm: rel ? +rel[2] : m, pd: rel ? +rel[3] : d };\n  }\n  function slot(y, m, d, ch) { return items.find(function (it) { return it.planned && it.py === y && it.pm === m && it.pd === d && it.chs[0] === ch; }); }\n\n  var queue = Promise.resolve(), pending = 0;\n  function save(it) {\n    var r = it.row;\n    r.status = it.planned ? (stOf(it) === 'green' ? 'Вышел' : it.project ? 'В работе' : 'Выбран') : 'Идея';\n    r.step = it.planned ? String(it.step) : '';\n    r.release = it.planned ? iso(it.py, it.pm, it.pd) : '';\n    r.channel = it.chs.join(', ');\n    r.project = it.project || '';\n    r.posted = it.posted ? 'да' : '';\n    pending++; $('savest').textContent = '· сохраняю…';\n    queue = queue.then(function () {\n      return fetch(BASE + '/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ row: r }) })\n        .then(function (x) { if (!x.ok) throw new Error(x.status); })\n        .catch(function () { toast('Не сохранилось — проверь связь и повтори'); $('savest').textContent = '· ошибка сохранения'; pending = -999; });\n    }).then(function () { pending--; if (pending === 0) $('savest').textContent = '· сохранено'; });\n  }\n\n  function place(it, s, ch) {\n    var other = slot(s.y, s.m, s.d, ch);\n    if (other && other !== it) { other.planned = false; other.chs = other.orig.slice(); save(other); }\n    var wasPlanned = it.planned;\n    it.planned = true; if (!wasPlanned) it.step = 0;\n    it.py = s.y; it.pm = s.m; it.pd = s.d;\n    it.chs = [ch].concat(it.chs.filter(function (c) { return c !== ch; }));\n    save(it);\n    toast((other && other !== it ? 'Заменено: ' : 'Поставлено: ') + it.title.slice(0, 40) + ' → ' + s.d + ' ' + MGEN[s.m - 1]);\n  }\n\n  function renderChans() {\n    var box = $('chans'); box.innerHTML = '';\n    CH.forEach(function (c) {\n      var b = el('button', 'chip'); b.type = 'button'; b.style.color = color(c.key);\n      b.setAttribute('aria-pressed', active[c.key] ? 'true' : 'false');\n      var d = el('span', 'dot'); d.style.background = color(c.key); b.appendChild(d); b.appendChild(document.createTextNode((c.icon ? c.icon + ' ' : '') + c.name));\n      b.onclick = function () { active[c.key] = !active[c.key]; render(); };\n      box.appendChild(b);\n    });\n  }\n  function renderGrid() {\n    $('mname').textContent = MONTHS[view.m - 1] + ' ' + view.y;\n    var g = $('grid'); g.innerHTML = '';\n    WD.forEach(function (w) { g.appendChild(el('div', 'wd', w)); });\n    var shift = (new Date(view.y, view.m - 1, 1).getDay() + 6) % 7, days = new Date(view.y, view.m, 0).getDate();\n    for (var i = 0; i < shift; i++) g.appendChild(el('div', 'day out'));\n    for (var d = 1; d <= days; d++) (function (d) {\n      var b = el('button', 'day'); b.type = 'button';\n      if (view.y === TODAY.getFullYear() && view.m === TODAY.getMonth() + 1 && d === TODAY.getDate()) b.classList.add('today');\n      if (sel.y === view.y && sel.m === view.m && sel.d === d) b.classList.add('sel');\n      if (placing) b.classList.add('target');\n      b.appendChild(el('span', 'n', d));\n      CH.forEach(function (c) {\n        var p = slot(view.y, view.m, d, c.key);\n        if (!p || !active[c.key]) return;\n        var pp = proj(p), txt = (c.icon || '') + (pp && pp.tracks ? '🎵' : '') + (p.posted ? '✓' : '') + ' ' + short(p);\n        var pl = el('span', 'pill st-' + stOf(p), txt); b.appendChild(pl);\n      });\n      b.setAttribute('aria-label', d + ' ' + MGEN[view.m - 1]);\n      b.onclick = function () {\n        sel = { y: view.y, m: view.m, d: d };\n        if (placing && placing.ch) { place(placing.it, sel, placing.ch); placing = null; choose = null; }\n        else if (placing) {\n          var opts = (placing.it.chs.length ? placing.it.chs : CH.map(function (c) { return c.key; })).filter(function (c) { return active[c]; });\n          if (opts.length === 1) { place(placing.it, sel, opts[0]); placing = null; choose = null; }\n          else { choose = { it: placing.it, opts: opts }; placing = null; }\n        } else { choose = null; ownFor = null; dayOpen = true; }\n        if (choose) dayOpen = true;\n        render();\n      };\n      g.appendChild(b);\n    })(d);\n  }\n  function renderDay() {\n    var c = $('daycard'); c.innerHTML = '';\n    $('sheetbg').hidden = !dayOpen;\n    if (!dayOpen) return;\n    var hd = el('div', 'sheethead'); hd.appendChild(el('h3', 'dayhead', sel.d + ' ' + MGEN[sel.m - 1] + ' ' + sel.y));\n    var x = el('button', 'x', '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.onclick = function () { dayOpen = false; choose = null; ownFor = null; render(); };\n    hd.appendChild(x); c.appendChild(hd);\n    if (choose) {\n      var q = el('div', 'slot'); q.appendChild(el('div', 't', 'Для какого канала поставить «' + choose.it.title + '»?'));\n      var rw = el('div', 'row');\n      choose.opts.forEach(function (k) { var b = el('button', 'chbtn', chName(k)); b.type = 'button'; b.style.background = color(k); b.onclick = function () { place(choose.it, sel, k); choose = null; render(); }; rw.appendChild(b); });\n      var no = el('button', '', 'Отмена'); no.type = 'button'; no.onclick = function () { choose = null; render(); }; rw.appendChild(no);\n      q.appendChild(rw); c.appendChild(q);\n    }\n    CH.forEach(function (ch) {\n      if (!active[ch.key]) return;\n      var p = slot(sel.y, sel.m, sel.d, ch.key);\n      var s = el('div', 'slot'); s.style.color = color(ch.key);\n      s.appendChild(el('div', 'label', ch.name));\n      if (!p) {\n        if (ownFor === ch.key) {\n          var f = el('div', 'own'); var inp = el('input', ''); inp.placeholder = 'Тема, например: Пингви читает под дождём'; inp.setAttribute('aria-label', 'Своя тема');\n          var rr = el('div', 'row'); var ok = el('button', 'chbtn', 'Поставить'); ok.type = 'button'; ok.style.background = 'var(--accent)';\n          var cn = el('button', '', 'Отмена'); cn.type = 'button';\n          ok.onclick = function () {\n            var tt = inp.value.trim(); if (!tt) { inp.focus(); return; }\n            var row = { id: 'i' + Date.now().toString(36), year: String(sel.y), month: String(sel.m), day: String(sel.d), title: tt, channel: ch.key, status: 'Выбран', sources: 'своя идея' };\n            var it = fromRow(row); it.planned = true; it.step = 0; it.chs = [ch.key]; it.orig = [ch.key]; items.push(it); ownFor = null; save(it); toast('Поставлено: ' + tt.slice(0, 40)); render();\n          };\n          cn.onclick = function () { ownFor = null; render(); };\n          rr.appendChild(ok); rr.appendChild(cn); f.appendChild(inp); f.appendChild(rr); s.appendChild(f); c.appendChild(s);\n          setTimeout(function () { inp.focus(); }, 0); return;\n        }\n        s.appendChild(el('p', 'empty', 'пусто'));\n        var add = el('button', '', '+ Своя идея'); add.type = 'button'; add.onclick = function () { ownFor = ch.key; render(); };\n        var ra = el('div', 'row'); ra.appendChild(add); s.appendChild(ra);\n        c.appendChild(s); return;\n      }\n      var t = el('div', 't', mark(p)); if (p.ru && p.title && p.ru !== p.title) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + p.title)); } s.appendChild(t);\n      if (p.d !== p.pd || p.m !== p.pm) s.appendChild(el('div', 'note', 'Повод — ' + p.d + ' ' + MGEN[p.m - 1]));\n      if (p.note) s.appendChild(el('div', 'note', p.note));\n      var pp = proj(p), st = stOf(p);\n      var line = el('div', 'stline'); var dot = el('span', 'stdot'); if (st !== 'plan') dot.style.background = 'var(--st-' + st + ')';\n      line.appendChild(dot); line.appendChild(el('span', '', ST[st] + (pp && pp.tracks ? ' · 🎵 треки есть' : '') + (p.posted ? ' · ✓ выложен' : '')));\n      s.appendChild(line);\n      var r = el('div', 'row');\n      if (pp) {\n        if (st === 'green' || p.posted) {\n        var tk = el('button', 'tick', p.posted ? '✓ Выложен' : 'Отметить: выложен'); tk.type = 'button'; tk.setAttribute('aria-pressed', p.posted ? 'true' : 'false');\n        tk.onclick = function () { p.posted = !p.posted; save(p); render(); };\n        r.appendChild(tk);\n        }\n        if (st !== 'green') {\n          var tf = el('div', 'own'); var ti = el('input', ''); ti.placeholder = pp.tracks ? 'Новая ссылка на треки (заменит прежнюю)' : 'Ссылка на треки'; ti.setAttribute('aria-label', 'Ссылка на треки');\n          var tb = el('button', 'chbtn', '🎵 Отправить треки'); tb.type = 'button'; tb.style.background = 'var(--accent)';\n          tb.onclick = function () { var u = ti.value.trim(); if (!/^https?:\\/\\//.test(u)) { ti.focus(); toast('Вставь ссылку на треки'); return; }\n            toBot({ action: 'tracks', projectId: p.project, url: u }, 'Треки ушли в бот — он напишет в Телеграм', tb); };\n          tf.appendChild(ti); tf.appendChild(tb); s.appendChild(tf);\n        }\n        var un = el('button', '', 'Отвязать выпуск'); un.type = 'button';\n        un.onclick = function () { p.project = ''; p.posted = false; save(p); render(); };\n        r.appendChild(un);\n      } else {\n        var go = el('button', 'chbtn', '▶ Старт'); go.type = 'button'; go.style.background = color(ch.key);\n        go.onclick = function () {\n          toBot({ action: 'start', calId: p.id, channel: ch.key, title: short(p), about: p.note || '', release: iso(p.py, p.pm, p.pd) }, 'Поехали! Первое сообщение — в боте', go); };\n        r.appendChild(go);\n        var free = PLIST.filter(function (q) { return q.ch === ch.key && !items.some(function (o) { return o.project === q.id; }); });\n        if (free.length) {\n          var sl = el('select', ''); sl.setAttribute('aria-label', 'Привязать начатый выпуск');\n          var o0 = el('option', '', 'Привязать начатый выпуск…'); o0.value = ''; sl.appendChild(o0);\n          free.forEach(function (q) { var o = el('option', '', ptitle(q) + ' · ' + q.id.slice(6, 8) + '.' + q.id.slice(4, 6)); o.value = q.id; sl.appendChild(o); });\n          sl.onchange = function () { if (!sl.value) return; p.project = sl.value; save(p); toast('Выпуск привязан'); render(); };\n          r.appendChild(sl);\n        }\n      }\n      var rm = el('button', '', 'Убрать из плана'); rm.type = 'button';\n      rm.onclick = function () { p.planned = false; p.project = ''; p.posted = false; p.chs = p.orig.slice(); save(p); toast('Вернулось в копилку'); render(); };\n      r.appendChild(rm); s.appendChild(r);\n      c.appendChild(s);\n    });\n  }\n  function renderKop() {\n    var box = $('kop'); box.innerHTML = '';\n    // все поводы месяца, кроме отклонённых, без фильтра по каналам: канал выбирается при постановке\n    var show = items.filter(function (it) { return it.row.status !== 'Отклонён' && it.y === view.y && it.m === view.m; })\n      .sort(function (a, b) { return a.d - b.d; });\n    $('kcount').textContent = MONTHS[view.m - 1] + ', ' + show.length;\n    $('khint').textContent = placing ? 'коснись дня в календаре' : '';\n    $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + placing.it.title.slice(0, 50) + (placing.ch ? ' (' + chName(placing.ch) + ')' : '') : '';\n    if (!show.length) box.appendChild(el('p', 'empty', 'На этот месяц поводов нет. В боте календаря напиши «собери ' + MONTHS[view.m - 1] + '».'));\n    var days = [];\n    show.forEach(function (it) { var g = days[days.length - 1]; if (!g || g.d !== it.d) { g = { d: it.d, list: [] }; days.push(g); } g.list.push(it); });\n    days.forEach(function (g) {\n      var row = el('div', 'erow'), dt = el('div', 'edate', g.d);\n      var wd = (new Date(view.y, view.m - 1, g.d).getDay() + 6) % 7; dt.appendChild(el('small', '', WD[wd]));\n      if (view.y === TODAY.getFullYear() && view.m === TODAY.getMonth() + 1 && g.d === TODAY.getDate()) dt.classList.add('today');\n      row.appendChild(dt);\n      var chips = el('div', 'chips');\n      g.list.forEach(function (it) {\n        var b = el('button', 'ev' + (it.planned ? ' inplan' : '')); b.type = 'button';\n        b.textContent = (it.planned && chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + (it.tag ? it.tag + ' ' : '') + it.title;\n        b.setAttribute('aria-expanded', openEv === it.id ? 'true' : 'false');\n        b.onclick = function () { openEv = openEv === it.id ? null : it.id; render(); };\n        chips.appendChild(b);\n      });\n      var op = g.list.find(function (it) { return it.id === openEv; });\n      if (op) {\n        var ab = el('div', 'about');\n        if (op.ru) ab.appendChild(el('div', 'ru', op.ru));\n        ab.appendChild(el('p', '', op.note || 'Сути пока нет — она придёт со следующим автосбором.'));\n        var rr = el('div', 'row');\n        if (op.planned) {\n          rr.appendChild(el('span', 'hint', 'в плане: ' + (chIcon(op.chs[0]) ? chIcon(op.chs[0]) + ' ' : '') + op.pd + ' ' + MGEN[op.pm - 1]));\n          var go = el('button', '', 'Открыть день'); go.type = 'button';\n          go.onclick = function () { view = { y: op.py, m: op.pm }; sel = { y: op.py, m: op.pm, d: op.pd }; dayOpen = true; render(); };\n          rr.appendChild(go);\n        } else {\n          CH.forEach(function (c) {\n            var cb = el('button', 'chbtn', (c.icon ? c.icon + ' ' : '') + c.name); cb.type = 'button'; cb.style.background = color(c.key);\n            cb.title = 'В план ' + c.name + ' на ' + op.d + ' ' + MGEN[op.m - 1];\n            cb.onclick = function () { sel = { y: op.y, m: op.m, d: op.d }; place(op, sel, c.key); openEv = null; render(); };\n            rr.appendChild(cb);\n          });\n          var other = el('button', '', 'В другой день…'); other.type = 'button';\n          other.onclick = function () { placing = { it: op }; choose = null; toast('Коснись дня в календаре'); render(); };\n          rr.appendChild(other);\n        }\n        ab.appendChild(rr); chips.appendChild(ab);\n      }\n      row.appendChild(chips); box.appendChild(row);\n    });\n  }\n  function render() { renderChans(); renderGrid(); renderDay(); renderKop(); }\n  $('sheetbg').onclick = function (e) { if (e.target === this) { dayOpen = false; choose = null; ownFor = null; render(); } };\n  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && dayOpen) { dayOpen = false; render(); } });\n  $('prev').onclick = function () { view.m--; if (view.m < 1) { view.m = 12; view.y--; } render(); };\n  $('next').onclick = function () { view.m++; if (view.m > 12) { view.m = 1; view.y++; } render(); };\n\n  $('savest').textContent = '· загружаю…';\n  function load() { return fetch(BASE + '/data', { cache: 'no-store' }).then(function (x) { return x.json(); }).then(function (data) {\n    CH = (data.channels || []).map(function (c) { return { key: String(c.Channel || '').trim(), name: String(c['Кнопка'] || c.Channel || '').trim(), icon: String(c['Значок'] || '').trim() }; }).filter(function (c) { return c.key; });\n    PLIST = (data.projects || []).slice().sort(function (a, b) { return a.id < b.id ? 1 : -1; });\n    PLIST.forEach(function (q) { PROJ[q.id] = q; });\n    if (!CH.length) CH = [{ key: 'pengui', name: 'pengui' }];\n    CH.forEach(function (c) { if (!(c.key in active)) active[c.key] = true; });\n    PROJ = {}; PLIST.forEach(function (q) { PROJ[q.id] = q; });\n    items = (data.rows || []).map(fromRow);\n    $('savest').textContent = ''; render();\n  }).catch(function () { $('savest').textContent = '· не удалось загрузить таблицу'; }); }\n  load();\n})();\n</script>\n</body>\n</html>\n",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "id": "e288c302-81a1-4980-8f37-14f5dd77ebb9",
+      "name": "Отдаём страницу",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "cal-rk7shuoXXwcvXvJ8CH8cyQoI/data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a93c24f0-dbe3-418e-800d-fa211e66581d",
+      "name": "Данные календаря",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1200
+      ],
+      "webhookId": "e6bbfb8b-71df-418e-bbed-b800b35ace92"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "id": "cc880236-db8d-4fef-9215-d1a17ef1daf7",
+      "name": "Читаем календарь (страница)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        220,
+        1200
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// все строки листа, каналы (Catalog) и выпуски каналов (только шаг и треки) одним JSON для страницы\n// только соседние месяцы (прошлый … +3 вперёд) — страница не тяжелеет с годами\nconst now = new Date(), base = now.getFullYear() * 12 + now.getMonth();\nconst ym = (y, m) => { y = Number(y) || 0; m = Number(m) || 0; if (!m) return -1; if (!y) { y = now.getFullYear(); if (y * 12 + m - 1 < base - 2) y++; } return y * 12 + m - 1; };\nconst near = k => k >= base - 1 && k <= base + 3;\nconst rows = $('Читаем календарь (страница)').all().map(i => i.json).filter(r => r && String(r.id || '').trim()).filter(r => {\n  const rel = String(r.release || '').match(/^(\\d{4})-(\\d{2})/);\n  return near(ym(r.year, r.month)) || (rel && near(ym(rel[1], rel[2])));\n});\nconst channels = $('Читаем каталог (страница)').all().map(i => i.json).filter(c => c && String(c.Channel || '').trim());\nlet raw = [];\n// (24.10) обычно — только нужные колонки; если быстрый путь не прошёл проверку — весь лист, как раньше\ntry { const v = $('Выпуски: проверка').first().json; if (v.ok) raw = v.rows; } catch (e) {}\nif (!raw.length) { try { raw = $('Читаем выпуски (страница)').all().map(i => i.json); } catch (e) {} }\nconst projects = raw.filter(p => p && /^\\d{8}_\\d{6}_[a-z0-9]+$/i.test(String(p.sys_ProjectID || '').trim())).map(p => {\n  const id = String(p.sys_ProjectID).trim();\n  return { id, ch: id.split('_').slice(2).join('_').toLowerCase(), status: String(p.sys_Status || '').trim(),\n    tracks: !!String(p.sys_AudioZipUrl || '').trim(), title: String(p.ai_Title || '').slice(0, 160) };\n});\nreturn [{ json: { body: JSON.stringify({ rows, channels, projects }) } }];"
+      },
+      "id": "b28640a5-d765-4830-9c8e-5ab6763adc82",
+      "name": "Собираем данные",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "id": "545b3e38-689b-423a-bf19-be12b67bc80f",
+      "name": "Отдаём данные",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cal-rk7shuoXXwcvXvJ8CH8cyQoI/save",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f1d4cce5-2971-420a-935c-179a2b3db07c",
+      "name": "Сохранение со страницы",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        1400
+      ],
+      "webhookId": "551233e3-32f1-449e-aa7d-57947fc32362"
+    },
+    {
+      "parameters": {
+        "jsCode": "// строка, которую прислала страница: берём только известные колонки\nconst COLS = [\"id\", \"year\", \"month\", \"day\", \"title\", \"channel\", \"status\", \"project\", \"note\", \"sources\", \"createdAt\", \"updatedAt\", \"title_ru\", \"release\", \"step\", \"posted\", \"tag\"];\nconst STATUSES = ['Идея','Выбран','В работе','Вышел','Отклонён'];\nconst r = ($('Сохранение со страницы').first().json.body || {}).row || {};\nconst id = String(r.id || '').trim();\nif (!/^[A-Za-z0-9_-]{2,40}$/.test(id)) throw new Error('bad id');\nconst m = Number(r.month), d = Number(r.day);\nif (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) throw new Error('bad date');\nconst now = new Date().toISOString();\nconst out = {};\nfor (const c of COLS) out[c] = r[c] === null || r[c] === undefined ? '' : String(r[c]).slice(0, 20000);\nout.id = id; out.month = String(m); out.day = String(d);\nif (!STATUSES.includes(out.status)) out.status = 'Идея';\nif (out.release && !/^\\d{4}-\\d{2}-\\d{2}$/.test(out.release)) out.release = '';\nif (out.step && !/^[0-5]$/.test(out.step)) out.step = '';\nif (out.posted !== 'да') out.posted = '';\nif (out.project && !/^\\d{8}_\\d{6}_[a-z0-9]+$/i.test(out.project)) out.project = '';\nout.channel = out.channel.toLowerCase();   // пусто — повод общий, для любого канала\nout.updatedAt = now;\nif (!out.createdAt) out.createdAt = now;\nreturn [{ json: out }];"
+      },
+      "id": "6134772c-a3de-430c-8044-60eff7642a43",
+      "name": "Строка со страницы",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "id"
+          ],
+          "value": {
+            "id": "={{ $json.id }}",
+            "year": "={{ $json.year }}",
+            "month": "={{ $json.month }}",
+            "day": "={{ $json.day }}",
+            "title": "={{ $json.title }}",
+            "channel": "={{ $json.channel }}",
+            "status": "={{ $json.status }}",
+            "project": "={{ $json.project }}",
+            "note": "={{ $json.note }}",
+            "sources": "={{ $json.sources }}",
+            "createdAt": "={{ $json.createdAt }}",
+            "updatedAt": "={{ $json.updatedAt }}",
+            "title_ru": "={{ $json.title_ru }}",
+            "release": "={{ $json.release }}",
+            "step": "={{ $json.step }}",
+            "posted": "={{ $json.posted }}",
+            "tag": "={{ $json.tag }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "2dfd20ec-f01b-4968-9b39-41111f3606e5",
+      "name": "Записываем со страницы",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        440,
+        1400
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "{\"ok\":true}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "id": "b72cc634-6b90-400b-9135-c9838cc94e11",
+      "name": "Сохранено",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Страница календаря\nОткрывается кнопкой «Календарь» в боте (Menu Button в BotFather) — прямо внутри Telegram.\nАдрес: https://tatka1976.store/webhook/cal-<ключ> — сам адрес и есть пароль.\nСтраница читает и пишет тот же лист «Календарь».",
+        "height": 220,
+        "width": 520,
+        "color": 5
+      },
+      "id": "771a3735-f2ee-4bdb-a7c8-3646758859ca",
+      "name": "Заметка страница",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ /^\\s*собер/i.test(String($json.message?.text || '')) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Это автосбор?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        330,
+        -160
+      ],
+      "id": "f00722be-c6e4-44b4-9bdd-774ce090a927"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "name": "Первого числа",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        220,
+        1900
+      ],
+      "id": "269aa880-c448-4adc-bc6c-5146c5dbec8e"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Автосбор",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "name": "Читаем, что искать",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        440,
+        1900
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "id": "fe90f769-c56a-48b2-908e-eb6ebce1d300"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Автосбор: какой месяц и что искать. Месяц — из команды («собери ноябрь»), иначе следующий.\n// Что искать для каждого канала — лист «Автосбор» (Канал | Что искать | Модель): здесь только механика.\nconst MON = [['янв','jan'],['фев','feb'],['мар','mar'],['апр','apr'],['мая','май','may'],['июн','jun'],['июл','jul'],['авг','aug'],['сен','sep'],['окт','oct'],['ноя','nov'],['дек','dec']];\nconst MON_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];\nconst MON_RU = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];\nlet msg = null;\ntry { msg = $('Telegram Trigger').first().json.message || null; } catch (e) {}\nconst text = String((msg && msg.text) || '').toLowerCase();\nconst now = new Date();\nlet y = now.getFullYear(), m = now.getMonth() + 2;            // следующий месяц, 1..13\nconst w = (text.match(/собер\\S*\\s+(\\S+)/) || [])[1] || '';\nconst mi = MON.findIndex(ks => ks.some(k => w.startsWith(k)));\nif (mi >= 0) { m = mi + 1; if (m < now.getMonth() + 1) y++; }\nif (m > 12) { m -= 12; y++; }\nconst srows = $('Читаем, что искать').all().map(i => i.json || {});\n// что искать — общий текст листа «Автосбор» (без каналов); страны — для официальных праздников\nconst what = srows.map(r => String(r['Что искать'] || '').trim()).filter(Boolean).join('\\n');\nconst model = srows.map(r => String(r['Модель'] || '').trim()).find(Boolean) || 'gpt-5';\nconst countries = [...new Set((srows.map(r => String(r['Страны'] || '')).join(',').toUpperCase().match(/\\b[A-Z]{2}\\b/g) || []))];\nconst chatId = msg ? msg.chat.id : 285577543;\nif (!what) return [{ json: { need: false, chatId, text: 'Лист «Автосбор» пуст: не знаю, что искать.' } }];\nconst last = new Date(y, m, 0).getDate();\nconst ranges = [[1, 10], [11, 20], [21, last]];   // три запроса по ~10 дней — ответы не гигантские\nreturn [{ json: { need: true, chatId, y, m, monthRu: MON_RU[m - 1], monthEn: MON_EN[m - 1], what, model, countries, ranges,\n  text: '🔎 Ищу поводы на ' + MON_RU[m - 1] + ' ' + y + ' — три части по десять дней, это 5–15 минут.' } }];"
+      },
+      "name": "Автосбор: задание",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1900
+      ],
+      "id": "978c50cd-132f-4ee6-a977-a8d0e541439a"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "name": "Автосбор: начали",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        1380
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "90df751c-e24d-4a99-97df-57b65727e7cc"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Автосбор: задание').first().json.need }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Есть что искать?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        1900
+      ],
+      "id": "87f39814-3bab-4125-bdc4-7d688f937673"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "name": "OpenAI: ищем поводы",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        1900
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "3c8750b5-8bf2-4044-bd61-faadcccc44af"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "name": "Читаем календарь (автосбор)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1320,
+        1900
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "id": "be01bd10-2502-4b53-a1e8-fd120dd93870"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ответы ИИ (три части месяца) → строки листа «Календарь». Повторы (тот же день и то же название) с листом\n// и между частями не добавляются. Новые — «Идея», без канала, суть — в note, значок — в tag.\nconst z = $('Автосбор: задание').first().json;\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst parts = $('OpenAI: ищем поводы').all().map(i => i.json || {});\nlet items = []; const bad = [];\nparts.forEach((resp, n) => {\n  const out = (resp.output || []).filter(i => i.type === 'message')\n    .flatMap(i => (i.content || []).filter(c => c.type === 'output_text').map(c => c.text)).join('\\n');\n  try {\n    const a = out.indexOf('{'), b = out.lastIndexOf('}');\n    const arr = JSON.parse(out.slice(a, b + 1)).items;\n    if (!Array.isArray(arr)) throw new Error('no items');\n    items = items.concat(arr);\n  } catch (e) {\n    bad.push('часть ' + (n + 1) + ': ' + (resp.error ? String(resp.error.message || JSON.stringify(resp.error)).slice(0, 150) : 'ответ не разобрался'));\n  }\n});\nif (!items.length) return [{ json: { rows: [], text: '⚠️ Автосбор на ' + z.monthRu + ' не получился: ' + esc(bad.join('; ') || 'пусто') } }];\nconst norm = s => String(s || '').toLowerCase().replace(/[^a-zа-яё0-9]+/gi, ' ').trim();\nconst seen = new Set();\nfor (const r of $('Читаем календарь (автосбор)').all().map(i => i.json)) {\n  if (!r || !r.id) continue;\n  seen.add(Number(r.month) + '-' + Number(r.day) + '|' + norm(r.title));\n}\nconst now = new Date().toISOString();\nconst stamp = now.slice(8, 10) + '.' + now.slice(5, 7);\nconst rows = []; let found = 0;\nfor (const it of items) {\n  const md = String(it.date || '').match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  if (!md || Number(md[1]) !== z.y || Number(md[2]) !== z.m) continue;\n  const title = String(it.title || '').trim();\n  if (!title) continue;\n  found++;\n  const k = z.m + '-' + Number(md[3]) + '|' + norm(title);\n  if (seen.has(k)) continue;\n  seen.add(k);\n  rows.push({ id: 'a' + Date.now().toString(36) + rows.length.toString(36) + Math.random().toString(36).slice(2, 5),\n    year: String(z.y), month: String(z.m), day: String(Number(md[3])), title, channel: '',\n    status: 'Идея', project: '', note: String(it.about_ru || '').trim().slice(0, 1200),\n    sources: 'автосбор ' + stamp + (it.source ? '; ' + String(it.source).trim() : ''),\n    createdAt: now, updatedAt: now, title_ru: String(it.title_ru || '').trim(), tag: String(it.tag || '').trim().slice(0, 8) });\n}\nrows.sort((a, b) => Number(a.day) - Number(b.day));\nlet text = '🗓 Автосбор на ' + z.monthRu + ' ' + z.y + ': найдено ' + found + ', новых ' + rows.length + '. Всё — в календаре, у каждого повода суть.';\nif (bad.length) text += '\\n⚠️ Не получилось: ' + esc(bad.join('; ')) + '. Можно повторить: «собери ' + z.monthRu + '».';\nreturn [{ json: { rows, text } }];"
+      },
+      "name": "Автосбор: разбор",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        1900
+      ],
+      "notes": "вход — ответ OpenAI (через чтение календаря он не проходит: читаем $('OpenAI: ищем поводы'))",
+      "id": "3227d171-21c8-4978-8efd-75b46184a2c9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// по строке на элемент — для записи в лист\nreturn $('Автосбор: разбор').first().json.rows.map(r => ({ json: r }));"
+      },
+      "name": "Автосбор: строки",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        1740
+      ],
+      "id": "5792d7e8-d2d3-4583-bde4-7502e2f9592e"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Календарь",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "year": "={{ $json.year }}",
+            "month": "={{ $json.month }}",
+            "day": "={{ $json.day }}",
+            "title": "={{ $json.title }}",
+            "channel": "={{ $json.channel }}",
+            "status": "={{ $json.status }}",
+            "project": "={{ $json.project }}",
+            "note": "={{ $json.note }}",
+            "sources": "={{ $json.sources }}",
+            "createdAt": "={{ $json.createdAt }}",
+            "updatedAt": "={{ $json.updatedAt }}",
+            "title_ru": "={{ $json.title_ru }}",
+            "tag": "={{ $json.tag }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "Автосбор: записываем",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1980,
+        1740
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "id": "7cc44092-8cb4-428f-8586-47e4a7c9e47d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const z = $('Автосбор: задание').first().json;\nreturn [{ json: { chatId: z.chatId, text: $('Автосбор: разбор').first().json.text } }];"
+      },
+      "name": "Автосбор: итог",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        2000
+      ],
+      "id": "027712de-f583-4516-956e-9127f42f864c"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "name": "Автосбор: сообщаем",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1980,
+        2000
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "d77fac9c-daae-4e3a-8304-d7f2956b32a2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": true
+        }
+      },
+      "name": "Автосбор: нечего искать",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        2100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "IKKPiATJnTSe0CMh",
+          "name": "Telegram Studio Calendar"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "id": "85781637-e704-432c-a6eb-9517da51dc32"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Catalog",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "id": "1682eaab-99c9-4d7b-ab4c-4ca28a7d6a5f",
+      "name": "Читаем каталог (страница)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        330,
+        1360
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.SheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {}
+      },
+      "id": "ffcc8a51-ed9c-487d-9b61-d9025bcb9861",
+      "name": "Читаем выпуски (страница)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1320,
+        1740
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// по элементу на страну — официальные праздники из бесплатного календаря (date.nager.at)\nconst z = $('Автосбор: задание').first().json;\nconst list = (z.countries && z.countries.length) ? z.countries : ['US'];\nreturn list.map(cc => ({ json: { cc, y: z.y } }));"
+      },
+      "name": "Автосбор: страны",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        1580
+      ],
+      "id": "b0c40b5a-6367-43e9-ac9c-888fc45c6bd3"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://date.nager.at/api/v3/PublicHolidays/' + $json.y + '/' + $json.cc }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Праздники стран",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        1580
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "id": "b33e5b99-7ba1-4746-b819-44dc11ef84be"
+    },
+    {
+      "parameters": {
+        "jsCode": "// три запроса к ИИ (дни 1–10, 11–20, 21–конец); в каждый — официальные праздники стран этих дней\nconst z = $('Автосбор: задание').first().json;\nconst pad = n => String(n).padStart(2, '0');\nconst pref = z.y + '-' + pad(z.m) + '-';\nconst hol = {};\nfor (const it of $input.all()) {\n  const h = it.json || {};\n  const d = String(h.date || '');\n  const name = String(h.name || h.localName || '').trim();\n  if (!d.startsWith(pref) || !name) continue;\n  const key = d + '|' + name.toLowerCase();\n  (hol[key] = hol[key] || { date: d, name, local: String(h.localName || '').trim(), cc: [] }).cc.push(String(h.countryCode || ''));\n}\nconst hl = Object.values(hol);\nconst FORMAT = 'Answer with JSON only, no other text: {\"items\": [{\"date\": \"YYYY-MM-DD\", \"title\": \"the original name as it is known (English if it has one)\", '\n  + '\"title_ru\": \"Russian name\", \"about_ru\": \"2-3 sentences in Russian: what this day is, where it comes from, how it is marked\", '\n  + '\"tag\": \"one emoji: the country flag for a national or local occasion, 🌍 for international or world days, 🕯 for religious, 🌙 for seasonal or astronomical, 🎗 for memorial\", '\n  + '\"source\": \"site name\"}]}. Never invent a date; skip what you cannot date for ' + z.y + '. Do not assign channels and do not suggest episode ideas.';\nreturn z.ranges.map(([a, b]) => {\n  const inR = hl.filter(h => { const d = Number(h.date.slice(8, 10)); return d >= a && d <= b; });\n  const off = inR.length ? '\\n\\nOfficial public holidays in this period (include every one, each as its own item; name the countries in about_ru):\\n'\n    + inR.map(h => '- ' + h.date + ' ' + h.name + (h.local && h.local !== h.name ? ' (' + h.local + ')' : '') + ' — ' + [...new Set(h.cc)].join(', ')).join('\\n') : '';\n  const instructions = 'You collect occasions for a content calendar. Period: ' + z.monthEn + ' ' + a + '-' + b + ', ' + z.y\n    + '. Use web search to check the dates for this year.\\nWhat to collect:\\n' + z.what + off + '\\n\\n' + FORMAT + ' Up to 120 items, sorted by date.';\n  const requestBody = { model: z.model, instructions, tools: [{ type: 'web_search' }],\n    input: [{ role: 'user', content: 'Collect the occasions for ' + z.monthEn + ' ' + a + '-' + b + ', ' + z.y + ' as JSON.' }] };\n  if (/^(gpt-5|o\\d)/.test(z.model)) requestBody.reasoning = { effort: 'low' };\n  return { json: { a, b, requestBody } };\n});"
+      },
+      "name": "Автосбор: части",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        1580
+      ],
+      "id": "d4ebece4-eeb6-4403-a20f-763a930444ee"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.SheetName }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A1:ZZ2"
+            }
+          }
+        }
+      },
+      "id": "1bd4b66a-944c-4d83-87bc-9280d04cc0d9",
+      "name": "Выпуски: заголовок",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        440,
+        1520
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Номера нужных колонок — по их именам в первой строке листа выпусков (имена задаёт таблица)\nconst NEED = ['sys_ProjectID', 'sys_Status', 'sys_AudioZipUrl', 'ai_Title'];\nconst cat = $('Читаем каталог (страница)').all();\nconst letter = i => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };\nconst pIdx = it => { const p = it.pairedItem; return Array.isArray(p) ? (p[0] || {}).item || 0 : (p && p.item) || 0; };\nconst out = [];\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  const sheet = String(((cat[pIdx(it)] || {}).json || {}).SheetName || '').trim();\n  const keys = Object.keys(j).filter(k => k !== 'row_number');\n  if (!sheet || j.error || !keys.includes('sys_ProjectID')) continue;\n  for (const name of NEED) {\n    const i = keys.indexOf(name);\n    if (i >= 0) out.push({ json: { sheet, name, range: letter(i) + '1:' + letter(i) + '5000' } });\n  }\n}\nreturn out.length ? out : [{ json: { sheet: '', name: '', range: '', skip: true } }];\n"
+      },
+      "id": "fca44d0f-9200-4106-8d66-f6da0415ce99",
+      "name": "Выпуски: какие колонки",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        1520
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.sheet }}",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "={{ $json.range }}"
+            }
+          }
+        }
+      },
+      "id": "8c9295a4-e45f-48fb-baf4-2fa4e77d9b84",
+      "name": "Выпуски: нужные колонки",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        880,
+        1520
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "1uQkgKbOPhjKOB2l",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Склеиваем прочитанные колонки по номеру строки. Любое сомнение — ok: false, и календарь читает лист целиком.\nconst reqs = $('Выпуски: какие колонки').all().map(i => i.json);\nconst pIdx = it => { const p = it.pairedItem; return Array.isArray(p) ? (p[0] || {}).item || 0 : (p && p.item) || 0; };\nlet ok = reqs.length > 0 && !reqs[0].skip;\nconst bySheet = {};\nfor (const it of $input.all()) {\n  const j = it.json || {};\n  const keys = Object.keys(j).filter(k => k !== 'row_number');\n  if (!keys.length) continue;                    // пустая колонка — нечего склеивать\n  const rq = reqs[pIdx(it)];\n  if (j.error || !rq || keys[0] !== rq.name || j.row_number == null) { ok = false; break; }\n  const s = bySheet[rq.sheet] = bySheet[rq.sheet] || {};\n  const r = s[j.row_number] = s[j.row_number] || {};\n  r[rq.name] = j[rq.name];\n}\nconst rows = ok ? Object.values(bySheet).flatMap(s => Object.values(s)) : [];\nif (!rows.some(r => String(r.sys_ProjectID || '').trim())) ok = false;\nreturn [{ json: { ok, rows: ok ? rows : [] } }];\n"
+      },
+      "id": "34941600-82c2-43de-bcac-a11dd2d65c68",
+      "name": "Выпуски: проверка",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        1520
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "72ad1e92-d63e-4f5c-a424-55f6bd92ddaf",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0de5decf-925b-41bd-8c56-2f573dcf1698",
+      "name": "Колонки прочитаны?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Запасной путь: каналы ещё раз — по ним старый узел читает листы выпусков целиком\nreturn $('Читаем каталог (страница)').all();\n"
+      },
+      "id": "553a70ca-d3f7-4410-853d-78b5b25c3f91",
+      "name": "Каталог заново",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        1960
+      ],
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Страница календаря": {
+      "main": [
+        [
+          {
+            "node": "Отдаём страницу",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Данные календаря": {
+      "main": [
+        [
+          {
+            "node": "Читаем календарь (страница)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем календарь (страница)": {
+      "main": [
+        [
+          {
+            "node": "Читаем каталог (страница)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем данные": {
+      "main": [
+        [
+          {
+            "node": "Отдаём данные",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохранение со страницы": {
+      "main": [
+        [
+          {
+            "node": "Строка со страницы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Строка со страницы": {
+      "main": [
+        [
+          {
+            "node": "Записываем со страницы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Записываем со страницы": {
+      "main": [
+        [
+          {
+            "node": "Сохранено",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Это владелец?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Это владелец?": {
+      "main": [
+        [
+          {
+            "node": "Это автосбор?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Каждый понедельник": {
+      "main": [
+        [
+          {
+            "node": "Читаем календарь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем календарь": {
+      "main": [
+        [
+          {
+            "node": "Логика",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Логика": {
+      "main": [
+        [
+          {
+            "node": "Есть что записать?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть что записать?": {
+      "main": [
+        [
+          {
+            "node": "Строки для записи",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Сообщения",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Строки для записи": {
+      "main": [
+        [
+          {
+            "node": "Записываем в календарь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Записываем в календарь": {
+      "main": [
+        [
+          {
+            "node": "Сообщения",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сообщения": {
+      "main": [
+        [
+          {
+            "node": "Что отправить?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Что отправить?": {
+      "main": [
+        [
+          {
+            "node": "Отправляем текст",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Отправляем список на проверку",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Обновляем проверку списка",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Правим сообщение",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Отправляем карточку",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Обновляем карточку",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Закрываем часики на кнопке",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Это автосбор?": {
+      "main": [
+        [
+          {
+            "node": "Читаем, что искать",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Читаем календарь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Первого числа": {
+      "main": [
+        [
+          {
+            "node": "Читаем, что искать",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем, что искать": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: задание",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: задание": {
+      "main": [
+        [
+          {
+            "node": "Есть что искать?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Есть что искать?": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: начали",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Автосбор: страны",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Автосбор: нечего искать",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: ищем поводы": {
+      "main": [
+        [
+          {
+            "node": "Читаем календарь (автосбор)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем календарь (автосбор)": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: разбор",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: разбор": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: строки",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Автосбор: итог",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: строки": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: записываем",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: итог": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: сообщаем",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем каталог (страница)": {
+      "main": [
+        [
+          {
+            "node": "Выпуски: заголовок",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем выпуски (страница)": {
+      "main": [
+        [
+          {
+            "node": "Собираем данные",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: страны": {
+      "main": [
+        [
+          {
+            "node": "Праздники стран",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Праздники стран": {
+      "main": [
+        [
+          {
+            "node": "Автосбор: части",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосбор: части": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: ищем поводы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: заголовок": {
+      "main": [
+        [
+          {
+            "node": "Выпуски: какие колонки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: какие колонки": {
+      "main": [
+        [
+          {
+            "node": "Выпуски: нужные колонки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: нужные колонки": {
+      "main": [
+        [
+          {
+            "node": "Выпуски: проверка",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Выпуски: проверка": {
+      "main": [
+        [
+          {
+            "node": "Колонки прочитаны?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Колонки прочитаны?": {
+      "main": [
+        [
+          {
+            "node": "Собираем данные",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Каталог заново",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Каталог заново": {
+      "main": [
+        [
+          {
+            "node": "Читаем выпуски (страница)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "A6x2zK1xfuhc5I3E",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": []
+}

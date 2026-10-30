@@ -644,7 +644,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Тот же предохранитель, что у Техчасти: не разрешаем поставить финальный\n// статус, пока обязательные поля пустые — независимо от того, что сказала модель.\nconst j = $('Парсим ответ писателя').first().json;\nconst required = {\n  finalText: j.finalText,\n  finalTextEN: j.finalTextEN,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\nreturn [{ json: { ...j, missingFields } }];"
+        "jsCode": "// Тот же предохранитель, что у Техчасти: не разрешаем поставить финальный\n// статус, пока обязательные поля пустые — независимо от того, что сказала модель.\n// НОВОЕ: finalTextEN больше не требуем от модели и не проверяем здесь —\n// английский текст теперь всегда получается отдельным переводом ровно\n// finalText (см. 'OpenAI: перевод описания'), а не тем, что модель сама\n// вписала во втором поле того же ответа.\nconst j = $('Парсим ответ писателя').first().json;\nconst required = {\n  finalText: j.finalText,\n};\nconst missingFields = Object.keys(required).filter(key => !required[key] || !String(required[key]).trim());\nreturn [{ json: { ...j, missingFields } }];"
       },
       "id": "c1d3e5f7-9a2b-4c6d-8e0f-1a3b5c7d9e21",
       "name": "Проверка полноты пакета",
@@ -731,7 +731,7 @@
             "sys_ProjectID": "={{ $('Парсим ответ писателя').first().json.projectId }}",
             "sys_Status": "Описание согласовано",
             "ai_Description": "={{ $('Парсим ответ писателя').first().json.finalText }}",
-            "ai_DescriptionEN": "={{ $('Парсим ответ писателя').first().json.finalTextEN }}"
+            "ai_DescriptionEN": "={{ $json.descriptionEN }}"
           }
         },
         "options": {}
@@ -754,7 +754,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Парсим ответ писателя').first().json.chatId }}",
-        "text": "=Описание согласовано ✅\n\nRU: {{ $('Парсим ответ писателя').first().json.finalText }}\n\nEN: {{ $('Парсим ответ писателя').first().json.finalTextEN }}\n\nID: {{ $('Парсим ответ писателя').first().json.projectId }}",
+        "text": "=Описание согласовано ✅\n\nRU: {{ $('Парсим ответ писателя').first().json.finalText }}\n\nEN: {{ $('Разбираем перевод описания').first().json.descriptionEN }}\n\nID: {{ $('Парсим ответ писателя').first().json.projectId }}",
         "additionalFields": {}
       },
       "id": "54aa01b8-9343-41b4-9ead-da65f89b67c7",
@@ -978,6 +978,47 @@
       ],
       "notesInFlow": true,
       "notes": "После импорта выбери '03_Техническое' в workflowId."
+    },
+    {
+      "id": "5b1a4437-aea6-4d94-bd91-cc4ca935ecf8",
+      "name": "OpenAI: перевод описания",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        1200
+      ],
+      "notesInFlow": true,
+      "notes": "Раньше EN-версию описания модель писала сама, в том же ответе, что и русский текст — и один раз перепутала: в finalTextEN оказалась её более ранняя техническая реплика из этого же разговора ('в подвал переносим... обновлю техпак'), а не перевод финального текста. Теперь EN — отдельный, отдельно проверяемый перевод РОВНО finalText, тем же способом, что уже год работает у форс-пути (кнопки) — не оставляем модели шанс перепутать, что переводить.",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-5', input: [ { role: 'system', content: 'Переведи этот текст на английский точно и живо, сохраняя интонацию и образы — не дословно-механически. Английское написание имени персонажа всегда ровно \"Pengui\" — не транслитерируй заново (не \"Pingvi\" и не другие варианты). Ответь только переводом, без пояснений.' }, { role: 'user', content: $('Парсим ответ писателя').first().json.finalText } ] }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "id": "0b808683-3ecd-4570-9f5f-8246e5d2cafa",
+      "name": "Разбираем перевод описания",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        1360
+      ],
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.output || [];\nconst messageItem = output.find(i => i.type === 'message');\nconst textPart = messageItem && (messageItem.content || []).find(c => c.type === 'output_text');\nconst descriptionEN = textPart ? textPart.text.trim() : '';\n\nreturn [{ json: { descriptionEN } }];"
+      }
     }
   ],
   "pinData": {},
@@ -1195,7 +1236,7 @@
       "main": [
         [
           {
-            "node": "Ставим статус Описание согласовано",
+            "node": "OpenAI: перевод описания",
             "type": "main",
             "index": 0
           }
@@ -1326,6 +1367,28 @@
         [
           {
             "node": "Читаем строку проекта",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: перевод описания": {
+      "main": [
+        [
+          {
+            "node": "Разбираем перевод описания",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Разбираем перевод описания": {
+      "main": [
+        [
+          {
+            "node": "Ставим статус Описание согласовано",
             "type": "main",
             "index": 0
           }

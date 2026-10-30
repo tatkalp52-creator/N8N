@@ -1,0 +1,37 @@
+# 24.10.2026 — рабочая версия: история 3 дня, сжатие базы при старте, исполнитель кода внутри n8n
+# (внешний task-runners не принимал задачи: «Task request timed out after 60 seconds» — причина тормозов).
+services:
+  n8n:
+    image: 'n8nio/n8n:2.10.2'
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      - SERVICE_URL_N8N_5678
+      - 'N8N_EDITOR_BASE_URL=${SERVICE_URL_N8N}'
+      - 'WEBHOOK_URL=${SERVICE_URL_N8N}'
+      - 'N8N_HOST=${SERVICE_FQDN_N8N}'
+      - 'N8N_PROTOCOL=${N8N_PROTOCOL:-https}'
+      - 'GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}'
+      - 'TZ=${TZ:-UTC}'
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=72
+      - EXECUTIONS_DATA_PRUNE_MAX_COUNT=2000
+      - DB_SQLITE_VACUUM_ON_STARTUP=true
+      - 'DB_SQLITE_POOL_SIZE=${DB_SQLITE_POOL_SIZE:-2}'
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_RUNNERS_MODE=internal
+      - 'N8N_BLOCK_ENV_ACCESS_IN_NODE=${N8N_BLOCK_ENV_ACCESS_IN_NODE:-true}'
+      - 'N8N_GIT_NODE_DISABLE_BARE_REPOS=${N8N_GIT_NODE_DISABLE_BARE_REPOS:-true}'
+      - 'N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS:-true}'
+      - 'N8N_PROXY_HOPS=${N8N_PROXY_HOPS:-1}'
+      - 'N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=${N8N_SKIP_AUTH_ON_OAUTH_CALLBACK:-false}'
+    volumes:
+      - 'n8n-data:/home/node/.n8n'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'wget -qO- http://127.0.0.1:5678/healthz'
+      interval: 5s
+      timeout: 20s
+      retries: 10

@@ -1,0 +1,48 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Поводы — варианты</title>
+<style>
+:root{--bg:#f6f1e8;--paper:#fffdf8;--ink:#2c2620;--muted:#7a6e60;--line:#e4dacb;--accent:#8a5a2b;--soft:#efe6d7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,sans-serif;padding:14px;height:100vh;overflow:hidden}
+h1{font:600 18px Georgia,serif;margin:0 0 8px}.wrap{display:grid;grid-template-columns:1.1fr 1.4fr;gap:10px;height:calc(100% - 34px)}
+.card{min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px;min-height:0;display:flex;flex-direction:column;gap:8px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;flex:1;grid-auto-rows:1fr}
+.day{border:1px solid var(--line);border-radius:8px;padding:3px;background:var(--bg);font-size:11px;position:relative}
+.day b{color:var(--muted)}.day.sel{outline:2px solid var(--accent);background:var(--soft)}
+.cnt{position:absolute;right:4px;bottom:3px;font-size:10px;color:var(--accent);font-weight:700}
+.dots{display:flex;gap:2px;flex-wrap:wrap;margin-top:2px}.dots i{width:5px;height:5px;border-radius:50%;background:#c9b9a0}
+.scroll{overflow-y:auto;flex:1;min-height:0}.label{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:var(--bg);margin:0 4px 4px 0;font-size:13px;white-space:nowrap}
+.row{display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--line);padding:6px 0}
+.date{flex:none;width:46px;text-align:center;font:600 20px Georgia,serif}.date small{display:block;font:11px system-ui;color:var(--muted)}
+.chips{flex:1;display:flex;flex-wrap:wrap}.chip.on{border-color:var(--accent);background:var(--soft);font-weight:600}
+.put{display:flex;gap:6px;margin:2px 0 6px}.put button{border:0;border-radius:8px;padding:6px 10px;color:#fff;font:inherit}
+.strip{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}.strip div{flex:none;width:44px;border:1px solid var(--line);border-radius:10px;text-align:center;padding:4px 0;background:var(--bg)}
+.strip div.sel{background:var(--accent);color:#fff}.strip small{display:block;font-size:10px;opacity:.8}
+.ev{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:8px 0;gap:8px}
+.ev .b{display:flex;gap:4px}.ev .b span{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;background:var(--bg)}
+.slot{border-left:4px solid #c0463a;background:var(--bg);border-radius:6px;padding:6px 8px}
+</style><script src="data.js"></script></head><body><h1 id="h"></h1><div class="wrap"><div class="card"><div class="grid" id="g"></div></div><div class="card" id="p"></div></div>
+<script>
+var V=location.hash.slice(1)||'a', SEL=11, WD=['пн','вт','ср','чт','пт','сб','вс'];
+var by={};EV.forEach(function(e){(by[e.d]=by[e.d]||[]).push(e)});
+var g=document.getElementById('g'),p=document.getElementById('p');
+WD.forEach(function(w){g.innerHTML+='<div style="font-size:10px;color:#7a6e60;text-align:center">'+w+'</div>'});
+for(var i=0;i<6;i++)g.innerHTML+='<div></div>';
+for(var d=1;d<=30;d++){var n=(by[d]||[]).length,x='';
+ if(V==='b'&&n){x='<div class="dots">'+Array(n+1).join('<i></i>')+'</div>'}
+ g.innerHTML+='<div class="day'+(d===SEL?' sel':'')+'"><b>'+d+'</b>'+x+(V!=='b'&&n?'<span class="cnt">'+n+'</span>':'')+'</div>'}
+function chip(e,on){return '<span class="chip'+(on?' on':'')+'">'+e.g+' '+e.t+'</span>'}
+var put='<div class="put"><button style="background:#c0463a">🐧 в план 11.11</button><button style="background:#4a5fb0">✨</button><button style="background:#b88a1e">🦄</button></div>';
+if(V==='a'){document.getElementById('h').textContent='Вариант 1 — «Лента дней»: дата слева, поводы дня рядом облачком';
+ var h='<div class="label">Поводы — ноябрь, '+EV.length+' · касание повода → кнопки каналов</div><div class="scroll">';
+ Object.keys(by).forEach(function(d){d=+d;h+='<div class="row"><div class="date">'+d+'<small>'+WD[(d+5)%7]+'</small></div><div class="chips">'+by[d].map(function(e,i){return chip(e,d===11&&i===0)}).join('')+(d===11?put:'')+'</div></div>'});
+ p.innerHTML=h+'</div>';}
+if(V==='b'){document.getElementById('h').textContent='Вариант 2 — «Поводы внутри дня»: точки в клетках, поводы дня в карточке дня';
+ var h='<div style="font:600 18px Georgia,serif">11 ноября, ср</div><div class="label">План</div><div class="slot">🐧 Pengui — пусто</div><div class="label">Поводы этого дня — '+by[11].length+'</div><div class="scroll">';
+ by[11].forEach(function(e){h+='<div class="ev"><span>'+e.g+' '+e.t+'</span><span class="b"><span>🐧</span><span>✨</span><span>🦄</span></span></div>'});
+ p.innerHTML=h+'</div>';}
+if(V==='c'){document.getElementById('h').textContent='Вариант 3 — «Полоска дней»: листаешь дни вбок, ниже поводы выбранного дня';
+ var s='<div class="strip">';for(var d=1;d<=30;d++){s+='<div class="'+(d===SEL?'sel':'')+'">'+d+'<small>'+((by[d]||[]).length||'·')+'</small></div>'}
+ var h=s+'</div><div class="label">11 ноября — поводы: '+by[11].length+'</div><div class="scroll">';
+ by[11].concat(by[13]||[]).slice(0,by[11].length).forEach(function(e){h+='<div class="ev"><span>'+e.g+' '+e.t+'</span><span class="b"><span>🐧</span><span>✨</span><span>🦄</span></span></div>'});
+ p.innerHTML=h+'</div>';}
+</script></body></html>

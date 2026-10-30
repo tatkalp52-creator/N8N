@@ -1,0 +1,146 @@
+{
+  "name": "Проба: картинка одним узлом",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9419fdf0-8a73-4e83-ba22-b49b2fb0976c",
+      "name": "Нажми Execute",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/pages/refs/ref2_bez_slov.png",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "d790da9e-c78d-4bd8-a82c-6b25ea0bfe7e",
+      "name": "Скачиваем референс",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// референс → data URL (так же, как фото автора в 12)\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst mime = ($input.first().binary.data.mimeType || 'image/png').replace('application/octet-stream', 'image/png');\nconst url = `data:${mime};base64,${buffer.toString('base64')}`;\nreturn [{ json: { body: {\n  model: 'gpt-image-2', quality: 'low', size: '1024x1024',\n  prompt: 'Draw this same character waving hello on a plain light background. Keep the character exactly as in the reference.',\n  images: [{ image_url: url }, { image_url: url }],\n} } }];"
+      },
+      "id": "a97c0598-7755-4b8c-9d4b-402877ebdb9d",
+      "name": "Готовим запрос",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "be0149ca-9c70-466a-a9bc-2c2354b92df6",
+      "name": "OpenAI: одна картинка, JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json || {};\nconst ok = !!(r.data && r.data[0] && r.data[0].b64_json);\nreturn [{ json: { РЕЗУЛЬТАТ: ok ? 'РАБОТАЕТ: одна картинка пришла' : 'НЕ РАБОТАЕТ', ошибка: ok ? '' : JSON.stringify(r.error || r).slice(0, 800) } }];"
+      },
+      "id": "a9339010-c23c-4a4d-9e78-891811f2f53c",
+      "name": "Итог",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Нажми Execute": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем референс",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем референс": {
+      "main": [
+        [
+          {
+            "node": "Готовим запрос",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим запрос": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: одна картинка, JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: одна картинка, JSON": {
+      "main": [
+        [
+          {
+            "node": "Итог",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

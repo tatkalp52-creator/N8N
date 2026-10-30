@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Контент-план</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Nunito+Sans:wght@400;600;700&display=swap">
+<style>
+/* Раскладка: сверху месяц-сетка с выпусками по дням, ниже — карточка выбранного дня, ещё ниже копилка идей. Телефон первым. */
+:root {
+  --bg: #f6f1e8;
+  --paper: #fffdf8;
+  --ink: #2c2620;
+  --muted: #7a6e60;
+  --line: #e4dacb;
+  --accent: #8a5a2b;
+  --pengui: #c0463a;
+  --lumos: #4a5fb0;
+  --unicorn: #b88a1e;
+  --c3: #2f7a78; --c4: #8a4f9e;
+  --soft: #efe6d7;
+  --display: "Lora", Georgia, serif;
+  --body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1915; --paper: #26221d; --ink: #f1ebe1; --muted: #a99d8d; --line: #3a342c;
+    --accent: #d9a36a; --pengui: #e07063; --lumos: #8b9ee8; --unicorn: #dcb24a; --soft: #2f2a23;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1915; --paper: #26221d; --ink: #f1ebe1; --muted: #a99d8d; --line: #3a342c;
+  --accent: #d9a36a; --pengui: #e07063; --lumos: #8b9ee8; --unicorn: #dcb24a; --soft: #2f2a23;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 12px; overflow: hidden; }
+.wrap { max-width: 1200px; margin-inline: auto; height: 100%; display: flex; flex-direction: column; gap: 10px; }
+.cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 10px; }
+.col { min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 10px; }
+.kopcard { flex: 1 1 0; min-height: 0; }
+.kopcard #kop { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* всегда две колонки: слева месяц, справа поводы. День — всплывающим окном по касанию дня */
+.sheetbg { position: fixed; inset: 0; background: rgba(28, 25, 21, .45); display: flex; align-items: flex-end; justify-content: center; z-index: 20; padding: 12px; }
+.sheetbg[hidden] { display: none; }
+.sheet { width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 -6px 30px rgba(0,0,0,.25); }
+.sheethead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.x { min-height: 36px; min-width: 36px; padding: 0; font-size: 18px; line-height: 1; }
+@media (orientation: landscape) { .sheetbg { align-items: center; } }
+@media (max-width: 700px) {
+  .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+  .erow { gap: 6px; }
+  .edate { width: 28px; font-size: 15px; }
+  .ev { font-size: 12px; min-height: 28px; padding: 2px 8px; }
+}
+.idea .where { font-size: 12px; color: var(--muted); }
+/* поводы облачками: дата слева, поводы дня рядом; касание — суть и кнопки каналов */
+.erow { display: flex; gap: 10px; align-items: flex-start; border-top: 1px solid var(--line); padding: 6px 0; }
+.erow:first-child { border-top: 0; }
+.edate { flex: none; width: 40px; text-align: center; font-family: var(--display); font-weight: 600; font-size: 19px; line-height: 1.1; }
+.edate small { display: block; font-family: var(--body); font-size: 11px; font-weight: 400; color: var(--muted); }
+.edate.today { color: var(--accent); }
+.chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.ev { min-height: 32px; border-radius: 999px; padding: 3px 10px; font-size: 13px; background: var(--bg); text-align: left; max-width: 100%; overflow-wrap: anywhere; }
+.ev[aria-expanded="true"] { border-color: var(--accent); background: var(--soft); font-weight: 700; }
+.ev.inplan { color: var(--muted); border-style: dashed; }
+.about { flex-basis: 100%; background: var(--soft); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.about .ru { font-weight: 600; color: var(--ink); }
+.about p { margin: 0; font-size: 13.5px; }
+.idea.planned .t { color: var(--muted); }
+/* готовность выпуска: цвет — шаг, 🎵 — треки есть, ✓ — выложен */
+:root { --st-plan: transparent; --st-red: #c94a3d; --st-orange: #d9822b; --st-yellow: #e2b93b; --st-green: #4f8a4b; }
+.pill.st-plan { background: var(--paper) !important; color: var(--ink); border: 1px solid var(--line); }
+.pill.st-red { background: var(--st-red) !important; }
+.pill.st-orange { background: var(--st-orange) !important; }
+.pill.st-yellow { background: var(--st-yellow) !important; color: #2c2620; }
+.pill.st-green { background: var(--st-green) !important; }
+.stline { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; }
+.stdot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.tick[aria-pressed="true"] { background: var(--st-green); color: #fff; border-color: var(--st-green); }
+.own { display: flex; flex-direction: column; gap: 6px; }
+.own input, .own select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 10px; width: 100%; }
+h1 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; text-wrap: balance; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.badge { display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle; font-family: var(--body); font-weight: 700; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 6px 12px; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* кнопка должна чувствоваться нажатой (14.10, автор: «плоская, глухая, не понять, нажала ли») */
+button { transition: transform .08s, filter .08s, box-shadow .08s; box-shadow: 0 1px 0 rgba(0,0,0,.12); }
+button:active:not(:disabled) { transform: translateY(1px) scale(.97); filter: brightness(.88); box-shadow: none; }
+button:disabled { opacity: .7; cursor: default; }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }
+.chip[aria-pressed="true"] { border-color: currentColor; font-weight: 700; background: var(--soft); }
+.chip .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.c-pengui { color: var(--pengui); } .c-lumos { color: var(--lumos); } .c-unicorn { color: var(--unicorn); }
+.ru { color: var(--muted); font-weight: 400; }
+.chbtn { min-height: 30px; padding: 2px 8px; font-size: 12px; color: #fff; border: 0; }
+.save { font-size: 12px; color: var(--muted); }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.monthbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.monthbar h2 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0; }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.wd { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-align: center; padding-bottom: 2px; }
+.day { min-height: 64px; border: 1px solid var(--line); border-radius: 9px; padding: 3px; display: flex; flex-direction: column; gap: 2px; background: var(--bg); cursor: pointer; text-align: left; min-width: 0; }
+.day.out { visibility: hidden; }
+.day.today { border-color: var(--accent); border-width: 2px; }
+.day.sel { background: var(--soft); outline: 2px solid var(--accent); }
+.day .n { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pill { font-size: 10px; line-height: 1.2; color: #fff; border-radius: 5px; padding: 2px 4px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.pill.done { opacity: .55; text-decoration: line-through; }
+.hint { font-size: 12px; color: var(--muted); }
+.dayhead { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 0; }
+.slot { border-left: 4px solid currentColor; padding: 6px 8px; border-radius: 6px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
+.slot .t { color: var(--ink); font-weight: 700; }
+.slot .note { color: var(--muted); font-size: 13px; }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; }
+.step { font-size: 12px; min-height: 30px; padding: 3px 8px; border-radius: 999px; }
+.step[aria-pressed="true"] { background: currentColor; }
+.step[aria-pressed="true"] span { color: var(--paper); }
+.empty { color: var(--muted); font-style: italic; margin: 0; }
+.dgroup { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+.dgroup:first-child { border-top: 0; padding-top: 0; }
+.dgroup h4 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 600; color: var(--ink); }
+.idea { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.idea .date { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; padding-top: 2px; }
+.idea .t { font-weight: 600; overflow-wrap: anywhere; }
+.idea .note { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.idea button { min-height: 34px; font-size: 13px; white-space: nowrap; }
+.label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+@media (orientation: landscape) {
+  .col:first-child > .card { flex: 1; min-height: 0; }
+  .col:first-child .grid { flex: 1; min-height: 0; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); }
+}
+header { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 4px; }
+header .sub { flex-basis: 100%; order: 3; }
+.col:first-child .grid .wd { align-self: end; }
+.day { min-height: 0; overflow: hidden; }
+#ghint:empty { display: none; }
+@media (orientation: landscape) and (max-height: 600px) {
+  body { padding-block: 6px; padding-inline: 10px; font-size: 13.5px; }
+  .wrap { gap: 6px; }
+  header .sub { display: none; }
+  h1 { font-size: 16px; }
+  .chip { min-height: 28px; padding: 2px 8px; font-size: 12.5px; }
+  .card { padding: 6px 8px; gap: 6px; }
+  .monthbar h2 { font-size: 14px; }
+  .monthbar button { min-height: 28px; padding: 0 8px; }
+  .grid { gap: 2px; }
+  .wd { font-size: 9.5px; padding: 0; }
+  .day { padding: 1px 3px; border-radius: 6px; }
+  .day .n { font-size: 10.5px; }
+  .pill { font-size: 9px; padding: 0 3px; }
+  .dayhead { font-size: 15px; }
+}
+.toast { z-index: 40; position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+.toast.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+.day.target { border-style: dashed; border-color: var(--accent); }
+@media (max-width: 700px) {
+  body { padding-inline: 8px; font-size: 14px; }
+  .card { padding: 8px; }
+  .grid { gap: 2px; }
+  .day { min-height: 38px; padding: 2px; border-radius: 6px; }
+  .day .n { font-size: 10.5px; }
+  .pill { font-size: 0; height: 5px; padding: 0; border-radius: 3px; }
+  .wd { font-size: 9px; }
+  .monthbar h2 { font-size: 15px; }
+  .monthbar button { min-height: 32px; padding: 2px 8px; }
+  .idea { gap: 6px; }
+  .idea button { padding: 3px 8px; min-height: 30px; font-size: 12px; }
+  .sub { display: none; }
+  .chip { min-height: 32px; padding: 3px 8px; font-size: 13px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Контент-план <span class="save" id="savest"></span></h1>
+    <p class="sub">Слева план выпусков, справа поводы из листа «Календарь». Цвет выпуска — сам, по строке выпуска в таблице.</p>
+    <div class="row" id="chans" role="group" aria-label="Каналы"></div>
+    <div class="legend"><span><i style="background:var(--st-red)"></i>картинка</span><span><i style="background:var(--st-orange)"></i>описание</span><span><i style="background:var(--st-yellow)"></i>утверждено</span><span><i style="background:var(--st-green)"></i>на YouTube</span><span>🎵 треки есть</span><span>✓ выложен</span></div>
+  </header>
+
+  <div class="cols">
+  <div class="col">
+  <section class="card" aria-label="Месяц">
+    <div class="monthbar">
+      <button id="prev" type="button" aria-label="Предыдущий месяц">‹</button>
+      <h2 id="mname"></h2>
+      <button id="next" type="button" aria-label="Следующий месяц">›</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="hint" id="ghint"></p>
+  </section>
+
+  </div>
+
+  <div class="col">
+  <section class="card kopcard" aria-label="Поводы">
+    <div class="row" style="justify-content: space-between">
+      <div class="label">Поводы — <span id="kcount"></span></div>
+      <span class="hint" id="khint"></span>
+    </div>
+    <div id="kop"></div>
+  </section>
+  </div>
+  </div>
+</div>
+<div class="sheetbg" id="sheetbg" hidden><section class="card sheet" aria-label="Выбранный день" id="daycard" role="dialog" aria-modal="true"></section></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  if (window.Telegram && Telegram.WebApp) { try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {} }
+  var BASE = location.pathname.replace(/\/+$/, '');
+  // вход в бота (12) из календаря: «Старт» выпуска и ссылка на треки
+  var BOT = '/webhook/cal12-pDjXqAmp9bfKxK9RRByEPOci';
+  function me() { try { return Telegram.WebApp.initDataUnsafe.user.id || null; } catch (e) { return null; } }
+  // btn — кнопка, на которой показываем, что происходит: «Отправляю…» → «✓ …» или ошибка и снова можно нажать
+  function toBot(body, ok, btn) {
+    body.chatId = me();
+    var was = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Отправляю…'; }
+    return fetch(BOT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (x) {
+        if (!x.ok) throw new Error(x.status === 404 ? 'бот (12) не принял: адрес не найден — 12 включён (Active)?' : 'бот ответил ошибкой ' + x.status);
+        if (btn) btn.textContent = '✓ ' + ok;
+        toast(ok); setTimeout(load, 6000); setTimeout(load, 20000);
+      })
+      .catch(function (e) {
+        var why = e && e.message && !/fetch/i.test(e.message) ? e.message : 'нет связи с сервером';
+        if (btn) { btn.disabled = false; btn.textContent = was; }
+        toast('Не ушло: ' + why);
+      });
+  }
+  var COLORS = ['var(--pengui)', 'var(--lumos)', 'var(--unicorn)', 'var(--c3)', 'var(--c4)'];
+  var MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+  var MGEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  var WD = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+  var PLANNED = { 'Выбран': 0, 'В работе': 1, 'Вышел': 5 };
+  var TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);
+  var CH = [], items = [], active = {}, placing = null, choose = null, PROJ = {}, PLIST = [], ownFor = null, openEv = null, dayOpen = false;
+  var view = { y: TODAY.getFullYear(), m: TODAY.getMonth() + 1 };
+  var sel = { y: view.y, m: view.m, d: TODAY.getDate() };
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function toast(t) { var x = $('toast'); x.textContent = t; x.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(function () { x.classList.remove('on'); }, 2200); }
+  function color(k) { var i = CH.findIndex(function (c) { return c.key === k; }); return COLORS[(i < 0 ? 0 : i) % COLORS.length]; }
+  function chName(k) { var c = CH.find(function (c) { return c.key === k; }); return c ? c.name : k; }
+  function chIcon(k) { var c = CH.find(function (c) { return c.key === k; }); return c && c.icon ? c.icon : ''; }
+  // шаг выпуска — из его строки в таблице (sys_Status), а не руками
+  var ST = { plan: 'не начат', red: 'картинка в работе', orange: 'описание в работе', yellow: 'утверждено — ждёт треки и сборку', green: 'на YouTube' };
+  function proj(it) { return it.project ? PROJ[it.project] || null : null; }
+  function stOf(it) {
+    var p = proj(it); if (!p) return 'plan';
+    if (p.status === 'Опубликовано') return 'green';
+    if (p.status === 'Утверждено') return 'yellow';
+    if (p.status === 'Картинка согласована') return 'orange';
+    return 'red';
+  }
+  function short(it) { return it.ru || it.title; }
+  function mark(it) { return (chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + it.pd + '.' + String(it.pm).padStart(2, '0') + ' · ' + short(it); }
+  function ptitle(p) { var t = String(p.title || ''); var m = t.match(/·\s*([^|]+)/); return (m ? m[1] : t).trim() || p.id; }
+  function iso(y, m, d) { return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+
+  function fromRow(r) {
+    var m = Number(r.month), d = Number(r.day), y = Number(r.year) || 0;
+    if (!y) { y = TODAY.getFullYear(); if (new Date(y, m - 1, d) < new Date(TODAY.getFullYear(), TODAY.getMonth() - 2, 1)) y++; }
+    var chs = String(r.channel || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    var rel = String(r.release || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var step = r.step !== '' && r.step != null && !isNaN(Number(r.step)) ? Number(r.step) : PLANNED[r.status];
+    return { row: r, id: String(r.id), y: y, m: m, d: d, chs: chs, orig: chs.slice(),
+      title: String(r.title || ''), ru: String(r.title_ru || ''), note: String(r.note || '').replace(/\n?#+ [^\n]*/g, '').trim(),
+      planned: r.status in PLANNED, step: step == null ? 0 : step,
+      project: String(r.project || '').trim(), posted: String(r.posted || '').trim() === 'да', tag: String(r.tag || '').trim(),
+      py: rel ? +rel[1] : y, pm: rel ? +rel[2] : m, pd: rel ? +rel[3] : d };
+  }
+  function slot(y, m, d, ch) { return items.find(function (it) { return it.planned && it.py === y && it.pm === m && it.pd === d && it.chs[0] === ch; }); }
+
+  var queue = Promise.resolve(), pending = 0;
+  function save(it) {
+    var r = it.row;
+    r.status = it.planned ? (stOf(it) === 'green' ? 'Вышел' : it.project ? 'В работе' : 'Выбран') : 'Идея';
+    r.step = it.planned ? String(it.step) : '';
+    r.release = it.planned ? iso(it.py, it.pm, it.pd) : '';
+    r.channel = it.chs.join(', ');
+    r.project = it.project || '';
+    r.posted = it.posted ? 'да' : '';
+    pending++; $('savest').textContent = '· сохраняю…';
+    queue = queue.then(function () {
+      return fetch(BASE + '/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ row: r }) })
+        .then(function (x) { if (!x.ok) throw new Error(x.status); })
+        .catch(function () { toast('Не сохранилось — проверь связь и повтори'); $('savest').textContent = '· ошибка сохранения'; pending = -999; });
+    }).then(function () { pending--; if (pending === 0) $('savest').textContent = '· сохранено'; });
+  }
+
+  function place(it, s, ch) {
+    var other = slot(s.y, s.m, s.d, ch);
+    if (other && other !== it) { other.planned = false; other.chs = other.orig.slice(); save(other); }
+    var wasPlanned = it.planned;
+    it.planned = true; if (!wasPlanned) it.step = 0;
+    it.py = s.y; it.pm = s.m; it.pd = s.d;
+    it.chs = [ch].concat(it.chs.filter(function (c) { return c !== ch; }));
+    save(it);
+    toast((other && other !== it ? 'Заменено: ' : 'Поставлено: ') + it.title.slice(0, 40) + ' → ' + s.d + ' ' + MGEN[s.m - 1]);
+  }
+
+  function renderChans() {
+    var box = $('chans'); box.innerHTML = '';
+    CH.forEach(function (c) {
+      var b = el('button', 'chip'); b.type = 'button'; b.style.color = color(c.key);
+      b.setAttribute('aria-pressed', active[c.key] ? 'true' : 'false');
+      var d = el('span', 'dot'); d.style.background = color(c.key); b.appendChild(d); b.appendChild(document.createTextNode((c.icon ? c.icon + ' ' : '') + c.name));
+      b.onclick = function () { active[c.key] = !active[c.key]; render(); };
+      box.appendChild(b);
+    });
+  }
+  function renderGrid() {
+    $('mname').textContent = MONTHS[view.m - 1] + ' ' + view.y;
+    var g = $('grid'); g.innerHTML = '';
+    WD.forEach(function (w) { g.appendChild(el('div', 'wd', w)); });
+    var shift = (new Date(view.y, view.m - 1, 1).getDay() + 6) % 7, days = new Date(view.y, view.m, 0).getDate();
+    for (var i = 0; i < shift; i++) g.appendChild(el('div', 'day out'));
+    for (var d = 1; d <= days; d++) (function (d) {
+      var b = el('button', 'day'); b.type = 'button';
+      if (view.y === TODAY.getFullYear() && view.m === TODAY.getMonth() + 1 && d === TODAY.getDate()) b.classList.add('today');
+      if (sel.y === view.y && sel.m === view.m && sel.d === d) b.classList.add('sel');
+      if (placing) b.classList.add('target');
+      b.appendChild(el('span', 'n', d));
+      CH.forEach(function (c) {
+        var p = slot(view.y, view.m, d, c.key);
+        if (!p || !active[c.key]) return;
+        var pp = proj(p), txt = (c.icon || '') + (pp && pp.tracks ? '🎵' : '') + (p.posted ? '✓' : '') + ' ' + short(p);
+        var pl = el('span', 'pill st-' + stOf(p), txt); b.appendChild(pl);
+      });
+      b.setAttribute('aria-label', d + ' ' + MGEN[view.m - 1]);
+      b.onclick = function () {
+        sel = { y: view.y, m: view.m, d: d };
+        if (placing && placing.ch) { place(placing.it, sel, placing.ch); placing = null; choose = null; }
+        else if (placing) {
+          var opts = (placing.it.chs.length ? placing.it.chs : CH.map(function (c) { return c.key; })).filter(function (c) { return active[c]; });
+          if (opts.length === 1) { place(placing.it, sel, opts[0]); placing = null; choose = null; }
+          else { choose = { it: placing.it, opts: opts }; placing = null; }
+        } else { choose = null; ownFor = null; dayOpen = true; }
+        if (choose) dayOpen = true;
+        render();
+      };
+      g.appendChild(b);
+    })(d);
+  }
+  function renderDay() {
+    var c = $('daycard'); c.innerHTML = '';
+    $('sheetbg').hidden = !dayOpen;
+    if (!dayOpen) return;
+    var hd = el('div', 'sheethead'); hd.appendChild(el('h3', 'dayhead', sel.d + ' ' + MGEN[sel.m - 1] + ' ' + sel.y));
+    var x = el('button', 'x', '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.onclick = function () { dayOpen = false; choose = null; ownFor = null; render(); };
+    hd.appendChild(x); c.appendChild(hd);
+    if (choose) {
+      var q = el('div', 'slot'); q.appendChild(el('div', 't', 'Для какого канала поставить «' + choose.it.title + '»?'));
+      var rw = el('div', 'row');
+      choose.opts.forEach(function (k) { var b = el('button', 'chbtn', chName(k)); b.type = 'button'; b.style.background = color(k); b.onclick = function () { place(choose.it, sel, k); choose = null; render(); }; rw.appendChild(b); });
+      var no = el('button', '', 'Отмена'); no.type = 'button'; no.onclick = function () { choose = null; render(); }; rw.appendChild(no);
+      q.appendChild(rw); c.appendChild(q);
+    }
+    CH.forEach(function (ch) {
+      if (!active[ch.key]) return;
+      var p = slot(sel.y, sel.m, sel.d, ch.key);
+      var s = el('div', 'slot'); s.style.color = color(ch.key);
+      s.appendChild(el('div', 'label', ch.name));
+      if (!p) {
+        if (ownFor === ch.key) {
+          var f = el('div', 'own'); var inp = el('input', ''); inp.placeholder = 'Тема, например: Пингви читает под дождём'; inp.setAttribute('aria-label', 'Своя тема');
+          var rr = el('div', 'row'); var ok = el('button', 'chbtn', 'Поставить'); ok.type = 'button'; ok.style.background = 'var(--accent)';
+          var cn = el('button', '', 'Отмена'); cn.type = 'button';
+          ok.onclick = function () {
+            var tt = inp.value.trim(); if (!tt) { inp.focus(); return; }
+            var row = { id: 'i' + Date.now().toString(36), year: String(sel.y), month: String(sel.m), day: String(sel.d), title: tt, channel: ch.key, status: 'Выбран', sources: 'своя идея' };
+            var it = fromRow(row); it.planned = true; it.step = 0; it.chs = [ch.key]; it.orig = [ch.key]; items.push(it); ownFor = null; save(it); toast('Поставлено: ' + tt.slice(0, 40)); render();
+          };
+          cn.onclick = function () { ownFor = null; render(); };
+          rr.appendChild(ok); rr.appendChild(cn); f.appendChild(inp); f.appendChild(rr); s.appendChild(f); c.appendChild(s);
+          setTimeout(function () { inp.focus(); }, 0); return;
+        }
+        s.appendChild(el('p', 'empty', 'пусто'));
+        var add = el('button', '', '+ Своя идея'); add.type = 'button'; add.onclick = function () { ownFor = ch.key; render(); };
+        var ra = el('div', 'row'); ra.appendChild(add); s.appendChild(ra);
+        c.appendChild(s); return;
+      }
+      var t = el('div', 't', mark(p)); if (p.ru && p.title && p.ru !== p.title) { t.appendChild(document.createTextNode(' ')); t.appendChild(el('span', 'ru', '— ' + p.title)); } s.appendChild(t);
+      if (p.d !== p.pd || p.m !== p.pm) s.appendChild(el('div', 'note', 'Повод — ' + p.d + ' ' + MGEN[p.m - 1]));
+      if (p.note) s.appendChild(el('div', 'note', p.note));
+      var pp = proj(p), st = stOf(p);
+      var line = el('div', 'stline'); var dot = el('span', 'stdot'); if (st !== 'plan') dot.style.background = 'var(--st-' + st + ')';
+      line.appendChild(dot); line.appendChild(el('span', '', ST[st] + (pp && pp.tracks ? ' · 🎵 треки есть' : '') + (p.posted ? ' · ✓ выложен' : '')));
+      s.appendChild(line);
+      var r = el('div', 'row');
+      if (pp) {
+        if (st === 'green' || p.posted) {
+        var tk = el('button', 'tick', p.posted ? '✓ Выложен' : 'Отметить: выложен'); tk.type = 'button'; tk.setAttribute('aria-pressed', p.posted ? 'true' : 'false');
+        tk.onclick = function () { p.posted = !p.posted; save(p); render(); };
+        r.appendChild(tk);
+        }
+        if (st !== 'green') {
+          var tf = el('div', 'own'); var ti = el('input', ''); ti.placeholder = pp.tracks ? 'Новая ссылка на треки (заменит прежнюю)' : 'Ссылка на треки'; ti.setAttribute('aria-label', 'Ссылка на треки');
+          var tb = el('button', 'chbtn', '🎵 Отправить треки'); tb.type = 'button'; tb.style.background = 'var(--accent)';
+          tb.onclick = function () { var u = ti.value.trim(); if (!/^https?:\/\//.test(u)) { ti.focus(); toast('Вставь ссылку на треки'); return; }
+            toBot({ action: 'tracks', projectId: p.project, url: u }, 'Треки ушли в бот — он напишет в Телеграм', tb); };
+          tf.appendChild(ti); tf.appendChild(tb); s.appendChild(tf);
+        }
+        var un = el('button', '', 'Отвязать выпуск'); un.type = 'button';
+        un.onclick = function () { p.project = ''; p.posted = false; save(p); render(); };
+        r.appendChild(un);
+      } else {
+        var go = el('button', 'chbtn', '▶ Старт'); go.type = 'button'; go.style.background = color(ch.key);
+        go.onclick = function () {
+          toBot({ action: 'start', calId: p.id, channel: ch.key, title: short(p), about: p.note || '', release: iso(p.py, p.pm, p.pd) }, 'Поехали! Первое сообщение — в боте', go); };
+        r.appendChild(go);
+        var free = PLIST.filter(function (q) { return q.ch === ch.key && !items.some(function (o) { return o.project === q.id; }); });
+        if (free.length) {
+          var sl = el('select', ''); sl.setAttribute('aria-label', 'Привязать начатый выпуск');
+          var o0 = el('option', '', 'Привязать начатый выпуск…'); o0.value = ''; sl.appendChild(o0);
+          free.forEach(function (q) { var o = el('option', '', ptitle(q) + ' · ' + q.id.slice(6, 8) + '.' + q.id.slice(4, 6)); o.value = q.id; sl.appendChild(o); });
+          sl.onchange = function () { if (!sl.value) return; p.project = sl.value; save(p); toast('Выпуск привязан'); render(); };
+          r.appendChild(sl);
+        }
+      }
+      var rm = el('button', '', 'Убрать из плана'); rm.type = 'button';
+      rm.onclick = function () { p.planned = false; p.project = ''; p.posted = false; p.chs = p.orig.slice(); save(p); toast('Вернулось в копилку'); render(); };
+      r.appendChild(rm); s.appendChild(r);
+      c.appendChild(s);
+    });
+  }
+  function renderKop() {
+    var box = $('kop'); box.innerHTML = '';
+    // все поводы месяца, кроме отклонённых, без фильтра по каналам: канал выбирается при постановке
+    var show = items.filter(function (it) { return it.row.status !== 'Отклонён' && it.y === view.y && it.m === view.m; })
+      .sort(function (a, b) { return a.d - b.d; });
+    $('kcount').textContent = MONTHS[view.m - 1] + ', ' + show.length;
+    $('khint').textContent = placing ? 'коснись дня в календаре' : '';
+    $('ghint').textContent = placing ? 'Коснись дня, куда поставить: ' + placing.it.title.slice(0, 50) + (placing.ch ? ' (' + chName(placing.ch) + ')' : '') : '';
+    if (!show.length) box.appendChild(el('p', 'empty', 'На этот месяц поводов нет. В боте календаря напиши «собери ' + MONTHS[view.m - 1] + '».'));
+    var days = [];
+    show.forEach(function (it) { var g = days[days.length - 1]; if (!g || g.d !== it.d) { g = { d: it.d, list: [] }; days.push(g); } g.list.push(it); });
+    days.forEach(function (g) {
+      var row = el('div', 'erow'), dt = el('div', 'edate', g.d);
+      var wd = (new Date(view.y, view.m - 1, g.d).getDay() + 6) % 7; dt.appendChild(el('small', '', WD[wd]));
+      if (view.y === TODAY.getFullYear() && view.m === TODAY.getMonth() + 1 && g.d === TODAY.getDate()) dt.classList.add('today');
+      row.appendChild(dt);
+      var chips = el('div', 'chips');
+      g.list.forEach(function (it) {
+        var b = el('button', 'ev' + (it.planned ? ' inplan' : '')); b.type = 'button';
+        b.textContent = (it.planned && chIcon(it.chs[0]) ? chIcon(it.chs[0]) + ' ' : '') + (it.tag ? it.tag + ' ' : '') + it.title;
+        b.setAttribute('aria-expanded', openEv === it.id ? 'true' : 'false');
+        b.onclick = function () { openEv = openEv === it.id ? null : it.id; render(); };
+        chips.appendChild(b);
+      });
+      var op = g.list.find(function (it) { return it.id === openEv; });
+      if (op) {
+        var ab = el('div', 'about');
+        if (op.ru) ab.appendChild(el('div', 'ru', op.ru));
+        ab.appendChild(el('p', '', op.note || 'Сути пока нет — она придёт со следующим автосбором.'));
+        var rr = el('div', 'row');
+        if (op.planned) {
+          rr.appendChild(el('span', 'hint', 'в плане: ' + (chIcon(op.chs[0]) ? chIcon(op.chs[0]) + ' ' : '') + op.pd + ' ' + MGEN[op.pm - 1]));
+          var go = el('button', '', 'Открыть день'); go.type = 'button';
+          go.onclick = function () { view = { y: op.py, m: op.pm }; sel = { y: op.py, m: op.pm, d: op.pd }; dayOpen = true; render(); };
+          rr.appendChild(go);
+        } else {
+          CH.forEach(function (c) {
+            var cb = el('button', 'chbtn', (c.icon ? c.icon + ' ' : '') + c.name); cb.type = 'button'; cb.style.background = color(c.key);
+            cb.title = 'В план ' + c.name + ' на ' + op.d + ' ' + MGEN[op.m - 1];
+            cb.onclick = function () { sel = { y: op.y, m: op.m, d: op.d }; place(op, sel, c.key); openEv = null; render(); };
+            rr.appendChild(cb);
+          });
+          var other = el('button', '', 'В другой день…'); other.type = 'button';
+          other.onclick = function () { placing = { it: op }; choose = null; toast('Коснись дня в календаре'); render(); };
+          rr.appendChild(other);
+        }
+        ab.appendChild(rr); chips.appendChild(ab);
+      }
+      row.appendChild(chips); box.appendChild(row);
+    });
+  }
+  function render() { renderChans(); renderGrid(); renderDay(); renderKop(); }
+  $('sheetbg').onclick = function (e) { if (e.target === this) { dayOpen = false; choose = null; ownFor = null; render(); } };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && dayOpen) { dayOpen = false; render(); } });
+  $('prev').onclick = function () { view.m--; if (view.m < 1) { view.m = 12; view.y--; } render(); };
+  $('next').onclick = function () { view.m++; if (view.m > 12) { view.m = 1; view.y++; } render(); };
+
+  $('savest').textContent = '· загружаю…';
+  function load() { return fetch(BASE + '/data', { cache: 'no-store' }).then(function (x) { return x.json(); }).then(function (data) {
+    CH = (data.channels || []).map(function (c) { return { key: String(c.Channel || '').trim(), name: String(c['Кнопка'] || c.Channel || '').trim(), icon: String(c['Значок'] || '').trim() }; }).filter(function (c) { return c.key; });
+    PLIST = (data.projects || []).slice().sort(function (a, b) { return a.id < b.id ? 1 : -1; });
+    PLIST.forEach(function (q) { PROJ[q.id] = q; });
+    if (!CH.length) CH = [{ key: 'pengui', name: 'pengui' }];
+    CH.forEach(function (c) { if (!(c.key in active)) active[c.key] = true; });
+    PROJ = {}; PLIST.forEach(function (q) { PROJ[q.id] = q; });
+    items = (data.rows || []).map(fromRow);
+    $('savest').textContent = ''; render();
+  }).catch(function () { $('savest').textContent = '· не удалось загрузить таблицу'; }); }
+  load();
+})();
+</script>
+</body>
+</html>

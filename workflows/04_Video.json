@@ -50,7 +50,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -88,7 +91,10 @@
       "position": [
         5344,
         2896
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -128,7 +134,10 @@
       "position": [
         5344,
         3100
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -161,19 +170,22 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
-        7584,
-        3500
+        7808,
+        2404
       ],
       "credentials": {
         "googleApi": {
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\n// Модель иногда пишет метку без квадратных скобок или с другим регистром\n// ('Timecodes' вместо '[Timecodes]') — ищем её гибко, а не только точную\n// строку, чтобы замена не срабатывала молча вхолостую.\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace(/\\[?Timecodes\\]?/i, $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\n// Иногда модель вместо реального текста оверлея (1-2 коротких слова)\n// оставляет объясняющую фразу-заглушку вроде \"(none for guides)\" —\n// такой текст не должен попасть на кадр буквально. Отсекаем это\n// автоматически здесь, один раз и навсегда: не короткая фраза (больше\n// 4 слов) или есть скобки — считаем это мусором и подставляем пустую\n// строку, как для обычного гайда без оверлея. Ручная чистка ячейки в\n// таблице для этого больше не нужна — рендер сам никогда не покажет\n// такой текст, что бы ни лежало в ai_OverlayText.\nfunction sanitizeOverlayText(raw) {\n  const text = (raw || '').trim();\n  if (!text) return '';\n  const looksLikeExplanation = /[()]/.test(text) || text.split(/\\s+/).length > 4;\n  return looksLikeExplanation ? '' : text;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (19.09, ночь): раньше каждый параметр сборщика видео нужно было\n// дописывать сюда вручную (findByLabel + запись в payload) — то есть\n// добавление новой ручки в таблице требовало правки кода здесь. Теперь,\n// как у Художника (🎨) и Писателя (🖋), сборщик видео читает ВСЕ колонки\n// с иконкой 🎬 автоматически: имя колонки \"🎬tmpl_BassGainDb\" превращается\n// в поле payload \"bassGainDb\" без единой строчки кода на каждый параметр.\n// Чтобы добавить новую ручку — просто добавить колонку \"🎬tmpl_ИмяРучки\"\n// в таблицу; чтобы убрать — удалить колонку. Здесь ничего не ломается.\n//\n// tmpl_OverlayStyle исключён из автосбора: это не одно значение, а строка\n// \"font:...; size:...\", её нужно сначала разобрать на части (см. ниже).\nfunction collectByIcon(row, icon, excludeLabels) {\n  const result = {};\n  for (const key of Object.keys(row)) {\n    if (!key.includes(icon)) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '');\n    if (!label.startsWith('tmpl_')) continue;\n    if (excludeLabels.includes(label)) continue;\n    const value = row[key];\n    if (value === undefined || value === null || value === '') continue;\n    const paramName = label.slice('tmpl_'.length);\n    const camelName = paramName.charAt(0).toLowerCase() + paramName.slice(1);\n    result[camelName] = value;\n  }\n  return result;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n    if (key === 'margin') result.overlayMargin = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst autoParams = collectByIcon(styleRow, '🎬', ['tmpl_OverlayStyle']);\n// Приоритет — решение редактора конкретно для этой сцены (ai_TargetBrightness,\n// проставляется при согласовании картинки) перебивает общий дефолт канала,\n// который уже пришёл из tmpl_TargetBrightness через общий автосбор выше.\n\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ApprovedImageUrl || proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: sanitizeOverlayText(proj.ai_OverlayText),\n  overlayPosition: proj.ai_OverlayPosition || 'center',\n  ...overlayStyle,\n  ...autoParams,\n  ...(proj.ai_TargetBrightness ? { targetBrightness: proj.ai_TargetBrightness } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  tags: proj.ai_Tags || '',\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst meta = $('Нормализуем вход').first().json;\n// Модель иногда пишет метку без квадратных скобок или с другим регистром\n// ('Timecodes' вместо '[Timecodes]') — ищем её гибко, а не только точную\n// строку, чтобы замена не срабатывала молча вхолостую.\nconst timecodedDescription = $('Собираем текст таймкодов').first().json.timecodesText\n  ? proj.ai_Description.replace(/\\[?Timecodes\\]?/i, $('Собираем текст таймкодов').first().json.timecodesText)\n  : proj.ai_Description;\n\n// Хэштеги генерируются GPT в отдельную колонку, но раньше никогда не попадали\n// в финальное описание — дописываем их в конец, если они есть.\nconst fullDescription = proj.ai_Hashtags\n  ? `${timecodedDescription}\\n\\n${proj.ai_Hashtags}`\n  : timecodedDescription;\n\n// Колонки шаблона канала помечены значком-эмодзи в начале имени —\n// ищем по имени без учёта ведущего значка, чтобы колонку можно было\n// переименовать/переставить в таблице, не трогая этот код.\n// (28.10) текст оверлея — согласованный автором пункт: пишем на кадр как есть. «-» — оверлея нет.\n// (раньше код молча выбрасывал текст длиннее 4 слов или со скобками — своё правило в коде)\nfunction sanitizeOverlayText(raw) {\n  const text = (raw || '').trim();\n  return text === '-' ? '' : text;\n}\n\nfunction findByLabel(row, label) {\n  const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === label);\n  return key ? row[key] : undefined;\n}\n\n// НОВОЕ (19.09, ночь): раньше каждый параметр сборщика видео нужно было\n// дописывать сюда вручную (findByLabel + запись в payload) — то есть\n// добавление новой ручки в таблице требовало правки кода здесь. Теперь,\n// как у Художника (🎨) и Писателя (🖋), сборщик видео читает ВСЕ колонки\n// с иконкой 🎬 автоматически: имя колонки \"🎬tmpl_BassGainDb\" превращается\n// в поле payload \"bassGainDb\" без единой строчки кода на каждый параметр.\n// Чтобы добавить новую ручку — просто добавить колонку \"🎬tmpl_ИмяРучки\"\n// в таблицу; чтобы убрать — удалить колонку. Здесь ничего не ломается.\n//\n// tmpl_OverlayStyle исключён из автосбора: это не одно значение, а строка\n// \"font:...; size:...\", её нужно сначала разобрать на части (см. ниже).\nfunction collectByIcon(row, icon, excludeLabels) {\n  const result = {};\n  for (const key of Object.keys(row)) {\n    if (!key.includes(icon)) continue;\n    const label = key.replace(/^[^a-zA-Z]+/, '');\n    if (!label.startsWith('tmpl_')) continue;\n    if (excludeLabels.includes(label)) continue;\n    const value = row[key];\n    if (value === undefined || value === null || value === '') continue;\n    const paramName = label.slice('tmpl_'.length);\n    const camelName = paramName.charAt(0).toLowerCase() + paramName.slice(1);\n    result[camelName] = value;\n  }\n  return result;\n}\n\n// Разбираем 'font:Courier Prime; size:44; color:#FFFFFF' из шаблона канала\n// в отдельные поля — если шаблона нет или парсинг не удался, оставляем\n// пустыми, чтобы сборщик видео сам применил разумные значения по умолчанию.\nfunction parseOverlayStyle(raw) {\n  const result = {};\n  if (!raw) return result;\n  for (const part of raw.split(';')) {\n    const [key, value] = part.split(':').map(s => s && s.trim());\n    if (key === 'font') result.overlayFont = value;\n    if (key === 'size') result.overlaySize = value;\n    if (key === 'color') result.overlayColor = value;\n    if (key === 'shadow') result.overlayShadow = value;\n    if (key === 'margin') result.overlayMargin = value;\n  }\n  return result;\n}\nconst styleRow = $('Читаем стиль оверлея').first().json;\nconst overlayStyle = parseOverlayStyle(findByLabel(styleRow, 'tmpl_OverlayStyle'));\n\nconst autoParams = collectByIcon(styleRow, '🎬', ['tmpl_OverlayStyle']);\n// Приоритет — решение редактора конкретно для этой сцены (ai_TargetBrightness,\n// проставляется при согласовании картинки) перебивает общий дефолт канала,\n// который уже пришёл из tmpl_TargetBrightness через общий автосбор выше.\n\nconst loopCount = proj.sys_LoopCount;\n\nconst payload = {\n  projectId: proj.sys_ProjectID,\n  imageUrl: proj.ai_ApprovedImageUrl || proj.ai_ImageUrl,\n  audioZipUrl: proj.sys_AudioZipUrl,\n  overlayText: sanitizeOverlayText(proj.ai_OverlayText),\n  ...overlayStyle,\n  ...autoParams,\n  // (28.10) положение надписи: выпуск (ai_OverlayPosition) перебивает канал (🎬tmpl_OverlayPosition); своего «center» нет\n  ...(proj.ai_OverlayPosition ? { overlayPosition: proj.ai_OverlayPosition } : {}),\n  ...(proj.ai_TargetBrightness ? { targetBrightness: proj.ai_TargetBrightness } : {}),\n  ...(loopCount ? { loopCount } : {})\n};\n\nfor (const key of Object.keys(proj)) {\n  if (key.startsWith('fx_') && proj[key]) {\n    payload[key] = proj[key];\n  }\n}\n\n// НОВОЕ (05.10): ручки эффектов — лист «Эффекты»: служебный столбец «Механика» и столбец\n// канала (заголовок — ключ канала). Пустая клетка — эффект этому каналу не нужен.\n// Сборщик сам находит строку по механике и берёт из клетки «густота 4 · скорость 3».\nlet fxRows = [];\ntry { fxRows = $('Читаем эффекты').all().map(i => i.json); } catch (e) {}\n// (28.10) словарик листа «Эффекты» (колонки «Слово» → «Значит»): что значат слова разметки для сборщика\npayload.fxWords = fxRows\n  .map(r => ({ word: String(r['Слово'] || '').trim(), means: String(r['Значит'] || '').trim() }))\n  .filter(r => r.word && r.means);\npayload.fxTable = fxRows\n  .map(r => ({ mech: String(r['Механика'] || '').trim(), knobs: String(r[meta.channelKey] || '').trim() }))\n  .filter(r => r.mech && r.knobs);\n\nreturn [{ json: {\n  chatId: meta.chatId,\n  projectId: proj.sys_ProjectID,\n  title: proj.ai_Title,\n  description: fullDescription,\n  tags: proj.ai_Tags || '',\n  pinnedComment: proj.ai_PinnedComment || '',\n  payload\n} }];"
       },
       "id": "258c9cc8-65f8-4d4b-9832-c1f786470ee4",
       "name": "Готовим данные для сборки",
@@ -200,7 +212,10 @@
       "position": [
         6912,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -279,7 +294,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -297,7 +315,10 @@
       "position": [
         4448,
         3040
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -318,7 +339,7 @@
         "url": "http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/trackinfo",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ audioZipUrl: $('Читаем проект').first().json.sys_AudioZipUrl, mixSeconds: (() => { const row = $('Читаем стиль оверлея').first().json; const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_MixSeconds'); return key ? row[key] : undefined; })(), gapSeconds: (() => { const row = $('Читаем стиль оверлея').first().json; const key = Object.keys(row).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_GapSeconds'); return key ? row[key] : undefined; })() }) }}",
+        "jsonBody": "={{ JSON.stringify((() => { const row = $('Читаем стиль оверлея').first().json; const proj = $('Читаем проект').first().json; const out = { audioZipUrl: proj.sys_AudioZipUrl, fx_IntroOnce: proj.fx_IntroOnce }; for (const k of Object.keys(row)) { if (!k.includes('🎬')) continue; const l = k.replace(/^[^a-zA-Z]+/, ''); if (!l.startsWith('tmpl_')) continue; const v = row[k]; if (v === undefined || v === null || v === '') continue; const nm = l.slice(5); out[nm.charAt(0).toLowerCase() + nm.slice(1)] = v; } return out; })()) }}",
         "options": {
           "timeout": 120000
         }
@@ -330,14 +351,17 @@
       "position": [
         5344,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
-        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $json;\n\n// ВОЗВРАЩЕНО (20.09, ночь): автор явно подтвердила действующую\n// договорённость — если у части треков в папке уже ЕСТЬ имя, редактор\n// их не трогает, придумывает только для безымянных. Тут отменена моя\n// более ранняя правка того же вечера ('всегда переименовывать всё') —\n// она была неверной, ломала эту договорённость. Трек считается 'уже\n// названным', если после отбрасывания ведущих цифр/разделителей\n// остаётся содержательный текст (больше 2 символов).\nfunction isMeaningfulName(filename) {\n  let stripped = filename.replace(/^[\\d_\\-\\s]+/, '');\n  // убираем технический суффикс вида \" (1)\", \"(2)\" и т.п. — след\n  // от дублирующихся имён при скачивании, а не настоящее название\n  stripped = stripped.replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n  // Suno подписывает безымянный стем просто \"Трек\"/\"Track\" (иногда с номером) —\n  // формально длиннее 2 символов, но это не настоящее название, а плейсхолдер;\n  // такие тоже считаем безымянными и отдаём на откуп GPT.\n  if (/^(трек|track)\\s*\\d*$/i.test(stripped)) return false;\n  return stripped.length > 2;\n}\n\nfunction stripName(filename) {\n  return filename.replace(/^[\\d_\\-\\s]+/, '').replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n}\n\n// НОВОЕ (20.09, ночь): автор часто не переименовывает треки при генерации\n// в Suno — тогда Suno может дать ОДНО и то же родовое имя нескольким\n// разным трекам подряд. Простой 'есть ли вообще имя' сохранял бы такие\n// повторы как есть, и в тайм-кодах несколько разных треков показывались\n// бы под одинаковым названием. Теперь имя считается 'настоящим' только\n// если оно ЕЩЁ И уникально среди всех треков этой подборки — если оно\n// повторяется, это родовая метка Suno, а не осознанное название, и трек\n// уходит на переименование редактору наравне с безымянными.\nconst nameCounts = {};\nfor (const t of info.tracks) {\n  if (isMeaningfulName(t.filename)) {\n    const key = stripName(t.filename).toLowerCase();\n    nameCounts[key] = (nameCounts[key] || 0) + 1;\n  }\n}\nfunction hasRealUniqueName(filename) {\n  if (!isMeaningfulName(filename)) return false;\n  return nameCounts[stripName(filename).toLowerCase()] === 1;\n}\n\nconst needsNaming = info.tracks.filter(t => !hasRealUniqueName(t.filename));\n\nif (needsNaming.length === 0) {\n  // Называть некого — сразу возвращаем структуру без вызова GPT\n  return [{ json: { skipGpt: true, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];\n}\n\nconst systemPrompt = 'Ты придумываешь короткие, атмосферные названия для безымянных инструментальных треков ' +\n  'в расслабляющем YouTube-видео. Название должно быть 2-4 слова, на английском, в духе брифа видео — ' +\n  'не описание музыки, а маленький образ/деталь сцены (например \"Fish on the Line\", \"Golden Hour\"). ' +\n  'Верни JSON строго такого вида: {\"names\": {\"<index>\": \"Name\", ...}} — по одному имени на каждый индекс из списка.';\n\nconst userPrompt = 'Бриф видео: ' + (proj.ai_DescriptionEN || proj.ai_Description || proj.ai_UserBrief || '') + '\\n\\n' +\n  'Придумай названия для треков с такими индексами: ' + needsNaming.map(t => t.index).join(', ');\n\nreturn [{ json: { skipGpt: false, systemPrompt, userPrompt, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];"
+        "jsCode": "const proj = $('Читаем проект').first().json;\nconst info = $('Считаем длительности треков').first().json;\n// (28.10) названия тайм-кодов пишет только Писатель — согласованный автором пункт в ai_TimecodeNames\n// (по одному названию на строку, по порядку треков). Своего «придумщика» в коде нет: не хватает\n// названий — сборка не идёт, автор получает сообщение и дописывает пункт.\nconst prewritten = String(proj.ai_TimecodeNames || '')\n  .split('\\n').map(s => s.trim()).filter(Boolean);\nif (prewritten.length < info.tracks.length) {\n  throw new Error(`Таблица: названий тайм-кодов (ai_TimecodeNames) ${prewritten.length}, а треков ${info.tracks.length}. ` +\n    'Допишите названия в пункт с тайм-кодами и пересоберите.');\n}\nreturn [{ json: { prewritten, tracks: info.tracks, totalDurationSeconds: info.totalDurationSeconds } }];"
       },
       "id": "e8a238cf-457f-43f0-ab36-5d5bffde8162",
-      "name": "Готовим запрос на названия треков",
+      "name": "Названия треков из таблицы",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -347,52 +371,7 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.skipGpt }}"
-            }
-          ]
-        }
-      },
-      "id": "4dc4c8a4-593c-4024-905b-034189fbdfbd",
-      "name": "Нужны названия?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        5792,
-        2704
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }) }}",
-        "options": {}
-      },
-      "id": "471febd4-9271-469d-aba8-52652c9b0515",
-      "name": "OpenAI: названия треков",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        6016,
-        2624
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "HvMLVgMnS8OU4ebj",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "function getBase() {\n  try { return $('Готовим запрос на названия треков').first().json; } catch (e) {}\n  throw new Error('base not found');\n}\nconst base = getBase();\nlet names = {};\n\nif (!base.skipGpt) {\n  try {\n    const raw = $('OpenAI: названия треков').first().json.choices[0].message.content;\n    const parsed = JSON.parse(raw);\n    names = parsed.names || {};\n  } catch (e) {\n    names = {};\n  }\n}\n\nfunction formatTime(seconds) {\n  const m = Math.floor(seconds / 60);\n  const s = Math.floor(seconds % 60);\n  return m + ':' + String(s).padStart(2, '0');\n}\n\n// ВОЗВРАЩЕНО (20.09, ночь) + ДОБАВЛЕНО: то же решение, что в 'Готовим\n// запрос на названия треков' — включая проверку на уникальность имени\n// среди всей подборки (повторяющееся имя — родовая метка Suno, не\n// настоящее название, для таких берём GPT-имя, а не имя файла).\nfunction isMeaningfulName(filename) {\n  let stripped = filename.replace(/^[\\d_\\-\\s]+/, '');\n  stripped = stripped.replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n  if (/^(трек|track)\\s*\\d*$/i.test(stripped)) return false;\n  return stripped.length > 2;\n}\nfunction stripName(filename) {\n  return filename.replace(/^[\\d_\\-\\s]+/, '').replace(/\\s*\\(\\d+\\)\\s*$/, '').trim();\n}\nconst nameCounts = {};\nfor (const t of base.tracks) {\n  if (isMeaningfulName(t.filename)) {\n    const key = stripName(t.filename).toLowerCase();\n    nameCounts[key] = (nameCounts[key] || 0) + 1;\n  }\n}\nfunction hasRealUniqueName(filename) {\n  if (!isMeaningfulName(filename)) return false;\n  return nameCounts[stripName(filename).toLowerCase()] === 1;\n}\n\nconst lines = base.tracks.map(t => {\n  let title;\n  if (hasRealUniqueName(t.filename)) {\n    title = stripName(t.filename);\n  } else {\n    title = names[String(t.index)] || t.filename;\n  }\n  return formatTime(t.startSeconds) + ' ' + title;\n});\n\n// Ручное значение в таблице побеждает, если оно есть. Если пусто —\n// повторяем ровно то же правило, что уже применяет питон-сборщик сам\n// (build_audio_track): меньше часа — луп x2, час и больше — без лупа.\n// Иначе тут была рассинхронизация: сборщик мог зациклить видео, а этот\n// узел ничего об этом не знал и не ставил метку Repeat в таймкоды.\nconst manualLoopCount = parseInt($('Читаем проект').first().json.sys_LoopCount);\nconst loopCount = manualLoopCount || (base.totalDurationSeconds < 3600 ? 2 : 1);\nif (loopCount > 1) {\n  lines.push(formatTime(base.totalDurationSeconds) + ' Repeat');\n}\n\nreturn [{ json: { timecodesText: lines.join('\\n') } }];"
+        "jsCode": "function getBase() {\n  try { return $('Названия треков из таблицы').first().json; } catch (e) {}\n  throw new Error('base not found');\n}\nconst base = getBase();\n\n// НОВОЕ (01.10): после часа YouTube понимает только «1:00:22», а не «60:22».\nfunction formatTime(seconds) {\n  const h = Math.floor(seconds / 3600);\n  const m = Math.floor((seconds % 3600) / 60);\n  const s = Math.floor(seconds % 60);\n  const ss = String(s).padStart(2, '0');\n  return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + ss : m + ':' + ss;\n}\n\n// Названия — только согласованный пункт (ai_TimecodeNames), по порядку треков.\nconst prewritten = base.prewritten || [];\nconst lines = base.tracks.map((t, pos) => {\n  const title = prewritten[pos];\n  return formatTime(t.startSeconds) + ' ' + title;\n});\n\n// Ручное значение в таблице побеждает, если оно есть. Если пусто —\n// повторяем ровно то же правило, что уже применяет питон-сборщик сам\n// (build_audio_track): меньше часа — луп x2, час и больше — без лупа.\n// Иначе тут была рассинхронизация: сборщик мог зациклить видео, а этот\n// узел ничего об этом не знал и не ставил метку Repeat в таймкоды.\nconst manualLoopCount = parseInt($('Читаем проект').first().json.sys_LoopCount);\nconst loopCount = manualLoopCount || (base.totalDurationSeconds < 3600 ? 2 : 1);\nif (loopCount > 1) {\n  // НОВОЕ (25.09): totalDurationSeconds — это КОНЕЦ последнего трека, а\n  // второй проход начинается после паузы-стыка (tmpl_GapSeconds). К тому же\n  // секунды округлялись вниз — клик по «Repeat» попадал в хвост последнего\n  // трека. Теперь: конец + пауза, с округлением ВНИЗ (27.09) — вверх уводило\n  // клик внутрь второго прохода, в середину фейда; вниз — в паузу перед ним.\n  const styleRow = $('Читаем стиль оверлея').first().json;\n  const gapKey = Object.keys(styleRow).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_GapSeconds');\n  const gap = parseFloat(gapKey ? styleRow[gapKey] : 0) || 0;\n  lines.push(formatTime(Math.floor(base.totalDurationSeconds + gap)) + ' Repeat');\n}\n\nreturn [{ json: { timecodesText: lines.join('\\n') } }];"
       },
       "id": "2b661289-5e9a-4902-899e-5dfccbb4c03f",
       "name": "Собираем текст таймкодов",
@@ -414,7 +393,7 @@
           "description": "={{ $('Готовим данные для сборки').first().json.description }}",
           "privacyStatus": "unlisted",
           "selfDeclaredMadeForKids": false,
-          "tags": "={{ $('Готовим данные для сборки').first().json.tags }}"
+          "tags": "={{ (() => { const seen = new Set(); const out = []; let used = 0; for (const raw of String($('Готовим данные для сборки').first().json.tags || '').split(',')) { const t = raw.trim(); const k = t.toLowerCase(); if (!t || seen.has(k)) continue; const cost = t.length + (t.includes(' ') ? 2 : 0) + (out.length ? 1 : 0); if (used + cost > 480) break; seen.add(k); out.push(t); used += cost; } return out.join(','); })() }}"
         }
       },
       "id": "ad48997f-c5df-4d4d-9c9d-321903623827",
@@ -430,7 +409,11 @@
           "id": "qfSSe0BXXUuYCU11",
           "name": "YouTube account 3"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -492,7 +475,10 @@
       },
       "continueOnFail": true,
       "notesInFlow": true,
-      "notes": "continueOnFail: если публикация комментария не удалась, это не должно ронять всю сборку видео — видео уже выложено, это лишь дополнение к нему."
+      "notes": "continueOnFail: если публикация комментария не удалась, это не должно ронять всю сборку видео — видео уже выложено, это лишь дополнение к нему.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -533,7 +519,10 @@
       },
       "continueOnFail": true,
       "notesInFlow": true,
-      "notes": "Спрашиваем у YouTube реальный статус видео — комментарий можно публиковать, только когда видео уже public (не private/запланировано). continueOnFail: если проверка не удалась, просто повторим на следующем цикле."
+      "notes": "Спрашиваем у YouTube реальный статус видео — комментарий можно публиковать, только когда видео уже public (не private/запланировано). continueOnFail: если проверка не удалась, просто повторим на следующем цикле.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -590,7 +579,7 @@
           "conditions": [
             {
               "leftValue": "={{ $json.retryCount }}",
-              "rightValue": 96,
+              "rightValue": 5,
               "operator": {
                 "type": "number",
                 "operation": "gte"
@@ -610,7 +599,7 @@
         3300
       ],
       "notesInFlow": true,
-      "notes": "Проверяем раз в 30 минут до 48 часов (96 попыток). Если за это время видео так и не стало публичным — сдаёмся и просим автора закрепить комментарий вручную."
+      "notes": "Проверяем раз в сутки до 5 дней. Если за это время видео так и не стало публичным — сдаёмся молча (без сообщения в Телеграм): текст готового комментария всё равно всегда лежит в ai_PinnedComment в таблице, ничего не теряется."
     },
     {
       "parameters": {
@@ -628,11 +617,11 @@
     {
       "parameters": {
         "resume": "timeInterval",
-        "amount": 30,
-        "unit": "minutes"
+        "amount": 1,
+        "unit": "days"
       },
       "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e07",
-      "name": "Ждём 30 минут",
+      "name": "Ждём сутки",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
@@ -640,24 +629,6 @@
         3300
       ],
       "webhookId": "d4b2e5f7-1122-4b6a-9c3d-1a2b3c4d5e99"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Видео за 48 часов так и не стало публичным на YouTube, поэтому закреплённый комментарий не опубликован автоматически.\\n\\nТекст, который был готов:\\n\\n' + $('Готовим данные для сборки').first().json.pinnedComment }) }}",
-        "options": {}
-      },
-      "id": "c3a1e5f7-1122-4b6a-9c3d-1a2b3c4d5e08",
-      "name": "Сообщаем: не удалось закрепить",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        8480,
-        3300
-      ]
     },
     {
       "parameters": {
@@ -695,7 +666,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -733,7 +707,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -790,7 +767,10 @@
       "position": [
         3552,
         2400
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -821,7 +801,10 @@
       "position": [
         8256,
         2704
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -859,7 +842,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -880,7 +866,10 @@
         7808,
         2704
       ],
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -916,7 +905,10 @@
           "name": "YouTube account 3"
         }
       },
-      "continueOnFail": true
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -967,7 +959,10 @@
       "position": [
         8480,
         2960
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1005,7 +1000,10 @@
           "id": "PGJ3stGcaGlz0z9i",
           "name": "Google Sheets account 2"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
@@ -1045,7 +1043,634 @@
       "position": [
         4448,
         2800
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "7fe6f975-7ec1-45f7-ade4-183c79b3e6ac",
+      "name": "Комментарий опубликован успешно?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        8032,
+        2896
+      ],
+      "notesInFlow": true,
+      "notes": "YouTube API при успехе возвращает id созданного комментария. continueOnFail на предыдущем узле означает, что при ошибке сюда всё равно придёт item, но без id — тогда молчим, ничего не отправляем (текст всё равно есть в таблице).",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f687251e-1758-4d4d-bb9d-67f14f099e1a",
+      "name": "Сообщаем: комментарий закреплён",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8256,
+        2800
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Готовим данные для сборки').first().json.chatId, text: 'Закрепил комментарий под видео: https://youtu.be/' + $('Загружаем на YouTube').first().json.uploadId }) }}",
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "0782c831-8c8c-4f32-a15a-f5c32a7f30e4",
+      "name": "Готовим попытку субтитров",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8480,
+        2600
+      ],
+      "notesInFlow": true,
+      "notes": "Точка входа в цикл ожидания автосубтитров: первый заход даёт retryCount=0, повторные заходы приходят с уже увеличенным счётчиком.",
+      "parameters": {
+        "jsCode": "const incoming = $json.retryCount;\nconst retryCount = (incoming === undefined || incoming === null) ? 0 : incoming;\nreturn [{ json: { retryCount } }];"
+      }
+    },
+    {
+      "id": "245744bf-3aae-4423-9e2a-98d2a8b35e3c",
+      "name": "Проверяем субтитры",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8704,
+        2600
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId={{ $('Загружаем на YouTube').first().json.uploadId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "notesInFlow": true,
+      "notes": "continueOnFail: если запрос к API субтитров упадёт (например, не хватит прав) — это не должно ронять остальной прогон, включая параллельную ветку с закреплением комментария.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "0d68f4a3-e8f8-4e8e-9d84-4568372d4525",
+      "name": "Ищем автосубтитры",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8928,
+        2600
+      ],
+      "notesInFlow": true,
+      "notes": "YouTube создаёт автоматические субтитры не сразу после загрузки (от минут до часов). trackKind='ASR' — это и есть автосубтитры (в отличие от вручную загруженных).",
+      "parameters": {
+        "jsCode": "const retryCount = $('Готовим попытку субтитров').first().json.retryCount;\nconst items = $json.items || [];\nconst asrTrack = items.find(i => i.snippet && i.snippet.trackKind === 'ASR');\nreturn [{ json: { retryCount, captionId: asrTrack ? asrTrack.id : null } }];"
+      }
+    },
+    {
+      "id": "2ee497ab-3866-4b77-b1d0-b7cf139e20a8",
+      "name": "Автосубтитры найдены?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        9152,
+        2600
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.captionId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8ddb6321-1d4e-44a9-bac1-6f58d38bfdf6",
+      "name": "Удаляем автосубтитры",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9376,
+        2500
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://www.googleapis.com/youtube/v3/captions/{{ $json.captionId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "notesInFlow": true,
+      "notes": "continueOnFail: если удаление не удалось — видео и так уже опубликовано, это не критично, просто оставит субтитры как есть.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "eba3cf1a-5262-41dc-9562-3d1cabf895ad",
+      "name": "Превышено число попыток (субтитры)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        9376,
+        2700
+      ],
+      "notesInFlow": true,
+      "notes": "Проверяем раз в час до суток (24 попытки). Если за это время автосубтитры так и не появились — сдаёмся молча, ничего не удаляем и не сообщаем.",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.retryCount }}",
+              "rightValue": 24,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "74674dda-9aca-4862-8de0-b9dc7db5ced7",
+      "name": "Увеличиваем счётчик субтитров",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9600,
+        2800
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { retryCount: $json.retryCount + 1 } }];"
+      }
+    },
+    {
+      "id": "98d56734-cabe-4c9d-a25a-0275c7f097b6",
+      "name": "Ждём час до субтитров",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        9824,
+        2800
+      ],
+      "webhookId": "4828a016-a270-439e-93b4-788140c02949",
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 1,
+        "unit": "hours"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Загрузка на YouTube не прошла. Сетевая заминка (сервер не дозвонился до Google) —\n// ждём 10 минут и пробуем снова, до трёх раз. Любая другая ошибка (ключи, лимиты,\n// «доступ запрещён») или три неудачи подряд — сразу останавливаемся, и автору\n// приходит обычное сообщение о сбое.\nconst err = $json.error || {};\nconst msg = String(err.message || err.description || err || '');\nconst network = /ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH|socket hang up|timed? ?out/i.test(msg);\nconst attempt = $runIndex + 1;\nif (!network || attempt > 3) {\n  throw new Error((network ? 'YouTube недоступен уже ~30 минут (3 попытки). ' : '') + 'Загрузка на YouTube: ' + msg);\n}\nconst src = $('Какой канал?').first();\nreturn [{ json: { ...src.json, uploadRetry: attempt, uploadRetryReason: msg }, binary: src.binary }];\n"
+      },
+      "id": "0b07b28a-9b64-42ff-8dc2-a7f1a3304557",
+      "name": "Сеть подвела? Повторим",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7808,
+        2944
       ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 10,
+        "unit": "minutes"
+      },
+      "id": "5dc5932a-907c-4cc5-8955-6281d792f51b",
+      "name": "Ждём 10 минут перед повтором",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        8032,
+        2944
+      ],
+      "webhookId": "9b8374e1-0a1d-4f67-89a7-82941068e924"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Эффекты",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "cc673dae-c6ee-4a28-916c-7a09ea3ec6ab",
+      "name": "Читаем эффекты",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        6568,
+        2904
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Переводы названия и описания — локализации YouTube: зритель из Испании видит\n// ролик по-испански. Какие языки — служебная колонка tmpl_Languages в Templates\n// («es, de, fr»); пусто — переводов нет, ветка молча кончается. Как переводить\n// (что оставить как есть, тон) — колонки со значком 🌐: здесь только механика.\nconst tmpl = $('Читаем стиль оверлея').first().json;\nconst data = $('Готовим данные для сборки').first().json;\n// (22.10) лёгкая модель для служебных текстов — служебная колонка Templates tmpl_LightModel\nconst lightModel = String((Object.entries(tmpl).find(([k]) => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightModel') || [])[1] || '').trim();\nconst key = Object.keys(tmpl).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_Languages');\nconst langs = [...new Set(String(key ? tmpl[key] || '' : '')\n  .split(/[\\s,;]+/).map(s => s.trim().toLowerCase())\n  .filter(s => /^[a-z]{2,3}(-[a-z0-9]{2,4})?$/.test(s) && s !== 'en'))];\nif (!langs.length) return [];\n// (28.10) модель — только из таблицы, запасной в коде нет\nif (!lightModel) throw new Error('Таблица: в Templates не заполнена tmpl_LightModel');\nconst rules = Object.keys(tmpl)\n  .filter(k => k.includes('🌐') && String(tmpl[k] || '').trim())\n  .map(k => String(tmpl[k]).trim()).join('\\n\\n');\nconst systemPrompt = 'Translate the title and the description of a YouTube video from English into these languages (codes): '\n  + langs.join(', ') + '.\\n'\n  + 'Answer with JSON only: {\"<code>\": {\"title\": \"...\", \"description\": \"...\"}} — one entry for every code.\\n'\n  + 'Keep line breaks, the timestamps at the start of lines (0:00, 12:34, 1:02:03), links and hashtags exactly as they are. '\n  + 'The title must stay under 100 characters. Never use the characters < and >.'\n  + (rules ? '\\n\\n' + rules : '');\n// (22.10) пересборка: тот же текст — те же переводы, OpenAI не зовём. Отпечаток — без тайм-кодов,\n// они при новой сборке могут сдвинуться; в готовые переводы подставляем новые по порядку.\nconst TS = /\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b/g;\nconst fp = s => { let h = 5381; for (const ch of s) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(36); };\nconst print = fp(JSON.stringify([langs, data.title, String(data.description || '').replace(TS, '#')]));\nlet cache = null;\ntry { cache = JSON.parse(String($('Читаем проект').first().json.sys_Translations || '') || 'null'); } catch (e) { cache = null; }\nconst newTs = String(data.description || '').match(TS) || [];\nif (cache && cache.print === print && cache.loc) {\n  const loc = {};\n  let ok = true;\n  for (const [l, v] of Object.entries(cache.loc)) {\n    const old = String(v.description || '').match(TS) || [];\n    if (old.length !== newTs.length) { ok = false; break; }\n    let i = 0;\n    loc[l] = { title: v.title, description: String(v.description || '').replace(TS, () => newTs[i++]) };\n  }\n  if (ok) return [{ json: { langs, cached: true, cachedLoc: loc, print } }];\n}\n// (28.10) усилие — из таблицы (tmpl_LightEffort); пусто — не задаём\nconst effortKey = Object.keys(tmpl).find(k => k.replace(/^[^a-zA-Z]+/, '') === 'tmpl_LightEffort');\nconst effort = String(effortKey ? tmpl[effortKey] || '' : '').trim().toLowerCase();\nreturn [{ json: { langs, cached: false, print, model: lightModel, effort: ['minimal', 'low', 'medium', 'high'].includes(effort) ? effort : '', systemPrompt, userPrompt: JSON.stringify({ title: data.title, description: data.description }) } }];"
+      },
+      "name": "Готовим переводы",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7808,
+        2004
+      ],
+      "id": "aa6da796-380d-4889-a9da-aa1b797a53cf"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({ model: $json.model, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ] }, $json.effort ? { reasoning_effort: $json.effort } : {})) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "name": "OpenAI: переводы",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8032,
+        2004
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "HvMLVgMnS8OU4ebj",
+          "name": "OpenAi account"
+        }
+      },
+      "continueOnFail": true,
+      "id": "6399579f-fa93-48a8-833d-ec4ebf23013d",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ответ переводчика → тело videos.update. Этот вызов переписывает snippet целиком,\n// поэтому кладём в него ровно то, что ушло при загрузке (название, описание, теги,\n// категорию) — иначе YouTube стёр бы описание и теги. defaultLanguage обязателен,\n// без него YouTube не принимает локализации.\nconst data = $('Готовим данные для сборки').first().json;\nconst up = $('Загружаем на YouTube').first().json;\nconst prep = $('Готовим переводы').first().json;\nlet parsed;\nif (prep.cached) parsed = prep.cachedLoc;          // (22.10) пересборка — готовые переводы\nelse {\n  if ($json.error) return [{ json: { error: 'переводчик не ответил: ' + JSON.stringify($json.error).slice(0, 200) } }];\n  try { parsed = JSON.parse($json.choices[0].message.content); }\n  catch (e) { return [{ json: { error: 'переводчик ответил не JSON' } }]; }\n}\nconst clean = s => String(s || '').replace(/[<>]/g, '').trim();\nconst localizations = {};\nfor (const l of prep.langs) {\n  const t = parsed[l] || {};\n  const title = clean(t.title);\n  if (!title) continue;\n  let description = clean(t.description);\n  while (Buffer.byteLength(description, 'utf8') > 5000) description = description.slice(0, -50);\n  localizations[l] = { title: title.slice(0, 100), description };\n}\nif (!Object.keys(localizations).length) return [{ json: { error: 'в ответе нет ни одного перевода' } }];\n// те же теги, что при загрузке (тот же отбор под лимит 500 символов)\nconst seen = new Set(); const tags = []; let used = 0;\nfor (const raw of String(data.tags || '').split(',')) {\n  const t = raw.trim(); const k = t.toLowerCase();\n  if (!t || seen.has(k)) continue;\n  const cost = t.length + (t.includes(' ') ? 2 : 0) + (tags.length ? 1 : 0);\n  if (used + cost > 480) break;\n  seen.add(k); tags.push(t); used += cost;\n}\nreturn [{ json: {\n  error: '',\n  cached: !!prep.cached,\n  // в строку выпуска: следующая пересборка возьмёт отсюда\n  cacheJson: JSON.stringify({ print: prep.print, loc: localizations }),\n  langs: Object.keys(localizations),\n  body: {\n    id: up.uploadId,\n    snippet: { title: data.title, description: data.description, categoryId: '10', tags, defaultLanguage: 'en' },\n    localizations,\n  },\n} }];"
+      },
+      "name": "Собираем локализации",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8256,
+        2004
+      ],
+      "id": "e64c9ba3-c5ed-4cf7-b399-86f7538ece84"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Переводы готовы?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        8480,
+        2004
+      ],
+      "id": "a47813f3-ffad-4c89-850b-9f5e9c226d26"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://www.googleapis.com/youtube/v3/videos?part=snippet,localizations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "name": "Ставим переводы на YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8704,
+        1908
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qfSSe0BXXUuYCU11",
+          "name": "YouTube account 3"
+        }
+      },
+      "continueOnFail": true,
+      "id": "fa563761-7827-4c20-9981-bc40d4b01260",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Итог для автора: какие языки встали, или почему не встали (ролик при этом уже на YouTube).\nconst built = $('Собираем локализации').first().json;\nconst err = built.error || ($json.error ? JSON.stringify($json.error).slice(0, 300) : '');\nconst text = err\n  ? '🌐 Переводы названия и описания не встали: ' + err + '\\nРолик загружен; переводы можно добавить в YouTube Studio → Субтитры.'\n  : '🌐 Переводы названия и описания: ' + built.langs.join(', ');\nreturn [{ json: { chatId: $('Готовим данные для сборки').first().json.chatId, text } }];"
+      },
+      "name": "Итог переводов",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8928,
+        2004
+      ],
+      "id": "cba22c4d-fec1-45ce-8843-fff995aa0fa8"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $json.chatId, text: $json.text }) }}",
+        "options": {}
+      },
+      "name": "Сообщаем: переводы",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9152,
+        2004
+      ],
+      "continueOnFail": true,
+      "id": "4eff2f97-9dea-4d77-951d-9975d4464bab",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "name": "Обложки Б/В: какие есть",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        8704,
+        2400
+      ],
+      "parameters": {
+        "url": "=http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/covers/{{ $('Нормализуем вход').first().json.projectId }}",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "30a352ec-0a39-53e6-9649-42766af1fa35"
+    },
+    {
+      "name": "Обложки Б/В: по одной",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8928,
+        2400
+      ],
+      "parameters": {
+        "jsCode": "// Нет строк обложек в пункте 9 или сборщик не ответил — ничего не шлём, молча.\nreturn $input.all().flatMap(i => ((i.json && i.json.covers) || []).filter(c => c && c.file).map(c => ({ json: c })));"
+      },
+      "id": "940873cd-2726-510c-b620-c128a8e9fee7"
+    },
+    {
+      "name": "Скачиваем обложку Б/В",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9152,
+        2400
+      ],
+      "parameters": {
+        "url": "=http://sgteo3bx0oyq9tipeiy0qou6.45.76.43.137.sslip.io/cover_file/{{ $('Нормализуем вход').first().json.projectId }}/{{ $json.file }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "5ad47fb1-afa2-5bb1-924d-2045fcc1e88a"
+    },
+    {
+      "name": "Шлём обложку Б/В",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        9376,
+        2400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendDocument",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Готовим данные для сборки').first().json.chatId }}"
+            },
+            {
+              "name": "caption",
+              "value": "=Обложка {{ $('Обложки Б/В: по одной').item.json.letter }} — для «Тест и сравнение» в YouTube Studio"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "document",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "id": "776ada01-2286-5628-ae50-0fd697386a0d"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "0df0af0e-f6f4-537f-b074-81dbfce205d2",
+              "leftValue": "={{ !!$json.cached }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Переводы уже есть?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        7920,
+        1860
+      ],
+      "id": "848adaf5-ee2e-5632-b0d9-3701bc02a311"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yEolX-8NV7NInu3OwCoxo2KSSNMny9dk-AVrpKdyNEs",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Нормализуем вход').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "sys_ProjectID"
+          ],
+          "value": {
+            "sys_ProjectID": "={{ $('Читаем проект').first().json.sys_ProjectID }}",
+            "sys_Translations": "={{ $('Собираем локализации').first().json.cacheJson }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "cec13188-eb8d-5df7-9f20-221f6e7867a1",
+      "name": "Запоминаем переводы",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        8480,
+        1860
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "PGJ3stGcaGlz0z9i",
+          "name": "Google Sheets account 2"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "continueOnFail": true
     }
   ],
   "pinData": {},
@@ -1159,11 +1784,6 @@
             "node": "Подтверждаем сохранение ссылки",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Нормализуем вход",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -1183,47 +1803,7 @@
       "main": [
         [
           {
-            "node": "Готовим запрос на названия треков",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Готовим запрос на названия треков": {
-      "main": [
-        [
-          {
-            "node": "Нужны названия?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Нужны названия?": {
-      "main": [
-        [
-          {
-            "node": "OpenAI: названия треков",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Собираем текст таймкодов",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "OpenAI: названия треков": {
-      "main": [
-        [
-          {
-            "node": "Собираем текст таймкодов",
+            "node": "Названия треков из таблицы",
             "type": "main",
             "index": 0
           }
@@ -1234,7 +1814,7 @@
       "main": [
         [
           {
-            "node": "Готовим данные для сборки",
+            "node": "Читаем эффекты",
             "type": "main",
             "index": 0
           }
@@ -1314,6 +1894,18 @@
             "node": "Ставим статус Опубликовано",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Готовим переводы",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Сеть подвела? Повторим",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1382,13 +1974,7 @@
     },
     "Превышено число попыток?": {
       "main": [
-        [
-          {
-            "node": "Сообщаем: не удалось закрепить",
-            "type": "main",
-            "index": 0
-          }
-        ],
+        [],
         [
           {
             "node": "Увеличиваем счётчик",
@@ -1402,18 +1988,7 @@
       "main": [
         [
           {
-            "node": "Ждём 30 минут",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ждём 30 минут": {
-      "main": [
-        [
-          {
-            "node": "Готовим попытку",
+            "node": "Ждём сутки",
             "type": "main",
             "index": 0
           }
@@ -1499,6 +2074,341 @@
           }
         ]
       ]
+    },
+    "Ждём сутки": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Подтверждаем сохранение ссылки": {
+      "main": [
+        [
+          {
+            "node": "Нормализуем вход",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Публикуем комментарий на YouTube": {
+      "main": [
+        [
+          {
+            "node": "Комментарий опубликован успешно?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Комментарий опубликован успешно?": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: комментарий закреплён",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Сообщаем: видео на YouTube": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Обложки Б/В: какие есть",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сообщаем: видео без обложки": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Обложки Б/В: какие есть",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим попытку субтитров": {
+      "main": [
+        [
+          {
+            "node": "Проверяем субтитры",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Проверяем субтитры": {
+      "main": [
+        [
+          {
+            "node": "Ищем автосубтитры",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ищем автосубтитры": {
+      "main": [
+        [
+          {
+            "node": "Автосубтитры найдены?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Автосубтитры найдены?": {
+      "main": [
+        [
+          {
+            "node": "Удаляем автосубтитры",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Превышено число попыток (субтитры)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Превышено число попыток (субтитры)?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Увеличиваем счётчик субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Увеличиваем счётчик субтитров": {
+      "main": [
+        [
+          {
+            "node": "Ждём час до субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ждём час до субтитров": {
+      "main": [
+        [
+          {
+            "node": "Готовим попытку субтитров",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сеть подвела? Повторим": {
+      "main": [
+        [
+          {
+            "node": "Ждём 10 минут перед повтором",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ждём 10 минут перед повтором": {
+      "main": [
+        [
+          {
+            "node": "Загружаем на YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Читаем эффекты": {
+      "main": [
+        [
+          {
+            "node": "Готовим данные для сборки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Готовим переводы": {
+      "main": [
+        [
+          {
+            "node": "Переводы уже есть?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: переводы": {
+      "main": [
+        [
+          {
+            "node": "Собираем локализации",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Собираем локализации": {
+      "main": [
+        [
+          {
+            "node": "Переводы готовы?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Переводы готовы?": {
+      "main": [
+        [
+          {
+            "node": "Ставим переводы на YouTube",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Запоминаем переводы",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Итог переводов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ставим переводы на YouTube": {
+      "main": [
+        [
+          {
+            "node": "Итог переводов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Итог переводов": {
+      "main": [
+        [
+          {
+            "node": "Сообщаем: переводы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Обложки Б/В: какие есть": {
+      "main": [
+        [
+          {
+            "node": "Обложки Б/В: по одной",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Обложки Б/В: по одной": {
+      "main": [
+        [
+          {
+            "node": "Скачиваем обложку Б/В",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Скачиваем обложку Б/В": {
+      "main": [
+        [
+          {
+            "node": "Шлём обложку Б/В",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Переводы уже есть?": {
+      "main": [
+        [
+          {
+            "node": "Собираем локализации",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI: переводы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Названия треков из таблицы": {
+      "main": [
+        [
+          {
+            "node": "Собираем текст таймкодов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -1507,7 +2417,7 @@
     "binaryMode": "separate",
     "availableInMCP": false,
     "timeSavedMode": "fixed",
-    "errorWorkflow": "FIjHQQSAlggtP8ij",
+    "errorWorkflow": "A6x2zK1xfuhc5I3E",
     "callerPolicy": "workflowsFromSameOwner"
   },
   "versionId": "2ae1016a-9da3-42b4-a19e-85815bba614a",
